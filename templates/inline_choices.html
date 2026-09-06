@@ -1,0 +1,9 @@
+{% load i18n %}
+<button type="button" class="btn choice-trigger" popovertarget="{{ kind }}-{{ record.pk }}-{{ field }}" onclick="event.stopPropagation()">{% for item in selected %}<span class="crm-label {{ item.color_class }}">{{ item.name }}</span>{% empty %}{% translate 'Priskirti' %}{% endfor %}</button>
+<div popover class="choice-popover" id="{{ kind }}-{{ record.pk }}-{{ field }}">
+  <form class="inline-choices" action="{% url 'contacts:inline-update' kind record.pk %}" method="post">{% csrf_token %}<input type="hidden" name="field" value="{{ field }}">
+    <strong>{{ title }}: {{ record }}</strong>
+    {% for item in choices %}<label><input type="checkbox" name="values" value="{{ item.pk }}" data-color-class="{{ item.color_class }}" {% if item in selected %}checked{% endif %}>{{ item.name }}</label>{% empty %}<p>{% translate 'Pirmiausia sukurkite reikšmes nustatymuose.' %}</p>{% endfor %}
+    <span role="status" aria-live="polite"></span>
+  </form>
+</div>

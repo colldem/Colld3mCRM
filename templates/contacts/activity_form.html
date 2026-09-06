@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Redaguoti įrašą - CRM' %}{% endblock %}
+{% block content %}
+<p class="breadcrumb"><a href="{{ person.get_absolute_url }}">{{ person }}</a> {% translate '/ Redaguoti įrašą' %}</p>
+<div class="page-head"><h1>{% translate 'Redaguoti įrašą' %}</h1></div>
+<form method="post" class="data-form note-editor">{% csrf_token %}{{ form.as_p }}<p class="format-help">{% translate 'Formatavimas:' %} <strong>{% translate '**paryškinta**' %}</strong>, <em>{% translate '_kursyvu_' %}</em>{% translate ', o įrašyta interneto nuoroda bus aktyvi.' %}</p><div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button><a class="btn" href="{{ person.get_absolute_url }}">{% translate 'Atšaukti' %}</a></div></form>
+{% endblock %}

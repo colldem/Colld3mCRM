@@ -1,0 +1,9 @@
+{% load i18n %}{% get_current_language as current_language %}
+<form action="{% url 'set_language' %}" method="post" class="language-switch">
+  {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <label for="crm-language" class="sr-only">{% translate 'Kalba' %}</label>
+  <select id="crm-language" name="language" onchange="this.form.submit()">
+    <option value="lt"{% if current_language == 'lt' %} selected{% endif %}>LT</option>
+    <option value="en"{% if current_language == 'en' %} selected{% endif %}>EN</option>
+  </select>
+</form>

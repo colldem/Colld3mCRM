@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Pridėti kontaktą - CRM' %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate 'Pridėti kontaktą' %}</h1><p>{% translate 'Pasirinkite kuriamo įrašo tipą.' %}</p></div></div>
+<div class="type-choice">
+  <a href="{% url 'contacts:person-create' %}"><strong>{% translate 'Asmuo' %}</strong><span>{% translate 'Vardas, pavardė, įmonės, telefonai ir el. paštas' %}</span></a>
+  <a href="{% url 'contacts:company-create' %}"><strong>{% translate 'Įmonė' %}</strong><span>{% translate 'Rekvizitai, adresas ir kontaktiniai asmenys' %}</span></a>
+</div>
+{% endblock %}

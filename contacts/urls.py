@@ -1,0 +1,49 @@
+from django.shortcuts import redirect
+from django.urls import path
+
+from . import views
+from .inline_views import update_inline
+from .detail_editing import edit_contact_field, edit_company_field
+from .reminder_live import reminder_snapshot
+
+
+app_name = "contacts"
+urlpatterns = [
+    path("companies/<int:company_pk>/activities/<int:pk>/edit/", views.company_activity_edit, name="company-activity-edit"),
+    path("reminders/snapshot/", reminder_snapshot, name="reminder-snapshot"),
+    path("companies/<int:pk>/field/", edit_company_field, name="company-field-edit"),
+    path("contacts/<int:pk>/field/", edit_contact_field, name="field-edit"),
+    path("inline/<str:kind>/<int:pk>/", update_inline, name="inline-update"),
+    path("", lambda request: redirect("contacts:list"), name="home"),
+    path("contacts/", views.contact_list, name="list"),
+    path("contacts/bulk/", views.contact_bulk_action, name="bulk-action"),
+    path("companies/bulk/", views.company_bulk_action, name="company-bulk-action"),
+    path("contacts/filters/save/", views.saved_filter_create, name="saved-filter-create"),
+    path("companies/filters/save/", views.company_saved_filter_create, name="company-saved-filter-create"),
+    path("contacts/new/", views.contact_type_choice, name="create"),
+    path("contacts/new/person/", views.contact_create, name="person-create"),
+    path("contacts/<int:pk>/", views.contact_detail, name="detail"),
+    path("contacts/<int:pk>/edit/", views.contact_edit, name="edit"),
+    path("contacts/<int:pk>/archive/", views.contact_archive, name="archive"),
+    path("contacts/<int:pk>/restore/", views.contact_restore, name="restore"),
+    path("contacts/<int:pk>/activities/new/", views.activity_create, name="activity-create"),
+    path("contacts/<int:person_pk>/activities/<int:pk>/edit/", views.activity_edit, name="activity-edit"),
+    path("attachments/<int:pk>/download/", views.attachment_download, name="attachment-download"),
+    path("contacts/<int:pk>/reminders/new/", views.reminder_create, name="reminder-create"),
+    path("reminders/<int:pk>/complete/", views.reminder_complete, name="reminder-complete"),
+    path("reminders/<int:pk>/edit/", views.reminder_edit, name="reminder-edit"),
+    path("reminders/<int:pk>/delete/", views.reminder_delete, name="reminder-delete"),
+    path("reminders/", views.reminder_list, name="reminder-list"),
+    path("companies/", views.company_list, name="company-list"),
+    path("companies/new/", views.company_create, name="company-create"),
+    path("companies/<int:pk>/", views.company_detail, name="company-detail"),
+    path("companies/<int:pk>/edit/", views.company_edit, name="company-edit"),
+    path("companies/<int:pk>/archive/", views.company_archive, name="company-archive"),
+    path("companies/<int:pk>/restore/", views.company_restore, name="company-restore"),
+    path("companies/<int:pk>/activities/new/", views.company_activity_create, name="company-activity-create"),
+    path("import-export/", views.contacts_import, name="import-export"),
+    path("export/contacts.csv", views.contacts_export, name="contacts-export"),
+    path("export/companies.csv", views.companies_export, name="companies-export"),
+    path("archive/", views.archive_list, name="archive-list"),
+    path("settings/", views.settings_page, name="settings"),
+]

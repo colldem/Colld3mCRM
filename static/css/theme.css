@@ -1,0 +1,75 @@
+/* AdminLTE 4.0.0 shell with CRM's light/navy visual identity. */
+:root{--lte-sidebar-width:238px;--bs-primary:#062b63;--bs-primary-rgb:6,43,99;--bs-body-font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{font-family:var(--bs-body-font-family);line-height:1.5;background:#f4f6f9}
+.app-sidebar{background:linear-gradient(165deg,#062b63,#052454)!important;color:#fff;position:sticky;top:0;height:100vh}
+.app-sidebar .brand{height:72px;font-size:28px;border-bottom:1px solid #ffffff18}
+.app-sidebar .sidebar-wrapper{padding:0;height:calc(100vh - 72px);overflow-y:auto}
+.crm-navigation{display:flex;flex-direction:column;min-height:100%;padding:12px 10px;gap:3px}
+.crm-navigation .nav-item{flex-shrink:0;font-size:12px;line-height:20px;min-height:46px;white-space:normal}
+.crm-navigation .nav-icon{width:20px;height:20px;flex-shrink:0}
+.crm-navigation .nav-icon{display:block}
+.crm-topbar{display:flex;align-items:center;gap:16px;justify-content:space-between;min-height:72px;padding:12px 24px;background:white}
+.crm-topbar .global-search{flex:1;max-width:680px;width:auto}
+.crm-topbar .global-search input{height:42px}
+.crm-topbar .top-actions{margin-left:auto;gap:16px;flex-shrink:0}
+.crm-content{display:block;padding:24px;min-width:0;overflow:hidden;background:#fff;margin:16px;border:1px solid var(--line);border-radius:8px;box-shadow:0 1px 3px #10243e08}
+.sidebar-toggle{display:none;padding:6px 10px;font-size:20px}
+.page-head,.contact-head{margin-bottom:20px;gap:16px}
+.page-head h1,.contact-head h1{font-size:28px;line-height:1.2}
+.btn{font-size:14px;line-height:20px;min-height:40px;padding:9px 13px;box-shadow:none}
+.btn:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #88b6f7;outline-offset:2px}
+.record-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;min-width:0}
+.record-actions{display:flex;align-items:center;gap:10px;min-width:0}
+.record-actions>a{white-space:nowrap;flex-shrink:0}
+.record-actions form{margin:0}
+.record-actions .bulk-bar{display:flex;align-items:center;gap:8px;min-height:40px;height:40px;padding:0;white-space:nowrap}
+.record-actions .bulk-bar[hidden]{display:flex!important;visibility:hidden;pointer-events:none}
+.record-actions .bulk-bar span{font-size:12px;order:3;width:95px;overflow:hidden;text-overflow:ellipsis}
+.record-toolbar .list-actions{display:flex;gap:8px;margin:0;flex-shrink:0}
+.record-toolbar .list-actions .btn{white-space:nowrap}
+.table-wrap{border:1px solid var(--line);border-radius:6px}
+table thead{background:#f7f9fc}
+table th{color:#475569;text-transform:none}
+table td{padding:13px 12px}
+.filter-panel,.column-panel,.saved-filter-panel{z-index:1040;max-height:70vh;overflow-y:auto}
+.reminder-popover{z-index:1045;max-width:calc(100vw - 24px)}
+.crm-label{border:1px solid transparent;font-size:12px;font-weight:600;line-height:1.3}
+.tag-color-0{background:#dbeafe;color:#1e40af;border-color:#bfdbfe}
+.tag-color-1{background:#ede9fe;color:#5b21b6;border-color:#ddd6fe}
+.tag-color-2{background:#d1fae5;color:#065f46;border-color:#a7f3d0}
+.tag-color-3{background:#ffedd5;color:#9a3412;border-color:#fed7aa}
+.tag-color-4{background:#fce7f3;color:#9d174d;border-color:#fbcfe8}
+.tag-color-5{background:#cffafe;color:#155e75;border-color:#a5f3fc}
+.tag-color-6{background:#fef3c7;color:#92400e;border-color:#fde68a}
+.tag-color-7{background:#e0e7ff;color:#3730a3;border-color:#c7d2fe}
+.login-page{background:#f4f6f9}
+.login-panel{border-radius:8px;box-shadow:0 4px 20px #10243e0d}
+.login-panel h1{font-size:28px}
+@media(min-width:992px) and (max-width:1350px){.record-toolbar{flex-wrap:wrap}.record-toolbar .list-actions{margin-left:auto}}
+@media(max-width:991.98px){
+ .sidebar-toggle{display:inline-flex}
+ .crm-content{margin:10px;padding:18px;overflow:hidden}
+ .crm-topbar{padding:10px 12px;gap:10px;flex-wrap:wrap}
+ .crm-topbar .global-search{max-width:none;order:3;flex-basis:100%}
+ .crm-topbar .top-actions{gap:12px}
+ .crm-topbar .logout-button{display:inline-block}
+ .crm-topbar .avatar{width:34px;height:34px;font-size:12px}
+ .app-sidebar .sidebar-wrapper{height:calc(100vh - 72px)!important}
+ .record-toolbar{flex-direction:column;align-items:stretch;gap:12px}
+ .record-actions{display:grid;grid-template-columns:1fr;gap:8px}
+ .record-actions>a{justify-self:start}
+ .record-actions .bulk-bar{gap:6px}
+ .record-toolbar .list-actions{justify-content:flex-start;flex-wrap:wrap}
+ .record-toolbar .list-actions .btn{padding:9px 10px;font-size:13px}
+ .drawer-control{position:static}
+ .record-toolbar .list-actions{position:relative}
+ .filter-panel,.column-panel,.saved-filter-panel{left:0;right:auto;max-width:100%;width:310px}
+ .detail-grid{grid-template-columns:minmax(0,1fr)}
+ .facts{border-right:0;padding-right:0}
+ .activity-column{padding-left:0}
+ .page-head,.contact-head{flex-wrap:wrap}
+ .page-head h1,.contact-head h1{font-size:25px;overflow-wrap:anywhere}
+ .data-form p{grid-template-columns:1fr;gap:6px}
+ .settings-grid{grid-template-columns:1fr}
+ .reminder-popover{position:fixed;top:62px;right:12px;width:340px}
+}

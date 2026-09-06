@@ -1,0 +1,58 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}
+{% load static %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CRM{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+</head>
+<body class="sidebar-expand-lg fixed-header">
+<div class="app-wrapper">
+  <aside class="app-sidebar bg-primary-subtle shadow" id="crm-sidebar" data-bs-theme="dark">
+    <a class="brand" href="{% url 'contacts:list' %}">CRM</a>
+    <div class="sidebar-wrapper"><nav class="crm-navigation">
+      <a class="nav-item {% if request.resolver_match.url_name == 'list' or request.resolver_match.url_name == 'detail' %}active{% endif %}" href="{% url 'contacts:list' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="4"/><path d="M22 20v-1.5a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>{% translate 'Kontaktai' %}</a>
+      <a class="nav-item {% if 'company' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'contacts:company-list' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 21h18M5 21V4h10v17M15 9h4v12M8 7h4M8 11h4M8 15h4"/></svg>{% translate 'Įmonės' %}</a>
+      <a class="nav-item {% if request.resolver_match.url_name == 'reminder-list' %}active{% endif %}" href="{% url 'contacts:reminder-list' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{% translate 'Priminimai' %}</a>
+      <div class="sidebar-spacer"></div>
+      <a class="nav-item {% if request.resolver_match.url_name == 'import-export' %}active{% endif %}" href="{% url 'contacts:import-export' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v13M7 8l5-5 5 5M12 21V8M17 16l-5 5-5-5"/></svg>{% translate 'Importas / eksportas' %}</a>
+      <a class="nav-item {% if request.resolver_match.url_name == 'archive-list' %}active{% endif %}" href="{% url 'contacts:archive-list' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 7h18M9 11v6M15 11v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg>{% translate 'Archyvas' %}</a>
+      <a class="nav-item {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" href="{% url 'contacts:settings' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56v.08h-3v-.08A1.7 1.7 0 0 0 10.68 18.7a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.02 15a1.7 1.7 0 0 0-1.56-1.03h-.08v-3h.08A1.7 1.7 0 0 0 7.02 9.94 1.7 1.7 0 0 0 6.68 8.06L6.62 8l2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56v-.08h3v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03h.08v3h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>{% translate 'Nustatymai' %}</a>
+    </nav></div>
+  </aside>
+  <header class="app-header crm-topbar">
+    <button class="btn sidebar-toggle" type="button" data-lte-toggle="sidebar" aria-label="{% translate 'Meniu' %}" aria-controls="crm-sidebar">☰</button>
+    <form action="{% url 'contacts:list' %}" method="get" class="global-search">
+      <label class="sr-only" for="global-search">{% translate 'Ieškoti' %}</label>
+      <input id="global-search" name="q" value="{{ request.GET.q }}" placeholder="{% translate 'Ieškoti visuose laukuose...' %}">
+    </form>
+    <div class="top-actions">
+      {% include "language_switch.html" %}
+      <details class="reminder-menu" id="reminders" data-refresh-url="{% url 'contacts:reminder-snapshot' %}">
+        <summary class="bell" aria-label="{% translate 'Atidaryti priminimus' %}"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{% if active_reminder_count %}<b>{{ active_reminder_count }}</b>{% endif %}</summary>
+        <div class="reminder-popover">
+          {% include "reminders/menu.html" %}
+          <p class="edit-hint" data-refresh-status role="status" aria-live="polite"></p>
+        </div>
+      </details>
+      <span class="avatar" aria-label="{% translate 'Prisijungęs naudotojas' %}">{{ request.user.username|slice:':2'|upper }}</span>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="logout-button" type="submit">{% translate 'Atsijungti' %}</button></form>
+    </div>
+  </header>
+  <main class="app-main crm-content">
+    {% if messages %}{% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script src="{% static 'vendor/adminlte/adminlte.min.js' %}" defer></script>
+<script src="{% url 'javascript-catalog' %}"></script>
+<script src="{% static 'js/theme.js' %}" defer></script>
+<script src="{% static 'js/list-editing.js' %}" defer></script>
+<script src="{% static 'js/detail-editing.js' %}" defer></script>
+<script src="{% static 'js/reminders.js' %}" defer></script>
+</body>
+</html>

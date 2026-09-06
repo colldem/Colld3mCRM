@@ -1,0 +1,38 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Saugoma..."
+msgstr "Saving..."
+
+msgid "Pereiti prie turinio"
+msgstr "Skip to main content"
+
+msgid "Pereiti prie meniu"
+msgstr "Skip to navigation"
+
+msgid "privaloma"
+msgstr "required"
+
+msgid "Išsaugota"
+msgstr "Saved"
+
+msgid "Priskirti"
+msgstr "Assign"
+
+msgid "Nepavyko išsaugoti."
+msgstr "Could not save."
+
+msgid "Sesija baigėsi. Prisijunkite iš naujo, kad atsinaujintų priminimai."
+msgstr "Your session has expired. Sign in again to refresh reminders."
+
+msgid "Nepavyko atnaujinti priminimų. Bandysime dar kartą."
+msgstr "Could not refresh reminders. We will try again."
+
+msgid "Atidaryti priminimus"
+msgstr "Open reminders"
+
+msgid "Atidaryti priminimus (%s neperskaityti)"
+msgstr "Open reminders (%s unread)"

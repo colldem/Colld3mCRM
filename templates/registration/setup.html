@@ -1,0 +1,4 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}
+{% load static %}
+<!doctype html><html lang="{{ LANGUAGE_CODE }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% translate 'Pirmas paleidimas - CRM' %}</title><link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}"><link rel="stylesheet" href="{% static 'css/app.css' %}"><link rel="stylesheet" href="{% static 'css/theme.css' %}"></head>
+<body class="login-page"><main class="login-panel"><div class="brand">CRM</div><h1>{% translate 'Pirmas paleidimas' %}</h1><p>{% translate 'Sukurkite pagrindinę administratoriaus paskyrą. Diegimo kodas po paskyros sukūrimo daugiau nepriimamas.' %}</p><form method="post" autocomplete="off">{% csrf_token %}{{ form.as_p }}<button class="btn primary" type="submit">{% translate 'Sukurti administratorių' %}</button></form></main></body></html>

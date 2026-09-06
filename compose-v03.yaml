@@ -1,0 +1,59 @@
+name: crm-v03
+services:
+  crm-db:
+    image: postgres:17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
+    volumes: ["../crm/runtime/postgres:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crm -d crm"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  crm-tailscale:
+    image: tailscale/tailscale:v1.102.2@sha256:321ce041508c19079b57a28b6666c8d81ab0b08accc0a2585b3ab663d557ac24
+    hostname: ${TS_HOSTNAME:-crm}
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_AUTH_ONCE: "true"
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      TS_USERSPACE: "true"
+      TS_ENABLE_HEALTH_CHECK: "true"
+      TS_LOCAL_ADDR_PORT: 127.0.0.1:9002
+    volumes:
+      - ../crm/runtime/tailscale-state:/var/lib/tailscale
+      - ../crm/deploy/tailscale:/config:ro
+    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_LAN_PORT:-18081}:8080"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  crm-web:
+    image: crm-web:0.3.0
+    build: .
+    environment:
+      DB_HOST: crm-db
+      DB_NAME: crm
+      DB_USER: crm
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Nustatykite DJANGO_SECRET_KEY}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-crm,localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      CRM_SETUP_TOKEN: ${CRM_SETUP_TOKEN:-}
+      DJANGO_DEBUG: "false"
+    volumes:
+      - ../crm/runtime/media:/app/runtime/media
+    network_mode: service:crm-tailscale
+    depends_on:
+      crm-db: {condition: service_healthy}
+      crm-tailscale: {condition: service_started}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]

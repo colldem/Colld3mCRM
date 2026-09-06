@@ -1,0 +1,14 @@
+# Runtime data and secrets must stay on the NAS volume, never in an image build.
+runtime/
+.env
+.env.*
+!.env.example
+
+# Local development and generated artifacts.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+db.sqlite3
+staticfiles/
+.git/

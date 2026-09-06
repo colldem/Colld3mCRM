@@ -1,0 +1,22 @@
+{% load i18n %}
+<div class="detail-field" data-field="{{ item.field }}">
+  <div class="field-display" tabindex="0" role="group" aria-label="{% translate item.label %}: {% translate 'dukart spustelėkite redaguoti' %}">
+    <strong>{% translate item.label %}</strong>
+    <div class="field-values">{% for entry in item.entries %}<div>{% if entry.href %}<a href="{{ entry.href }}"{% if item.field == 'web_links' or item.field == 'url' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ entry.text }}</a>{% else %}{{ entry.text|default:"-" }}{% endif %}</div>{% empty %}<span>{% translate 'Nepriskirta' %}</span>{% endfor %}</div>
+  </div>
+  <form class="field-editor" method="post" action="{% if item.company %}{% url 'contacts:company-field-edit' item.company.pk %}{% else %}{% url 'contacts:field-edit' item.person.pk %}{% endif %}" hidden>
+    {% csrf_token %}<input type="hidden" name="field" value="{{ item.field }}">
+    {% if item.field == 'companies' %}
+      <fieldset><legend>{% translate 'Priskirtos įmonės' %}</legend>
+        <div class="company-options">{% for company in item.companies %}<label><input type="checkbox" name="companies" value="{{ company.pk }}"{% if company.selected %} checked{% endif %}>{{ company.name }}</label>{% empty %}<p>{% translate 'Įmonių dar nėra.' %}</p>{% endfor %}</div>
+        <button class="btn add-company" type="button" aria-expanded="false">{% translate 'Pridėti naują' %}</button>
+        <div class="new-company-input" hidden><label for="new-company-name">{% translate 'Įmonės pavadinimas' %}</label><input id="new-company-name" name="new_name" maxlength="200" disabled><small>{% translate 'Įmonė bus sukurta ir priskirta paspaudus „Išsaugoti“.' %}</small></div>
+      </fieldset>
+    {% else %}
+      <label for="field-{{ item.field }}">{% translate item.label %}</label>
+      {% if item.multiple %}<textarea id="field-{{ item.field }}" name="value" rows="3">{{ item.value }}</textarea><small>{% translate 'Viena reikšmė eilutėje.' %}</small>{% else %}<input id="field-{{ item.field }}" name="value" value="{{ item.value }}">{% endif %}
+    {% endif %}
+    <div class="field-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button><button class="btn cancel-field" type="button">{% translate 'Atšaukti' %}</button></div>
+    <p role="status" aria-live="polite"></p>
+  </form>
+</div>
