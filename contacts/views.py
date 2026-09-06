@@ -15,6 +15,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .forms import ActivityForm, CompanyForm, PersonForm, ReminderForm, SetupAdminForm
+from .filters import (
+    active_filter_count,
+    apply_company_filters,
+    apply_contact_filters,
+    company_filter_values,
+    contact_filter_values,
+    filter_chips,
+    saved_filter_payload,
+)
 from .models import Activity, Attachment, Category, Company, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
 
 
@@ -53,7 +62,8 @@ def setup_admin(request):
 
 @login_required
 def contact_list(request):
-    query = request.GET.get("q", "").strip()
+    filter_values = contact_filter_values(request.GET)
+    query = filter_values["q"]
     page_size = 100 if request.GET.get("page_size") == "100" else 50
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
@@ -63,32 +73,7 @@ def contact_list(request):
     people = Person.objects.filter(deleted_at__isnull=True).prefetch_related(
         "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
     )
-    if query:
-        for term in query.split():
-            people = people.filter(
-                Q(first_name__icontains=term) | Q(last_name__icontains=term) | Q(job_title__icontains=term)
-                | Q(company_links__company__name__icontains=term) | Q(phones__number__icontains=term)
-                | Q(emails__email__icontains=term) | Q(tags__name__icontains=term) | Q(categories__name__icontains=term)
-                | Q(addresses__address__icontains=term) | Q(web_links__url__icontains=term)
-                | Q(status__icontains=term)
-            )
-        people = people.distinct()
-    category = request.GET.get("category", "")
-    tag = request.GET.get("tag", "")
-    company = request.GET.get("company", "")
-    status = request.GET.get("status", "")
-    if category:
-        people = people.filter(categories__pk=category)
-    if tag:
-        people = people.filter(tags__pk=tag)
-    if company:
-        people = people.filter(company_links__company__pk=company)
-    favourite = request.GET.get("favourite", "")
-    if favourite == "1":
-        people = people.filter(favourite=True)
-    if status:
-        people = people.filter(status=status)
-    people = people.distinct()
+    people = apply_contact_filters(people, filter_values)
     allowed_columns = ["company", "phone", "email", "category", "tags", "status", "updated"]
     default_columns = ["company", "phone", "email", "category", "tags", "updated"]
     requested_columns = request.GET.getlist("columns")
@@ -100,11 +85,27 @@ def contact_list(request):
     from django.core.paginator import Paginator
 
     page = Paginator(people.order_by(*order), page_size).get_page(request.GET.get("page"))
-    filter_values = {key: value for key, value in {"q": query, "category": category, "tag": tag, "company": company, "status": status, "favourite": favourite}.items() if value}
     list_query = request.GET.copy()
     for key in ("page", "sort", "direction"):
         list_query.pop(key, None)
-    return render(request, "contacts/list.html", {"page": page, "query": query, "page_size": page_size, "sort": sort_key, "direction": direction, "columns": columns, "categories": Category.objects.all(), "tags": Tag.objects.all(), "companies": Company.objects.filter(deleted_at__isnull=True), "statuses": Person.objects.filter(deleted_at__isnull=True).exclude(status="").values_list("status", flat=True).distinct().order_by("status"), "filter_values": filter_values, "saved_filters": SavedFilter.objects.filter(user=request.user, scope="contacts"), "list_query": list_query.urlencode()})
+    categories = Category.objects.all()
+    tags = Tag.objects.all()
+    companies = Company.objects.filter(deleted_at__isnull=True)
+    label_maps = {
+        "categories": {item.pk: item.name for item in categories},
+        "tags": {item.pk: item.name for item in tags},
+        "companies": {item.pk: item.name for item in companies},
+        "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma"), "companies": tr("Įmonė")},
+    }
+    return render(request, "contacts/list.html", {
+        "page": page, "query": query, "page_size": page_size, "sort": sort_key,
+        "direction": direction, "columns": columns, "categories": categories,
+        "tags": tags, "companies": companies, "filter_values": filter_values,
+        "active_filter_count": active_filter_count(filter_values),
+        "filter_chips": filter_chips(request.GET, filter_values, label_maps, request.path),
+        "saved_filters": SavedFilter.objects.filter(user=request.user, scope="contacts"),
+        "list_query": list_query.urlencode(),
+    })
 
 
 @login_required
@@ -178,8 +179,7 @@ def company_restore(request, pk):
 def saved_filter_create(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
-        keys = ("q", "category", "tag", "company", "status", "favourite")
-        filters = {key: request.POST[key] for key in keys if request.POST.get(key)}
+        filters = saved_filter_payload(request.POST, "contacts")
         if name:
             SavedFilter.objects.update_or_create(user=request.user, scope="contacts", name=name, defaults={"filters": filters})
             messages.success(request, "Filtras išsaugotas.")
@@ -190,7 +190,7 @@ def saved_filter_create(request):
 def company_saved_filter_create(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
-        filters = {key: request.POST[key] for key in ("q", "contacts") if request.POST.get(key)}
+        filters = saved_filter_payload(request.POST, "companies")
         if name:
             SavedFilter.objects.update_or_create(user=request.user, scope="companies", name=name, defaults={"filters": filters})
             messages.success(request, "Įmonių sąrašas išsaugotas.")
@@ -369,24 +369,12 @@ def attachment_download(request, pk):
 @login_required
 def company_list(request):
     companies = Company.objects.filter(deleted_at__isnull=True).prefetch_related("people", "tags", "categories")
-    query = request.GET.get("q", "").strip()
+    filter_values = company_filter_values(request.GET)
+    query = filter_values["q"]
     page_size = 100 if request.GET.get("page_size") == "100" else 50
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
-    if query:
-        for term in query.split():
-            companies = companies.filter(
-                Q(name__icontains=term) | Q(company_code__icontains=term) | Q(vat_code__icontains=term)
-                | Q(address__icontains=term) | Q(phone__icontains=term) | Q(email__icontains=term)
-                | Q(url__icontains=term) | Q(people__first_name__icontains=term)
-                | Q(people__last_name__icontains=term) | Q(people__job_title__icontains=term)
-                | Q(people__emails__email__icontains=term) | Q(people__phones__number__icontains=term)
-            )
-    contacts = request.GET.get("contacts", "")
-    if contacts == "with":
-        companies = companies.filter(people__isnull=False)
-    elif contacts == "without":
-        companies = companies.filter(people__isnull=True)
+    companies = apply_company_filters(companies, filter_values)
     sort_map = {
         "name": "name",
         "company_code": "company_code",
@@ -410,15 +398,23 @@ def company_list(request):
     from django.core.paginator import Paginator
 
     page = Paginator(companies, page_size).get_page(request.GET.get("page"))
-    filter_values = {key: value for key, value in {"q": query, "contacts": contacts}.items() if value}
     list_query = request.GET.copy()
     for key in ("page", "sort", "direction"):
         list_query.pop(key, None)
+    categories = Category.objects.all()
+    tags = Tag.objects.all()
+    label_maps = {
+        "categories": {item.pk: item.name for item in categories},
+        "tags": {item.pk: item.name for item in tags},
+        "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma")},
+    }
     return render(request, "companies/list.html", {
         "page": page, "query": query, "page_size": page_size, "sort": sort_key, "direction": direction, "filter_values": filter_values, "columns": columns,
         "list_query": list_query.urlencode(),
+        "active_filter_count": active_filter_count(filter_values),
+        "filter_chips": filter_chips(request.GET, filter_values, label_maps, request.path),
         "saved_filters": SavedFilter.objects.filter(user=request.user, scope="companies"),
-        "tags": Tag.objects.all(), "categories": Category.objects.all(),
+        "tags": tags, "categories": categories,
     })
 
 

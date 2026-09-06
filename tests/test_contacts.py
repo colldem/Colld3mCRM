@@ -452,6 +452,81 @@ class ContactViewTests(TestCase):
         self.person.refresh_from_db()
         self.assertIsNotNone(self.person.deleted_at)
 
+    def test_contact_filters_support_multiple_values_and_date_range_without_status_filter(self):
+        self.client.force_login(self.user)
+        client = Category.objects.create(name="Klientas")
+        partner = Category.objects.create(name="Partneris")
+        important = Tag.objects.create(name="Svarbus")
+        self.person.categories.add(client)
+        self.person.tags.add(important)
+        other = Person.objects.create(first_name="Kitas", last_name="Asmuo", favourite=True)
+        other.categories.add(partner)
+        other_email = EmailAddress.objects.create(person=other, email="other@example.lt")
+        note = Activity.objects.create(person=self.person, text="Pokalbis", created_by=self.user)
+        today = timezone.localdate().isoformat()
+
+        response = self.client.get(reverse("contacts:list"), {
+            "categories": [client.pk, partner.pk],
+            "tags": [important.pk],
+            "email": "ruta@example",
+            "last_contact_from": today,
+            "last_contact_to": today,
+            "status": "Aktyvus",
+        })
+
+        self.assertEqual(list(response.context["page"]), [self.person])
+        self.assertEqual(response.context["filter_values"]["categories"], [client.pk, partner.pk])
+        self.assertEqual(response.context["active_filter_count"], 5)
+        self.assertContains(response, "Klientas")
+        self.assertContains(response, "Partneris")
+        self.assertNotContains(response, 'name="status"')
+        self.assertNotIn("status", response.context["filter_values"])
+        self.assertIsNotNone(note.pk)
+        self.assertIsNotNone(other_email.pk)
+
+    def test_company_filters_include_categories_tags_address_and_linked_contact_history(self):
+        self.client.force_login(self.user)
+        client = Category.objects.create(name="Klientas")
+        supplier = Category.objects.create(name="Tiekėjas")
+        important = Tag.objects.create(name="Svarbus")
+        self.company.address = "Vilnius, Gedimino pr. 1"
+        self.company.save()
+        self.company.categories.add(client)
+        self.company.tags.add(important)
+        other = Company.objects.create(name="Kita įmonė", address="Kaunas")
+        other.categories.add(supplier)
+        Activity.objects.create(person=self.person, text="Susitikimas", created_by=self.user)
+        today = timezone.localdate().isoformat()
+
+        response = self.client.get(reverse("contacts:company-list"), {
+            "categories": [client.pk, supplier.pk],
+            "tags": [important.pk],
+            "city": "Vilnius",
+            "last_contact_from": today,
+            "last_contact_to": today,
+        })
+
+        self.assertEqual(list(response.context["page"]), [self.company])
+        self.assertEqual(response.context["active_filter_count"], 5)
+        self.assertContains(response, "Miestas arba adresas")
+        self.assertNotContains(response, 'name="status"')
+
+    def test_saved_filter_preserves_multiple_values_and_invalid_filter_input_is_ignored(self):
+        self.client.force_login(self.user)
+        first = Category.objects.create(name="Pirma")
+        second = Category.objects.create(name="Antra")
+        payload = {"name": "Kelios kategorijos", "categories": [first.pk, second.pk], "last_contact_from": "2026-09-01"}
+        self.client.post(reverse("contacts:saved-filter-create"), payload)
+        saved = SavedFilter.objects.get(user=self.user, scope="contacts", name="Kelios kategorijos")
+
+        self.assertEqual(saved.filters["categories"], [first.pk, second.pk])
+        self.assertIn(f"categories={first.pk}", saved.query_string)
+        self.assertIn(f"categories={second.pk}", saved.query_string)
+        response = self.client.get(reverse("contacts:list"), {"categories": ["bad", "999999"], "last_contact_from": "not-a-date"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["filter_values"]["categories"], [999999])
+        self.assertEqual(response.context["filter_values"]["last_contact_from"], "")
+
     def test_archived_contact_can_be_restored(self):
         self.client.force_login(self.user)
         self.person.deleted_at = timezone.now()

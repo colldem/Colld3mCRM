@@ -1,287 +1,31 @@
 msgid ""
 msgstr ""
-"Content-Type: text/plain; charset=UTF-8\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-06 21:45+0300\n"
 "Language: en\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-
-msgid "Kalba"
-msgstr "Language"
-
-msgid "Kontaktai"
-msgstr "Contacts"
-
-msgid "Įmonės"
-msgstr "Companies"
-
-msgid "Priminimai"
-msgstr "Reminders"
-
-msgid "Importas / eksportas"
-msgstr "Import / export"
-
-msgid "Archyvas"
-msgstr "Archive"
-
-msgid "Nustatymai"
-msgstr "Settings"
-
-msgid "Ieškoti"
-msgstr "Search"
-
-msgid "Ieškoti visuose laukuose..."
-msgstr "Search all fields..."
-
-msgid "Atsijungti"
-msgstr "Sign out"
-
-msgid "Prisijungti"
-msgstr "Sign in"
-
-msgid "Neteisingas naudotojo vardas arba slaptažodis."
-msgstr "Incorrect username or password."
-
-msgid "Atidaryti priminimus"
-msgstr "Open reminders"
-
-msgid "Prisijungęs naudotojas"
-msgstr "Signed-in user"
-
-msgid "Pridėti kontaktą"
-msgstr "Add contact"
-
-msgid "+ Pridėti kontaktą"
-msgstr "+ Add contact"
-
-msgid "+ Pridėti įmonę"
-msgstr "+ Add company"
-
-msgid "Pridėti įmonę"
-msgstr "Add company"
-
-msgid "Išsaugoti"
-msgstr "Save"
-
-msgid "Išsaugoti pakeitimus"
-msgstr "Save changes"
-
-msgid "Atšaukti"
-msgstr "Cancel"
-
-msgid "Pridėti"
-msgstr "Add"
-
-msgid "Pridėti naują"
-msgstr "Add new"
-
-msgid "Redaguoti"
-msgstr "Edit"
-
-msgid "Redaguoti įrašą"
-msgstr "Edit entry"
-
-msgid "Archyvuoti"
-msgstr "Archive"
-
-msgid "Atkurti"
-msgstr "Restore"
-
-msgid "Eksportuoti"
-msgstr "Export"
-
-msgid "Importuoti"
-msgstr "Import"
-
-msgid "Atlikta"
-msgstr "Done"
-
-msgid "Visi suplanuoti"
-msgstr "All scheduled"
-
-msgid "Visi suplanuoti priminimai"
-msgstr "All scheduled reminders"
-
-msgid "Aktyvūs priminimai"
-msgstr "Active reminders"
-
-msgid "Aktyvių priminimų nėra."
-msgstr "No active reminders."
-
-msgid "Suplanuotų priminimų nėra."
-msgstr "No scheduled reminders."
-
-msgid "Peržiūrėti visus priminimus"
-msgstr "View all reminders"
-
-msgid "Pridėti priminimą"
-msgstr "Add reminder"
-
-msgid "Redaguoti priminimą"
-msgstr "Edit reminder"
-
-msgid "Priminimas"
-msgstr "Reminder"
-
-msgid "Data ir laikas"
-msgstr "Date and time"
-
-msgid "Artimiausi priminimai rodomi pirmiausia."
-msgstr "Reminders are sorted by earliest date."
-
-msgid "Kontaktiniai duomenys"
-msgstr "Contact details"
-
-msgid "Įmonės duomenys"
-msgstr "Company details"
-
-msgid "Žymos"
-msgstr "Tags"
-
-msgid "Tagai"
-msgstr "Tags"
-
-msgid "Kategorija"
-msgstr "Category"
-
-msgid "Kategorijos"
-msgstr "Categories"
-
-msgid "Priskirti"
-msgstr "Assign"
-
-msgid "Nepriskirta"
-msgstr "Not assigned"
-
-msgid "Priskirtos įmonės"
-msgstr "Assigned companies"
-
-msgid "Įmonės pavadinimas"
-msgstr "Company name"
-
-msgid "Įmonių dar nėra."
-msgstr "No companies yet."
-
-msgid "Įmonė bus sukurta ir priskirta paspaudus „Išsaugoti“."
-msgstr "The company will be created and assigned when you click Save."
-
-msgid "Viena reikšmė eilutėje."
-msgstr "One value per line."
-
-msgid "Vardas"
-msgstr "First name"
-
-msgid "Pavardė"
-msgstr "Last name"
-
-msgid "Pareigos"
-msgstr "Job title"
-
-msgid "Būsena"
-msgstr "Status"
-
-msgid "Telefonai"
-msgstr "Phone numbers"
-
-msgid "Telefonas"
-msgstr "Phone"
 
 msgid "El. paštas"
 msgstr "Email"
 
-msgid "El. paštai"
-msgstr "Emails"
-
-msgid "Adresai"
-msgstr "Addresses"
-
-msgid "Adresas"
-msgstr "Address"
-
-msgid "Nuorodos"
-msgstr "Links"
-
-msgid "URL nuorodos"
-msgstr "URLs"
-
-msgid "Pavadinimas"
-msgstr "Name"
-
-msgid "Įmonės kodas"
-msgstr "Company code"
-
-msgid "PVM kodas"
-msgstr "VAT number"
+msgid "Tik mėgstami"
+msgstr "Favourites only"
 
 msgid "Kontaktiniai asmenys"
 msgstr "Contact persons"
 
-msgid "Susietų asmenų nėra."
-msgstr "No linked contacts."
+msgid "Miestas arba adresas"
+msgstr "City or address"
 
-msgid "Įrašų istorija"
-msgstr "History"
+msgid "Nuo"
+msgstr "From"
 
-msgid "Įmonės ir kontaktų įrašų istorija"
-msgstr "Company and contact history"
+msgid "Iki"
+msgstr "To"
 
-msgid "Įrašų dar nėra."
-msgstr "No entries yet."
-
-msgid "Failai ir nuotraukos"
-msgstr "Files and photos"
-
-msgid "Išsaugoti įmonės įrašą"
-msgstr "Save company entry"
-
-msgid "Įrašo tipas"
-msgstr "Entry type"
-
-msgid "Tekstas"
-msgstr "Text"
-
-msgid "Įrašykite pastabą..."
-msgstr "Write a note..."
-
-msgid "Pastaba"
-msgstr "Note"
-
-msgid "Skambutis"
-msgstr "Call"
-
-msgid "El. laiškas"
-msgstr "Email"
-
-msgid "Susitikimas"
-msgstr "Meeting"
-
-msgid "Užduotis"
-msgstr "Task"
-
-msgid "Asmuo"
-msgstr "Person"
-
-msgid "Įmonė"
-msgstr "Company"
-
-msgid "Atnaujinta"
-msgstr "Updated"
-
-msgid "Veiksmai"
-msgstr "Actions"
-
-msgid "Stulpeliai"
-msgstr "Columns"
-
-msgid "Mano filtrai"
-msgstr "My filters"
-
-msgid "Filtrai"
-msgstr "Filters"
-
-msgid "Visi"
-msgstr "All"
-
-msgid "Visos"
-msgstr "All"
+msgid "Taip"
+msgstr "Yes"
 
 msgid "Su kontaktais"
 msgstr "With contacts"
@@ -289,62 +33,101 @@ msgstr "With contacts"
 msgid "Be kontaktų"
 msgstr "Without contacts"
 
-msgid "50 eilučių"
-msgstr "50 rows"
-
-msgid "100 eilučių"
-msgstr "100 rows"
-
-msgid "Galite pasirinkti vieną ar kelias įmones."
-msgstr "Select one or more companies."
-
-msgid "Vienas numeris eilutėje"
-msgstr "One number per line"
-
-msgid "Vienas adresas eilutėje"
-msgstr "One address per line"
-
-msgid "Viena nuoroda eilutėje"
-msgstr "One link per line"
-
-msgid "Pasirinkite ne daugiau kaip 3 tagus."
-msgstr "Select up to 3 tags."
-
-msgid "Pasirinkite ne daugiau kaip 3 kategorijas."
-msgstr "Select up to 3 categories."
-
-msgid "Įrašas atnaujintas."
-msgstr "Entry updated."
-
-msgid "Priminimas atnaujintas."
-msgstr "Reminder updated."
-
-msgid "Priminimas pašalintas."
-msgstr "Reminder removed."
-
-msgid "Dukart spustelėkite konkretų lauką, kad redaguotumėte vietoje."
-msgstr "Double-click a field to edit it here."
-
-msgid "Dukart spustelėkite lauko pavadinimą arba reikšmę. Klaviatūra: Enter; telefone: palieskite lauko pavadinimą."
-msgstr "Double-click a field label or value. Keyboard: Enter; on a phone, tap the field label."
-
 msgid "Archyvas - CRM"
 msgstr "Archive - CRM"
+
+msgid "Archyvas"
+msgstr "Archive"
 
 msgid "Archyvuoti įrašai nėra negrįžtamai ištrinti."
 msgstr "Archived records can be restored."
 
+msgid "Kontaktai"
+msgstr "Contacts"
+
+msgid "Asmuo"
+msgstr "Person"
+
 msgid "Archyvuota"
 msgstr "Archived"
+
+msgid "Atkurti"
+msgstr "Restore"
 
 msgid "Archyvuotų kontaktų nėra."
 msgstr "No archived contacts."
 
+msgid "Įmonės"
+msgstr "Companies"
+
+msgid "Įmonė"
+msgstr "Company"
+
 msgid "Archyvuotų įmonių nėra."
 msgstr "No archived companies."
 
+msgid "Priminimai"
+msgstr "Reminders"
+
+msgid "Importas / eksportas"
+msgstr "Import / export"
+
+msgid "Nustatymai"
+msgstr "Settings"
+
+msgid "Meniu"
+msgstr "Menu"
+
+msgid "Ieškoti"
+msgstr "Search"
+
+msgid "Ieškoti visuose laukuose..."
+msgstr "Search all fields..."
+
+msgid "Atidaryti priminimus"
+msgstr "Open reminders"
+
+msgid "Prisijungęs naudotojas"
+msgstr "Signed-in user"
+
+msgid "Atsijungti"
+msgstr "Sign out"
+
+msgid "Archyvuoti"
+msgstr "Archive"
+
+msgid "Įmonės duomenys"
+msgstr "Company details"
+
+msgid "Dukart spustelėkite konkretų lauką, kad redaguotumėte vietoje."
+msgstr "Double-click a field to edit it here."
+
+msgid "Žymos"
+msgstr "Tags"
+
+msgid "Kategorijos"
+msgstr "Categories"
+
+msgid "Susietų asmenų nėra."
+msgstr "No linked contacts."
+
+msgid "Failai ir nuotraukos"
+msgstr "Files and photos"
+
+msgid "Išsaugoti įmonės įrašą"
+msgstr "Save company entry"
+
+msgid "Įmonės ir kontaktų įrašų istorija"
+msgstr "Company and contact history"
+
 msgid "- Įmonė"
 msgstr "- Company"
+
+msgid "Redaguoti įrašą"
+msgstr "Edit entry"
+
+msgid "Įrašų dar nėra."
+msgstr "No entries yet."
 
 msgid "Įmonės - CRM"
 msgstr "Companies - CRM"
@@ -352,35 +135,59 @@ msgstr "Companies - CRM"
 msgid "įmonės"
 msgstr "companies"
 
-msgid "⌕ Filtrai"
-msgstr "⌕ Filters"
+msgid "+ Pridėti įmonę"
+msgstr "+ Add company"
 
-msgid "Įmonių filtrai"
-msgstr "Company filters"
-
-msgid "Paieška"
-msgstr "Search"
-
-msgid "Atstatyti"
-msgstr "Reset"
-
-msgid "Taikyti"
-msgstr "Apply"
+msgid "Eksportuoti"
+msgstr "Export"
 
 msgid "▥ Stulpeliai"
 msgstr "▥ Columns"
 
+msgid "Įmonės kodas"
+msgstr "Company code"
+
+msgid "PVM kodas"
+msgstr "VAT number"
+
+msgid "Telefonas"
+msgstr "Phone"
+
 msgid "Išsaugoti rodinį"
 msgstr "Save view"
 
-msgid "Išsaugotų sąrašų nėra."
-msgstr "No saved lists."
+msgid "Mano filtrai"
+msgstr "My filters"
+
+msgid "Išsaugotų filtrų nėra."
+msgstr "No saved filters."
+
+msgid "Filtro pavadinimas"
+msgstr "Filter name"
 
 msgid "Išsaugoti dabartinį"
 msgstr "Save current"
 
+msgid "Pažymėti visas įmones"
+msgstr "Select all companies"
+
+msgid "Pavadinimas"
+msgstr "Name"
+
+msgid "Veiksmai"
+msgstr "Actions"
+
+msgid "Pažymėti"
+msgstr "Select"
+
+msgid "veiksmai"
+msgstr "actions"
+
 msgid "Atidaryti"
 msgstr "Open"
+
+msgid "Redaguoti"
+msgstr "Edit"
 
 msgid "Įmonių nėra pagal pasirinktus filtrus."
 msgstr "No companies match these filters."
@@ -388,53 +195,23 @@ msgstr "No companies match these filters."
 msgid "iš"
 msgstr "of"
 
+msgid "50 eilučių"
+msgstr "50 rows"
+
+msgid "100 eilučių"
+msgstr "100 rows"
+
 msgid "Ankstesnis"
 msgstr "Previous"
 
 msgid "Kitas"
 msgstr "Next"
 
-msgid "Priminimai - CRM"
-msgstr "Reminders - CRM"
+msgid "Redaguoti įrašą - CRM"
+msgstr "Edit entry - CRM"
 
-msgid "Aktyvūs ("
-msgstr "Active ("
-
-msgid "Visi suplanuoti ("
-msgstr "All scheduled ("
-
-msgid "Redaguoti priminimą - CRM"
-msgstr "Edit reminder - CRM"
-
-msgid "/ Redaguoti"
-msgstr "/ Edit"
-
-msgid "Nustatymai - CRM"
-msgstr "Settings - CRM"
-
-msgid "Tvarkykite kontaktams naudojamas žymas ir kategorijas."
-msgstr "Manage contact tags and categories."
-
-msgid "Trumpi požymiai kontaktų grupavimui ir paieškai."
-msgstr "Labels for grouping and searching contacts."
-
-msgid "Nauja žyma"
-msgstr "New tag"
-
-msgid "Žymų dar nėra."
-msgstr "No tags yet."
-
-msgid "Kontaktų suskirstymui pagal tipą ar santykį."
-msgstr "Group contacts by type or relationship."
-
-msgid "Nauja kategorija"
-msgstr "New category"
-
-msgid "Kategorijų dar nėra."
-msgstr "No categories yet."
-
-msgid "Pirmiausia sukurkite reikšmes nustatymuose."
-msgstr "Create options in Settings first."
+msgid "/ Redaguoti įrašą"
+msgstr "/ Edit entry"
 
 msgid "Formatavimas:"
 msgstr "Formatting:"
@@ -448,8 +225,101 @@ msgstr "_italic_"
 msgid ", o įrašyta interneto nuoroda bus aktyvi."
 msgstr ", and web addresses become clickable links."
 
+msgid "Išsaugoti pakeitimus"
+msgstr "Save changes"
+
+msgid "Atšaukti"
+msgstr "Cancel"
+
+msgid "Kontaktiniai duomenys"
+msgstr "Contact details"
+
+msgid "Dukart spustelėkite lauko pavadinimą arba reikšmę. Klaviatūra: Enter; telefone: palieskite lauko pavadinimą."
+msgstr "Double-click a field label or value. Keyboard: Enter; on a phone, tap the field label."
+
+msgid "Išsaugoti"
+msgstr "Save"
+
+msgid "Aktyvūs priminimai"
+msgstr "Active reminders"
+
+msgid "Atlikta"
+msgstr "Done"
+
+msgid "Aktyvių priminimų nėra."
+msgstr "No active reminders."
+
+msgid "Pridėti priminimą"
+msgstr "Add reminder"
+
+msgid "Pridėti"
+msgstr "Add"
+
+msgid "Įrašų istorija"
+msgstr "History"
+
+msgid "dukart spustelėkite redaguoti"
+msgstr "double-click to edit"
+
+msgid "Nepriskirta"
+msgstr "Not assigned"
+
+msgid "Priskirtos įmonės"
+msgstr "Assigned companies"
+
+msgid "Įmonių dar nėra."
+msgstr "No companies yet."
+
+msgid "Pridėti naują"
+msgstr "Add new"
+
+msgid "Įmonės pavadinimas"
+msgstr "Company name"
+
+msgid "Įmonė bus sukurta ir priskirta paspaudus „Išsaugoti“."
+msgstr "The company will be created and assigned when you click Save."
+
+msgid "Viena reikšmė eilutėje."
+msgstr "One value per line."
+
+msgid "Kontaktai - CRM"
+msgstr "Contacts - CRM"
+
+msgid "kontaktai"
+msgstr "contacts"
+
+msgid "+ Pridėti kontaktą"
+msgstr "+ Add contact"
+
+msgid "Kategorija"
+msgstr "Category"
+
+msgid "Žyma"
+msgstr "Tag"
+
+msgid "Tagai"
+msgstr "Tags"
+
+msgid "Būsena"
+msgstr "Status"
+
+msgid "Atnaujinta"
+msgstr "Updated"
+
+msgid "Pažymėti visus puslapio kontaktus"
+msgstr "Select all contacts on this page"
+
+msgid "Mėgstamas:"
+msgstr "Favourite:"
+
+msgid "Kontaktų nerasta."
+msgstr "No contacts found."
+
 msgid "Pridėti kontaktą - CRM"
 msgstr "Add contact - CRM"
+
+msgid "Pridėti kontaktą"
+msgstr "Add contact"
 
 msgid "Pasirinkite kuriamo įrašo tipą."
 msgstr "Choose the type of record to create."
@@ -460,29 +330,53 @@ msgstr "Name, companies, phone numbers and email"
 msgid "Rekvizitai, adresas ir kontaktiniai asmenys"
 msgstr "Company details, address and contact persons"
 
-msgid "Kontaktai - CRM"
-msgstr "Contacts - CRM"
+msgid "Aktyvūs filtrai"
+msgstr "Active filters"
 
-msgid "kontaktai"
-msgstr "contacts"
+msgid "Pašalinti filtrą"
+msgstr "Remove filter"
 
-msgid "Tik mėgstami"
-msgstr "Favourites only"
+msgid "Išvalyti visus"
+msgstr "Clear all"
 
-msgid "Tagas"
-msgstr "Tag"
+msgid "⌕ Filtrai"
+msgstr "⌕ Filters"
 
-msgid "Išsaugotų filtrų nėra."
-msgstr "No saved filters."
+msgid "Įmonių filtrai"
+msgstr "Company filters"
 
-msgid "Kontaktų nerasta."
-msgstr "No contacts found."
+msgid "Pasirinkite vieną arba kelias reikšmes."
+msgstr "Select one or more values."
 
-msgid "Redaguoti įrašą - CRM"
-msgstr "Edit entry - CRM"
+msgid "Uždaryti filtrus"
+msgstr "Close filters"
 
-msgid "/ Redaguoti įrašą"
-msgstr "/ Edit entry"
+msgid "Kategorijų dar nėra."
+msgstr "No categories yet."
+
+msgid "Žymų dar nėra."
+msgstr "No tags yet."
+
+msgid "Visos įmonės"
+msgstr "All companies"
+
+msgid "Pavyzdžiui, Vilnius"
+msgstr "For example, Vilnius"
+
+msgid "Paskutinis bendravimas"
+msgstr "Last interaction"
+
+msgid "Taikyti filtrus"
+msgstr "Apply filters"
+
+msgid "Kontaktų filtrai"
+msgstr "Contact filters"
+
+msgid "Tik mėgstami kontaktai"
+msgstr "Favourite contacts only"
+
+msgid "El. pašto fragmentas"
+msgstr "Email contains"
 
 msgid "Importas ir eksportas - CRM"
 msgstr "Import and export - CRM"
@@ -495,6 +389,9 @@ msgstr "Import contacts"
 
 msgid "Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos."
 msgstr "CSV column names remain unchanged: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos."
+
+msgid "Importuoti"
+msgstr "Import"
 
 msgid "Importas baigtas"
 msgstr "Import complete"
@@ -514,6 +411,24 @@ msgstr "Export contacts"
 msgid "Eksportuojami tik nearchyvuoti kontaktai CSV UTF-8 formatu."
 msgstr "Exports non-archived contacts as UTF-8 CSV."
 
+msgid "Priskirti"
+msgstr "Assign"
+
+msgid "Pirmiausia sukurkite reikšmes nustatymuose."
+msgstr "Create options in Settings first."
+
+msgid "Kalba"
+msgstr "Language"
+
+msgid "Prisijungti - CRM"
+msgstr "Sign in - CRM"
+
+msgid "Prisijungti"
+msgstr "Sign in"
+
+msgid "Neteisingas naudotojo vardas arba slaptažodis."
+msgstr "Incorrect username or password."
+
 msgid "Pirmas paleidimas - CRM"
 msgstr "Initial setup - CRM"
 
@@ -526,43 +441,176 @@ msgstr "Create the administrator account. The setup code cannot be reused after 
 msgid "Sukurti administratorių"
 msgstr "Create administrator"
 
-msgid "Prisijungti - CRM"
-msgstr "Sign in - CRM"
+msgid "Redaguoti priminimą - CRM"
+msgstr "Edit reminder - CRM"
 
-msgid "Filtro pavadinimas"
-msgstr "Filter name"
+msgid "/ Redaguoti"
+msgstr "/ Edit"
 
-msgid "Sąrašo pavadinimas"
-msgstr "List name"
+msgid "Redaguoti priminimą"
+msgstr "Edit reminder"
 
-msgid "Ieškoti kontaktų"
-msgstr "Search contacts"
+msgid "Priminimai - CRM"
+msgstr "Reminders - CRM"
 
-msgid "Ieškoti įmonių"
-msgstr "Search companies"
+msgid "Artimiausi priminimai rodomi pirmiausia."
+msgstr "Reminders are sorted by earliest date."
 
-msgid "Pažymėti visus puslapio kontaktus"
-msgstr "Select all contacts on this page"
+msgid "Aktyvūs ("
+msgstr "Active ("
 
-msgid "Pažymėti visas įmones"
-msgstr "Select all companies"
+msgid "Visi suplanuoti ("
+msgstr "All scheduled ("
+
+msgid "Visi suplanuoti priminimai"
+msgstr "All scheduled reminders"
+
+msgid "Suplanuotų priminimų nėra."
+msgstr "No scheduled reminders."
 
 msgid "Priminimų skirtukai"
 msgstr "Reminder tabs"
 
-msgid "dukart spustelėkite redaguoti"
-msgstr "double-click to edit"
+msgid "Visi suplanuoti"
+msgstr "All scheduled"
 
-msgid "Pažymėti"
-msgstr "Select"
+msgid "Peržiūrėti visus priminimus"
+msgstr "View all reminders"
 
-msgid "Mėgstamas:"
-msgstr "Favourite:"
+msgid "Nustatymai - CRM"
+msgstr "Settings - CRM"
 
-msgid "veiksmai"
-msgstr "actions"
-msgid "Pavadinimas, kodas, kontaktas..."
-msgstr "Name, code, contact..."
+msgid "Tvarkykite kontaktams naudojamas žymas ir kategorijas."
+msgstr "Manage contact tags and categories."
 
-msgid "Meniu"
-msgstr "Menu"
+msgid "Trumpi požymiai kontaktų grupavimui ir paieškai."
+msgstr "Labels for grouping and searching contacts."
+
+msgid "Nauja žyma"
+msgstr "New tag"
+
+msgid "Kontaktų suskirstymui pagal tipą ar santykį."
+msgstr "Group contacts by type or relationship."
+
+msgid "Nauja kategorija"
+msgstr "New category"
+
+#~ msgid "Pridėti įmonę"
+#~ msgstr "Add company"
+
+#~ msgid "Priminimas"
+#~ msgstr "Reminder"
+
+#~ msgid "Data ir laikas"
+#~ msgstr "Date and time"
+
+#~ msgid "Vardas"
+#~ msgstr "First name"
+
+#~ msgid "Pavardė"
+#~ msgstr "Last name"
+
+#~ msgid "Pareigos"
+#~ msgstr "Job title"
+
+#~ msgid "Telefonai"
+#~ msgstr "Phone numbers"
+
+#~ msgid "El. paštai"
+#~ msgstr "Emails"
+
+#~ msgid "Adresai"
+#~ msgstr "Addresses"
+
+#~ msgid "Adresas"
+#~ msgstr "Address"
+
+#~ msgid "Nuorodos"
+#~ msgstr "Links"
+
+#~ msgid "URL nuorodos"
+#~ msgstr "URLs"
+
+#~ msgid "Įrašo tipas"
+#~ msgstr "Entry type"
+
+#~ msgid "Tekstas"
+#~ msgstr "Text"
+
+#~ msgid "Įrašykite pastabą..."
+#~ msgstr "Write a note..."
+
+#~ msgid "Pastaba"
+#~ msgstr "Note"
+
+#~ msgid "Skambutis"
+#~ msgstr "Call"
+
+#~ msgid "El. laiškas"
+#~ msgstr "Email"
+
+#~ msgid "Susitikimas"
+#~ msgstr "Meeting"
+
+#~ msgid "Užduotis"
+#~ msgstr "Task"
+
+#~ msgid "Stulpeliai"
+#~ msgstr "Columns"
+
+#~ msgid "Filtrai"
+#~ msgstr "Filters"
+
+#~ msgid "Visi"
+#~ msgstr "All"
+
+#~ msgid "Visos"
+#~ msgstr "All"
+
+#~ msgid "Vienas numeris eilutėje"
+#~ msgstr "One number per line"
+
+#~ msgid "Vienas adresas eilutėje"
+#~ msgstr "One address per line"
+
+#~ msgid "Viena nuoroda eilutėje"
+#~ msgstr "One link per line"
+
+#~ msgid "Pasirinkite ne daugiau kaip 3 tagus."
+#~ msgstr "Select up to 3 tags."
+
+#~ msgid "Pasirinkite ne daugiau kaip 3 kategorijas."
+#~ msgstr "Select up to 3 categories."
+
+#~ msgid "Įrašas atnaujintas."
+#~ msgstr "Entry updated."
+
+#~ msgid "Priminimas atnaujintas."
+#~ msgstr "Reminder updated."
+
+#~ msgid "Priminimas pašalintas."
+#~ msgstr "Reminder removed."
+
+#~ msgid "Paieška"
+#~ msgstr "Search"
+
+#~ msgid "Atstatyti"
+#~ msgstr "Reset"
+
+#~ msgid "Išsaugotų sąrašų nėra."
+#~ msgstr "No saved lists."
+
+#~ msgid "Tagas"
+#~ msgstr "Tag"
+
+#~ msgid "Sąrašo pavadinimas"
+#~ msgstr "List name"
+
+#~ msgid "Ieškoti kontaktų"
+#~ msgstr "Search contacts"
+
+#~ msgid "Ieškoti įmonių"
+#~ msgstr "Search companies"
+
+#~ msgid "Pavadinimas, kodas, kontaktas..."
+#~ msgstr "Name, code, contact..."

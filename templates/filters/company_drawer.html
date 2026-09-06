@@ -1,0 +1,14 @@
+{% load i18n %}
+<details class="drawer-control filter-drawer">
+  <summary class="btn">{% translate '⌕ Filtrai' %}{% if active_filter_count %} <b>{{ active_filter_count }}</b>{% endif %}</summary>
+  <form class="filter-panel" method="get">
+    <div class="filter-panel-head"><div><h2>{% translate 'Įmonių filtrai' %}</h2><small>{% translate 'Pasirinkite vieną arba kelias reikšmes.' %}</small></div><button type="button" class="filter-close" data-close-filter aria-label="{% translate 'Uždaryti filtrus' %}">×</button></div>
+    {% for column in columns %}<input type="hidden" name="columns" value="{{ column }}">{% endfor %}<input type="hidden" name="page_size" value="{{ page_size }}"><input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="direction" value="{{ direction }}">{% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+    <fieldset class="filter-group"><legend>{% translate 'Kategorijos' %}</legend><div class="filter-options">{% for item in categories %}<label><input type="checkbox" name="categories" value="{{ item.pk }}" {% if item.pk in filter_values.categories %}checked{% endif %}> {{ item.name }}</label>{% empty %}<small>{% translate 'Kategorijų dar nėra.' %}</small>{% endfor %}</div></fieldset>
+    <fieldset class="filter-group"><legend>{% translate 'Žymos' %}</legend><div class="filter-options">{% for item in tags %}<label><input type="checkbox" name="tags" value="{{ item.pk }}" {% if item.pk in filter_values.tags %}checked{% endif %}> {{ item.name }}</label>{% empty %}<small>{% translate 'Žymų dar nėra.' %}</small>{% endfor %}</div></fieldset>
+    <label>{% translate 'Kontaktiniai asmenys' %}<select name="contacts"><option value="">{% translate 'Visos įmonės' %}</option><option value="with" {% if filter_values.contacts == 'with' %}selected{% endif %}>{% translate 'Su kontaktais' %}</option><option value="without" {% if filter_values.contacts == 'without' %}selected{% endif %}>{% translate 'Be kontaktų' %}</option></select></label>
+    <label>{% translate 'Miestas arba adresas' %}<input name="city" value="{{ filter_values.city }}" placeholder="{% translate 'Pavyzdžiui, Vilnius' %}"></label>
+    <fieldset class="filter-group"><legend>{% translate 'Paskutinis bendravimas' %}</legend><div class="filter-date-range"><label>{% translate 'Nuo' %}<input type="date" name="last_contact_from" value="{{ filter_values.last_contact_from }}"></label><label>{% translate 'Iki' %}<input type="date" name="last_contact_to" value="{{ filter_values.last_contact_to }}"></label></div></fieldset>
+    <div class="filter-actions"><a class="btn" href="{% url 'contacts:company-list' %}">{% translate 'Išvalyti visus' %}</a><button class="btn primary" type="submit">{% translate 'Taikyti filtrus' %}</button></div>
+  </form>
+</details>

@@ -16,6 +16,19 @@ document.querySelectorAll('[popovertarget]').forEach(button => {
     });
   });
 });
+document.querySelectorAll('[data-close-filter]').forEach(button => {
+  button.addEventListener('click', () => button.closest('details')?.removeAttribute('open'));
+});
+document.querySelectorAll('.filter-panel').forEach(form => {
+  form.addEventListener('submit', () => {
+    form.querySelectorAll('input:not([type=hidden]),select').forEach(control => {
+      if (!control.value) control.disabled = true;
+    });
+  });
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') document.querySelectorAll('.filter-drawer[open]').forEach(drawer => drawer.removeAttribute('open'));
+});
 document.querySelectorAll('.inline-choices').forEach(form => {
   form.addEventListener('change', async event => {
     const input = event.target;

@@ -76,6 +76,12 @@ class SavedFilter(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def query_string(self):
+        from .filters import encoded_filter_values
+
+        return encoded_filter_values(self.filters)
+
 
 class Person(TimestampedModel):
     favourite = models.BooleanField(default=False, db_index=True)

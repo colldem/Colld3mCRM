@@ -1,0 +1,7 @@
+{% if filter_values.q %}<input type="hidden" name="q" value="{{ filter_values.q }}">{% endif %}
+{% for value in filter_values.categories %}<input type="hidden" name="categories" value="{{ value }}">{% endfor %}
+{% for value in filter_values.tags %}<input type="hidden" name="tags" value="{{ value }}">{% endfor %}
+{% if filter_values.contacts %}<input type="hidden" name="contacts" value="{{ filter_values.contacts }}">{% endif %}
+{% if filter_values.city %}<input type="hidden" name="city" value="{{ filter_values.city }}">{% endif %}
+{% if filter_values.last_contact_from %}<input type="hidden" name="last_contact_from" value="{{ filter_values.last_contact_from }}">{% endif %}
+{% if filter_values.last_contact_to %}<input type="hidden" name="last_contact_to" value="{{ filter_values.last_contact_to }}">{% endif %}

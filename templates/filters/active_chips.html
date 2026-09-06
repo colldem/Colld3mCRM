@@ -1,0 +1,9 @@
+{% load i18n %}
+{% if filter_chips %}
+<div class="active-filters" aria-label="{% translate 'Aktyvūs filtrai' %}">
+  {% for chip in filter_chips %}
+    <a class="filter-chip" href="{{ chip.remove_url }}" title="{% translate 'Pašalinti filtrą' %}"><span>{{ chip.label }}: {{ chip.value }}</span><b aria-hidden="true">×</b></a>
+  {% endfor %}
+  <a class="clear-filters" href="{{ request.path }}">{% translate 'Išvalyti visus' %}</a>
+</div>
+{% endif %}
