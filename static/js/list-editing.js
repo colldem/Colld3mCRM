@@ -24,7 +24,7 @@ document.querySelectorAll('[data-close-filter]').forEach(button => {
   button.addEventListener('click', () => button.closest('details')?.removeAttribute('open'));
 });
 document.addEventListener('pointerdown', event => {
-  document.querySelectorAll('.drawer-control[open],.sort-control[open],.filter-multiselect[open]').forEach(control => {
+  document.querySelectorAll('.drawer-control[open],.sort-control[open],.filter-multiselect[open],.reminder-menu[open],.profile-menu[open]').forEach(control => {
     if (event.target === control || !control.contains(event.target)) control.removeAttribute('open');
   });
 });
