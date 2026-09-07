@@ -52,5 +52,5 @@ class ThemeTests(TestCase):
 
     def test_settings_uses_same_stable_tag_colors(self):
         tag = Tag.objects.create(name="Settings color")
-        response = self.client.get(reverse("contacts:settings"))
+        response = self.client.get(reverse("contacts:settings-tags"))
         self.assertContains(response, f'class="crm-label {tag.color_class}"')

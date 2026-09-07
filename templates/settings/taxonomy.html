@@ -1,0 +1,6 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div>{% if kind == 'tag' %}<h2>{% translate 'Žymos' %}</h2><p>{% translate 'Trumpi požymiai kontaktų ir įmonių grupavimui.' %}</p>{% else %}<h2>{% translate 'Kategorijos' %}</h2><p>{% translate 'Kontaktų ir įmonių suskirstymas pagal santykį arba tipą.' %}</p>{% endif %}</div></div>
+<form method="post" class="settings-form">{% csrf_token %}<input type="hidden" name="kind" value="{{ kind }}"><label class="sr-only" for="taxonomy-name">{% translate 'Pavadinimas' %}</label><input id="taxonomy-name" name="name" maxlength="60" required placeholder="{% translate 'Pavadinimas' %}"><button class="btn primary" type="submit">{% translate 'Pridėti' %}</button></form>
+<ul class="settings-list">{% for item in items %}<li>{% if kind == 'tag' %}<span class="crm-label {{ item.color_class }}">{{ item.name }}</span>{% else %}{{ item.name }}{% endif %}</li>{% empty %}<li class="empty">{% translate 'Įrašų dar nėra.' %}</li>{% endfor %}</ul>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "settings/layout.html" %}{% load i18n crm_format %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Mano profilis' %}</h2><p>{% translate 'Atnaujinkite rodomą vardą, kalbą, laiko zoną ir profilio nuotrauką.' %}</p></div><div class="profile-preview">{% if crm_user_profile.avatar %}<img src="{{ crm_user_profile.avatar.url }}" alt="">{% else %}{{ request.user|user_initials }}{% endif %}</div></div>
+<form method="post" enctype="multipart/form-data" class="profile-form">{% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="profile-fields">
+    <label>{{ form.first_name.label }}{{ form.first_name }}{{ form.first_name.errors }}</label>
+    <label>{{ form.last_name.label }}{{ form.last_name }}{{ form.last_name.errors }}</label>
+    <label class="wide">{{ form.email.label }}{{ form.email }}{{ form.email.errors }}</label>
+    <label>{{ form.language.label }}{{ form.language }}{{ form.language.errors }}</label>
+    <label>{{ form.timezone.label }}{{ form.timezone }}{{ form.timezone.errors }}</label>
+    <label class="wide">{{ form.avatar.label }}{{ form.avatar }}<small>{% translate 'PNG, JPG, WEBP arba GIF. Iki 5 MB.' %}</small>{{ form.avatar.errors }}</label>
+    {% if crm_user_profile.avatar %}<label class="remove-avatar">{{ form.remove_avatar }} {{ form.remove_avatar.label }}</label>{% endif %}
+  </div>
+  <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
+</form>
+{% endblock %}

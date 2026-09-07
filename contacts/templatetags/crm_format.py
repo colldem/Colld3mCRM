@@ -18,3 +18,9 @@ def rich_text(value):
     # deliberately generated formatting tags a second time.
     text = urlize(text, autoescape=False)
     return mark_safe(text.replace("\n", "<br>"))
+
+
+@register.filter
+def user_initials(user):
+    initials = f"{(user.first_name or '')[:1]}{(user.last_name or '')[:1]}".strip()
+    return (initials or user.get_username()[:2]).upper()

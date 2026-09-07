@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Nustatymai - CRM' %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate 'Nustatymai' %}</h1><p>{% translate 'Tvarkykite savo profilį ir CRM klasifikatorius.' %}</p></div></div>
+<div class="settings-layout">
+  <nav class="settings-nav" aria-label="{% translate 'Nustatymų skyriai' %}">
+    <a class="{% if settings_section == 'profile' %}active{% endif %}" href="{% url 'contacts:settings' %}">{% translate 'Profilis' %}</a>
+    <a class="{% if settings_section == 'tags' %}active{% endif %}" href="{% url 'contacts:settings-tags' %}">{% translate 'Žymos' %}</a>
+    <a class="{% if settings_section == 'categories' %}active{% endif %}" href="{% url 'contacts:settings-categories' %}">{% translate 'Kategorijos' %}</a>
+  </nav>
+  <section class="settings-content">{% block settings_content %}{% endblock %}</section>
+</div>
+{% endblock %}

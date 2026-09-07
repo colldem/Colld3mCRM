@@ -83,6 +83,17 @@ class SavedFilter(models.Model):
         return encoded_filter_values(self.filters)
 
 
+class UserProfile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="crm_profile")
+    language = models.CharField(max_length=5, choices=(("lt", "Lietuvių"), ("en", "English")), default="lt")
+    timezone = models.CharField(max_length=64, default="Europe/Vilnius")
+    avatar = models.FileField(upload_to="avatars/%Y/%m/", blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.user)
+
+
 class Person(TimestampedModel):
     favourite = models.BooleanField(default=False, db_index=True)
     first_name = models.CharField(max_length=100, db_index=True)

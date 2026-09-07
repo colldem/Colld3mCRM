@@ -14,7 +14,7 @@ from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import ActivityForm, CompanyForm, PersonForm, ReminderForm, SetupAdminForm
+from .forms import ActivityForm, CompanyForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
 from .filters import (
     active_filter_count,
     apply_company_filters,
@@ -199,20 +199,33 @@ def company_saved_filter_create(request):
 
 @login_required
 def settings_page(request):
+    if request.method == "POST" and request.POST.get("kind") in {"tag", "category"}:
+        return settings_taxonomy(request, request.POST["kind"])
+    form = UserProfileForm(request.POST or None, request.FILES or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        profile = form.save()
+        messages.success(request, tr("Profilis atnaujintas."))
+        response = redirect("contacts:settings")
+        response.set_cookie(settings.LANGUAGE_COOKIE_NAME, profile.language, max_age=365 * 24 * 60 * 60, samesite="Lax")
+        return response
+    return render(request, "settings/profile.html", {"form": form, "settings_section": "profile"})
+
+
+@login_required
+def settings_taxonomy(request, kind):
+    model = Tag if kind == "tag" else Category if kind == "category" else None
+    if not model:
+        raise Http404
     if request.method == "POST":
-        kind = request.POST.get("kind")
         name = request.POST.get("name", "").strip()
-        model = Tag if kind == "tag" else Category if kind == "category" else None
         label = "Žyma" if kind == "tag" else tr("Kategorija")
-        if not model:
-            messages.error(request, "Neteisingas nustatymų veiksmas.")
-        elif not name:
+        if not name:
             messages.error(request, f"{label} negali būti tuščia.")
         else:
             _, created = model.objects.get_or_create(name=name)
             messages.success(request, f"{label} pridėta." if created else f"Tokia {label.lower()} jau yra.")
-        return redirect("contacts:settings")
-    return render(request, "settings.html", {"tags": Tag.objects.all(), "categories": Category.objects.all()})
+        return redirect("contacts:settings-tags" if kind == "tag" else "contacts:settings-categories")
+    return render(request, "settings/taxonomy.html", {"items": model.objects.all(), "kind": kind, "settings_section": "tags" if kind == "tag" else "categories"})
 
 
 @login_required

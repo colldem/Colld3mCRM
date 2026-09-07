@@ -4,7 +4,51 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
-from .models import Activity, Category, Company, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, Tag, WebLink
+from .models import Activity, Category, Company, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, Tag, UserProfile, WebLink
+
+
+class UserProfileForm(forms.Form):
+    first_name = forms.CharField(max_length=150, required=False, label=tr("Vardas"))
+    last_name = forms.CharField(max_length=150, required=False, label=tr("Pavardė"))
+    email = forms.EmailField(required=False, label=tr("El. paštas"))
+    language = forms.ChoiceField(choices=(("lt", "Lietuvių"), ("en", "English")), label=tr("Kalba"))
+    timezone = forms.ChoiceField(choices=(("Europe/Vilnius", "Europe/Vilnius"), ("Europe/London", "Europe/London"), ("Europe/Berlin", "Europe/Berlin"), ("UTC", "UTC"), ("America/New_York", "America/New_York")), label=tr("Laiko zona"))
+    avatar = forms.FileField(required=False, label=tr("Profilio nuotrauka"), widget=forms.FileInput(attrs={"accept": "image/png,image/jpeg,image/webp,image/gif"}))
+    remove_avatar = forms.BooleanField(required=False, label=tr("Pašalinti profilio nuotrauką"))
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        self.profile, _ = UserProfile.objects.get_or_create(user=user)
+        kwargs.setdefault("initial", {"first_name": user.first_name, "last_name": user.last_name, "email": user.email, "language": self.profile.language, "timezone": self.profile.timezone})
+        super().__init__(*args, **kwargs)
+
+    def clean_avatar(self):
+        avatar = self.cleaned_data.get("avatar")
+        if not avatar:
+            return avatar
+        if avatar.size > 5 * 1024 * 1024:
+            raise forms.ValidationError(tr("Profilio nuotrauka negali būti didesnė nei 5 MB."))
+        if getattr(avatar, "content_type", "") not in {"image/png", "image/jpeg", "image/webp", "image/gif"}:
+            raise forms.ValidationError(tr("Pasirinkite PNG, JPG, WEBP arba GIF formato nuotrauką."))
+        return avatar
+
+    @transaction.atomic
+    def save(self):
+        self.user.first_name = self.cleaned_data["first_name"].strip()
+        self.user.last_name = self.cleaned_data["last_name"].strip()
+        self.user.email = self.cleaned_data["email"].strip()
+        self.user.save(update_fields=["first_name", "last_name", "email"])
+        self.profile.language = self.cleaned_data["language"]
+        self.profile.timezone = self.cleaned_data["timezone"]
+        if self.cleaned_data["remove_avatar"] and self.profile.avatar:
+            self.profile.avatar.delete(save=False)
+            self.profile.avatar = ""
+        if self.cleaned_data.get("avatar"):
+            if self.profile.avatar:
+                self.profile.avatar.delete(save=False)
+            self.profile.avatar = self.cleaned_data["avatar"]
+        self.profile.save()
+        return self.profile
 
 
 class PersonForm(forms.ModelForm):

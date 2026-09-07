@@ -566,6 +566,45 @@ class ContactViewTests(TestCase):
         self.assertEqual(Tag.objects.filter(name="Svarbus").count(), 1)
         self.assertEqual(Category.objects.filter(name="Klientas").count(), 1)
 
+    def test_profile_settings_update_user_preferences_and_avatar_menu(self):
+        from contacts.models import UserProfile
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:settings"), {
+            "first_name": "Rasa",
+            "last_name": "Jonaitė",
+            "email": "rasa@example.lt",
+            "language": "en",
+            "timezone": "Europe/London",
+        })
+        self.assertRedirects(response, reverse("contacts:settings"))
+        self.assertEqual(response.cookies["django_language"].value, "en")
+        self.user.refresh_from_db()
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertEqual((self.user.first_name, self.user.last_name, self.user.email), ("Rasa", "Jonaitė", "rasa@example.lt"))
+        self.assertEqual((profile.language, profile.timezone), ("en", "Europe/London"))
+        response = self.client.get(reverse("contacts:list"))
+        self.assertContains(response, 'aria-label="Open user menu"')
+        self.assertContains(response, ">RJ</summary>")
+        self.assertContains(response, reverse("contacts:settings"))
+
+    def test_profile_rejects_non_image_avatar_and_taxonomy_pages_remain_available(self):
+        self.client.force_login(self.user)
+        invalid = SimpleUploadedFile("avatar.txt", b"not an image", content_type="text/plain")
+        response = self.client.post(reverse("contacts:settings"), {
+            "first_name": "",
+            "last_name": "",
+            "email": "",
+            "language": "lt",
+            "timezone": "Europe/Vilnius",
+            "avatar": invalid,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pasirinkite PNG, JPG, WEBP arba GIF formato nuotrauką.")
+        self.assertFalse(self.user.crm_profile.avatar)
+        self.assertContains(self.client.get(reverse("contacts:settings-tags")), "Žymos")
+        self.assertContains(self.client.get(reverse("contacts:settings-categories")), "Kategorijos")
+
     def test_contact_detail_contains_protocol_links(self):
         self.client.force_login(self.user)
         response = self.client.get(self.person.get_absolute_url())
