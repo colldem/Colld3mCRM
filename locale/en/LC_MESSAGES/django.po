@@ -1076,3 +1076,21 @@ msgstr "Create a reminder"
 
 msgid "Kopijuoti el. paštą"
 msgstr "Copy email"
+
+msgid "Slaptažodis"
+msgstr "Password"
+
+msgid "Slaptažodžio keitimas"
+msgstr "Change password"
+
+msgid "Įveskite dabartinį slaptažodį ir naują — ne trumpesnį nei 12 simbolių."
+msgstr "Enter your current password and a new one — at least 12 characters."
+
+msgid "Pakeisti slaptažodį"
+msgstr "Change password"
+
+msgid "Slaptažodis pakeistas."
+msgstr "Password changed."
+
+msgid "Bent 12 simbolių. Negali būti panašus į naudotojo vardą ar el. paštą, dažnai naudojamas arba vien iš skaičių."
+msgstr "At least 12 characters. Not too similar to your username or email, not a common password, and not entirely numeric."

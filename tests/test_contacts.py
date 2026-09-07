@@ -707,6 +707,45 @@ class ContactViewTests(TestCase):
         self.assertContains(response, f'href="{detail}#composer"')
         self.assertContains(response, 'data-email="info@aukstaitija.lt"')
 
+    def test_password_change_updates_password_and_keeps_session(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:settings-password"), {
+            "old_password": "very-secure-password",
+            "new_password1": "another-secure-pass-99",
+            "new_password2": "another-secure-pass-99",
+        })
+        self.assertRedirects(response, reverse("contacts:settings-password"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("another-secure-pass-99"))
+        self.assertEqual(self.client.get(reverse("contacts:list")).status_code, 200)
+
+    def test_password_change_rejects_wrong_current_password(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:settings-password"), {
+            "old_password": "not-the-password",
+            "new_password1": "another-secure-pass-99",
+            "new_password2": "another-secure-pass-99",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("very-secure-password"))
+
+    def test_password_change_enforces_length_validator(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:settings-password"), {
+            "old_password": "very-secure-password",
+            "new_password1": "short",
+            "new_password2": "short",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("very-secure-password"))
+
+    def test_settings_nav_links_to_password_section(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:settings"))
+        self.assertContains(response, reverse("contacts:settings-password"))
+
     def test_company_columns_and_saved_list_are_persistent_and_scoped(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:company-list"), {"columns": ["phone", "contacts"]})

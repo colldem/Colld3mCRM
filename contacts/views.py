@@ -6,7 +6,8 @@ import csv
 from io import TextIOWrapper
 
 from django.conf import settings
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -262,6 +263,17 @@ def settings_page(request):
         response.set_cookie(settings.LANGUAGE_COOKIE_NAME, profile.language, max_age=365 * 24 * 60 * 60, samesite="Lax")
         return response
     return render(request, "settings/profile.html", {"form": form, "settings_section": "profile"})
+
+
+@login_required
+def settings_password(request):
+    form = PasswordChangeForm(request.user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        update_session_auth_hash(request, form.user)
+        messages.success(request, tr("Slaptažodis pakeistas."))
+        return redirect("contacts:settings-password")
+    return render(request, "settings/password.html", {"form": form, "settings_section": "password"})
 
 
 @login_required
