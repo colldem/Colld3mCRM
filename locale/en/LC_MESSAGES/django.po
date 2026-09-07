@@ -672,3 +672,64 @@ msgstr "Choose a PNG, JPG, WEBP or GIF image."
 
 msgid "Profilis atnaujintas."
 msgstr "Profile updated."
+
+msgid "Spalva"
+msgstr "Color"
+
+msgid "Automatinė spalva"
+msgstr "Automatic color"
+
+#, python-format
+msgid "Kontaktai: %(people)s, įmonės: %(companies)s"
+msgstr "Contacts: %(people)s, companies: %(companies)s"
+
+msgid "Mėlyna"
+msgstr "Blue"
+
+msgid "Pilka"
+msgstr "Gray"
+
+msgid "Žalia"
+msgstr "Green"
+
+msgid "Violetinė"
+msgstr "Purple"
+
+msgid "Oranžinė"
+msgstr "Orange"
+
+msgid "Žydra"
+msgstr "Teal"
+
+msgid "Raudona"
+msgstr "Red"
+
+msgid "Auksinė"
+msgstr "Gold"
+
+msgid "Pasirinkta netinkama žymos spalva."
+msgstr "The selected tag color is invalid."
+
+msgid "Žyma negali būti tuščia."
+msgstr "A tag cannot be empty."
+
+msgid "Kategorija negali būti tuščia."
+msgstr "A category cannot be empty."
+
+msgid "Tokia žyma jau yra."
+msgstr "This tag already exists."
+
+msgid "Tokia kategorija jau yra."
+msgstr "This category already exists."
+
+msgid "Žyma atnaujinta."
+msgstr "Tag updated."
+
+msgid "Kategorija atnaujinta."
+msgstr "Category updated."
+
+msgid "Žyma pridėta."
+msgstr "Tag added."
+
+msgid "Kategorija pridėta."
+msgstr "Category added."

@@ -1,6 +1,53 @@
 {% extends "settings/layout.html" %}{% load i18n %}
 {% block settings_content %}
-<div class="settings-section-head"><div>{% if kind == 'tag' %}<h2>{% translate 'Žymos' %}</h2><p>{% translate 'Trumpi požymiai kontaktų ir įmonių grupavimui.' %}</p>{% else %}<h2>{% translate 'Kategorijos' %}</h2><p>{% translate 'Kontaktų ir įmonių suskirstymas pagal santykį arba tipą.' %}</p>{% endif %}</div></div>
-<form method="post" class="settings-form">{% csrf_token %}<input type="hidden" name="kind" value="{{ kind }}"><label class="sr-only" for="taxonomy-name">{% translate 'Pavadinimas' %}</label><input id="taxonomy-name" name="name" maxlength="60" required placeholder="{% translate 'Pavadinimas' %}"><button class="btn primary" type="submit">{% translate 'Pridėti' %}</button></form>
-<ul class="settings-list">{% for item in items %}<li>{% if kind == 'tag' %}<span class="crm-label {{ item.color_class }}">{{ item.name }}</span>{% else %}{{ item.name }}{% endif %}</li>{% empty %}<li class="empty">{% translate 'Įrašų dar nėra.' %}</li>{% endfor %}</ul>
+<div class="settings-section-head">
+  <div>
+    {% if kind == 'tag' %}
+      <h2>{% translate 'Žymos' %}</h2>
+      <p>{% translate 'Trumpi požymiai kontaktų ir įmonių grupavimui.' %}</p>
+    {% else %}
+      <h2>{% translate 'Kategorijos' %}</h2>
+      <p>{% translate 'Kontaktų ir įmonių suskirstymas pagal santykį arba tipą.' %}</p>
+    {% endif %}
+  </div>
+</div>
+<form method="post" class="settings-form taxonomy-create taxonomy-{{ kind }}">
+  {% csrf_token %}
+  <label class="sr-only" for="taxonomy-name">{% translate 'Pavadinimas' %}</label>
+  <input id="taxonomy-name" name="name" maxlength="60" required placeholder="{% translate 'Pavadinimas' %}">
+  {% if kind == 'tag' %}
+    <label class="sr-only" for="taxonomy-color">{% translate 'Spalva' %}</label>
+    <select id="taxonomy-color" name="color">
+      <option value="">{% translate 'Automatinė spalva' %}</option>
+      {% for value, label in tag_colors %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+  {% endif %}
+  <button class="btn primary" type="submit">{% translate 'Pridėti' %}</button>
+</form>
+<ul class="settings-list taxonomy-list">
+  {% for item in items %}
+    <li>
+      <form method="post" class="taxonomy-row taxonomy-{{ kind }}">
+        {% csrf_token %}
+        <input type="hidden" name="item_id" value="{{ item.pk }}">
+        <div class="taxonomy-label">
+          {% if kind == 'tag' %}<span class="crm-label {{ item.color_class }}">{{ item.name }}</span>{% else %}<strong>{{ item.name }}</strong>{% endif %}
+          <small>{% blocktranslate with people=item.people_count companies=item.companies_count %}Kontaktai: {{ people }}, įmonės: {{ companies }}{% endblocktranslate %}</small>
+        </div>
+        <label class="sr-only" for="taxonomy-name-{{ item.pk }}">{% translate 'Pavadinimas' %}</label>
+        <input id="taxonomy-name-{{ item.pk }}" name="name" maxlength="60" required value="{{ item.name }}">
+        {% if kind == 'tag' %}
+          <label class="sr-only" for="taxonomy-color-{{ item.pk }}">{% translate 'Spalva' %}</label>
+          <select id="taxonomy-color-{{ item.pk }}" name="color">
+            <option value="">{% translate 'Automatinė spalva' %}</option>
+            {% for value, label in tag_colors %}<option value="{{ value }}" {% if item.color == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        {% endif %}
+        <button class="btn" type="submit">{% translate 'Išsaugoti' %}</button>
+      </form>
+    </li>
+  {% empty %}
+    <li class="empty">{% translate 'Įrašų dar nėra.' %}</li>
+  {% endfor %}
+</ul>
 {% endblock %}

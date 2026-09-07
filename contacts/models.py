@@ -37,12 +37,15 @@ class Company(TimestampedModel):
 
 
 class Tag(models.Model):
+    COLOR_CHOICES = tuple((f"tag-color-{index}", label) for index, label in enumerate((tr("Mėlyna"), tr("Pilka"), tr("Žalia"), tr("Violetinė"), tr("Oranžinė"), tr("Žydra"), tr("Raudona"), tr("Auksinė"))))
+
     name = models.CharField(max_length=60, unique=True)
+    color = models.CharField(max_length=20, choices=COLOR_CHOICES, blank=True)
 
     @property
     def color_class(self):
-        # Stable across renames, assignment changes, languages and page reloads.
-        return f"tag-color-{(self.pk or 1) % 8}"
+        # The fallback gives imported and existing tags a stable automatic color.
+        return self.color or f"tag-color-{(self.pk or 1) % 8}"
 
     class Meta:
         ordering = ["name"]

@@ -605,6 +605,44 @@ class ContactViewTests(TestCase):
         self.assertContains(self.client.get(reverse("contacts:settings-tags")), "Žymos")
         self.assertContains(self.client.get(reverse("contacts:settings-categories")), "Kategorijos")
 
+    def test_taxonomy_settings_rename_tag_set_color_and_show_usage(self):
+        self.client.force_login(self.user)
+        tag = Tag.objects.create(name="Svarbus")
+        self.person.tags.add(tag)
+        response = self.client.post(reverse("contacts:settings-tags"), {
+            "item_id": tag.pk,
+            "name": "Prioritetinis",
+            "color": "tag-color-6",
+        })
+        self.assertRedirects(response, reverse("contacts:settings-tags"))
+        tag.refresh_from_db()
+        self.assertEqual((tag.name, tag.color, tag.color_class), ("Prioritetinis", "tag-color-6", "tag-color-6"))
+        response = self.client.get(reverse("contacts:settings-tags"))
+        self.assertContains(response, "Prioritetinis")
+        self.assertContains(response, "Kontaktai: 1, įmonės: 0")
+        self.assertContains(self.client.get(reverse("contacts:list")), "tag-color-6")
+
+    def test_taxonomy_settings_reject_duplicate_name_and_invalid_color(self):
+        self.client.force_login(self.user)
+        first = Tag.objects.create(name="Pirma")
+        second = Tag.objects.create(name="Antra")
+        response = self.client.post(reverse("contacts:settings-tags"), {
+            "item_id": second.pk,
+            "name": "pirma",
+            "color": "tag-color-2",
+        }, follow=True)
+        second.refresh_from_db()
+        self.assertEqual(second.name, "Antra")
+        self.assertContains(response, "Tokia žyma jau yra.")
+        response = self.client.post(reverse("contacts:settings-tags"), {
+            "item_id": first.pk,
+            "name": "Pirma",
+            "color": "not-a-color",
+        }, follow=True)
+        first.refresh_from_db()
+        self.assertEqual(first.color, "")
+        self.assertContains(response, "Pasirinkta netinkama žymos spalva.")
+
     def test_contact_detail_contains_protocol_links(self):
         self.client.force_login(self.user)
         response = self.client.get(self.person.get_absolute_url())

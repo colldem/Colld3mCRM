@@ -218,14 +218,33 @@ def settings_taxonomy(request, kind):
         raise Http404
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
-        label = "Žyma" if kind == "tag" else tr("Kategorija")
+        item_id = request.POST.get("item_id", "").strip()
         if not name:
-            messages.error(request, f"{label} negali būti tuščia.")
+            messages.error(request, tr("Žyma negali būti tuščia.") if kind == "tag" else tr("Kategorija negali būti tuščia."))
+        elif model.objects.filter(name__iexact=name).exclude(pk=item_id or None).exists():
+            messages.error(request, tr("Tokia žyma jau yra.") if kind == "tag" else tr("Tokia kategorija jau yra."))
+        elif item_id:
+            item = get_object_or_404(model, pk=item_id)
+            item.name = name
+            update_fields = ["name"]
+            if kind == "tag":
+                color = request.POST.get("color", "")
+                if color and color not in dict(Tag.COLOR_CHOICES):
+                    messages.error(request, tr("Pasirinkta netinkama žymos spalva."))
+                    return redirect("contacts:settings-tags")
+                item.color = color
+                update_fields.append("color")
+            item.save(update_fields=update_fields)
+            messages.success(request, tr("Žyma atnaujinta.") if kind == "tag" else tr("Kategorija atnaujinta."))
         else:
-            _, created = model.objects.get_or_create(name=name)
-            messages.success(request, f"{label} pridėta." if created else f"Tokia {label.lower()} jau yra.")
+            item = model.objects.create(name=name)
+            if kind == "tag" and request.POST.get("color") in dict(Tag.COLOR_CHOICES):
+                item.color = request.POST["color"]
+                item.save(update_fields=["color"])
+            messages.success(request, tr("Žyma pridėta.") if kind == "tag" else tr("Kategorija pridėta."))
         return redirect("contacts:settings-tags" if kind == "tag" else "contacts:settings-categories")
-    return render(request, "settings/taxonomy.html", {"items": model.objects.all(), "kind": kind, "settings_section": "tags" if kind == "tag" else "categories"})
+    items = model.objects.annotate(people_count=Count("people", distinct=True), companies_count=Count("companies", distinct=True))
+    return render(request, "settings/taxonomy.html", {"items": items, "kind": kind, "tag_colors": Tag.COLOR_CHOICES, "settings_section": "tags" if kind == "tag" else "categories"})
 
 
 @login_required
