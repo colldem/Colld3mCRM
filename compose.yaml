@@ -45,6 +45,7 @@ services:
       CRM_SETUP_TOKEN: ${CRM_SETUP_TOKEN:-}
       DJANGO_DEBUG: "false"
       DJANGO_FORCE_HTTPS: ${DJANGO_FORCE_HTTPS:-false}
+      DJANGO_SESSION_IDLE_MINUTES: ${DJANGO_SESSION_IDLE_MINUTES:-480}
     volumes:
       - ./runtime/media:/app/runtime/media
     network_mode: service:crm-tailscale

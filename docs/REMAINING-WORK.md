@@ -12,6 +12,9 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **B1** — „Mano filtrai": pervadinti, ištrinti, numatytasis
 - ✅ Varpelio ir profilio meniu užsidaro paspaudus bet kur kitur
 - ✅ **B2** — greiti veiksmai ⋮ meniu: pridėti įrašą, sukurti priminimą, kopijuoti el. paštą
+- ✅ **B4** — slaptažodžio keitimas: Nustatymai → Slaptažodis
+- ✅ **B6** — priedų dydžio (10 MB) ir tipo (plėtinių sąrašas) tikrinimas serveryje
+- ✅ **B7** — automatinis atsijungimas po 8 val. neaktyvumo (slankusis langas)
 
 ---
 
@@ -64,9 +67,8 @@ Yra 5 skiltys. Pagal planą trūksta:
 - ❌ Laukai (individualūs laukai — žr. C4)
 - ❌ Naudotojai ir teisės (žr. C6)
 
-### B4. Slaptažodžio keitimas iš profilio — ❌
-Dabar tik per `manage.py changepassword`. Reikia formos „Mano profilis" puslapyje
-(Django `PasswordChangeView` / `set_password`).
+### B4. Slaptažodžio keitimas iš profilio — ✅ padaryta
+Nustatymai → Slaptažodis (Django `PasswordChangeForm`, sesija išlieka).
 
 ### B5. Automatinės atsarginės kopijos — ❌
 Reikalauta: kasdienė PostgreSQL kopija + priedai, saugojimo terminas (pvz. 14/8/12).
@@ -74,13 +76,17 @@ Dabar kopijos daromos rankomis. Nėra `worker`/cron konteinerio.
 Kelias: 4-as Compose servisas (`crm-backup`) su `pg_dump` + `runtime/media` tar pagal cron,
 arba host cron `/volume1/docker/crm/backups`.
 
-### B6. Priedų serverinė validacija — 🟡
-Avatarui yra (5 MB, tik paveikslėliai). Veiklos priedams — **nėra** dydžio/tipo ribos
-(`contacts/views.py:418,605`). Reikia dydžio limito ir tipų sąrašo.
+### B6. Priedų serverinė validacija — ✅ padaryta
+Veiklos priedai: 10 MB dydžio riba + plėtinių sąrašas (jpg/png/webp/gif/pdf/txt/
+doc/docx/xls/xlsx). Netinkami failai atmetami su pranešimu, įrašas išsaugomas.
 
-### B7. Automatinis atsijungimas po neaktyvumo — ❌
-Reikalauta NAS versijoje. `config/settings.py` neturi `SESSION_COOKIE_AGE` /
-`SESSION_SAVE_EVERY_REQUEST` / idle-timeout.
+### B7. Automatinis atsijungimas po neaktyvumo — ✅ padaryta
+`SESSION_COOKIE_AGE` = `DJANGO_SESSION_IDLE_MINUTES` (numatyta 480 = 8 val.) +
+`SESSION_SAVE_EVERY_REQUEST` → slankusis langas nuo paskutinės užklausos.
+Pastaba: atidarytas ir matomas CRM skirtukas kas 30 s atnaujina sesiją
+(varpelio tikrinimas); paslėpus skirtuką ar užrakinus ekraną tikrinimas
+sustoja ir sesija po 8 val. baigiasi. Griežtesnis (pele/klaviatūra pagrįstas)
+neveiklumas — atskiras darbas, jei prireiks.
 
 ---
 

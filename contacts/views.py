@@ -1,5 +1,6 @@
 from django.utils.translation import gettext as _, gettext_lazy as tr
 import mimetypes
+import os
 import secrets
 import uuid
 import csv
@@ -457,6 +458,34 @@ def contact_edit(request, pk):
     return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person})
 
 
+ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+ATTACHMENT_ALLOWED_EXTENSIONS = {
+    ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".txt",
+    ".doc", ".docx", ".xls", ".xlsx",
+}
+
+
+def _save_attachments(request, activity):
+    """Store the uploaded files that pass the size and extension limits.
+    Returns the names of any rejected files."""
+    rejected = []
+    for upload in request.FILES.getlist("attachments"):
+        extension = os.path.splitext(upload.name)[1].lower()
+        if upload.size > ATTACHMENT_MAX_BYTES or extension not in ATTACHMENT_ALLOWED_EXTENSIONS:
+            rejected.append(upload.name)
+            continue
+        Attachment.objects.create(
+            activity=activity, file=upload, original_name=upload.name[:255],
+            content_type=getattr(upload, "content_type", "") or "", size=upload.size,
+        )
+    return rejected
+
+
+def _report_rejected_attachments(request, rejected):
+    if rejected:
+        messages.error(request, tr("Nepridėti failai (per dideli arba netinkamo tipo): %(names)s") % {"names": ", ".join(rejected)})
+
+
 @login_required
 def activity_create(request, pk):
     person = get_object_or_404(Person, pk=pk, deleted_at__isnull=True)
@@ -470,8 +499,7 @@ def activity_create(request, pk):
         activity.created_by = request.user
         activity.submission_token = token or None
         activity.save()
-        for upload in request.FILES.getlist("attachments"):
-            Attachment.objects.create(activity=activity, file=upload, original_name=upload.name[:255], content_type=getattr(upload, "content_type", "") or "", size=upload.size)
+        _report_rejected_attachments(request, _save_attachments(request, activity))
     return redirect(person)
 
 
@@ -660,8 +688,7 @@ def company_activity_create(request, pk):
         activity.created_by = request.user
         activity.submission_token = token or None
         activity.save()
-        for upload in request.FILES.getlist("attachments"):
-            Attachment.objects.create(activity=activity, file=upload, original_name=upload.name[:255], content_type=getattr(upload, "content_type", "") or "", size=upload.size)
+        _report_rejected_attachments(request, _save_attachments(request, activity))
     return redirect(company)
 
 

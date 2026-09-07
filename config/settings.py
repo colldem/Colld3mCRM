@@ -117,6 +117,9 @@ LOGIN_REDIRECT_URL = "contacts:list"
 LOGOUT_REDIRECT_URL = "login"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
+# Idle timeout: the session expires this long after the last request.
+SESSION_COOKIE_AGE = int(os.environ.get("DJANGO_SESSION_IDLE_MINUTES", "480")) * 60
+SESSION_SAVE_EVERY_REQUEST = True
 FORCE_HTTPS = os.environ.get("DJANGO_FORCE_HTTPS", "false").lower() == "true"
 SESSION_COOKIE_SECURE = FORCE_HTTPS and not RUNNING_TESTS
 CSRF_COOKIE_SECURE = FORCE_HTTPS and not RUNNING_TESTS

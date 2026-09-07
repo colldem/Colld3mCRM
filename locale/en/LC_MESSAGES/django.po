@@ -1094,3 +1094,10 @@ msgstr "Password changed."
 
 msgid "Bent 12 simbolių. Negali būti panašus į naudotojo vardą ar el. paštą, dažnai naudojamas arba vien iš skaičių."
 msgstr "At least 12 characters. Not too similar to your username or email, not a common password, and not entirely numeric."
+
+#, python-format
+msgid "Nepridėti failai (per dideli arba netinkamo tipo): %(names)s"
+msgstr "Files not added (too large or unsupported type): %(names)s"
+
+msgid "Iki 10 MB vienam failui."
+msgstr "Up to 10 MB per file."

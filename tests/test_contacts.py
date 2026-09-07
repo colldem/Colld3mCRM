@@ -746,6 +746,38 @@ class ContactViewTests(TestCase):
         response = self.client.get(reverse("contacts:settings"))
         self.assertContains(response, reverse("contacts:settings-password"))
 
+    def test_activity_attachments_reject_oversized_and_unsupported_files(self):
+        self.client.force_login(self.user)
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root), \
+                patch("contacts.views.ATTACHMENT_MAX_BYTES", 100):
+            ok = SimpleUploadedFile("note.txt", b"hello", content_type="text/plain")
+            wrong_type = SimpleUploadedFile("archyvas.zip", b"PK", content_type="application/zip")
+            too_big = SimpleUploadedFile("didelis.pdf", b"x" * 200, content_type="application/pdf")
+            response = self.client.post(reverse("contacts:activity-create", args=[self.person.pk]), {
+                "activity_type": "note", "text": "Su priedais",
+                "attachments": [ok, wrong_type, too_big],
+            })
+        self.assertEqual(response.status_code, 302)
+        activity = self.person.activities.latest("created_at")
+        self.assertEqual(list(activity.attachments.values_list("original_name", flat=True)), ["note.txt"])
+
+    def test_company_activity_attachments_are_validated_too(self):
+        self.client.force_login(self.user)
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            bad = SimpleUploadedFile("kenkejas.exe", b"MZ", content_type="application/octet-stream")
+            self.client.post(reverse("contacts:company-activity-create", args=[self.company.pk]), {
+                "activity_type": "note", "text": "Įmonės įrašas", "attachments": [bad],
+            })
+        self.assertEqual(self.company.activities.latest("created_at").attachments.count(), 0)
+
+    def test_session_is_configured_with_a_sliding_idle_timeout(self):
+        from django.conf import settings as dj_settings
+        self.assertTrue(dj_settings.SESSION_SAVE_EVERY_REQUEST)
+        self.assertGreater(dj_settings.SESSION_COOKIE_AGE, 0)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:list"))
+        self.assertIn("sessionid", response.cookies)
+
     def test_company_columns_and_saved_list_are_persistent_and_scoped(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:company-list"), {"columns": ["phone", "contacts"]})
