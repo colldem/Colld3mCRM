@@ -4,7 +4,7 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
-from .models import Activity, Category, Company, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, Tag, UserProfile, WebLink
+from .models import Activity, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, Tag, UserProfile, WebLink
 
 
 class UserProfileForm(forms.Form):
@@ -49,6 +49,19 @@ class UserProfileForm(forms.Form):
             self.profile.avatar = self.cleaned_data["avatar"]
         self.profile.save()
         return self.profile
+
+
+class DuplicateSettingsForm(forms.ModelForm):
+    class Meta:
+        model = DuplicateSettings
+        fields = ["enabled", "level", "check_on_edit", "check_on_import"]
+        labels = {
+            "enabled": tr("Įjungti dublikatų tikrinimą"),
+            "level": tr("Tikrinimo lygis"),
+            "check_on_edit": tr("Tikrinti redaguojant kontaktą"),
+            "check_on_import": tr("Tikrinti importuojant"),
+        }
+        widgets = {"level": forms.RadioSelect}
 
 
 class PersonForm(forms.ModelForm):

@@ -14,7 +14,8 @@ from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from .forms import ActivityForm, CompanyForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
+from .forms import ActivityForm, CompanyForm, DuplicateSettingsForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
+from .duplicates import all_person_duplicate_pairs, find_person_duplicates
 from .filters import (
     active_filter_count,
     apply_company_filters,
@@ -24,7 +25,7 @@ from .filters import (
     filter_chips,
     saved_filter_payload,
 )
-from .models import Activity, Attachment, Category, Company, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
+from .models import Activity, Attachment, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
 
 
 def health_live(request):
@@ -248,6 +249,24 @@ def settings_taxonomy(request, kind):
 
 
 @login_required
+def settings_duplicates(request):
+    duplicate_settings = DuplicateSettings.load()
+    form = DuplicateSettingsForm(request.POST or None, instance=duplicate_settings)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, tr("Dublikatų tikrinimo nustatymai išsaugoti."))
+        return redirect("contacts:settings-duplicates")
+    return render(request, "settings/duplicates.html", {"form": form, "settings_section": "duplicates"})
+
+
+@login_required
+def duplicate_list(request):
+    duplicate_settings = DuplicateSettings.load()
+    pairs = all_person_duplicate_pairs(duplicate_settings.level) if duplicate_settings.enabled else []
+    return render(request, "duplicates/list.html", {"pairs": pairs, "duplicate_settings": duplicate_settings})
+
+
+@login_required
 def contact_detail(request, pk):
     from .detail_editing import detail_fields
     person = get_object_or_404(Person.objects.prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company"), pk=pk, deleted_at__isnull=True)
@@ -272,6 +291,10 @@ def contact_type_choice(request):
 def contact_create(request):
     form = PersonForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
+        duplicate_settings = DuplicateSettings.load()
+        duplicates = find_person_duplicates(form.cleaned_data, level=duplicate_settings.level) if duplicate_settings.enabled else []
+        if duplicates and request.POST.get("confirm_duplicate") != "1":
+            return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį"), "duplicate_candidates": duplicates})
         return redirect(form.save())
     return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį")})
 
@@ -288,6 +311,10 @@ def contact_edit(request, pk):
     }
     form = PersonForm(request.POST or None, instance=person, initial=initial)
     if request.method == "POST" and form.is_valid():
+        duplicate_settings = DuplicateSettings.load()
+        duplicates = find_person_duplicates(form.cleaned_data, exclude_pk=person.pk, level=duplicate_settings.level) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
+        if duplicates and request.POST.get("confirm_duplicate") != "1":
+            return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person, "duplicate_candidates": duplicates})
         return redirect(form.save())
     return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person})
 

@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Galimi dublikatai - CRM' %}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate 'Galimi dublikatai' %}</h1><p>{% translate 'Peržiūrėkite panašius kontaktus. Sistema jų automatiškai nesujungia.' %}</p></div><div class="page-actions"><a class="btn" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Tikrinimo nustatymai' %}</a></div></div>
+{% if not duplicate_settings.enabled %}<div class="flash">{% translate 'Dublikatų tikrinimas išjungtas.' %}</div>{% endif %}
+<div class="duplicate-list">
+  {% for pair in pairs %}
+    <article class="duplicate-pair">
+      <div><strong><a href="{{ pair.left.get_absolute_url }}">{{ pair.left }}</a></strong>{% if pair.left.primary_company %}<small>{{ pair.left.primary_company }}</small>{% endif %}</div>
+      <span class="duplicate-reasons">{% for reason in pair.reasons %}{% if reason == 'email' %}{% translate 'Tas pats el. paštas' %}{% elif reason == 'phone' %}{% translate 'Tas pats telefonas' %}{% elif reason == 'name' %}{% translate 'Tas pats vardas' %}{% elif reason == 'company' %}{% translate 'Ta pati įmonė' %}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+      <div><strong><a href="{{ pair.right.get_absolute_url }}">{{ pair.right }}</a></strong>{% if pair.right.primary_company %}<small>{{ pair.right.primary_company }}</small>{% endif %}</div>
+    </article>
+  {% empty %}<div class="empty-state"><h2>{% translate 'Galimų dublikatų nerasta' %}</h2><p>{% translate 'Pagal dabartines taisykles sutampančių kontaktų nėra.' %}</p></div>{% endfor %}
+</div>
+{% endblock %}

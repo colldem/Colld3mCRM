@@ -97,6 +97,25 @@ class UserProfile(models.Model):
         return str(self.user)
 
 
+class DuplicateSettings(models.Model):
+    LEVEL_CHOICES = (("strict", tr("Griežtas")), ("standard", tr("Standartinis")), ("loose", tr("Laisvas")))
+
+    enabled = models.BooleanField(default=True)
+    level = models.CharField(max_length=12, choices=LEVEL_CHOICES, default="standard")
+    check_on_edit = models.BooleanField(default=True)
+    check_on_import = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def load(cls):
+        settings_object, _ = cls.objects.get_or_create(pk=1)
+        return settings_object
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        return super().save(*args, **kwargs)
+
+
 class Person(TimestampedModel):
     favourite = models.BooleanField(default=False, db_index=True)
     first_name = models.CharField(max_length=100, db_index=True)

@@ -824,3 +824,104 @@ msgstr "The selected value no longer exists."
 #: contacts/signals.py:18
 msgid "Galima pasirinkti ne daugiau kaip 3 reikšmes."
 msgstr "No more than 3 values can be selected."
+
+msgid "Rastas galimas dublikatas"
+msgstr "Possible duplicate found"
+
+msgid "Patikrinkite esamą kontaktą prieš išsaugodami naują įrašą."
+msgstr "Check the existing contact before saving a new record."
+
+msgid "el. paštas"
+msgstr "email"
+
+msgid "telefonas"
+msgstr "phone"
+
+msgid "vardas"
+msgstr "name"
+
+msgid "įmonė"
+msgstr "company"
+
+msgid "Vis tiek išsaugoti"
+msgstr "Save anyway"
+
+msgid "Galimi dublikatai - CRM"
+msgstr "Possible duplicates - CRM"
+
+msgid "Galimi dublikatai"
+msgstr "Possible duplicates"
+
+msgid "Peržiūrėkite panašius kontaktus. Sistema jų automatiškai nesujungia."
+msgstr "Review similar contacts. The system does not merge them automatically."
+
+msgid "Tikrinimo nustatymai"
+msgstr "Checking settings"
+
+msgid "Dublikatų tikrinimas išjungtas."
+msgstr "Duplicate checking is disabled."
+
+msgid "Tas pats el. paštas"
+msgstr "Same email"
+
+msgid "Tas pats telefonas"
+msgstr "Same phone"
+
+msgid "Tas pats vardas"
+msgstr "Same name"
+
+msgid "Ta pati įmonė"
+msgstr "Same company"
+
+msgid "Galimų dublikatų nerasta"
+msgstr "No possible duplicates found"
+
+msgid "Pagal dabartines taisykles sutampančių kontaktų nėra."
+msgstr "No contacts match under the current rules."
+
+msgid "Dublikatų tikrinimas"
+msgstr "Duplicate checking"
+
+msgid "Valdykite galimų kontaktų dublikatų aptikimą."
+msgstr "Manage how possible contact duplicates are detected."
+
+msgid "Tikrinama pagal el. paštą, telefono numerį, vardą ir įmonę."
+msgstr "Checks email, phone number, name and company."
+
+msgid "Importas ir toliau atnaujina tiksliai sutampantį kontaktą."
+msgstr "Import continues to update an exactly matching contact."
+
+msgid "Peržiūrėti dublikatus"
+msgstr "Review duplicates"
+
+#: contacts/views.py:257
+msgid "Dublikatų tikrinimo nustatymai išsaugoti."
+msgstr "Duplicate checking settings saved."
+
+#: contacts/forms.py:59
+msgid "Įjungti dublikatų tikrinimą"
+msgstr "Enable duplicate checking"
+
+#: contacts/forms.py:60
+msgid "Tikrinimo lygis"
+msgstr "Checking level"
+
+#: contacts/forms.py:61
+msgid "Tikrinti redaguojant kontaktą"
+msgstr "Check when editing a contact"
+
+#: contacts/forms.py:62
+msgid "Tikrinti importuojant"
+msgstr "Check during import"
+
+#: contacts/models.py:101
+msgid "Griežtas"
+msgstr "Strict"
+
+#: contacts/models.py:101
+msgid "Standartinis"
+msgstr "Standard"
+
+#: contacts/models.py:101
+msgid "Laisvas"
+msgstr "Loose"

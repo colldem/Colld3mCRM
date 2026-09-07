@@ -10,7 +10,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from contacts.models import Activity, Attachment, Category, Company, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
+from contacts.models import Activity, Attachment, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
 
 
 @override_settings(CRM_SETUP_TOKEN="one-time-setup-token")
@@ -656,6 +656,40 @@ class ContactViewTests(TestCase):
         invalid = SimpleUploadedFile("contacts.txt", b"invalid", content_type="text/plain")
         response = self.client.post(reverse("contacts:import-export"), {"file": invalid})
         self.assertContains(response, "The file could not be read. Check its columns and format.")
+
+    def test_duplicate_warning_requires_explicit_create_anyway(self):
+        self.client.force_login(self.user)
+        payload = {
+            "first_name": "Rūta",
+            "last_name": "Žukaitė",
+            "companies": [self.company.pk],
+            "email": "ruta@example.lt",
+            "phone": "+370 645 21 987",
+        }
+        before = Person.objects.count()
+        response = self.client.post(reverse("contacts:person-create"), payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Rastas galimas dublikatas")
+        self.assertEqual(Person.objects.count(), before)
+        response = self.client.post(reverse("contacts:person-create"), {**payload, "confirm_duplicate": "1"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Person.objects.count(), before + 1)
+
+    def test_duplicate_settings_and_review_page(self):
+        self.client.force_login(self.user)
+        other = Person.objects.create(first_name="Kita", last_name="Pavardė")
+        EmailAddress.objects.create(person=other, email="ruta@example.lt")
+        response = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertContains(response, self.person.get_absolute_url())
+        self.assertContains(response, other.get_absolute_url())
+        self.assertContains(response, "Tas pats el. paštas")
+        response = self.client.post(reverse("contacts:settings-duplicates"), {
+            "level": "strict",
+        })
+        self.assertRedirects(response, reverse("contacts:settings-duplicates"))
+        duplicate_settings = DuplicateSettings.load()
+        self.assertFalse(duplicate_settings.enabled)
+        self.assertEqual(duplicate_settings.level, "strict")
 
     def test_contact_detail_contains_protocol_links(self):
         self.client.force_login(self.user)

@@ -7,6 +7,7 @@
     <a class="{% if settings_section == 'profile' %}active{% endif %}" href="{% url 'contacts:settings' %}">{% translate 'Profilis' %}</a>
     <a class="{% if settings_section == 'tags' %}active{% endif %}" href="{% url 'contacts:settings-tags' %}">{% translate 'Žymos' %}</a>
     <a class="{% if settings_section == 'categories' %}active{% endif %}" href="{% url 'contacts:settings-categories' %}">{% translate 'Kategorijos' %}</a>
+    <a class="{% if settings_section == 'duplicates' %}active{% endif %}" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Dublikatų tikrinimas' %}</a>
   </nav>
   <section class="settings-content">{% block settings_content %}{% endblock %}</section>
 </div>
