@@ -527,6 +527,22 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "Miestas arba adresas")
         self.assertNotContains(response, 'name="status"')
 
+    def test_filter_drawers_use_list_style_category_and_tag_labels_without_status(self):
+        self.client.force_login(self.user)
+        category = Category.objects.create(name="Klientas")
+        tag = Tag.objects.create(name="Svarbus", color="tag-color-3")
+
+        for route in ("contacts:list", "contacts:company-list"):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertContains(response, 'class="filter-panel"')
+                self.assertContains(response, 'class="filter-choice"', count=2)
+                self.assertContains(response, '<span class="crm-label">Klientas</span>', html=True)
+                self.assertContains(response, '<span class="crm-label tag-color-3">Svarbus</span>', html=True)
+                self.assertNotContains(response, 'name="status"')
+        self.assertIsNotNone(category.pk)
+        self.assertIsNotNone(tag.pk)
+
     def test_saved_filter_preserves_multiple_values_and_invalid_filter_input_is_ignored(self):
         self.client.force_login(self.user)
         first = Category.objects.create(name="Pirma")
