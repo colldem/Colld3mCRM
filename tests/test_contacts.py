@@ -575,12 +575,15 @@ class ContactViewTests(TestCase):
 
         for route in ("contacts:list", "contacts:company-list"):
             with self.subTest(route=route):
-                response = self.client.get(reverse(route))
+                response = self.client.get(reverse(route), {"categories": category.pk, "tags": tag.pk})
                 self.assertContains(response, 'class="filter-panel"')
                 self.assertContains(response, 'data-filter-multiselect', count=2)
                 self.assertContains(response, 'class="filter-choice"', count=2)
                 self.assertContains(response, '<span class="crm-label">Klientas</span>', html=True)
                 self.assertContains(response, '<span class="crm-label tag-color-3">Svarbus</span>', html=True)
+                self.assertContains(response, 'class="filter-selected-tag crm-label"', count=1)
+                self.assertContains(response, 'class="filter-selected-tag crm-label tag-color-3"', count=1)
+                self.assertContains(response, 'data-filter-remove', count=2)
                 self.assertNotContains(response, 'name="status"')
                 if route == "contacts:list":
                     self.assertNotContains(response, 'name="companies"')

@@ -32,16 +32,23 @@ document.querySelectorAll('.filter-panel').forEach(form => {
   });
 });
 document.querySelectorAll('[data-filter-multiselect]').forEach(control => {
-  const summary = control.querySelector('summary');
   const selectedValues = control.querySelector('[data-filter-selected]');
   const updateSelectedValues = () => {
     const checked = [...control.querySelectorAll('input[type=checkbox]:checked')];
     selectedValues.replaceChildren();
     checked.forEach(input => {
+      const tag = document.createElement('button');
+      tag.type = 'button';
+      tag.className = 'filter-selected-tag crm-label ' + (input.dataset.colorClass || '');
+      tag.dataset.filterRemove = input.value;
+      tag.setAttribute('aria-label', `${gettext('Pašalinti')} ${input.dataset.label}`);
       const label = document.createElement('span');
-      label.className = 'crm-label ' + (input.dataset.colorClass || '');
       label.textContent = input.dataset.label;
-      selectedValues.append(label);
+      const remove = document.createElement('b');
+      remove.setAttribute('aria-hidden', 'true');
+      remove.textContent = '×';
+      tag.append(label, remove);
+      selectedValues.append(tag);
     });
     if (!checked.length) {
       const placeholder = document.createElement('span');
@@ -50,13 +57,15 @@ document.querySelectorAll('[data-filter-multiselect]').forEach(control => {
       selectedValues.append(placeholder);
     }
   };
-  summary.addEventListener('click', event => {
+  selectedValues.addEventListener('click', event => {
+    const tag = event.target.closest('[data-filter-remove]');
+    if (!tag) return;
     event.preventDefault();
-    if (event.detail === 0 || matchMedia('(pointer:coarse)').matches) control.open = !control.open;
-  });
-  summary.addEventListener('dblclick', event => {
-    event.preventDefault();
-    control.open = !control.open;
+    event.stopPropagation();
+    const input = [...control.querySelectorAll('input[type=checkbox]')].find(item => item.value === tag.dataset.filterRemove);
+    if (!input) return;
+    input.checked = false;
+    input.dispatchEvent(new Event('change', {bubbles:true}));
   });
   control.addEventListener('change', updateSelectedValues);
 });
