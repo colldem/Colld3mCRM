@@ -30,7 +30,9 @@ def find_person_duplicates(data, *, exclude_pk=None, level="standard"):
         same_phone = bool(phones & person_phones)
         same_name = bool(first_name and last_name and first_name == person.first_name.strip().casefold() and last_name == person.last_name.strip().casefold())
         same_company = bool(company_ids & {item.pk for item in person.companies.all()})
-        matched = same_email or same_phone
+        # An exact full-name match is always worth reviewing. It remains a
+        # candidate only, so the user still decides whether the records merge.
+        matched = same_email or same_phone or same_name
         if level == "standard":
             matched = matched or (same_name and same_company)
         elif level == "loose":
@@ -60,9 +62,8 @@ def all_person_duplicate_pairs(level="standard"):
                 groups[("phone", phone)].append(person)
         name = (person.first_name.strip().casefold(), person.last_name.strip().casefold())
         if all(name):
-            if level == "loose":
-                groups[("name", *name)].append(person)
-            elif level == "standard":
+            groups[("name", *name)].append(person)
+            if level == "standard":
                 for company in person.companies.all():
                     groups[("name_company", *name, company.pk)].append(person)
     pair_reasons = defaultdict(set)

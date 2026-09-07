@@ -1126,7 +1126,9 @@ class ContactViewTests(TestCase):
             "phone": "",
             "companies": [self.company],
         }
-        self.assertEqual(find_person_duplicates(person_data, exclude_pk=self.person.pk, level="strict"), [])
+        strict_matches = find_person_duplicates(person_data, exclude_pk=self.person.pk, level="strict")
+        self.assertEqual(strict_matches[0]["record"], same_name)
+        self.assertIn("name", strict_matches[0]["reasons"])
         self.assertEqual(find_person_duplicates(person_data, exclude_pk=self.person.pk, level="standard")[0]["record"], same_name)
 
         company = Company.objects.create(name="Tas pats pavadinimas")
@@ -1136,6 +1138,17 @@ class ContactViewTests(TestCase):
         self.assertEqual(loose_matches, [])
         duplicate_name = Company.objects.create(name=company.name)
         self.assertEqual(find_company_duplicates(company_data, exclude_pk=company.pk, level="loose")[0]["record"], duplicate_name)
+
+    def test_strict_review_detects_exact_full_name_without_shared_company(self):
+        self.client.force_login(self.user)
+        DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True, "level": "strict"})
+        other = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
+
+        response = self.client.get(reverse("contacts:duplicate-list"))
+
+        self.assertContains(response, self.person.get_absolute_url())
+        self.assertContains(response, other.get_absolute_url())
+        self.assertContains(response, "Tas pats vardas")
 
     def test_import_does_not_report_exact_record_that_it_updates(self):
         self.client.force_login(self.user)

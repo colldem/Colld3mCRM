@@ -7,7 +7,7 @@
   {% csrf_token %}
   {{ form.non_field_errors }}
   <label class="setting-toggle">{{ form.enabled }} <span><strong>{{ form.enabled.label }}</strong><small>{% translate 'Tikrinami asmenų ir įmonių kontaktiniai duomenys, identifikatoriai bei pavadinimai pagal pasirinktą lygį.' %}</small></span></label>
-  <label class="duplicate-level-field"><strong>{{ form.level.label }}</strong>{{ form.level.errors }}{{ form.level }}<small>{% translate 'Griežtas: tikslus el. paštas, telefonas arba įmonės identifikatorius. Standartinis: papildomai vardas su ta pačia įmone ir įmonės URL. Laisvas: papildomai sutampantis vardas arba įmonės pavadinimas.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.level.label }}</strong>{{ form.level.errors }}{{ form.level }}<small>{% translate 'Visuose lygiuose tikrinamas tiksliai sutampantis vardas ir pavardė. Griežtas: taip pat tikslus el. paštas, telefonas arba įmonės identifikatorius. Standartinis: papildomai įmonės telefonas ir URL. Laisvas: papildomai sutampantis įmonės pavadinimas.' %}</small></label>
   <label class="setting-toggle">{{ form.check_on_edit }} <span><strong>{{ form.check_on_edit.label }}</strong></span></label>
   <label class="setting-toggle">{{ form.check_on_import }} <span><strong>{{ form.check_on_import.label }}</strong><small>{% translate 'Importas ir toliau atnaujina tiksliai sutampantį kontaktą.' %}</small></span></label>
   <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button><a class="btn" href="{% url 'contacts:duplicate-list' %}">{% translate 'Peržiūrėti dublikatus' %}</a></div>

@@ -959,6 +959,10 @@ msgstr "Standard"
 msgid "Laisvas"
 msgstr "Loose"
 
+#: templates/settings/duplicates.html
+msgid "Visuose lygiuose tikrinamas tiksliai sutampantis vardas ir pavardė. Griežtas: taip pat tikslus el. paštas, telefonas arba įmonės identifikatorius. Standartinis: papildomai įmonės telefonas ir URL. Laisvas: papildomai sutampantis įmonės pavadinimas."
+msgstr "An exact first and last name match is checked at every level. Strict also checks exact email, phone, or company identifier. Standard additionally checks company phone and URL. Loose additionally checks a matching company name."
+
 #: contacts/merging.py
 msgid "Prieš sujungiant palikite ne daugiau kaip 3 bendras žymas ir 3 bendras kategorijas."
 msgstr "Before merging, keep no more than 3 combined tags and 3 combined categories."
