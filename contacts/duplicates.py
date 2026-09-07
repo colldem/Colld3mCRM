@@ -2,7 +2,7 @@ import re
 from collections import defaultdict
 from itertools import combinations
 
-from .models import Person
+from .models import Company, Person
 
 
 def _lines(value):
@@ -45,7 +45,7 @@ def find_person_duplicates(data, *, exclude_pk=None, level="standard"):
                 reasons.append("name")
             if same_company:
                 reasons.append("company")
-            matches.append({"person": person, "reasons": reasons})
+            matches.append({"record": person, "reasons": reasons})
     return matches
 
 
@@ -77,6 +77,65 @@ def all_person_duplicate_pairs(level="standard"):
                 pair_reasons[pair].add(reason)
     reason_order = ("email", "phone", "name", "company")
     return [
-        {"left": people_by_id[left], "right": people_by_id[right], "reasons": [reason for reason in reason_order if reason in reasons]}
+        {"left": people_by_id[left], "right": people_by_id[right], "reasons": [reason for reason in reason_order if reason in reasons], "kind": "person"}
+        for (left, right), reasons in sorted(pair_reasons.items())
+    ]
+
+
+def _company_signals(data, company):
+    normalized_phone = re.sub(r"\D", "", data.get("phone") or "")
+    company_phone = re.sub(r"\D", "", company.phone or "")
+    return {
+        "company_code": bool(data.get("company_code") and data["company_code"].strip().casefold() == company.company_code.strip().casefold()),
+        "vat_code": bool(data.get("vat_code") and data["vat_code"].strip().casefold() == company.vat_code.strip().casefold()),
+        "email": bool(data.get("email") and data["email"].strip().casefold() == company.email.strip().casefold()),
+        "phone": bool(len(normalized_phone) >= 6 and normalized_phone == company_phone),
+        "url": bool(data.get("url") and data["url"].strip().rstrip("/").casefold() == company.url.strip().rstrip("/").casefold()),
+        "name": bool(data.get("name") and data["name"].strip().casefold() == company.name.strip().casefold()),
+    }
+
+
+def find_company_duplicates(data, *, exclude_pk=None, level="standard"):
+    companies = Company.objects.filter(deleted_at__isnull=True)
+    if exclude_pk:
+        companies = companies.exclude(pk=exclude_pk)
+    matches = []
+    for company in companies:
+        signals = _company_signals(data, company)
+        matched = signals["company_code"] or signals["vat_code"] or signals["email"]
+        if level in {"standard", "loose"}:
+            matched = matched or signals["phone"] or signals["url"]
+        if level == "loose":
+            matched = matched or signals["name"]
+        if matched:
+            matches.append({"record": company, "reasons": [reason for reason, value in signals.items() if value]})
+    return matches
+
+
+def all_company_duplicate_pairs(level="standard"):
+    companies = list(Company.objects.filter(deleted_at__isnull=True))
+    groups = defaultdict(list)
+    for company in companies:
+        values = {
+            "company_code": company.company_code.strip().casefold(),
+            "vat_code": company.vat_code.strip().casefold(),
+            "email": company.email.strip().casefold(),
+        }
+        if level in {"standard", "loose"}:
+            values["phone"] = re.sub(r"\D", "", company.phone or "")
+            values["url"] = company.url.strip().rstrip("/").casefold()
+        if level == "loose":
+            values["name"] = company.name.strip().casefold()
+        for reason, value in values.items():
+            if value and (reason != "phone" or len(value) >= 6):
+                groups[(reason, value)].append(company)
+    pair_reasons = defaultdict(set)
+    company_by_id = {company.pk: company for company in companies}
+    for (reason, _), members in groups.items():
+        for left, right in combinations({company.pk for company in members}, 2):
+            pair_reasons[tuple(sorted((left, right)))].add(reason)
+    reason_order = ("company_code", "vat_code", "email", "phone", "url", "name")
+    return [
+        {"left": company_by_id[left], "right": company_by_id[right], "reasons": [reason for reason in reason_order if reason in reasons], "kind": "company"}
         for (left, right), reasons in sorted(pair_reasons.items())
     ]

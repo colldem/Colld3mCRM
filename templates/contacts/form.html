@@ -4,8 +4,8 @@
 <div class="page-head"><h1>{{ title }}</h1></div>
 {% if duplicate_candidates %}
   <section class="duplicate-warning" role="alert">
-    <div><strong>{% translate 'Rastas galimas dublikatas' %}</strong><p>{% translate 'Patikrinkite esamą kontaktą prieš išsaugodami naują įrašą.' %}</p></div>
-    <ul>{% for candidate in duplicate_candidates %}<li><a href="{{ candidate.person.get_absolute_url }}" target="_blank" rel="noopener">{{ candidate.person }}</a><small>{% for reason in candidate.reasons %}{% if reason == 'email' %}{% translate 'el. paštas' %}{% elif reason == 'phone' %}{% translate 'telefonas' %}{% elif reason == 'name' %}{% translate 'vardas' %}{% elif reason == 'company' %}{% translate 'įmonė' %}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</small></li>{% endfor %}</ul>
+    <div><strong>{% translate 'Rastas galimas dublikatas' %}</strong><p>{% translate 'Patikrinkite esamą įrašą prieš išsaugodami naują.' %}</p></div>
+    <ul>{% for candidate in duplicate_candidates %}<li><a href="{{ candidate.record.get_absolute_url }}" target="_blank" rel="noopener">{{ candidate.record }}</a><small>{% for reason in candidate.reasons %}{% if reason == 'email' %}{% translate 'el. paštas' %}{% elif reason == 'phone' %}{% translate 'telefonas' %}{% elif reason == 'name' %}{% translate 'vardas' %}{% elif reason == 'company' %}{% translate 'įmonė' %}{% elif reason == 'company_code' %}{% translate 'įmonės kodas' %}{% elif reason == 'vat_code' %}{% translate 'PVM kodas' %}{% elif reason == 'url' %}URL{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</small></li>{% endfor %}</ul>
   </section>
 {% endif %}
 <form method="post" class="data-form">

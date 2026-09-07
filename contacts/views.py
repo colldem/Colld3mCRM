@@ -15,7 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from .forms import ActivityForm, CompanyForm, DuplicateSettingsForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
-from .duplicates import all_person_duplicate_pairs, find_person_duplicates
+from .duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
 from .filters import (
     active_filter_count,
     apply_company_filters,
@@ -262,7 +262,7 @@ def settings_duplicates(request):
 @login_required
 def duplicate_list(request):
     duplicate_settings = DuplicateSettings.load()
-    pairs = all_person_duplicate_pairs(duplicate_settings.level) if duplicate_settings.enabled else []
+    pairs = (all_person_duplicate_pairs(duplicate_settings.level) + all_company_duplicate_pairs(duplicate_settings.level)) if duplicate_settings.enabled else []
     return render(request, "duplicates/list.html", {"pairs": pairs, "duplicate_settings": duplicate_settings})
 
 
@@ -521,6 +521,10 @@ def company_activity_create(request, pk):
 def company_create(request):
     form = CompanyForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
+        duplicate_settings = DuplicateSettings.load()
+        duplicates = find_company_duplicates(form.cleaned_data, level=duplicate_settings.level) if duplicate_settings.enabled else []
+        if duplicates and request.POST.get("confirm_duplicate") != "1":
+            return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/", "duplicate_candidates": duplicates})
         return redirect(form.save())
     return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/"})
 
@@ -530,6 +534,10 @@ def company_edit(request, pk):
     company = get_object_or_404(Company, pk=pk, deleted_at__isnull=True)
     form = CompanyForm(request.POST or None, instance=company)
     if request.method == "POST" and form.is_valid():
+        duplicate_settings = DuplicateSettings.load()
+        duplicates = find_company_duplicates(form.cleaned_data, exclude_pk=company.pk, level=duplicate_settings.level) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
+        if duplicates and request.POST.get("confirm_duplicate") != "1":
+            return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti įmonę"), "company": company, "cancel_url": company.get_absolute_url(), "duplicate_candidates": duplicates})
         return redirect(form.save())
     return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti įmonę"), "company": company, "cancel_url": company.get_absolute_url()})
 

@@ -691,6 +691,24 @@ class ContactViewTests(TestCase):
         self.assertFalse(duplicate_settings.enabled)
         self.assertEqual(duplicate_settings.level, "strict")
 
+    def test_company_duplicate_warning_and_review(self):
+        self.client.force_login(self.user)
+        self.company.company_code = "123456789"
+        self.company.save(update_fields=["company_code"])
+        payload = {"name": "Kita įmonė", "company_code": "123456789"}
+        before = Company.objects.count()
+        response = self.client.post(reverse("contacts:company-create"), payload)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Rastas galimas dublikatas")
+        self.assertEqual(Company.objects.count(), before)
+        response = self.client.post(reverse("contacts:company-create"), {**payload, "confirm_duplicate": "1"})
+        self.assertEqual(response.status_code, 302)
+        created = Company.objects.get(name="Kita įmonė")
+        response = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertContains(response, self.company.get_absolute_url())
+        self.assertContains(response, created.get_absolute_url())
+        self.assertContains(response, "Tas pats įmonės kodas")
+
     def test_contact_detail_contains_protocol_links(self):
         self.client.force_login(self.user)
         response = self.client.get(self.person.get_absolute_url())

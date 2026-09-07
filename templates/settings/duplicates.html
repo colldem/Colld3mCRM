@@ -1,7 +1,7 @@
 {% extends "settings/layout.html" %}{% load i18n %}
 {% block settings_content %}
 <div class="settings-section-head">
-  <div><h2>{% translate 'Dublikatų tikrinimas' %}</h2><p>{% translate 'Valdykite galimų kontaktų dublikatų aptikimą.' %}</p></div>
+  <div><h2>{% translate 'Dublikatų tikrinimas' %}</h2><p>{% translate 'Valdykite galimų kontaktų ir įmonių dublikatų aptikimą.' %}</p></div>
 </div>
 <form method="post" class="profile-form duplicate-settings-form">
   {% csrf_token %}

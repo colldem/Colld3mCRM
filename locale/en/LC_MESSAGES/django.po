@@ -828,8 +828,8 @@ msgstr "No more than 3 values can be selected."
 msgid "Rastas galimas dublikatas"
 msgstr "Possible duplicate found"
 
-msgid "Patikrinkite esamą kontaktą prieš išsaugodami naują įrašą."
-msgstr "Check the existing contact before saving a new record."
+msgid "Patikrinkite esamą įrašą prieš išsaugodami naują."
+msgstr "Check the existing record before saving a new one."
 
 msgid "el. paštas"
 msgstr "email"
@@ -882,8 +882,8 @@ msgstr "No contacts match under the current rules."
 msgid "Dublikatų tikrinimas"
 msgstr "Duplicate checking"
 
-msgid "Valdykite galimų kontaktų dublikatų aptikimą."
-msgstr "Manage how possible contact duplicates are detected."
+msgid "Valdykite galimų kontaktų ir įmonių dublikatų aptikimą."
+msgstr "Manage how possible contact and company duplicates are detected."
 
 msgid "Tikrinama pagal el. paštą, telefono numerį, vardą ir įmonę."
 msgstr "Checks email, phone number, name and company."
@@ -907,8 +907,8 @@ msgid "Tikrinimo lygis"
 msgstr "Checking level"
 
 #: contacts/forms.py:61
-msgid "Tikrinti redaguojant kontaktą"
-msgstr "Check when editing a contact"
+msgid "Tikrinti redaguojant įrašą"
+msgstr "Check when editing a record"
 
 #: contacts/forms.py:62
 msgid "Tikrinti importuojant"
@@ -925,3 +925,15 @@ msgstr "Standard"
 #: contacts/models.py:101
 msgid "Laisvas"
 msgstr "Loose"
+
+msgid "įmonės kodas"
+msgstr "company code"
+
+msgid "Tas pats įmonės kodas"
+msgstr "Same company code"
+
+msgid "Tas pats PVM kodas"
+msgstr "Same VAT code"
+
+msgid "Tas pats URL"
+msgstr "Same URL"

@@ -58,7 +58,7 @@ class DuplicateSettingsForm(forms.ModelForm):
         labels = {
             "enabled": tr("Įjungti dublikatų tikrinimą"),
             "level": tr("Tikrinimo lygis"),
-            "check_on_edit": tr("Tikrinti redaguojant kontaktą"),
+            "check_on_edit": tr("Tikrinti redaguojant įrašą"),
             "check_on_import": tr("Tikrinti importuojant"),
         }
         widgets = {"level": forms.RadioSelect}
