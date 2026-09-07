@@ -893,6 +893,147 @@ class ContactViewTests(TestCase):
         self.assertContains(response, created.get_absolute_url())
         self.assertContains(response, "Tas pats įmonės kodas")
 
+    def test_person_duplicates_can_be_merged_without_deleting_source(self):
+        self.client.force_login(self.user)
+        target = Person.objects.create(first_name="Rūta", last_name="Žukaitė", favourite=True)
+        EmailAddress.objects.create(person=target, email="ruta@example.lt", is_primary=True)
+        extra_company = Company.objects.create(name="Kita darbovietė")
+        PersonCompanyLink.objects.create(person=self.person, company=extra_company, role="Konsultantė")
+        PhoneNumber.objects.create(person=target, number="+370 600 00 001", is_primary=True)
+        note = Activity.objects.create(person=self.person, text="Perkeliama istorija", created_by=self.user)
+        attachment = Attachment.objects.create(activity=note, file="qa.txt", original_name="qa.txt")
+        reminder = Reminder.objects.create(person=self.person, text="Perkeliamas priminimas", due_at=timezone.now(), created_by=self.user)
+        source_tag = Tag.objects.create(name="Šaltinio žyma")
+        target_tag = Tag.objects.create(name="Tikslo žyma")
+        self.person.tags.add(source_tag)
+        target.tags.add(target_tag)
+
+        response = self.client.post(reverse("contacts:duplicate-merge", args=["person", self.person.pk, target.pk]))
+
+        self.assertRedirects(response, target.get_absolute_url())
+        self.person.refresh_from_db()
+        target.refresh_from_db()
+        self.assertEqual(self.person.merged_into, target)
+        self.assertIsNotNone(self.person.deleted_at)
+        self.assertTrue(Person.objects.filter(pk=self.person.pk).exists())
+        self.assertEqual(target.job_title, "Projektų vadovė")
+        self.assertTrue(target.favourite)
+        self.assertEqual(set(target.phones.values_list("number", flat=True)), {"+370 600 00 001", "+370 645 21 987"})
+        self.assertEqual(set(target.companies.values_list("name", flat=True)), {"Aukštaitijos projektai", "Kita darbovietė"})
+        self.assertEqual(set(target.tags.values_list("name", flat=True)), {"Šaltinio žyma", "Tikslo žyma"})
+        self.assertEqual(Activity.objects.get(pk=note.pk).person, target)
+        self.assertEqual(Attachment.objects.get(pk=attachment.pk).activity_id, note.pk)
+        self.assertEqual(Reminder.objects.get(pk=reminder.pk).person, target)
+        self.assertNotContains(self.client.get(reverse("contacts:archive-list")), self.person.get_absolute_url())
+        self.assertEqual(self.client.post(reverse("contacts:restore", args=[self.person.pk])).status_code, 404)
+        self.assertRedirects(
+            self.client.post(reverse("contacts:duplicate-merge", args=["person", self.person.pk, target.pk])),
+            target.get_absolute_url(),
+        )
+
+    def test_company_duplicates_can_be_merged_with_people_and_history(self):
+        self.client.force_login(self.user)
+        source = Company.objects.create(name="Dubliuota įmonė", address="Vilnius", company_code="123")
+        target = Company.objects.create(name="Paliekama įmonė", company_code="123")
+        source_link = PersonCompanyLink.objects.create(person=self.person, company=source, role="Vadovė", is_primary=True)
+        PersonCompanyLink.objects.create(person=self.person, company=target)
+        other = Person.objects.create(first_name="Kitas", last_name="Asmuo")
+        PersonCompanyLink.objects.create(person=other, company=source, role="Specialistas")
+        note = Activity.objects.create(company=source, text="Įmonės istorija", created_by=self.user)
+        source_tag = Tag.objects.create(name="Įmonės žyma")
+        source.tags.add(source_tag)
+
+        response = self.client.post(reverse("contacts:duplicate-merge", args=["company", source.pk, target.pk]))
+
+        self.assertRedirects(response, target.get_absolute_url())
+        source.refresh_from_db()
+        target.refresh_from_db()
+        self.assertEqual(source.merged_into, target)
+        self.assertIsNotNone(source.deleted_at)
+        self.assertTrue(Company.objects.filter(pk=source.pk).exists())
+        self.assertEqual(target.address, "Vilnius")
+        self.assertEqual(set(target.people.values_list("pk", flat=True)), {self.person.pk, other.pk})
+        merged_link = PersonCompanyLink.objects.get(person=self.person, company=target)
+        self.assertEqual((merged_link.role, merged_link.is_primary), (source_link.role, True))
+        self.assertEqual(Activity.objects.get(pk=note.pk).company, target)
+        self.assertEqual(list(target.tags.values_list("name", flat=True)), ["Įmonės žyma"])
+
+    def test_duplicate_review_offers_directional_merge_and_rejects_invalid_pair(self):
+        self.client.force_login(self.user)
+        other = Person.objects.create(first_name="Kita", last_name="Kontaktė")
+        EmailAddress.objects.create(person=other, email="ruta@example.lt")
+        review = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertContains(review, reverse("contacts:duplicate-merge", args=["person", other.pk, self.person.pk]))
+        self.assertContains(review, reverse("contacts:duplicate-merge", args=["person", self.person.pk, other.pk]))
+        self.assertContains(review, "Palikti šį kontaktą")
+        before = Person.objects.count()
+        self.assertEqual(
+            self.client.post(reverse("contacts:duplicate-merge", args=["person", self.person.pk, self.person.pk])).status_code,
+            400,
+        )
+        self.assertEqual(Person.objects.count(), before)
+
+    def test_card_titles_support_double_click_editing(self):
+        self.client.force_login(self.user)
+        contact = self.client.get(self.person.get_absolute_url())
+        self.assertContains(contact, 'class="detail-title-editor"')
+        self.assertContains(contact, 'name="field" value="full_name"')
+        response = self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {
+            "field": "full_name", "first_name": "Rasa", "last_name": "Žukė",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.person.refresh_from_db()
+        self.assertEqual((self.person.first_name, self.person.last_name), ("Rasa", "Žukė"))
+        self.assertIn("Rasa Žukė", response.json()["html"])
+
+        company = self.client.get(self.company.get_absolute_url())
+        self.assertContains(company, 'class="detail-title-editor"')
+        self.assertContains(company, 'name="field" value="name"')
+        response = self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]), {
+            "field": "name", "value": "Naujas pavadinimas", "render_title": "1",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.name, "Naujas pavadinimas")
+        self.assertIn("Naujas pavadinimas", response.json()["html"])
+
+    def test_contact_title_edit_checks_combined_name_for_duplicates(self):
+        self.client.force_login(self.user)
+        other = Person.objects.create(first_name="Kita", last_name="Kontaktė")
+        PersonCompanyLink.objects.create(person=other, company=self.company)
+        response = self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {
+            "field": "full_name", "first_name": "Kita", "last_name": "Kontaktė",
+        })
+        self.assertEqual(response.status_code, 409)
+        self.person.refresh_from_db()
+        self.assertEqual((self.person.first_name, self.person.last_name), ("Rūta", "Žukaitė"))
+        response = self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {
+            "field": "full_name", "first_name": "Kita", "last_name": "Kontaktė", "confirm_duplicate": "1",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.person.refresh_from_db()
+        self.assertEqual((self.person.first_name, self.person.last_name), ("Kita", "Kontaktė"))
+
+    def test_merge_rolls_back_when_combined_labels_exceed_limit(self):
+        self.client.force_login(self.user)
+        other = Person.objects.create(first_name="Kita", last_name="Kontaktė")
+        EmailAddress.objects.create(person=other, email="ruta@example.lt")
+        tags = [Tag.objects.create(name=f"Sujungimo žyma {index}") for index in range(4)]
+        self.person.tags.add(*tags[:2])
+        other.tags.add(*tags[2:])
+
+        response = self.client.post(
+            reverse("contacts:duplicate-merge", args=["person", self.person.pk, other.pk]),
+            follow=True,
+        )
+
+        self.assertContains(response, "Prieš sujungiant palikite ne daugiau kaip 3 bendras žymas")
+        self.person.refresh_from_db()
+        other.refresh_from_db()
+        self.assertIsNone(self.person.deleted_at)
+        self.assertIsNone(self.person.merged_into_id)
+        self.assertEqual(other.tags.count(), 2)
+
     def test_inline_contact_edit_blocks_duplicate_and_allows_explicit_confirmation(self):
         self.client.force_login(self.user)
         other = Person.objects.create(first_name="Kita", last_name="Kontaktė")

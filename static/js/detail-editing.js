@@ -93,4 +93,4 @@ function bindDetailField(block) {
     }
   });
 }
-document.querySelectorAll('.detail-field').forEach(bindDetailField);
+document.querySelectorAll('.detail-field,.detail-title-editor').forEach(bindDetailField);

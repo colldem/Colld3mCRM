@@ -52,4 +52,5 @@ urlpatterns = [
     path("settings/duplicates/", views.settings_duplicates, name="settings-duplicates"),
     path("settings/documentation/", views.documentation_page, name="settings-documentation"),
     path("duplicates/", views.duplicate_list, name="duplicate-list"),
+    path("duplicates/<str:kind>/<int:source_pk>/merge-into/<int:target_pk>/", views.duplicate_merge, name="duplicate-merge"),
 ]

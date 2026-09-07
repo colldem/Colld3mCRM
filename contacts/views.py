@@ -1,4 +1,4 @@
-from django.utils.translation import gettext_lazy as tr
+from django.utils.translation import gettext as _, gettext_lazy as tr
 import mimetypes
 import secrets
 import uuid
@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.db.models import Count, Min, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
@@ -158,14 +159,14 @@ def company_archive(request, pk):
 
 @login_required
 def archive_list(request):
-    people = Person.objects.filter(deleted_at__isnull=False).order_by("-deleted_at")
-    companies = Company.objects.filter(deleted_at__isnull=False).order_by("-deleted_at")
+    people = Person.objects.filter(deleted_at__isnull=False, merged_into__isnull=True).order_by("-deleted_at")
+    companies = Company.objects.filter(deleted_at__isnull=False, merged_into__isnull=True).order_by("-deleted_at")
     return render(request, "archive.html", {"people": people, "companies": companies})
 
 
 @login_required
 def contact_restore(request, pk):
-    person = get_object_or_404(Person, pk=pk)
+    person = get_object_or_404(Person, pk=pk, merged_into__isnull=True)
     if request.method == "POST" and person.deleted_at is not None:
         person.deleted_at = None
         person.save(update_fields=["deleted_at", "updated_at"])
@@ -175,7 +176,7 @@ def contact_restore(request, pk):
 
 @login_required
 def company_restore(request, pk):
-    company = get_object_or_404(Company, pk=pk)
+    company = get_object_or_404(Company, pk=pk, merged_into__isnull=True)
     if request.method == "POST" and company.deleted_at is not None:
         company.deleted_at = None
         company.save(update_fields=["deleted_at", "updated_at"])
@@ -309,6 +310,42 @@ def duplicate_list(request):
     duplicate_settings = DuplicateSettings.load()
     pairs = (all_person_duplicate_pairs(duplicate_settings.level) + all_company_duplicate_pairs(duplicate_settings.level)) if duplicate_settings.enabled else []
     return render(request, "duplicates/list.html", {"pairs": pairs, "duplicate_settings": duplicate_settings})
+
+
+@login_required
+def duplicate_merge(request, kind, source_pk, target_pk):
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    if kind not in {"person", "company"} or source_pk == target_pk:
+        return HttpResponse("Netinkami sujungimo duomenys.", status=400)
+    duplicate_settings = DuplicateSettings.load()
+    if not duplicate_settings.enabled:
+        return HttpResponse("Dublikatų tikrinimas išjungtas.", status=400)
+
+    model = Person if kind == "person" else Company
+    source = model.objects.filter(pk=source_pk).first()
+    target = model.objects.filter(pk=target_pk).first()
+    if not source or not target:
+        return HttpResponse("Vienas iš sujungiamų įrašų nerastas.", status=404)
+    if source.merged_into_id == target.pk:
+        return redirect(target.get_absolute_url())
+
+    pair_function = all_person_duplicate_pairs if kind == "person" else all_company_duplicate_pairs
+    is_duplicate_pair = any(
+        {pair["left"].pk, pair["right"].pk} == {source_pk, target_pk}
+        for pair in pair_function(duplicate_settings.level)
+    )
+    if not is_duplicate_pair:
+        return HttpResponse("Pasirinkti įrašai pagal dabartines taisykles nėra dublikatai.", status=400)
+
+    from .merging import merge_companies, merge_people
+    try:
+        target = merge_people(source_pk, target_pk) if kind == "person" else merge_companies(source_pk, target_pk)
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+        return redirect("contacts:duplicate-list")
+    messages.success(request, _("Įrašai sėkmingai sujungti."))
+    return redirect(target.get_absolute_url())
 
 
 @login_required

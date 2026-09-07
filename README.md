@@ -1,6 +1,6 @@
-# CRM 0.4.0
+# CRM 0.5.0
 
-CRM: autentifikacija, asmenys, įmonės, jų ryšiai, kontaktų paieška, išplėsti filtrai, išsaugoti filtrai, rikiavimas, pasirinktiniai stulpeliai, 50 arba 100 eilučių puslapiavimas, archyvas, kontaktų ir įmonių kortelės, istorijos įrašai su failais, priminimų centras, profilio bei klasifikatorių nustatymai, LT / EN sąsaja, dublikatų aptikimas ir CSV arba XLSX importas bei CSV eksportas.
+CRM: autentifikacija, asmenys, įmonės, jų ryšiai, kontaktų paieška, išplėsti filtrai, išsaugoti filtrai, rikiavimas, pasirinktiniai stulpeliai, 50 arba 100 eilučių puslapiavimas, archyvas, kontaktų ir įmonių kortelės, istorijos įrašai su failais, priminimų centras, profilio bei klasifikatorių nustatymai, LT / EN sąsaja, dublikatų aptikimas ir sujungimas, CSV arba XLSX importas bei CSV eksportas.
 
 Pirmoji administratoriaus paskyra sukuriama adresu `/setup/` naudojant vienkartinį `CRM_SETUP_TOKEN`. Sukūrus pirmą naudotoją setup puslapis automatiškai išsijungia.
 

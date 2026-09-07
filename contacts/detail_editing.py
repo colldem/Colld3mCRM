@@ -47,7 +47,9 @@ def person_duplicate_data(person, *, field, value):
         "email": "\n".join(person.emails.values_list("email", flat=True)),
         "companies": list(person.companies.all()),
     }
-    if field in {"first_name", "last_name"}:
+    if field == "full_name":
+        data.update(value)
+    elif field in {"first_name", "last_name"}:
         data[field] = value
     elif field == "phones":
         data["phone"] = "\n".join(value)
@@ -77,6 +79,11 @@ def company_detail_fields(company):
     return [company_field_context(company, field) for field in CompanyForm.Meta.fields]
 
 
+def title_html(record, request):
+    context = {"person": record} if isinstance(record, Person) else {"company": record}
+    return render_to_string("contacts/detail_title.html", context, request=request)
+
+
 @login_required
 @require_POST
 @transaction.atomic
@@ -98,8 +105,10 @@ def edit_company_field(request, pk):
     if changed:
         setattr(company, field, value)
         company.save(update_fields=[field, "updated_at"])
-    return JsonResponse({"ok": True, "name": company.name,
-        "html": render_to_string("contacts/detail_field.html", {"item": company_field_context(company, field)}, request=request)})
+    html = title_html(company, request) if request.POST.get("render_title") == "1" and field == "name" else render_to_string(
+        "contacts/detail_field.html", {"item": company_field_context(company, field)}, request=request
+    )
+    return JsonResponse({"ok": True, "name": company.name, "html": html})
 
 
 SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"), "job_title": _("Pareigos"), "status": _("Būsena")}
@@ -146,7 +155,21 @@ def edit_contact_field(request, pk):
     person = get_object_or_404(Person.objects.select_for_update(), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field")
     try:
-        if field in SCALARS:
+        if field == "full_name":
+            first_name = forms.CharField(max_length=100).clean(request.POST.get("first_name", ""))
+            last_name = forms.CharField(max_length=100).clean(request.POST.get("last_name", ""))
+            values = {"first_name": first_name, "last_name": last_name}
+            changed = any(getattr(person, key) != value for key, value in values.items())
+            if changed:
+                duplicate_settings = DuplicateSettings.load()
+                if duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
+                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, level=duplicate_settings.level)
+                    if matches:
+                        return duplicate_conflict(matches)
+                person.first_name = first_name
+                person.last_name = last_name
+                person.save(update_fields=["first_name", "last_name", "updated_at"])
+        elif field in SCALARS:
             value = person._meta.get_field(field).formfield().clean(request.POST.get("value", ""))
             changed = getattr(person, field) != value
             if changed and field in {"first_name", "last_name"}:
@@ -216,5 +239,7 @@ def edit_contact_field(request, pk):
             return JsonResponse({"error": "Netinkamas laukas."}, status=400)
     except ValidationError as error:
         return JsonResponse({"error": " ".join(error.messages)}, status=400)
-    return JsonResponse({"ok": True, "name": str(person), "job_title": person.job_title,
-        "html": render_to_string("contacts/detail_field.html", {"item": field_context(person, field)}, request=request)})
+    html = title_html(person, request) if field == "full_name" else render_to_string(
+        "contacts/detail_field.html", {"item": field_context(person, field)}, request=request
+    )
+    return JsonResponse({"ok": True, "name": str(person), "job_title": person.job_title, "html": html})

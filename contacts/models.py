@@ -15,6 +15,7 @@ class TimestampedModel(models.Model):
 
 
 class Company(TimestampedModel):
+    merged_into = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="merged_companies")
     tags = models.ManyToManyField("Tag", blank=True, related_name="companies")
     categories = models.ManyToManyField("Category", blank=True, related_name="companies")
     name = models.CharField(max_length=200, db_index=True)
@@ -117,6 +118,7 @@ class DuplicateSettings(models.Model):
 
 
 class Person(TimestampedModel):
+    merged_into = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="merged_people")
     favourite = models.BooleanField(default=False, db_index=True)
     first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100, db_index=True)

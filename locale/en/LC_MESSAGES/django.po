@@ -959,6 +959,54 @@ msgstr "Standard"
 msgid "Laisvas"
 msgstr "Loose"
 
+#: contacts/merging.py
+msgid "Prieš sujungiant palikite ne daugiau kaip 3 bendras žymas ir 3 bendras kategorijas."
+msgstr "Before merging, keep no more than 3 combined tags and 3 combined categories."
+
+#: contacts/merging.py
+msgid "Negalima sujungti įrašo su juo pačiu."
+msgstr "A record cannot be merged with itself."
+
+#: contacts/merging.py
+msgid "Vienas iš sujungiamų įrašų nerastas."
+msgstr "One of the records to merge was not found."
+
+#: contacts/merging.py
+msgid "Šis įrašas jau sujungtas su kitu įrašu."
+msgstr "This record has already been merged into another record."
+
+#: contacts/merging.py
+msgid "Sujungti galima tik du aktyvius įrašus."
+msgstr "Only two active records can be merged."
+
+#: contacts/merging.py
+msgid "Sujungti galima tik dvi aktyvias įmones."
+msgstr "Only two active companies can be merged."
+
+#: contacts/views.py
+msgid "Įrašai sėkmingai sujungti."
+msgstr "Records merged successfully."
+
+#: templates/contacts/detail_title.html
+msgid "Dukart spustelėkite pavadinimą, kad redaguotumėte"
+msgstr "Double-click the name to edit it"
+
+#: templates/duplicates/list.html
+msgid "Palyginkite įrašus ir pasirinkite, kurį norite palikti. Kito įrašo duomenys bus perkelti į paliekamą įrašą."
+msgstr "Compare the records and choose which one to keep. Data from the other record will be moved into the kept record."
+
+#: templates/duplicates/list.html
+msgid "Sujungti įrašus? Pasirinktas įrašas bus paliktas, o kitas archyvuotas."
+msgstr "Merge the records? The selected record will be kept and the other one archived."
+
+#: templates/duplicates/list.html
+msgid "Palikti šį kontaktą"
+msgstr "Keep this contact"
+
+#: templates/duplicates/list.html
+msgid "Palikti šią įmonę"
+msgstr "Keep this company"
+
 msgid "įmonės kodas"
 msgstr "company code"
 
