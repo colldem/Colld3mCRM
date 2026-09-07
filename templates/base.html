@@ -8,7 +8,7 @@
   <title>{% block title %}CRM{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260907">
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260907f">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260907g">
 </head>
 <body class="sidebar-expand-lg fixed-header">
 <div class="app-wrapper">
@@ -40,7 +40,7 @@
         </div>
       </details>
       <details class="profile-menu">
-        <summary class="avatar" aria-label="{% translate 'Atidaryti naudotojo meniu' %}">{% if crm_user_profile.avatar %}<img src="{{ crm_user_profile.avatar.url }}" alt="">{% else %}{{ request.user|user_initials }}{% endif %}</summary>
+        <summary class="avatar" aria-label="{% translate 'Atidaryti naudotojo meniu' %}">{% if crm_user_profile.avatar %}<img src="{% url 'contacts:profile-avatar' %}" alt="">{% else %}{{ request.user|user_initials }}{% endif %}</summary>
         <div class="profile-popover"><strong>{{ request.user.get_full_name|default:request.user.username }}</strong>{% if request.user.email %}<small>{{ request.user.email }}</small>{% endif %}<a href="{% url 'contacts:settings' %}">{% translate 'Mano profilis' %}</a><a href="{% url 'contacts:settings' %}">{% translate 'Nustatymai' %}</a><form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit">{% translate 'Atsijungti' %}</button></form></div>
       </details>
     </div>

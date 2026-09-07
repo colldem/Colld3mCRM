@@ -46,6 +46,7 @@ urlpatterns = [
     path("export/companies.csv", views.companies_export, name="companies-export"),
     path("archive/", views.archive_list, name="archive-list"),
     path("settings/", views.settings_page, name="settings"),
+    path("settings/avatar/", views.profile_avatar, name="profile-avatar"),
     path("settings/tags/", views.settings_taxonomy, {"kind": "tag"}, name="settings-tags"),
     path("settings/categories/", views.settings_taxonomy, {"kind": "category"}, name="settings-categories"),
     path("settings/duplicates/", views.settings_duplicates, name="settings-duplicates"),

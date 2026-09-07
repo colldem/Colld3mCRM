@@ -24,3 +24,8 @@ def rich_text(value):
 def user_initials(user):
     initials = f"{(user.first_name or '')[:1]}{(user.last_name or '')[:1]}".strip()
     return (initials or user.get_username()[:2]).upper()
+
+
+@register.filter
+def user_display_name(user):
+    return user.get_full_name().strip() or user.get_username()

@@ -1,4 +1,5 @@
 from django.utils.translation import gettext_lazy as tr
+import mimetypes
 import secrets
 import uuid
 import csv
@@ -25,7 +26,7 @@ from .filters import (
     filter_chips,
     saved_filter_payload,
 )
-from .models import Activity, Attachment, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
+from .models import Activity, Attachment, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, UserProfile, WebLink
 
 
 def health_live(request):
@@ -216,6 +217,22 @@ def settings_page(request):
         response.set_cookie(settings.LANGUAGE_COOKIE_NAME, profile.language, max_age=365 * 24 * 60 * 60, samesite="Lax")
         return response
     return render(request, "settings/profile.html", {"form": form, "settings_section": "profile"})
+
+
+@login_required
+def profile_avatar(request):
+    profile = UserProfile.objects.filter(user=request.user).first()
+    if not profile or not profile.avatar:
+        raise Http404
+    try:
+        response = FileResponse(
+            profile.avatar.open("rb"),
+            content_type=mimetypes.guess_type(profile.avatar.name)[0] or "application/octet-stream",
+        )
+    except FileNotFoundError:
+        raise Http404("Profilio nuotrauka nerasta.")
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @login_required

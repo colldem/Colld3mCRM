@@ -1,5 +1,6 @@
 from datetime import timedelta
 from io import BytesIO
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -665,6 +666,51 @@ class ContactViewTests(TestCase):
         self.assertContains(response, 'aria-label="Open user menu"')
         self.assertContains(response, ">RJ</summary>")
         self.assertContains(response, reverse("contacts:settings"))
+
+    def test_profile_avatar_is_saved_and_served_to_authenticated_user(self):
+        self.client.force_login(self.user)
+        image = b"\x89PNG\r\n\x1a\nprofile-image"
+
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            response = self.client.post(reverse("contacts:settings"), {
+                "first_name": "Rasa",
+                "last_name": "Jonaitė",
+                "email": "rasa@example.lt",
+                "language": "lt",
+                "timezone": "Europe/Vilnius",
+                "avatar": SimpleUploadedFile("profile.png", image, content_type="image/png"),
+            })
+            self.assertRedirects(response, reverse("contacts:settings"))
+            self.user.crm_profile.refresh_from_db()
+            self.assertTrue(self.user.crm_profile.avatar.name.startswith("avatars/"))
+            avatar_url = reverse("contacts:profile-avatar")
+            self.assertContains(self.client.get(reverse("contacts:settings")), f'src="{avatar_url}"')
+            avatar_response = self.client.get(avatar_url)
+            self.assertEqual(avatar_response.status_code, 200)
+            self.assertEqual(b"".join(avatar_response.streaming_content), image)
+
+        anonymous_response = self.client_class().get(reverse("contacts:profile-avatar"))
+        self.assertEqual(anonymous_response.status_code, 302)
+
+    def test_activity_history_uses_updated_profile_name_in_contact_and_company(self):
+        self.client.force_login(self.user)
+        Activity.objects.create(person=self.person, text="Kontakto istorija", created_by=self.user)
+        Activity.objects.create(company=self.company, text="Įmonės istorija", created_by=self.user)
+        self.client.post(reverse("contacts:settings"), {
+            "first_name": "Rasa",
+            "last_name": "Jonaitė",
+            "email": "rasa@example.lt",
+            "language": "lt",
+            "timezone": "Europe/Vilnius",
+        })
+
+        self.assertContains(self.client.get(self.person.get_absolute_url()), "- Rasa Jonaitė")
+        self.assertContains(self.client.get(self.company.get_absolute_url()), "- Rasa Jonaitė")
+
+    def test_profile_save_action_is_aligned_to_the_right(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:settings"))
+        self.assertContains(response, 'class="form-actions profile-form-actions"')
 
     def test_profile_rejects_non_image_avatar_and_taxonomy_pages_remain_available(self):
         self.client.force_login(self.user)
