@@ -65,6 +65,9 @@ def setup_admin(request):
 
 @login_required
 def contact_list(request):
+    redirect_to = _default_filter_redirect(request, "contacts")
+    if redirect_to:
+        return redirect(redirect_to)
     filter_values = contact_filter_values(request.GET)
     query = filter_values["q"]
     page_size = 100 if request.GET.get("page_size") == "100" else 50
@@ -184,6 +187,20 @@ def company_restore(request, pk):
     return redirect("contacts:archive-list")
 
 
+def _default_filter_redirect(request, scope):
+    """Apply the user's default saved filter once per session on the first
+    parameter-free visit to the list. Returns a URL to redirect to, or None."""
+    seen_key = f"{scope}_list_seen"
+    first_visit = not request.session.get(seen_key)
+    request.session[seen_key] = True
+    if not first_visit or request.GET:
+        return None
+    default = SavedFilter.objects.filter(user=request.user, scope=scope, is_default=True).first()
+    if default and default.query_string:
+        return f"{request.path}?{default.query_string}"
+    return None
+
+
 @login_required
 def saved_filter_create(request):
     if request.method == "POST":
@@ -204,6 +221,33 @@ def company_saved_filter_create(request):
             SavedFilter.objects.update_or_create(user=request.user, scope="companies", name=name, defaults={"filters": filters})
             messages.success(request, tr("Įmonių sąrašas išsaugotas."))
     return redirect("contacts:company-list")
+
+
+@login_required
+def saved_filter_update(request, pk):
+    saved = get_object_or_404(SavedFilter, pk=pk, user=request.user)
+    target = "contacts:company-list" if saved.scope == "companies" else "contacts:list"
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "delete":
+            saved.delete()
+            messages.success(request, tr("Filtras pašalintas."))
+        elif action == "rename":
+            name = request.POST.get("name", "").strip()
+            if not name:
+                messages.error(request, tr("Filtro pavadinimas negali būti tuščias."))
+            elif SavedFilter.objects.filter(user=request.user, scope=saved.scope, name=name).exclude(pk=saved.pk).exists():
+                messages.error(request, tr("Toks filtro pavadinimas jau yra."))
+            else:
+                saved.name = name
+                saved.save(update_fields=["name"])
+                messages.success(request, tr("Filtras pervadintas."))
+        elif action == "default":
+            make_default = not saved.is_default
+            SavedFilter.objects.filter(user=request.user, scope=saved.scope).exclude(pk=saved.pk).update(is_default=False)
+            SavedFilter.objects.filter(pk=saved.pk).update(is_default=make_default)
+            messages.success(request, tr("Numatytasis filtras nustatytas.") if make_default else tr("Numatytasis filtras išjungtas."))
+    return redirect(target)
 
 
 @login_required
@@ -509,6 +553,9 @@ def attachment_download(request, pk):
 
 @login_required
 def company_list(request):
+    redirect_to = _default_filter_redirect(request, "companies")
+    if redirect_to:
+        return redirect(redirect_to)
     companies = Company.objects.filter(deleted_at__isnull=True).prefetch_related("people", "tags", "categories")
     filter_values = company_filter_values(request.GET)
     query = filter_values["q"]

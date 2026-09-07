@@ -626,6 +626,56 @@ class ContactViewTests(TestCase):
         self.client.post(reverse("contacts:saved-filter-create"), payload)
         self.assertEqual(SavedFilter.objects.filter(user=self.user, scope="contacts", name="VIP").count(), 1)
 
+    def test_saved_filter_can_be_renamed_and_deleted(self):
+        self.client.force_login(self.user)
+        saved = SavedFilter.objects.create(user=self.user, scope="contacts", name="Sena", filters={"q": "Rūta"})
+        self.client.post(reverse("contacts:saved-filter-update", args=[saved.pk]), {"action": "rename", "name": "Nauja"})
+        saved.refresh_from_db()
+        self.assertEqual(saved.name, "Nauja")
+        response = self.client.post(reverse("contacts:saved-filter-update", args=[saved.pk]), {"action": "delete"})
+        self.assertRedirects(response, reverse("contacts:list"))
+        self.assertFalse(SavedFilter.objects.filter(pk=saved.pk).exists())
+
+    def test_saved_filter_rename_rejects_duplicate_name(self):
+        self.client.force_login(self.user)
+        SavedFilter.objects.create(user=self.user, scope="contacts", name="Klientai", filters={})
+        saved = SavedFilter.objects.create(user=self.user, scope="contacts", name="Tiekėjai", filters={})
+        self.client.post(reverse("contacts:saved-filter-update", args=[saved.pk]), {"action": "rename", "name": "Klientai"})
+        saved.refresh_from_db()
+        self.assertEqual(saved.name, "Tiekėjai")
+
+    def test_user_cannot_change_another_users_saved_filter(self):
+        other = get_user_model().objects.create_user("kitas", password="very-secure-password")
+        saved = SavedFilter.objects.create(user=other, scope="contacts", name="Slaptas", filters={})
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:saved-filter-update", args=[saved.pk]), {"action": "delete"})
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(SavedFilter.objects.filter(pk=saved.pk).exists())
+
+    def test_only_one_default_saved_filter_per_scope(self):
+        self.client.force_login(self.user)
+        first = SavedFilter.objects.create(user=self.user, scope="contacts", name="A", filters={"favourite": "1"})
+        second = SavedFilter.objects.create(user=self.user, scope="contacts", name="B", filters={"q": "x"})
+        self.client.post(reverse("contacts:saved-filter-update", args=[first.pk]), {"action": "default"})
+        self.client.post(reverse("contacts:saved-filter-update", args=[second.pk]), {"action": "default"})
+        first.refresh_from_db()
+        second.refresh_from_db()
+        self.assertFalse(first.is_default)
+        self.assertTrue(second.is_default)
+        self.client.post(reverse("contacts:saved-filter-update", args=[second.pk]), {"action": "default"})
+        second.refresh_from_db()
+        self.assertFalse(second.is_default)
+
+    def test_default_saved_filter_applies_once_per_session_then_lets_user_see_all(self):
+        self.client.force_login(self.user)
+        SavedFilter.objects.create(user=self.user, scope="contacts", name="Mėgstami", filters={"favourite": "1"}, is_default=True)
+        response = self.client.get(reverse("contacts:list"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("favourite=1", response.url)
+        # Second parameter-free visit in the same session shows everything.
+        response = self.client.get(reverse("contacts:list"))
+        self.assertEqual(response.status_code, 200)
+
     def test_company_columns_and_saved_list_are_persistent_and_scoped(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:company-list"), {"columns": ["phone", "contacts"]})

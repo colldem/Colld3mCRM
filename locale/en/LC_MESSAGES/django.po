@@ -1037,3 +1037,33 @@ msgstr "Export companies"
 
 msgid "Eksportuojamos tik nearchyvuotos įmonės CSV UTF-8 formatu."
 msgstr "Exports non-archived companies as UTF-8 CSV."
+
+msgid "Pervadinti"
+msgstr "Rename"
+
+msgid "Numatytasis"
+msgstr "Default"
+
+msgid "Nebe numatytasis"
+msgstr "Unset default"
+
+msgid "Pašalinti"
+msgstr "Delete"
+
+msgid "Filtras pašalintas."
+msgstr "Filter deleted."
+
+msgid "Filtras pervadintas."
+msgstr "Filter renamed."
+
+msgid "Filtro pavadinimas negali būti tuščias."
+msgstr "The filter name cannot be empty."
+
+msgid "Toks filtro pavadinimas jau yra."
+msgstr "A filter with this name already exists."
+
+msgid "Numatytasis filtras nustatytas."
+msgstr "Default filter set."
+
+msgid "Numatytasis filtras išjungtas."
+msgstr "Default filter cleared."

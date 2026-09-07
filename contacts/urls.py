@@ -20,6 +20,7 @@ urlpatterns = [
     path("companies/bulk/", views.company_bulk_action, name="company-bulk-action"),
     path("contacts/filters/save/", views.saved_filter_create, name="saved-filter-create"),
     path("companies/filters/save/", views.company_saved_filter_create, name="company-saved-filter-create"),
+    path("filters/<int:pk>/", views.saved_filter_update, name="saved-filter-update"),
     path("contacts/new/", views.contact_type_choice, name="create"),
     path("contacts/new/person/", views.contact_create, name="person-create"),
     path("contacts/<int:pk>/", views.contact_detail, name="detail"),

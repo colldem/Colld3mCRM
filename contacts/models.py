@@ -71,10 +71,11 @@ class SavedFilter(models.Model):
     scope = models.CharField(max_length=20, default="contacts", db_index=True)
     name = models.CharField(max_length=100)
     filters = models.JSONField(default=dict)
+    is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["name"]
+        ordering = ["-is_default", "name"]
         constraints = [models.UniqueConstraint(fields=["user", "scope", "name"], name="unique_saved_filter_scope_name")]
 
     def __str__(self):
