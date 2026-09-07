@@ -6,6 +6,13 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 
 Žymėjimas: ✅ padaryta · 🟡 iš dalies · ❌ nepadaryta
 
+## Eiga (šios sesijos)
+
+- ✅ AdminLTE „skip links" pašalintos (rodėsi kaip pašalinis tekstas)
+- ✅ **B1** — „Mano filtrai": pervadinti, ištrinti, numatytasis
+- ✅ Varpelio ir profilio meniu užsidaro paspaudus bet kur kitur
+- ✅ **B2** — greiti veiksmai ⋮ meniu: pridėti įrašą, sukurti priminimą, kopijuoti el. paštą
+
 ---
 
 ## A. Padaryta (kontrolei)
@@ -39,18 +46,14 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 
 ## B. Aukštas prioritetas — nepadaryta / iš dalies
 
-### B1. Išsaugoti filtrai („Mano filtrai") — 🟡
-Yra tik **sukurti + pritaikyti**. Trūksta:
-- ❌ pervadinti
-- ❌ ištrinti
-- ❌ pažymėti numatytąjį (atidarant sąrašą pritaikomas automatiškai)
-Kelias: `contacts/urls.py` (nauji maršrutai), `contacts/views.py`, `SavedFilter` jau turi modelį.
+### B1. Išsaugoti filtrai („Mano filtrai") — ✅ padaryta
+Pervadinti, ištrinti, numatytasis (pritaikomas kartą per sesiją). Bendras
+`templates/filters/saved_filters.html` partial.
 
-### B2. Greiti veiksmai sąrašo eilutėje (⋮ meniu) — 🟡
-Dabar tik „Atidaryti" + „Redaguoti". Trūksta:
-- ❌ Pridėti pastabą (greitas modalas / nuoroda į kortelę su atvira forma)
-- ❌ Sukurti priminimą
-- ❌ Kopijuoti el. paštą
+### B2. Greiti veiksmai sąrašo eilutėje (⋮ meniu) — ✅ padaryta
+Pridėti įrašą + Sukurti priminimą (nuoroda į kortelę su fokusuota forma per
+`#composer` / `#reminder-add`), Kopijuoti el. paštą (į iškarpinę). Įmonėms —
+be priminimo. Vėliau galima papildyti inline modalu, jei prireiks.
 
 ### B3. Nustatymų puslapio skiltys — 🟡
 Yra 5 skiltys. Pagal planą trūksta:
