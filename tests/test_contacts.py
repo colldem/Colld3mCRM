@@ -374,6 +374,9 @@ class ContactViewTests(TestCase):
 
     def test_common_action_layout_is_used_for_import_forms_and_detail_headers(self):
         self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:create"))
+        self.assertContains(response, reverse("contacts:import-export"))
+        self.assertContains(response, "Importuoti")
         response = self.client.get(reverse("contacts:import-export"))
         self.assertContains(response, 'class="import-card-actions"', count=3)
         self.assertContains(response, "Importuoti")

@@ -470,6 +470,9 @@ msgstr "Name, companies, phone numbers and email"
 msgid "Rekvizitai, adresas ir kontaktiniai asmenys"
 msgstr "Company details, address and contact persons"
 
+msgid "Įkelkite kontaktus iš CSV arba XLSX failo"
+msgstr "Upload contacts from a CSV or XLSX file"
+
 msgid "Kontaktai - CRM"
 msgstr "Contacts - CRM"
 
