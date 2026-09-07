@@ -1,4 +1,4 @@
-# CRM 0.3.0 diegimas UGREEN
+# CRM 0.4.0 diegimas UGREEN
 
 Ši versija diegiama kaip atskiras Compose projektas. Ji nekeičia techninio projekto `crm-technical-test`, kol nėra atlikta atskira migracijos ir perjungimo procedūra.
 
