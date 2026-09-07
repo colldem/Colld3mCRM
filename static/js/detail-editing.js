@@ -94,3 +94,22 @@ function bindDetailField(block) {
   });
 }
 document.querySelectorAll('.detail-field,.detail-title-editor').forEach(bindDetailField);
+
+// Row-menu quick actions open the record with a hash: focus the matching form.
+(() => {
+  const jump = () => {
+    if (location.hash === '#composer') {
+      const field = document.querySelector('.composer textarea, .composer input:not([type=hidden]):not([type=file])');
+      if (field) { field.focus({preventScroll: true}); field.scrollIntoView({block: 'center'}); }
+    } else if (location.hash === '#reminder-add') {
+      const box = document.getElementById('reminder-add');
+      if (box) { box.open = true; box.querySelector('input:not([type=hidden])')?.focus({preventScroll: true}); box.scrollIntoView({block: 'center'}); }
+    }
+  };
+  // Retry across the load milestones: the browser's own fragment handling can
+  // otherwise move focus back after an early call.
+  jump();
+  requestAnimationFrame(jump);
+  window.addEventListener('load', jump);
+  window.addEventListener('hashchange', jump);
+})();

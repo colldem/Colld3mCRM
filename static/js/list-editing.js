@@ -120,3 +120,13 @@ document.querySelectorAll('[data-edit-url]').forEach(section => {
     if (matchMedia('(pointer:coarse)').matches) edit();
   });
 });
+// Row-menu "Copy email" quick action.
+document.addEventListener('click', event => {
+  const button = event.target.closest('.copy-email');
+  if (!button || !navigator.clipboard) return;
+  const original = button.textContent;
+  navigator.clipboard.writeText(button.dataset.email || '').then(() => {
+    button.textContent = gettext('Nukopijuota');
+    setTimeout(() => { button.textContent = original; }, 1500);
+  }).catch(() => {});
+});

@@ -676,6 +676,37 @@ class ContactViewTests(TestCase):
         response = self.client.get(reverse("contacts:list"))
         self.assertEqual(response.status_code, 200)
 
+    def test_contact_row_menu_has_note_reminder_and_copy_email_actions(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:list"))
+        detail = reverse("contacts:detail", args=[self.person.pk])
+        self.assertContains(response, f'href="{detail}#composer"')
+        self.assertContains(response, f'href="{detail}#reminder-add"')
+        self.assertContains(response, 'class="copy-email" data-email="ruta@example.lt"')
+
+    def test_copy_email_action_is_hidden_without_an_email(self):
+        self.client.force_login(self.user)
+        self.person.emails.all().delete()
+        response = self.client.get(reverse("contacts:list"))
+        self.assertNotContains(response, 'class="copy-email"')
+
+    def test_record_detail_pages_expose_quick_action_anchors(self):
+        self.client.force_login(self.user)
+        person_page = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
+        self.assertContains(person_page, 'id="composer"')
+        self.assertContains(person_page, 'id="reminder-add"')
+        company_page = self.client.get(reverse("contacts:company-detail", args=[self.company.pk]))
+        self.assertContains(company_page, 'id="composer"')
+
+    def test_company_row_menu_has_note_and_copy_email_actions(self):
+        self.client.force_login(self.user)
+        self.company.email = "info@aukstaitija.lt"
+        self.company.save(update_fields=["email"])
+        response = self.client.get(reverse("contacts:company-list"))
+        detail = reverse("contacts:company-detail", args=[self.company.pk])
+        self.assertContains(response, f'href="{detail}#composer"')
+        self.assertContains(response, 'data-email="info@aukstaitija.lt"')
+
     def test_company_columns_and_saved_list_are_persistent_and_scoped(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:company-list"), {"columns": ["phone", "contacts"]})

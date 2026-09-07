@@ -1067,3 +1067,12 @@ msgstr "Default filter set."
 
 msgid "Numatytasis filtras išjungtas."
 msgstr "Default filter cleared."
+
+msgid "Pridėti įrašą"
+msgstr "Add an entry"
+
+msgid "Sukurti priminimą"
+msgstr "Create a reminder"
+
+msgid "Kopijuoti el. paštą"
+msgstr "Copy email"

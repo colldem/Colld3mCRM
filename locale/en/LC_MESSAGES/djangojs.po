@@ -33,3 +33,6 @@ msgstr "Open reminders"
 
 msgid "Atidaryti priminimus (%s neperskaityti)"
 msgstr "Open reminders (%s unread)"
+
+msgid "Nukopijuota"
+msgstr "Copied"
