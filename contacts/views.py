@@ -91,17 +91,15 @@ def contact_list(request):
         list_query.pop(key, None)
     categories = Category.objects.all()
     tags = Tag.objects.all()
-    companies = Company.objects.filter(deleted_at__isnull=True)
     label_maps = {
         "categories": {item.pk: item.name for item in categories},
         "tags": {item.pk: item.name for item in tags},
-        "companies": {item.pk: item.name for item in companies},
-        "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma"), "companies": tr("Įmonė")},
+        "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma")},
     }
     return render(request, "contacts/list.html", {
         "page": page, "query": query, "page_size": page_size, "sort": sort_key,
         "direction": direction, "columns": columns, "categories": categories,
-        "tags": tags, "companies": companies, "filter_values": filter_values,
+        "tags": tags, "filter_values": filter_values,
         "active_filter_count": active_filter_count(filter_values),
         "filter_chips": filter_chips(request.GET, filter_values, label_maps, request.path),
         "saved_filters": SavedFilter.objects.filter(user=request.user, scope="contacts"),

@@ -26,6 +26,35 @@ document.querySelectorAll('.filter-panel').forEach(form => {
     });
   });
 });
+document.querySelectorAll('[data-filter-multiselect]').forEach(control => {
+  const summary = control.querySelector('summary');
+  const selectedValues = control.querySelector('[data-filter-selected]');
+  const updateSelectedValues = () => {
+    const checked = [...control.querySelectorAll('input[type=checkbox]:checked')];
+    selectedValues.replaceChildren();
+    checked.forEach(input => {
+      const label = document.createElement('span');
+      label.className = 'crm-label ' + (input.dataset.colorClass || '');
+      label.textContent = input.dataset.label;
+      selectedValues.append(label);
+    });
+    if (!checked.length) {
+      const placeholder = document.createElement('span');
+      placeholder.className = 'filter-placeholder';
+      placeholder.textContent = gettext('Pasirinkti');
+      selectedValues.append(placeholder);
+    }
+  };
+  summary.addEventListener('click', event => {
+    event.preventDefault();
+    if (event.detail === 0 || matchMedia('(pointer:coarse)').matches) control.open = !control.open;
+  });
+  summary.addEventListener('dblclick', event => {
+    event.preventDefault();
+    control.open = !control.open;
+  });
+  control.addEventListener('change', updateSelectedValues);
+});
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') document.querySelectorAll('.filter-drawer[open]').forEach(drawer => drawer.removeAttribute('open'));
 });

@@ -9,7 +9,6 @@ CONTACT_FILTER_KEYS = (
     "q",
     "categories",
     "tags",
-    "companies",
     "email",
     "favourite",
     "last_contact_from",
@@ -43,7 +42,6 @@ def contact_filter_values(data):
         "q": data.get("q", "").strip(),
         "categories": _ids(data, "categories", "category"),
         "tags": _ids(data, "tags", "tag"),
-        "companies": _ids(data, "companies", "company"),
         "email": data.get("email", "").strip(),
         "favourite": "1" if data.get("favourite") == "1" else "",
         "last_contact_from": _date(data, "last_contact_from"),
@@ -83,8 +81,6 @@ def apply_contact_filters(people, values):
         people = people.filter(categories__pk__in=values["categories"])
     if values["tags"]:
         people = people.filter(tags__pk__in=values["tags"])
-    if values["companies"]:
-        people = people.filter(company_links__company__pk__in=values["companies"])
     if values["email"]:
         people = people.filter(emails__email__icontains=values["email"])
     if values["favourite"]:

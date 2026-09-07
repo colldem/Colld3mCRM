@@ -484,6 +484,7 @@ class ContactViewTests(TestCase):
         response = self.client.get(reverse("contacts:list"), {
             "categories": [client.pk, partner.pk],
             "tags": [important.pk],
+            "companies": [self.company.pk],
             "email": "ruta@example",
             "last_contact_from": today,
             "last_contact_to": today,
@@ -496,7 +497,9 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "Klientas")
         self.assertContains(response, "Partneris")
         self.assertNotContains(response, 'name="status"')
+        self.assertNotContains(response, 'name="companies"')
         self.assertNotIn("status", response.context["filter_values"])
+        self.assertNotIn("companies", response.context["filter_values"])
         self.assertIsNotNone(note.pk)
         self.assertIsNotNone(other_email.pk)
 
@@ -536,10 +539,13 @@ class ContactViewTests(TestCase):
             with self.subTest(route=route):
                 response = self.client.get(reverse(route))
                 self.assertContains(response, 'class="filter-panel"')
+                self.assertContains(response, 'data-filter-multiselect', count=2)
                 self.assertContains(response, 'class="filter-choice"', count=2)
                 self.assertContains(response, '<span class="crm-label">Klientas</span>', html=True)
                 self.assertContains(response, '<span class="crm-label tag-color-3">Svarbus</span>', html=True)
                 self.assertNotContains(response, 'name="status"')
+                if route == "contacts:list":
+                    self.assertNotContains(response, 'name="companies"')
         self.assertIsNotNone(category.pk)
         self.assertIsNotNone(tag.pk)
 
