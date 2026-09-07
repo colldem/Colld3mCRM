@@ -283,6 +283,28 @@ def settings_duplicates(request):
 
 
 @login_required
+def documentation_page(request):
+    topics = (
+        ("overview", tr("Pradžia")),
+        ("installation", tr("Diegimas")),
+        ("screens", tr("Langai ir mygtukai")),
+        ("user", tr("Naudotojui")),
+        ("admin", tr("Administratoriui")),
+        ("data", tr("Duomenys ir sauga")),
+        ("backup", tr("Kopijos ir atkūrimas")),
+    )
+    allowed_topics = {key for key, _label in topics}
+    topic = request.GET.get("topic", "overview")
+    if topic not in allowed_topics:
+        topic = "overview"
+    return render(request, "settings/documentation.html", {
+        "settings_section": "documentation",
+        "documentation_topic": topic,
+        "documentation_topics": topics,
+    })
+
+
+@login_required
 def duplicate_list(request):
     duplicate_settings = DuplicateSettings.load()
     pairs = (all_person_duplicate_pairs(duplicate_settings.level) + all_company_duplicate_pairs(duplicate_settings.level)) if duplicate_settings.enabled else []

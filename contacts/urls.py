@@ -50,5 +50,6 @@ urlpatterns = [
     path("settings/tags/", views.settings_taxonomy, {"kind": "tag"}, name="settings-tags"),
     path("settings/categories/", views.settings_taxonomy, {"kind": "category"}, name="settings-categories"),
     path("settings/duplicates/", views.settings_duplicates, name="settings-duplicates"),
+    path("settings/documentation/", views.documentation_page, name="settings-documentation"),
     path("duplicates/", views.duplicate_list, name="duplicate-list"),
 ]

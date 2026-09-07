@@ -648,6 +648,59 @@ class ContactViewTests(TestCase):
         self.assertEqual(Tag.objects.filter(name="Svarbus").count(), 1)
         self.assertEqual(Category.objects.filter(name="Klientas").count(), 1)
 
+    def test_documentation_requires_login_and_is_linked_from_settings(self):
+        url = reverse("contacts:settings-documentation")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:settings"))
+        self.assertContains(response, url)
+        self.assertContains(response, "Dokumentacija")
+
+    def test_documentation_topics_are_directly_linkable_and_invalid_topic_falls_back(self):
+        self.client.force_login(self.user)
+        url = reverse("contacts:settings-documentation")
+        expected = {
+            "overview": "CRM dokumentacija",
+            "installation": "Diegimas naujame įrenginyje",
+            "screens": "Langai, mygtukai ir duomenys",
+            "user": "Naudotojo instrukcija",
+            "admin": "Administratoriaus instrukcija",
+            "data": "Duomenys, sauga ir ribos",
+            "backup": "Atsarginės kopijos ir atkūrimas",
+        }
+        for topic, heading in expected.items():
+            response = self.client.get(url, {"topic": topic})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.context["documentation_topic"], topic)
+            self.assertContains(response, heading)
+            self.assertContains(response, f"?topic={topic}")
+
+        response = self.client.get(url, {"topic": "not-a-topic"})
+        self.assertEqual(response.context["documentation_topic"], "overview")
+        self.assertContains(response, "CRM dokumentacija")
+
+    def test_technical_documentation_exposes_verified_configuration_and_operations(self):
+        self.client.force_login(self.user)
+        url = reverse("contacts:settings-documentation")
+        installation = self.client.get(url, {"topic": "installation"})
+        for value in ("Docker Compose", "POSTGRES_PASSWORD", "DJANGO_SECRET_KEY", "CRM_SETUP_TOKEN", "/health/ready", "/setup/"):
+            self.assertContains(installation, value)
+
+        screens = self.client.get(url, {"topic": "screens"})
+        for value in ("Kontaktų sąrašas", "Įmonių sąrašas", "Priminimai", "Importas / eksportas", "Archyvas", "Nustatymai"):
+            self.assertContains(screens, value)
+
+        admin = self.client.get(url, {"topic": "admin"})
+        for value in ("changepassword", "axes_reset_username", "Django administravimas", "Nėra atskirų CRM vaidmenų"):
+            self.assertContains(admin, value)
+
+        backup = self.client.get(url, {"topic": "backup"})
+        for value in ("pg_dump", "pg_restore", "runtime/media", "Atkūrimo patikra"):
+            self.assertContains(backup, value)
+
     def test_profile_settings_update_user_preferences_and_avatar_menu(self):
         from contacts.models import UserProfile
 
