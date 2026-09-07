@@ -53,8 +53,44 @@ function bindDetailField(block) {
       if (job) job.textContent = result.job_title;
       next.querySelector('.field-display').focus();
       document.querySelector('#field-save-status').textContent = gettext('Išsaugota');
-    } catch (error) { status.textContent = error.message; }
-    finally { delete form.dataset.saving; controls.forEach((control, index) => control.disabled = disabled[index]); }
+    } catch (error) {
+      if (error.payload?.duplicate) {
+        status.replaceChildren();
+        const message = document.createElement('span');
+        message.textContent = error.message + ' ';
+        status.append(message);
+        error.payload.candidates.forEach((candidate, index) => {
+          if (index) status.append(document.createTextNode('; '));
+          const link = document.createElement('a');
+          link.href = candidate.url;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = candidate.label + (candidate.reason_labels.length ? ` (${candidate.reason_labels.join(', ')})` : '');
+          status.append(link);
+        });
+        const confirm = document.createElement('button');
+        confirm.type = 'button';
+        confirm.className = 'btn duplicate-confirm';
+        confirm.textContent = gettext('Vis tiek išsaugoti');
+        confirm.addEventListener('click', () => {
+          let input = form.querySelector('input[name=confirm_duplicate]');
+          if (!input) {
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'confirm_duplicate';
+            form.append(input);
+          }
+          input.value = '1';
+          form.requestSubmit();
+        });
+        status.append(confirm);
+      } else status.textContent = error.message;
+    }
+    finally {
+      form.querySelector('input[name=confirm_duplicate]')?.remove();
+      delete form.dataset.saving;
+      controls.forEach((control, index) => control.disabled = disabled[index]);
+    }
   });
 }
 document.querySelectorAll('.detail-field').forEach(bindDetailField);

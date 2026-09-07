@@ -470,8 +470,8 @@ msgstr "Name, companies, phone numbers and email"
 msgid "Rekvizitai, adresas ir kontaktiniai asmenys"
 msgstr "Company details, address and contact persons"
 
-msgid "Griežtas tikrina tikslius identifikatorius, standartinis įtraukia kontaktinius duomenis, o laisvas taip pat lygina pavadinimus."
-msgstr "Strict checks exact identifiers, standard includes contact details, and loose also compares names."
+msgid "Griežtas: tikslus el. paštas, telefonas arba įmonės identifikatorius. Standartinis: papildomai vardas su ta pačia įmone ir įmonės URL. Laisvas: papildomai sutampantis vardas arba įmonės pavadinimas."
+msgstr "Strict: exact email, phone, or company identifier. Standard: also a name at the same company and company URL. Loose: also a matching person or company name."
 
 msgid "Įkelkite kontaktus iš CSV arba XLSX failo"
 msgstr "Upload contacts from a CSV or XLSX file"
@@ -852,14 +852,38 @@ msgstr "company"
 msgid "Vis tiek išsaugoti"
 msgstr "Save anyway"
 
+msgid "tas pats el. paštas"
+msgstr "same email"
+
+msgid "tas pats telefonas"
+msgstr "same phone"
+
+msgid "tas pats vardas arba pavadinimas"
+msgstr "same name"
+
+msgid "ta pati įmonė"
+msgstr "same company"
+
+msgid "tas pats įmonės kodas"
+msgstr "same company code"
+
+msgid "tas pats PVM kodas"
+msgstr "same VAT code"
+
+msgid "tas pats URL"
+msgstr "same URL"
+
+msgid "Rastas galimas dublikatas. Patikrinkite esamą įrašą arba patvirtinkite išsaugojimą."
+msgstr "A possible duplicate was found. Check the existing record or confirm saving."
+
 msgid "Galimi dublikatai - CRM"
 msgstr "Possible duplicates - CRM"
 
 msgid "Galimi dublikatai"
 msgstr "Possible duplicates"
 
-msgid "Peržiūrėkite panašius kontaktus. Sistema jų automatiškai nesujungia."
-msgstr "Review similar contacts. The system does not merge them automatically."
+msgid "Peržiūrėkite panašius kontaktus ir įmones. Sistema jų automatiškai nesujungia."
+msgstr "Review similar contacts and companies. The system does not merge them automatically."
 
 msgid "Tikrinimo nustatymai"
 msgstr "Checking settings"
@@ -882,8 +906,8 @@ msgstr "Same company"
 msgid "Galimų dublikatų nerasta"
 msgstr "No possible duplicates found"
 
-msgid "Pagal dabartines taisykles sutampančių kontaktų nėra."
-msgstr "No contacts match under the current rules."
+msgid "Pagal dabartines taisykles sutampančių kontaktų ar įmonių nėra."
+msgstr "No contacts or companies match under the current rules."
 
 msgid "Dublikatų tikrinimas"
 msgstr "Duplicate checking"
@@ -891,8 +915,11 @@ msgstr "Duplicate checking"
 msgid "Valdykite galimų kontaktų ir įmonių dublikatų aptikimą."
 msgstr "Manage how possible contact and company duplicates are detected."
 
-msgid "Tikrinama pagal el. paštą, telefono numerį, vardą ir įmonę."
-msgstr "Checks email, phone number, name and company."
+msgid "Tikrinami asmenų ir įmonių kontaktiniai duomenys, identifikatoriai bei pavadinimai pagal pasirinktą lygį."
+msgstr "Checks contact details, identifiers, and names of people and companies according to the selected level."
+
+msgid "Tas pats pavadinimas"
+msgstr "Same name"
 
 msgid "Importas ir toliau atnaujina tiksliai sutampantį kontaktą."
 msgstr "Import continues to update an exactly matching contact."

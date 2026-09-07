@@ -25,6 +25,9 @@ msgstr "Assign"
 msgid "Nepavyko išsaugoti."
 msgstr "Could not save."
 
+msgid "Vis tiek išsaugoti"
+msgstr "Save anyway"
+
 msgid "Sesija baigėsi. Prisijunkite iš naujo, kad atsinaujintų priminimai."
 msgstr "Your session has expired. Sign in again to refresh reminders."
 

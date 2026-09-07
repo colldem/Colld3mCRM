@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from contacts.models import Activity, Attachment, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
+from contacts.duplicates import find_company_duplicates, find_person_duplicates
 
 
 @override_settings(CRM_SETUP_TOKEN="one-time-setup-token")
@@ -77,6 +78,7 @@ class ContactViewTests(TestCase):
             self.assertContains(response, 'lang="en"')
         self.assertContains(self.client.get(reverse('contacts:list')), 'Filters')
         self.assertContains(self.client.get(reverse('javascript-catalog')), 'Saving...')
+        self.assertContains(self.client.get(reverse('javascript-catalog')), 'Save anyway')
         live = self.client.get(reverse('contacts:reminder-snapshot')).json()
         self.assertIn('No active reminders.', live['html'])
         self.assertNotIn('Aktyvių priminimų nėra.', live['html'])
@@ -891,19 +893,138 @@ class ContactViewTests(TestCase):
         self.assertContains(response, created.get_absolute_url())
         self.assertContains(response, "Tas pats įmonės kodas")
 
-    def test_import_reports_exact_duplicate_when_enabled(self):
+    def test_inline_contact_edit_blocks_duplicate_and_allows_explicit_confirmation(self):
+        self.client.force_login(self.user)
+        other = Person.objects.create(first_name="Kita", last_name="Kontaktė")
+        EmailAddress.objects.create(person=other, email="duplicate@example.lt", is_primary=True)
+        url = reverse("contacts:field-edit", args=[self.person.pk])
+
+        response = self.client.post(url, {"field": "emails", "value": "duplicate@example.lt"})
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue(response.json()["duplicate"])
+        self.assertEqual(response.json()["candidates"][0]["label"], "Kita Kontaktė")
+        self.assertIn("email", response.json()["candidates"][0]["reasons"])
+        self.assertEqual(list(self.person.emails.values_list("email", flat=True)), ["ruta@example.lt"])
+
+        response = self.client.post(url, {
+            "field": "emails", "value": "duplicate@example.lt", "confirm_duplicate": "1",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(self.person.emails.values_list("email", flat=True)), ["duplicate@example.lt"])
+
+    def test_inline_company_edit_blocks_duplicate_identifier_and_allows_confirmation(self):
+        self.client.force_login(self.user)
+        other = Company.objects.create(name="Kita įmonė", company_code="123456789")
+        url = reverse("contacts:company-field-edit", args=[self.company.pk])
+
+        response = self.client.post(url, {"field": "company_code", "value": other.company_code})
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue(response.json()["duplicate"])
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.company_code, "")
+
+        response = self.client.post(url, {
+            "field": "company_code", "value": other.company_code, "confirm_duplicate": "1",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.company_code, other.company_code)
+
+    def test_inline_duplicate_warning_is_translated_in_english(self):
+        self.client.force_login(self.user)
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+        other = Company.objects.create(name="Other company", company_code="123456789")
+        response = self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]), {
+            "field": "company_code", "value": other.company_code,
+        })
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("A possible duplicate was found", response.json()["error"])
+        self.assertIn("same company code", response.json()["candidates"][0]["reason_labels"])
+
+    def test_inline_edit_does_not_block_fields_that_cannot_create_a_duplicate(self):
+        self.client.force_login(self.user)
+        other = Person.objects.create(first_name="Kita", last_name="Kontaktė")
+        EmailAddress.objects.create(person=other, email="ruta@example.lt", is_primary=True)
+        response = self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {
+            "field": "job_title", "value": "Naujos pareigos",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.job_title, "Naujos pareigos")
+
+    def test_inline_duplicate_check_is_idempotent_for_an_unchanged_value(self):
+        self.client.force_login(self.user)
+        other = Person.objects.create(first_name="Kita", last_name="Kontaktė")
+        EmailAddress.objects.create(person=other, email="ruta@example.lt", is_primary=True)
+        response = self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {
+            "field": "emails", "value": "ruta@example.lt",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(self.person.emails.values_list("email", flat=True)), ["ruta@example.lt"])
+
+    def test_inline_duplicate_check_respects_disabled_edit_check(self):
+        self.client.force_login(self.user)
+        other = Company.objects.create(name="Kita įmonė", company_code="123456789")
+        DuplicateSettings.objects.update_or_create(pk=1, defaults={
+            "enabled": True, "check_on_edit": False, "level": "standard",
+        })
+        response = self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]), {
+            "field": "company_code", "value": other.company_code,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.company_code, other.company_code)
+
+    def test_duplicate_levels_have_distinct_person_and_company_rules(self):
+        same_name = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
+        PersonCompanyLink.objects.create(person=same_name, company=self.company)
+        person_data = {
+            "first_name": self.person.first_name,
+            "last_name": self.person.last_name,
+            "email": "",
+            "phone": "",
+            "companies": [self.company],
+        }
+        self.assertEqual(find_person_duplicates(person_data, exclude_pk=self.person.pk, level="strict"), [])
+        self.assertEqual(find_person_duplicates(person_data, exclude_pk=self.person.pk, level="standard")[0]["record"], same_name)
+
+        company = Company.objects.create(name="Tas pats pavadinimas")
+        company_data = {"name": company.name, "company_code": "", "vat_code": "", "email": "", "phone": "", "url": ""}
+        self.assertEqual(find_company_duplicates(company_data, exclude_pk=company.pk, level="standard"), [])
+        loose_matches = find_company_duplicates(company_data, exclude_pk=company.pk, level="loose")
+        self.assertEqual(loose_matches, [])
+        duplicate_name = Company.objects.create(name=company.name)
+        self.assertEqual(find_company_duplicates(company_data, exclude_pk=company.pk, level="loose")[0]["record"], duplicate_name)
+
+    def test_import_does_not_report_exact_record_that_it_updates(self):
         self.client.force_login(self.user)
         content = "Vardas,Pavardė,El. paštai\nRūta,Žukaitė,ruta@example.lt\n".encode()
         response = self.client.post(reverse("contacts:import-export"), {
             "file": SimpleUploadedFile("contacts.csv", content, content_type="text/csv"),
         })
+        self.assertContains(response, "Galimi dublikatai: 0")
+        self.assertNotContains(response, "Peržiūrėti dublikatus")
+        self.assertContains(response, "Atnaujinti: 1")
+        self.assertEqual(Person.objects.filter(first_name="Rūta", last_name="Žukaitė").count(), 1)
+
+    def test_import_uses_selected_duplicate_level_and_reports_real_phone_duplicate(self):
+        self.client.force_login(self.user)
+        content = "Vardas,Pavardė,Telefonai\nKitas,Asmuo,+370 645 21 987\n".encode()
+        response = self.client.post(reverse("contacts:import-export"), {
+            "file": SimpleUploadedFile("contacts.csv", content, content_type="text/csv"),
+        })
         self.assertContains(response, "Galimi dublikatai: 1")
+        imported = Person.objects.get(first_name="Kitas", last_name="Asmuo")
+        review = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertContains(review, self.person.get_absolute_url())
+        self.assertContains(review, imported.get_absolute_url())
+        self.assertContains(review, "Tas pats telefonas")
+
         DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True, "check_on_import": False})
         response = self.client.post(reverse("contacts:import-export"), {
             "file": SimpleUploadedFile("contacts.csv", content, content_type="text/csv"),
         })
         self.assertNotContains(response, "Galimi dublikatai:")
-        self.assertEqual(Person.objects.filter(first_name="Rūta", last_name="Žukaitė").count(), 1)
 
     def test_contact_detail_contains_protocol_links(self):
         self.client.force_login(self.user)

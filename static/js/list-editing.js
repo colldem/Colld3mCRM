@@ -1,7 +1,11 @@
 async function saveInline(form, data) {
   const response = await fetch(form.action, {method:'POST', body:data});
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || gettext('Nepavyko išsaugoti.'));
+  if (!response.ok) {
+    const error = new Error(result.error || gettext('Nepavyko išsaugoti.'));
+    error.payload = result;
+    throw error;
+  }
   return result;
 }
 document.querySelectorAll('[popovertarget]').forEach(button => {

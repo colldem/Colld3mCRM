@@ -642,12 +642,16 @@ def companies_export(request):
 @transaction.atomic
 def _import_contact_rows(rows):
     created = updated = skipped = possible_duplicates = 0
+    created_person_ids = set()
     duplicate_settings = DuplicateSettings.load()
     report_duplicates = duplicate_settings.enabled and duplicate_settings.check_on_import
     for row in rows:
         first_name = _value(row, "Vardas", "first_name", "First name")
         last_name = _value(row, "Pavardė", "last_name", "Last name")
-        email = _value(row, "El. paštai", "El. paštas", "email", "Email").split(";")[0].strip()
+        company_names = _import_relation_names(row, "Įmonė", "company", "Company")
+        phone_values = list(filter(None, (item.strip() for item in _value(row, "Telefonai", "Telefonas", "phone", "Phone").split(";"))))
+        email_values = list(filter(None, (item.strip() for item in _value(row, "El. paštai", "El. paštas", "email", "Email").split(";"))))
+        email = email_values[0] if email_values else ""
         if not first_name and not last_name:
             skipped += 1
             continue
@@ -656,8 +660,6 @@ def _import_contact_rows(rows):
             person = Person.objects.filter(emails__email__iexact=email, deleted_at__isnull=True).first()
         if not person:
             person = Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).first()
-        if person and report_duplicates:
-            possible_duplicates += 1
         values = {"first_name": first_name, "last_name": last_name, "job_title": _value(row, "Pareigos", "job_title"), "status": _value(row, "Būsena", "status") or "Aktyvus"}
         if person:
             for field, value in values.items():
@@ -668,19 +670,20 @@ def _import_contact_rows(rows):
         else:
             person = Person.objects.create(**values)
             created += 1
-        for company_name in _import_relation_names(row, "Įmonė", "company", "Company"):
+            created_person_ids.add(person.pk)
+        for company_name in company_names:
             company, _ = Company.objects.get_or_create(name=company_name)
             PersonCompanyLink.objects.get_or_create(
                 person=person, company=company,
                 defaults={"is_primary": not person.company_links.filter(is_primary=True).exists()},
             )
-        for number in filter(None, (item.strip() for item in _value(row, "Telefonai", "Telefonas", "phone", "Phone").split(";"))):
+        for number in phone_values:
             PhoneNumber.objects.get_or_create(person=person, number=number, defaults={"is_primary": not person.phones.exists()})
         for address in filter(None, (item.strip() for item in _value(row, "Adresai", "Adresas", "address", "Address").split(";"))):
             PostalAddress.objects.get_or_create(person=person, address=address)
         for url in filter(None, (item.strip() for item in _value(row, "URL", "url", "Website").split(";"))):
             WebLink.objects.get_or_create(person=person, url=url)
-        for address in filter(None, (item.strip() for item in _value(row, "El. paštai", "El. paštas", "email", "Email").split(";"))):
+        for address in email_values:
             EmailAddress.objects.get_or_create(person=person, email=address, defaults={"is_primary": not person.emails.exists()})
         tag_names = _import_relation_names(row, "Tagai", "Tags", "tags")
         category_names = _import_relation_names(row, "Kategorijos", "Categories", "categories")
@@ -692,6 +695,11 @@ def _import_contact_rows(rows):
         for category_name in category_names:
             category, _ = Category.objects.get_or_create(name=category_name[:60])
             person.categories.add(category)
+    if report_duplicates and created_person_ids:
+        possible_duplicates = sum(
+            1 for pair in all_person_duplicate_pairs(duplicate_settings.level)
+            if pair["left"].pk in created_person_ids or pair["right"].pk in created_person_ids
+        )
     return {"created": created, "updated": updated, "skipped": skipped, "possible_duplicates": possible_duplicates, "duplicate_check_enabled": report_duplicates}
 
 
