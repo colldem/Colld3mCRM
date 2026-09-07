@@ -115,7 +115,7 @@ def contact_bulk_action(request):
     ids = request.POST.getlist("selected")
     if request.POST.get("action") == "archive" and ids:
         Person.objects.filter(pk__in=ids, deleted_at__isnull=True).update(deleted_at=timezone.now())
-        messages.success(request, f"Archyvuota kontaktų: {len(ids)}.")
+        messages.success(request, tr("Archyvuota kontaktų: %(count)s.") % {"count": len(ids)})
     return redirect("contacts:list")
 
 @login_required
@@ -124,7 +124,7 @@ def company_bulk_action(request):
         ids = request.POST.getlist("selected")
         updated = Company.objects.filter(pk__in=ids, deleted_at__isnull=True).update(deleted_at=timezone.now())
         if updated:
-            messages.success(request, f"Archyvuota įmonių: {updated}.")
+            messages.success(request, tr("Archyvuota įmonių: %(count)s.") % {"count": updated})
     return redirect("contacts:company-list")
 
 
@@ -134,7 +134,7 @@ def contact_archive(request, pk):
     if request.method == "POST" and person.deleted_at is None:
         person.deleted_at = timezone.now()
         person.save(update_fields=["deleted_at", "updated_at"])
-        messages.success(request, "Kontaktas perkeltas į archyvą.")
+        messages.success(request, tr("Kontaktas perkeltas į archyvą."))
     return redirect("contacts:list")
 
 
@@ -144,7 +144,7 @@ def company_archive(request, pk):
     if request.method == "POST" and company.deleted_at is None:
         company.deleted_at = timezone.now()
         company.save(update_fields=["deleted_at", "updated_at"])
-        messages.success(request, "Įmonė perkelta į archyvą.")
+        messages.success(request, tr("Įmonė perkelta į archyvą."))
     return redirect("contacts:company-list")
 
 
@@ -161,7 +161,7 @@ def contact_restore(request, pk):
     if request.method == "POST" and person.deleted_at is not None:
         person.deleted_at = None
         person.save(update_fields=["deleted_at", "updated_at"])
-        messages.success(request, "Kontaktas atkurtas.")
+        messages.success(request, tr("Kontaktas atkurtas."))
     return redirect("contacts:archive-list")
 
 
@@ -171,7 +171,7 @@ def company_restore(request, pk):
     if request.method == "POST" and company.deleted_at is not None:
         company.deleted_at = None
         company.save(update_fields=["deleted_at", "updated_at"])
-        messages.success(request, "Įmonė atkurta.")
+        messages.success(request, tr("Įmonė atkurta."))
     return redirect("contacts:archive-list")
 
 
@@ -182,7 +182,7 @@ def saved_filter_create(request):
         filters = saved_filter_payload(request.POST, "contacts")
         if name:
             SavedFilter.objects.update_or_create(user=request.user, scope="contacts", name=name, defaults={"filters": filters})
-            messages.success(request, "Filtras išsaugotas.")
+            messages.success(request, tr("Filtras išsaugotas."))
     return redirect("contacts:list")
 
 
@@ -193,7 +193,7 @@ def company_saved_filter_create(request):
         filters = saved_filter_payload(request.POST, "companies")
         if name:
             SavedFilter.objects.update_or_create(user=request.user, scope="companies", name=name, defaults={"filters": filters})
-            messages.success(request, "Įmonių sąrašas išsaugotas.")
+            messages.success(request, tr("Įmonių sąrašas išsaugotas."))
     return redirect("contacts:company-list")
 
 
@@ -273,7 +273,7 @@ def contact_create(request):
     form = PersonForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         return redirect(form.save())
-    return render(request, "contacts/form.html", {"form": form, "title": "Pridėti asmenį"})
+    return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį")})
 
 
 @login_required
@@ -289,7 +289,7 @@ def contact_edit(request, pk):
     form = PersonForm(request.POST or None, instance=person, initial=initial)
     if request.method == "POST" and form.is_valid():
         return redirect(form.save())
-    return render(request, "contacts/form.html", {"form": form, "title": "Redaguoti kontaktą", "person": person})
+    return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person})
 
 
 @login_required
@@ -504,7 +504,7 @@ def company_edit(request, pk):
     form = CompanyForm(request.POST or None, instance=company)
     if request.method == "POST" and form.is_valid():
         return redirect(form.save())
-    return render(request, "contacts/form.html", {"form": form, "title": "Redaguoti įmonę", "company": company, "cancel_url": company.get_absolute_url()})
+    return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti įmonę"), "company": company, "cancel_url": company.get_absolute_url()})
 
 
 def _value(row, *names):
@@ -594,7 +594,7 @@ def _import_contact_rows(rows):
         tag_names = _import_relation_names(row, "Tagai", "Tags", "tags")
         category_names = _import_relation_names(row, "Kategorijos", "Categories", "categories")
         if len(tag_names) > 3 or len(category_names) > 3:
-            raise ValueError("Viršytas leistinas žymų arba kategorijų skaičius")
+            raise ValueError(tr("Viršytas leistinas žymų arba kategorijų skaičius"))
         for tag_name in tag_names:
             tag, _ = Tag.objects.get_or_create(name=tag_name[:60])
             person.tags.add(tag)
@@ -610,7 +610,7 @@ def contacts_import(request):
     if request.method == "POST":
         upload = request.FILES.get("file")
         if not upload or upload.size > 10 * 1024 * 1024:
-            messages.error(request, "Pasirinkite iki 10 MB dydžio CSV arba XLSX failą.")
+            messages.error(request, tr("Pasirinkite iki 10 MB dydžio CSV arba XLSX failą."))
         else:
             name = upload.name.lower()
             try:
@@ -622,8 +622,8 @@ def contacts_import(request):
                     headers = [str(cell.value or "").strip() for cell in next(sheet.iter_rows())]
                     rows = [{headers[index]: cell.value for index, cell in enumerate(row)} for row in sheet.iter_rows(min_row=2)]
                 else:
-                    raise ValueError("Netinkamas failo formatas")
+                    raise ValueError(tr("Netinkamas failo formatas"))
                 result = _import_contact_rows(rows)
             except Exception:
-                messages.error(request, "Nepavyko perskaityti failo. Patikrinkite stulpelius ir failo formatą.")
+                messages.error(request, tr("Nepavyko perskaityti failo. Patikrinkite stulpelius ir failo formatą."))
     return render(request, "import_export.html", {"result": result})

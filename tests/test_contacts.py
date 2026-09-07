@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -642,6 +643,19 @@ class ContactViewTests(TestCase):
         first.refresh_from_db()
         self.assertEqual(first.color, "")
         self.assertContains(response, "Pasirinkta netinkama žymos spalva.")
+
+    def test_english_ui_translates_dynamic_titles_and_action_messages(self):
+        self.client.force_login(self.user)
+        self.client.cookies[settings.LANGUAGE_COOKIE_NAME] = "en"
+        self.assertContains(self.client.get(reverse("contacts:person-create")), "Add person")
+        response = self.client.post(reverse("contacts:bulk-action"), {
+            "action": "archive",
+            "selected": [self.person.pk],
+        }, follow=True)
+        self.assertContains(response, "Archived contacts: 1.")
+        invalid = SimpleUploadedFile("contacts.txt", b"invalid", content_type="text/plain")
+        response = self.client.post(reverse("contacts:import-export"), {"file": invalid})
+        self.assertContains(response, "The file could not be read. Check its columns and format.")
 
     def test_contact_detail_contains_protocol_links(self):
         self.client.force_login(self.user)

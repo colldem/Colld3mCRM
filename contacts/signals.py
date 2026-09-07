@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as tr
 from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 
@@ -14,4 +15,4 @@ def enforce_three_item_limit(sender, instance, action, pk_set, **kwargs):
     existing = relation.count()
     incoming = len(pk_set or set())
     if existing + incoming > 3:
-        raise ValidationError("Galima pasirinkti ne daugiau kaip 3 reikšmes.")
+        raise ValidationError(tr("Galima pasirinkti ne daugiau kaip 3 reikšmes."))
