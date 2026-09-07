@@ -38,6 +38,17 @@ class SetupTests(TestCase):
         self.assertRedirects(self.client.get(reverse("setup")), reverse("login"))
 
 
+class LoginSecurityTests(TestCase):
+    def test_login_is_temporarily_locked_after_five_failures(self):
+        get_user_model().objects.create_user("owner", password="correct-horse-battery-staple")
+        login_url = reverse("login")
+        for _ in range(settings.AXES_FAILURE_LIMIT):
+            response = self.client.post(login_url, {"username": "owner", "password": "wrong-password"})
+        self.assertEqual(response.status_code, settings.AXES_HTTP_RESPONSE_CODE)
+        response = self.client.post(login_url, {"username": "owner", "password": "correct-horse-battery-staple"})
+        self.assertEqual(response.status_code, settings.AXES_HTTP_RESPONSE_CODE)
+
+
 class ContactModelTests(TestCase):
     def test_person_can_link_multiple_companies(self):
         person = Person.objects.create(first_name="Rūta", last_name="Žukaitė")

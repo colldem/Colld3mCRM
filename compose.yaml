@@ -44,7 +44,7 @@ services:
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
       CRM_SETUP_TOKEN: ${CRM_SETUP_TOKEN:-}
       DJANGO_DEBUG: "false"
-      DJANGO_FORCE_HTTPS: "false"
+      DJANGO_FORCE_HTTPS: ${DJANGO_FORCE_HTTPS:-false}
     volumes:
       - ./runtime/media:/app/runtime/media
     network_mode: service:crm-tailscale

@@ -9,6 +9,7 @@ fi
 DJANGO_DEBUG=false \
 DJANGO_SECRET_KEY="deployment-check-0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
 DJANGO_ALLOWED_HOSTS="crm.example.test" \
+DJANGO_FORCE_HTTPS=true \
 CRM_SETUP_TOKEN="deployment-check-setup-token" \
 "$PYTHON_BIN" manage.py check --deploy
 "$PYTHON_BIN" -c "import json; json.load(open('deploy/tailscale/serve.json', encoding='utf-8'))"
