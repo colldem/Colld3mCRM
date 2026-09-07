@@ -1,6 +1,7 @@
 /* AdminLTE 4.0.0 shell with CRM's light/navy visual identity. */
 :root{--lte-sidebar-width:238px;--bs-primary:#062b63;--bs-primary-rgb:6,43,99;--bs-body-font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{font-family:var(--bs-body-font-family);line-height:1.5;background:#f4f6f9}
+.skip-links{display:none!important}
 .app-sidebar{background:linear-gradient(165deg,#062b63,#052454)!important;color:#fff;position:sticky;top:0;height:100vh}
 .app-sidebar .brand{height:72px;font-size:28px;border-bottom:1px solid #ffffff18}
 .app-sidebar .sidebar-wrapper{padding:0;height:calc(100vh - 72px);overflow-y:auto}

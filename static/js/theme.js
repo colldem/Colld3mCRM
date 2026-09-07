@@ -1,9 +1,8 @@
 // Localize the accessibility helpers created by AdminLTE at DOMContentLoaded.
 document.addEventListener('DOMContentLoaded', () => {
-  const mainLink = document.querySelector('.skip-link[href="#main"]');
-  const navLink = document.querySelector('.skip-link[href="#navigation"]');
-  if (mainLink) mainLink.textContent = gettext('Pereiti prie turinio');
-  if (navLink) navLink.textContent = gettext('Pereiti prie meniu');
+  // CRM is a private single-user tool; AdminLTE's skip links are not needed and
+  // surface as stray text when focused. Remove the block it injects into <body>.
+  document.querySelector('.skip-links')?.remove();
   document.querySelectorAll('.required-indicator').forEach(el => {
     el.textContent = ' (' + gettext('privaloma') + ')';
   });

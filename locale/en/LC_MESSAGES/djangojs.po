@@ -7,12 +7,6 @@ msgstr ""
 msgid "Saugoma..."
 msgstr "Saving..."
 
-msgid "Pereiti prie turinio"
-msgstr "Skip to main content"
-
-msgid "Pereiti prie meniu"
-msgstr "Skip to navigation"
-
 msgid "privaloma"
 msgstr "required"
 
