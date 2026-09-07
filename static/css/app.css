@@ -34,3 +34,4 @@ input[type=checkbox]{width:18px;height:18px;padding:0;flex-shrink:0;vertical-ali
 .bell-tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);margin-bottom:8px}.bell-tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 6px;font:inherit;cursor:pointer}.bell-tabs [aria-selected=true]{border-bottom-color:var(--navy-950);font-weight:700;color:var(--navy-950)}.bell-panel{max-height:320px;overflow:auto;overflow-wrap:anywhere}.bell-panel[hidden]{display:none}.reminder-popover{max-width:calc(100vw - 24px)}
 .language-switch{margin:0;flex:0 0 auto}.language-switch select{width:65px;min-height:38px;padding:6px;border:1px solid var(--line);background:#fff;border-radius:4px}.login-panel .language-switch{display:flex;justify-content:flex-end;margin-bottom:12px}
 table .crm-label{white-space:nowrap;overflow-wrap:normal;word-break:normal}
+.timeline::before{display:none}.timeline{margin-bottom:0}

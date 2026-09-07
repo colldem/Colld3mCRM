@@ -470,6 +470,9 @@ msgstr "Name, companies, phone numbers and email"
 msgid "Rekvizitai, adresas ir kontaktiniai asmenys"
 msgstr "Company details, address and contact persons"
 
+msgid "Griežtas tikrina tikslius identifikatorius, standartinis įtraukia kontaktinius duomenis, o laisvas taip pat lygina pavadinimus."
+msgstr "Strict checks exact identifiers, standard includes contact details, and loose also compares names."
+
 msgid "Įkelkite kontaktus iš CSV arba XLSX failo"
 msgstr "Upload contacts from a CSV or XLSX file"
 

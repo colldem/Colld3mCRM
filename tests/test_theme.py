@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 from django.utils.translation import override
@@ -54,3 +55,7 @@ class ThemeTests(TestCase):
         tag = Tag.objects.create(name="Settings color")
         response = self.client.get(reverse("contacts:settings-tags"))
         self.assertContains(response, f'class="crm-label {tag.color_class}"')
+
+    def test_crm_timeline_disables_conflicting_adminlte_line(self):
+        css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        self.assertIn(".timeline::before{display:none}", css)

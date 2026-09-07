@@ -692,6 +692,9 @@ class ContactViewTests(TestCase):
 
     def test_duplicate_settings_and_review_page(self):
         self.client.force_login(self.user)
+        settings_response = self.client.get(reverse("contacts:settings-duplicates"))
+        self.assertContains(settings_response, '<select name="level" class="duplicate-level-select"')
+        self.assertNotContains(settings_response, 'type="radio"')
         other = Person.objects.create(first_name="Kita", last_name="Pavardė")
         EmailAddress.objects.create(person=other, email="ruta@example.lt")
         response = self.client.get(reverse("contacts:duplicate-list"))

@@ -61,7 +61,7 @@ class DuplicateSettingsForm(forms.ModelForm):
             "check_on_edit": tr("Tikrinti redaguojant įrašą"),
             "check_on_import": tr("Tikrinti importuojant"),
         }
-        widgets = {"level": forms.RadioSelect}
+        widgets = {"level": forms.Select(attrs={"class": "duplicate-level-select"})}
 
 
 class PersonForm(forms.ModelForm):
