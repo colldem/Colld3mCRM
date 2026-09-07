@@ -1101,3 +1101,15 @@ msgstr "Files not added (too large or unsupported type): %(names)s"
 
 msgid "Iki 10 MB vienam failui."
 msgstr "Up to 10 MB per file."
+
+msgid "Atšaukti pasirinkimą"
+msgstr "Clear selection"
+
+msgid "Puslapiai"
+msgstr "Pages"
+
+msgid "Pirmas puslapis"
+msgstr "First page"
+
+msgid "Paskutinis puslapis"
+msgstr "Last page"

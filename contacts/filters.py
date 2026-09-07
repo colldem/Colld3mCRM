@@ -82,13 +82,7 @@ def apply_contact_filters(people, values):
         people = people.filter(emails__email__icontains=values["email"])
     if values["favourite"]:
         people = people.filter(favourite=True)
-    if values["last_contact_from"] or values["last_contact_to"]:
-        people = people.annotate(
-            last_contact_at=Max(
-                "activities__created_at",
-                filter=Q(activities__deleted_at__isnull=True),
-            )
-        )
+    # last_contact_at is annotated by the contact_list view before filtering.
     if values["last_contact_from"]:
         people = people.filter(last_contact_at__date__gte=values["last_contact_from"])
     if values["last_contact_to"]:

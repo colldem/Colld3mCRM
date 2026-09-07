@@ -15,6 +15,9 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **B4** — slaptažodžio keitimas: Nustatymai → Slaptažodis
 - ✅ **B6** — priedų dydžio (10 MB) ir tipo (plėtinių sąrašas) tikrinimas serveryje
 - ✅ **B7** — automatinis atsijungimas po 8 val. neaktyvumo (slankusis langas)
+- ✅ **C1** — sąrašų UX: pažymėtų eilučių paryškinimas, „Atšaukti pasirinkimą",
+  pilna puslapių navigacija (pirmas/numeruoti/paskutinis), „Paskutinis
+  bendravimas" (kontaktai) ir „Adresas" (įmonės) stulpeliai
 
 ---
 
@@ -92,12 +95,11 @@ neveiklumas — atskiras darbas, jei prireiks.
 
 ## C. Vidutinis prioritetas
 
-### C1. Sąrašų UX likučiai — 🟡
-- ❌ Pažymėtų eilučių fono paryškinimas
-- ❌ „Atšaukti pasirinkimą" mygtukas masinių veiksmų juostoje
-- ❌ „Paskutinis bendravimas" stulpelis (kontaktai) — data yra tik filtre, ne stulpelyje
-- ❌ „Miestas" stulpelis (įmonės)
-- ❌ Pilna puslapių navigacija: pirmas / numeruoti / paskutinis (dabar tik „Ankstesnis/Kitas")
+### C1. Sąrašų UX likučiai — ✅ padaryta
+Pažymėtų eilučių paryškinimas, „Atšaukti pasirinkimą", pilna puslapių navigacija
+(bendras `templates/pagination.html`), „Paskutinis bendravimas" stulpelis
+(kontaktai, rikiuojamas) ir „Adresas" stulpelis (įmonės). Abu — pasirenkami
+per „Stulpeliai".
 
 ### C2. Paskutinio ir kito kontakto informacija kortelėje/sąraše — ❌
 Reikalauta (Teamgate): „Paskutinis kontaktas", „Dienų nuo paskutinio",
@@ -117,8 +119,47 @@ Reikalauta „pradėti rinkti iš karto". Nėra: kas/kada/kurį lauką keitė, s
 reikšmė, prisijungimų istorija, importo/eksporto operacijų žurnalas, failų įkėlimai.
 Yra tik `created_at`/`updated_at`/`created_by`.
 
-### C6. Keli naudotojai, rolės, teisės — ❌
-Suprojektuota „vėliau". Dabar 1 superuser. Architektūra leidžia (Django auth).
+### C6. Naudotojai, rolės, teisės ir atsakingas naudotojas — ❌
+Dabar 1 superuser. Reikia pilno modulio. Pagrindas — konkurentų praktika
+(Pipedrive „permission sets" + „visibility groups", HubSpot „users & teams" +
+record owner, Teamgate rolės + savininkas, Salesforce owner + org-wide defaults).
+
+**Naudotojų valdymas** (Nustatymai → Naudotojai, tik administratoriui):
+- Sąrašas: vardas, el. paštas, rolė, būsena (aktyvus/išjungtas), paskutinis prisijungimas
+- Pridėti naudotoją: vardas, el. paštas, rolė + pradinis slaptažodis (arba pakvietimo
+  nuoroda el. paštu, kai bus SMTP — kol kas slaptažodis)
+- Redaguoti rolę, **išjungti** (ne trinti — išsaugoma autorystė ir istorija),
+  atstatyti slaptažodį
+- Negalima išjungti/pažeminti paskutinio administratoriaus
+
+**Rolės** (pradžiai 3, be hierarchijos):
+| Rolė | Kontaktai/įmonės | Nustatymai | Naudotojai |
+|---|---|---|---|
+| Administratorius | visi (kurti/keisti/archyvuoti) | visi | valdo |
+| Naudotojas | visi | tik profilis + savo filtrai | — |
+| Naudotojas (tik savi) | tik kur jis atsakingas arba nepriskirta | tik profilis | — |
+
+**Atsakingas naudotojas (owner)**:
+- `owner` (FK į User, `null=True`) prie `Person` ir `Company`
+- Numatytai priskiriamas kūrėjui; keičiamas kortelėje (inline) ir masiniu veiksmu
+- Filtras „Atsakingas" + greitas „Mano kontaktai / Mano įmonės" (saveable kaip numatytasis)
+- Stulpelis „Atsakingas" sąrašuose (kartu su C1)
+- CSV eksporte/importe — stulpelis „Atsakingas" (pagal el. paštą arba vardą)
+
+**Matomumas** (queryset lygyje, ne tik UI):
+- „Tik savi" rolė: `Person/Company` sąrašai, paieška, kortelės, dublikatai, eksportas
+  filtruojami `Q(owner=user) | Q(owner__isnull=True)`
+- Veiklos ir priminimai seka įrašo matomumą; `created_by` išlieka
+- Administratorius ir „Naudotojas" — mato viską
+
+**Sąmoningai vėliau**: komandų/skyrių hierarchija, matomumo grupės, įrašo dalijimasis
+konkretiems naudotojams, teisės pagal lauką, „org-wide default = private/public".
+
+Įgyvendinimo dalys (atskiri diegimai):
+1. `owner` laukas + migracija, numatytasis kūrėjas, rodymas/redagavimas kortelėje
+2. Rolės modelis (`UserProfile.role` arba grupės) + „Naudotojai" sąrašas ir kūrimas
+3. Matomumo filtrai visuose sąrašuose/paieškoje/eksporte + testai
+4. Masinis „priskirti atsakingą" + „Atsakingas" filtras/stulpelis + CSV
 
 ### C7. Importo vedlys — 🟡
 Dabar: failas → rezultatas (sukurta/atnaujinta/praleista/galimi dubliai).
@@ -159,8 +200,9 @@ Reikalauta atskirai nuo CSV. Nustatymuose „Duomenų eksportas" → visas DB + 
 7. **B5 + C9** atsarginės kopijos (automatinės + eksportas iš sąsajos)
 8. **C7 / C8** importo vedlys ir masinių veiksmų išplėtimas
 9. **C3** universali paieška su grupėmis
-10. **C5** auditas · **C4** individualūs laukai · **C6** naudotojai/rolės
-11. **D** likučiai (PWA, el. paštas, kortelės greiti veiksmai, taksonomijų būsenos)
+10. **C6** naudotojai, rolės, atsakingas naudotojas, matomumas (4 dalys)
+11. **C5** auditas · **C4** individualūs laukai
+12. **D** likučiai (PWA, el. paštas, kortelės greiti veiksmai, taksonomijų būsenos)
 
 Kiekvienas punktas — pagal `CLAUDE.md` taisykles: minimalus kodas → testai →
 naršyklė → diegimas per UGREEN → GitHub.

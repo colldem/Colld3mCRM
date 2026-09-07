@@ -1,0 +1,24 @@
+{% load i18n %}
+<div class="pagination">
+  <span>{{ page.start_index }}-{{ page.end_index }} {% translate 'iš' %} {{ page.paginator.count }}</span>
+  <div>
+    <form method="get">{% include hidden_fields %}{% for column in columns %}<input type="hidden" name="columns" value="{{ column }}">{% endfor %}<input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="direction" value="{{ direction }}"><select name="page_size" onchange="this.form.submit()"><option value="50" {% if page_size == 50 %}selected{% endif %}>{% translate '50 eilučių' %}</option><option value="100" {% if page_size == 100 %}selected{% endif %}>{% translate '100 eilučių' %}</option></select></form>
+    {% if page.paginator.num_pages > 1 %}
+    <nav class="page-links" aria-label="{% translate 'Puslapiai' %}">
+      {% if page.has_previous %}
+        <a class="btn page-step" href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort }}&amp;direction={{ direction }}&amp;page=1" aria-label="{% translate 'Pirmas puslapis' %}">«</a>
+        <a class="btn page-step" href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort }}&amp;direction={{ direction }}&amp;page={{ page.previous_page_number }}">{% translate 'Ankstesnis' %}</a>
+      {% endif %}
+      {% for num in page_numbers %}
+        {% if num == page.number %}<span class="page-number" aria-current="page">{{ num }}</span>
+        {% elif num == "…" %}<span class="page-gap" aria-hidden="true">…</span>
+        {% else %}<a class="btn page-num" href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort }}&amp;direction={{ direction }}&amp;page={{ num }}">{{ num }}</a>{% endif %}
+      {% endfor %}
+      {% if page.has_next %}
+        <a class="btn page-step" href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort }}&amp;direction={{ direction }}&amp;page={{ page.next_page_number }}">{% translate 'Kitas' %}</a>
+        <a class="btn page-step" href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort }}&amp;direction={{ direction }}&amp;page={{ page.paginator.num_pages }}" aria-label="{% translate 'Paskutinis puslapis' %}">»</a>
+      {% endif %}
+    </nav>
+    {% endif %}
+  </div>
+</div>

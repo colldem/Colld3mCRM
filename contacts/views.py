@@ -13,7 +13,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import Count, Min, Prefetch, Q
+from django.db.models import Count, Max, Min, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -30,6 +30,12 @@ from .filters import (
     saved_filter_payload,
 )
 from .models import Activity, Attachment, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, UserProfile, WebLink
+
+
+def _elided_page_numbers(page):
+    """A compact page list for the paginator: ints, with "…" where pages are skipped."""
+    raw = page.paginator.get_elided_page_range(page.number, on_each_side=1, on_ends=1)
+    return [number if isinstance(number, int) else "…" for number in raw]
 
 
 def health_live(request):
@@ -75,13 +81,14 @@ def contact_list(request):
     page_size = 100 if request.GET.get("page_size") == "100" else 50
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
-    sort_map = {"id": ["id"], "name": ["last_name", "first_name"], "company": ["sort_company"], "phone": ["sort_phone"], "email": ["sort_email"], "category": ["sort_category"], "tags": ["sort_tag"], "status": ["status"], "created": ["created_at"], "updated": ["updated_at"]}
+    sort_map = {"id": ["id"], "name": ["last_name", "first_name"], "company": ["sort_company"], "phone": ["sort_phone"], "email": ["sort_email"], "category": ["sort_category"], "tags": ["sort_tag"], "status": ["status"], "last_contact": ["last_contact_at"], "created": ["created_at"], "updated": ["updated_at"]}
     sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
     order = [f"{order_prefix}{field}" for field in sort_map.get(sort_key, sort_map["name"])]
     people = Person.objects.filter(deleted_at__isnull=True).prefetch_related(
         "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
     )
+    people = people.annotate(last_contact_at=Max("activities__created_at", filter=Q(activities__deleted_at__isnull=True)))
     people = apply_contact_filters(people, filter_values)
     people = people.annotate(
         sort_company=Min("company_links__company__name"),
@@ -90,7 +97,7 @@ def contact_list(request):
         sort_category=Min("categories__name"),
         sort_tag=Min("tags__name"),
     )
-    allowed_columns = ["company", "phone", "email", "category", "tags", "status", "updated"]
+    allowed_columns = ["company", "phone", "email", "category", "tags", "status", "last_contact", "updated"]
     default_columns = ["company", "phone", "email", "category", "tags", "updated"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
@@ -113,6 +120,7 @@ def contact_list(request):
     }
     return render(request, "contacts/list.html", {
         "page": page, "query": query, "page_size": page_size, "sort": sort_key,
+        "page_numbers": _elided_page_numbers(page),
         "direction": direction, "columns": columns, "categories": categories,
         "tags": tags, "filter_values": filter_values,
         "active_filter_count": active_filter_count(filter_values),
@@ -610,6 +618,7 @@ def company_list(request):
         "vat_code": "vat_code",
         "phone": "phone",
         "email": "email",
+        "address": "address",
         "contacts": "contact_count",
         "category": "sort_category",
         "tags": "sort_tag",
@@ -621,8 +630,8 @@ def company_list(request):
         sort_category=Min("categories__name"),
         sort_tag=Min("tags__name"),
     ).order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
-    allowed_columns = ("company_code", "vat_code", "phone", "email", "contacts")
-    default_columns = list(allowed_columns)
+    allowed_columns = ("company_code", "vat_code", "address", "phone", "email", "contacts")
+    default_columns = ["company_code", "vat_code", "phone", "email", "contacts"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
         columns = [column for column in requested_columns if column in allowed_columns]
@@ -645,6 +654,7 @@ def company_list(request):
     }
     return render(request, "companies/list.html", {
         "page": page, "query": query, "page_size": page_size, "sort": sort_key, "direction": direction, "filter_values": filter_values, "columns": columns,
+        "page_numbers": _elided_page_numbers(page),
         "list_query": list_query.urlencode(),
         "active_filter_count": active_filter_count(filter_values),
         "filter_chips": filter_chips(request.GET, filter_values, label_maps, request.path),

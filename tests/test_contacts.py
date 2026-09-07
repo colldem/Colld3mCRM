@@ -778,6 +778,41 @@ class ContactViewTests(TestCase):
         response = self.client.get(reverse("contacts:list"))
         self.assertIn("sessionid", response.cookies)
 
+    def test_contacts_list_last_contact_column_shows_latest_activity(self):
+        self.client.force_login(self.user)
+        Activity.objects.create(person=self.person, activity_type="note", text="Skambinta", created_by=self.user)
+        response = self.client.get(reverse("contacts:list"), {"columns": ["last_contact"]})
+        self.assertIn("last_contact", response.context["columns"])
+        self.assertContains(response, "Paskutinis bendravimas")
+        row = next(p for p in response.context["page"] if p.pk == self.person.pk)
+        self.assertIsNotNone(row.last_contact_at)
+        self.assertContains(response, timezone.localtime(row.last_contact_at).strftime("%Y-%m-%d"))
+        sorted_response = self.client.get(reverse("contacts:list"), {"sort": "last_contact", "direction": "desc"})
+        self.assertEqual(sorted_response.context["sort"], "last_contact")
+
+    def test_company_list_offers_address_column(self):
+        self.client.force_login(self.user)
+        self.company.address = "Gedimino pr. 1, Vilnius"
+        self.company.save(update_fields=["address"])
+        response = self.client.get(reverse("contacts:company-list"), {"columns": ["address"]})
+        self.assertIn("address", response.context["columns"])
+        self.assertContains(response, "Gedimino pr. 1, Vilnius")
+
+    def test_lists_have_a_clear_selection_control(self):
+        self.client.force_login(self.user)
+        self.assertContains(self.client.get(reverse("contacts:list")), 'id="clear-selection"')
+        self.assertContains(self.client.get(reverse("contacts:company-list")), 'id="company-clear-selection"')
+
+    def test_pagination_shows_first_last_and_numbered_links_across_pages(self):
+        self.client.force_login(self.user)
+        Person.objects.bulk_create([Person(first_name=f"P{n:03d}", last_name="X") for n in range(120)])
+        response = self.client.get(reverse("contacts:list"), {"page": 2})
+        self.assertEqual(response.context["page"].paginator.num_pages, 3)
+        self.assertContains(response, "Pirmas puslapis")
+        self.assertContains(response, "Paskutinis puslapis")
+        self.assertContains(response, "page=1")
+        self.assertContains(response, "page=3")
+
     def test_company_columns_and_saved_list_are_persistent_and_scoped(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:company-list"), {"columns": ["phone", "contacts"]})
