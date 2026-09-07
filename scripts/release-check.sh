@@ -5,7 +5,7 @@ if [ -z "$PYTHON_BIN" ]; then
   if command -v python >/dev/null 2>&1; then PYTHON_BIN=python; else PYTHON_BIN=python3; fi
 fi
 "$PYTHON_BIN" manage.py makemigrations --check --dry-run
-"$PYTHON_BIN" manage.py test contacts
+"$PYTHON_BIN" manage.py test
 DJANGO_DEBUG=false \
 DJANGO_SECRET_KEY="deployment-check-0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMNOPQRSTUVWXYZ" \
 DJANGO_ALLOWED_HOSTS="crm.example.test" \
