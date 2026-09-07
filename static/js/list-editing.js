@@ -19,6 +19,11 @@ document.querySelectorAll('[popovertarget]').forEach(button => {
 document.querySelectorAll('[data-close-filter]').forEach(button => {
   button.addEventListener('click', () => button.closest('details')?.removeAttribute('open'));
 });
+document.addEventListener('pointerdown', event => {
+  document.querySelectorAll('.drawer-control[open],.sort-control[open],.filter-multiselect[open]').forEach(control => {
+    if (event.target === control || !control.contains(event.target)) control.removeAttribute('open');
+  });
+});
 document.querySelectorAll('.filter-panel').forEach(form => {
   form.addEventListener('submit', () => {
     form.querySelectorAll('input:not([type=hidden]),select').forEach(control => {

@@ -18,7 +18,6 @@ COMPANY_FILTER_KEYS = (
     "q",
     "categories",
     "tags",
-    "contacts",
     "city",
     "last_contact_from",
     "last_contact_to",
@@ -50,12 +49,10 @@ def contact_filter_values(data):
 
 
 def company_filter_values(data):
-    contacts = data.get("contacts", "")
     return {
         "q": data.get("q", "").strip(),
         "categories": _ids(data, "categories", "category"),
         "tags": _ids(data, "tags", "tag"),
-        "contacts": contacts if contacts in {"with", "without"} else "",
         "city": data.get("city", "").strip(),
         "last_contact_from": _date(data, "last_contact_from"),
         "last_contact_to": _date(data, "last_contact_to"),
@@ -119,10 +116,6 @@ def apply_company_filters(companies, values):
         companies = companies.filter(categories__pk__in=values["categories"])
     if values["tags"]:
         companies = companies.filter(tags__pk__in=values["tags"])
-    if values["contacts"] == "with":
-        companies = companies.filter(people__deleted_at__isnull=True, people__isnull=False)
-    elif values["contacts"] == "without":
-        companies = companies.exclude(people__deleted_at__isnull=True, people__isnull=False)
     if values["city"]:
         companies = companies.filter(address__icontains=values["city"])
     if values["last_contact_from"] or values["last_contact_to"]:
@@ -169,7 +162,6 @@ def filter_chips(data, values, label_maps, path):
     labels = {
         "email": _("El. paštas"),
         "favourite": _("Tik mėgstami"),
-        "contacts": _("Kontaktiniai asmenys"),
         "city": _("Miestas arba adresas"),
         "last_contact_from": _("Nuo"),
         "last_contact_to": _("Iki"),
@@ -183,8 +175,6 @@ def filter_chips(data, values, label_maps, path):
             display = label_maps.get(key, {}).get(item, item)
             if key == "favourite":
                 display = _("Taip")
-            elif key == "contacts":
-                display = _("Su kontaktais") if item == "with" else _("Be kontaktų")
             query = data.copy()
             if isinstance(value, list):
                 remaining = [str(candidate) for candidate in value if candidate != item]

@@ -400,7 +400,7 @@ class ContactViewTests(TestCase):
         response = self.client.get(reverse("contacts:person-create"))
         self.assertContains(response, 'class="form-actions"')
 
-    def test_companies_can_be_filtered_by_related_contact_and_all_company_fields(self):
+    def test_companies_search_related_contact_fields_and_ignore_removed_contacts_filter(self):
         self.client.force_login(self.user)
         empty_company = Company.objects.create(name="Be kontaktų", address="Vilnius")
         for query in ["Aukštaitijos", "Rūta", "Projektų", "ruta@example.lt"]:
@@ -408,9 +408,9 @@ class ContactViewTests(TestCase):
                 response = self.client.get(reverse("contacts:company-list"), {"q": query})
                 self.assertEqual(list(response.context["page"]), [self.company])
         response = self.client.get(reverse("contacts:company-list"), {"contacts": "with"})
-        self.assertEqual(list(response.context["page"]), [self.company])
-        response = self.client.get(reverse("contacts:company-list"), {"contacts": "without"})
-        self.assertEqual(list(response.context["page"]), [empty_company])
+        self.assertEqual(set(response.context["page"]), {self.company, empty_company})
+        self.assertNotIn("contacts", response.context["filter_values"])
+        self.assertNotContains(response, 'name="contacts"')
         self.assertContains(response, "Įmonių filtrai")
 
     def test_company_sorting_and_pagination_preserve_filters_and_columns(self):
@@ -430,6 +430,43 @@ class ContactViewTests(TestCase):
         self.assertIn("columns=company_code&columns=contacts", response.context["list_query"])
         self.assertContains(response, "sort=contacts")
         self.assertNotEqual(first, last)
+
+    def test_all_contact_data_columns_offer_sort_menu_and_id_sorting(self):
+        self.client.force_login(self.user)
+        other = Person.objects.create(first_name="Asta", last_name="Nauja")
+        first_category = Category.objects.create(name="A kategorija")
+        second_category = Category.objects.create(name="B kategorija")
+        self.person.categories.add(first_category, second_category)
+        columns = ["company", "phone", "email", "category", "tags", "status", "updated"]
+
+        response = self.client.get(reverse("contacts:list"), {"columns": columns, "sort": "id", "direction": "desc"})
+
+        self.assertEqual(response.context["sort"], "id")
+        self.assertEqual(list(response.context["page"])[0], other)
+        self.assertEqual(response.context["page"].paginator.count, Person.objects.filter(deleted_at__isnull=True).count())
+        self.assertContains(response, 'class="sort-control"', count=8)
+        for key in ("name", "company", "phone", "email", "category", "tags", "status", "updated", "id"):
+            with self.subTest(key=key):
+                self.assertContains(response, f"sort={key}&amp;direction=asc")
+                self.assertContains(response, f"sort={key}&amp;direction=desc")
+
+    def test_all_company_data_columns_offer_sort_menu_and_id_sorting(self):
+        self.client.force_login(self.user)
+        other = Company.objects.create(name="Nauja įmonė")
+        first_tag = Tag.objects.create(name="A žyma")
+        second_tag = Tag.objects.create(name="B žyma")
+        self.company.tags.add(first_tag, second_tag)
+
+        response = self.client.get(reverse("contacts:company-list"), {"sort": "id", "direction": "desc"})
+
+        self.assertEqual(response.context["sort"], "id")
+        self.assertEqual(list(response.context["page"])[0], other)
+        self.assertEqual(response.context["page"].paginator.count, Company.objects.filter(deleted_at__isnull=True).count())
+        self.assertContains(response, 'class="sort-control"', count=8)
+        for key in ("name", "company_code", "vat_code", "phone", "email", "contacts", "category", "tags", "id"):
+            with self.subTest(key=key):
+                self.assertContains(response, f"sort={key}&amp;direction=asc")
+                self.assertContains(response, f"sort={key}&amp;direction=desc")
 
     def test_searches_related_fields(self):
         self.client.force_login(self.user)
@@ -546,6 +583,8 @@ class ContactViewTests(TestCase):
                 self.assertNotContains(response, 'name="status"')
                 if route == "contacts:list":
                     self.assertNotContains(response, 'name="companies"')
+                else:
+                    self.assertNotContains(response, 'name="contacts"')
         self.assertIsNotNone(category.pk)
         self.assertIsNotNone(tag.pk)
 
@@ -587,11 +626,12 @@ class ContactViewTests(TestCase):
         self.assertEqual(response.context["columns"], ["phone", "contacts"])
         self.assertContains(response, "Stulpeliai")
         self.assertContains(response, "Mano filtrai")
-        payload = {"name": "Tik su kontaktais", "contacts": "with"}
+        payload = {"name": "Vilniaus įmonės", "city": "Vilnius", "contacts": "with"}
         self.client.post(reverse("contacts:company-saved-filter-create"), payload)
         self.client.post(reverse("contacts:company-saved-filter-create"), payload)
-        self.assertEqual(SavedFilter.objects.filter(user=self.user, scope="companies", name="Tik su kontaktais").count(), 1)
-        self.assertEqual(SavedFilter.objects.filter(user=self.user, scope="contacts", name="Tik su kontaktais").count(), 0)
+        saved = SavedFilter.objects.get(user=self.user, scope="companies", name="Vilniaus įmonės")
+        self.assertEqual(saved.filters, {"city": "Vilnius"})
+        self.assertEqual(SavedFilter.objects.filter(user=self.user, scope="contacts", name="Vilniaus įmonės").count(), 0)
 
     def test_settings_adds_tags_and_categories_idempotently(self):
         self.client.force_login(self.user)

@@ -9,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import connection, transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Min, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -68,13 +68,21 @@ def contact_list(request):
     page_size = 100 if request.GET.get("page_size") == "100" else 50
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
-    sort_map = {"name": ["last_name", "first_name"], "company": ["company_links__company__name"], "phone": ["phones__number"], "email": ["emails__email"], "status": ["status"], "created": ["created_at"], "updated": ["updated_at"]}
+    sort_map = {"id": ["id"], "name": ["last_name", "first_name"], "company": ["sort_company"], "phone": ["sort_phone"], "email": ["sort_email"], "category": ["sort_category"], "tags": ["sort_tag"], "status": ["status"], "created": ["created_at"], "updated": ["updated_at"]}
+    sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
     order = [f"{order_prefix}{field}" for field in sort_map.get(sort_key, sort_map["name"])]
     people = Person.objects.filter(deleted_at__isnull=True).prefetch_related(
         "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
     )
     people = apply_contact_filters(people, filter_values)
+    people = people.annotate(
+        sort_company=Min("company_links__company__name"),
+        sort_phone=Min("phones__number"),
+        sort_email=Min("emails__email"),
+        sort_category=Min("categories__name"),
+        sort_tag=Min("tags__name"),
+    )
     allowed_columns = ["company", "phone", "email", "category", "tags", "status", "updated"]
     default_columns = ["company", "phone", "email", "category", "tags", "updated"]
     requested_columns = request.GET.getlist("columns")
@@ -85,7 +93,7 @@ def contact_list(request):
         columns = [column for column in request.session.get("contacts_columns", default_columns) if column in allowed_columns]
     from django.core.paginator import Paginator
 
-    page = Paginator(people.order_by(*order), page_size).get_page(request.GET.get("page"))
+    page = Paginator(people.order_by(*order, "id"), page_size).get_page(request.GET.get("page"))
     list_query = request.GET.copy()
     for key in ("page", "sort", "direction"):
         list_query.pop(key, None)
@@ -433,16 +441,23 @@ def company_list(request):
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
     companies = apply_company_filters(companies, filter_values)
     sort_map = {
+        "id": "id",
         "name": "name",
         "company_code": "company_code",
         "vat_code": "vat_code",
         "phone": "phone",
         "email": "email",
         "contacts": "contact_count",
+        "category": "sort_category",
+        "tags": "sort_tag",
     }
     sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
-    companies = companies.distinct().annotate(contact_count=Count("people", distinct=True)).order_by(f"{order_prefix}{sort_map[sort_key]}", "name")
+    companies = companies.distinct().annotate(
+        contact_count=Count("people", distinct=True),
+        sort_category=Min("categories__name"),
+        sort_tag=Min("tags__name"),
+    ).order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
     allowed_columns = ("company_code", "vat_code", "phone", "email", "contacts")
     default_columns = list(allowed_columns)
     requested_columns = request.GET.getlist("columns")
