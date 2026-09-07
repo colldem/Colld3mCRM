@@ -937,3 +937,18 @@ msgstr "Same VAT code"
 
 msgid "Tas pats URL"
 msgstr "Same URL"
+
+msgid "Importas / eksportas - CRM"
+msgstr "Import / export - CRM"
+
+msgid "CSV failams naudokite UTF-8 koduotę ir kablelius."
+msgstr "Use UTF-8 encoding and commas for CSV files."
+
+msgid "Galimi dublikatai:"
+msgstr "Possible duplicates:"
+
+msgid "Eksportuoti įmones"
+msgstr "Export companies"
+
+msgid "Eksportuojamos tik nearchyvuotos įmonės CSV UTF-8 formatu."
+msgstr "Exports non-archived companies as UTF-8 CSV."

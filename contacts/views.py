@@ -589,7 +589,9 @@ def companies_export(request):
 
 @transaction.atomic
 def _import_contact_rows(rows):
-    created = updated = skipped = 0
+    created = updated = skipped = possible_duplicates = 0
+    duplicate_settings = DuplicateSettings.load()
+    report_duplicates = duplicate_settings.enabled and duplicate_settings.check_on_import
     for row in rows:
         first_name = _value(row, "Vardas", "first_name", "First name")
         last_name = _value(row, "Pavardė", "last_name", "Last name")
@@ -602,6 +604,8 @@ def _import_contact_rows(rows):
             person = Person.objects.filter(emails__email__iexact=email, deleted_at__isnull=True).first()
         if not person:
             person = Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).first()
+        if person and report_duplicates:
+            possible_duplicates += 1
         values = {"first_name": first_name, "last_name": last_name, "job_title": _value(row, "Pareigos", "job_title"), "status": _value(row, "Būsena", "status") or "Aktyvus"}
         if person:
             for field, value in values.items():
@@ -636,7 +640,7 @@ def _import_contact_rows(rows):
         for category_name in category_names:
             category, _ = Category.objects.get_or_create(name=category_name[:60])
             person.categories.add(category)
-    return {"created": created, "updated": updated, "skipped": skipped}
+    return {"created": created, "updated": updated, "skipped": skipped, "possible_duplicates": possible_duplicates, "duplicate_check_enabled": report_duplicates}
 
 
 @login_required

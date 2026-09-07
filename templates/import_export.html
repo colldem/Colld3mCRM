@@ -1,6 +1,36 @@
 {% extends "base.html" %}{% load i18n %}
-{% block title %}{% translate 'Importas ir eksportas - CRM' %}{% endblock %}
+{% block title %}{% translate 'Importas / eksportas - CRM' %}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>{% translate 'Importas / eksportas' %}</h1><p>{% translate 'Kontaktus importuokite CSV UTF-8 arba XLSX formatu.' %}</p></div></div>
-<div class="import-grid"><section class="import-card"><div class="import-card-body"><h2>{% translate 'Importuoti kontaktus' %}</h2><p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos.' %}</p><form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="file" name="file" accept=".csv,.xlsx" required><div class="import-card-actions"><button class="btn primary" type="submit">{% translate 'Importuoti' %}</button></div></form>{% if result %}<div class="import-result"><strong>{% translate 'Importas baigtas' %}</strong><span>{% translate 'Nauji:' %} {{ result.created }}</span><span>{% translate 'Atnaujinti:' %} {{ result.updated }}</span><span>{% translate 'Praleisti:' %} {{ result.skipped }}</span></div>{% endif %}</div></section><section class="import-card"><div class="import-card-body"><h2>{% translate 'Eksportuoti kontaktus' %}</h2><p>{% translate 'Eksportuojami tik nearchyvuoti kontaktai CSV UTF-8 formatu.' %}</p></div><div class="import-card-actions"><a class="btn primary" href="{% url 'contacts:contacts-export' %}">{% translate 'Eksportuoti kontaktus' %}</a></div></section></div>
+<div class="page-head"><div><h1>{% translate 'Importas / eksportas' %}</h1><p>{% translate 'CSV failams naudokite UTF-8 koduotę ir kablelius.' %}</p></div></div>
+<div class="import-grid">
+  <section class="import-card">
+    <div class="import-card-body">
+      <h2>{% translate 'Importuoti kontaktus' %}</h2>
+      <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos.' %}</p>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="file" accept=".csv,.xlsx" required>
+        <div class="import-card-actions"><button class="btn primary" type="submit">{% translate 'Importuoti' %}</button></div>
+      </form>
+      {% if result %}
+        <div class="import-result">
+          <strong>{% translate 'Importas baigtas' %}</strong>
+          <span>{% translate 'Nauji:' %} {{ result.created }}</span>
+          <span>{% translate 'Atnaujinti:' %} {{ result.updated }}</span>
+          <span>{% translate 'Praleisti:' %} {{ result.skipped }}</span>
+          {% if result.duplicate_check_enabled %}<span>{% translate 'Galimi dublikatai:' %} {{ result.possible_duplicates }}</span>{% endif %}
+          {% if result.possible_duplicates %}<a href="{% url 'contacts:duplicate-list' %}">{% translate 'Peržiūrėti dublikatus' %}</a>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+  <section class="import-card">
+    <div class="import-card-body"><h2>{% translate 'Eksportuoti kontaktus' %}</h2><p>{% translate 'Eksportuojami tik nearchyvuoti kontaktai CSV UTF-8 formatu.' %}</p></div>
+    <div class="import-card-actions"><a class="btn primary" href="{% url 'contacts:contacts-export' %}">{% translate 'Eksportuoti kontaktus' %}</a></div>
+  </section>
+  <section class="import-card">
+    <div class="import-card-body"><h2>{% translate 'Eksportuoti įmones' %}</h2><p>{% translate 'Eksportuojamos tik nearchyvuotos įmonės CSV UTF-8 formatu.' %}</p></div>
+    <div class="import-card-actions"><a class="btn primary" href="{% url 'contacts:companies-export' %}">{% translate 'Eksportuoti įmones' %}</a></div>
+  </section>
+</div>
 {% endblock %}

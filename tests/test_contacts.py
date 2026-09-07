@@ -375,9 +375,10 @@ class ContactViewTests(TestCase):
     def test_common_action_layout_is_used_for_import_forms_and_detail_headers(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:import-export"))
-        self.assertContains(response, 'class="import-card-actions"', count=2)
+        self.assertContains(response, 'class="import-card-actions"', count=3)
         self.assertContains(response, "Importuoti")
         self.assertContains(response, "Eksportuoti kontaktus")
+        self.assertContains(response, "Eksportuoti įmones")
         response = self.client.get(self.person.get_absolute_url())
         self.assertContains(response, 'class="page-actions"')
         response = self.client.get(self.company.get_absolute_url())
@@ -708,6 +709,20 @@ class ContactViewTests(TestCase):
         self.assertContains(response, self.company.get_absolute_url())
         self.assertContains(response, created.get_absolute_url())
         self.assertContains(response, "Tas pats įmonės kodas")
+
+    def test_import_reports_exact_duplicate_when_enabled(self):
+        self.client.force_login(self.user)
+        content = "Vardas,Pavardė,El. paštai\nRūta,Žukaitė,ruta@example.lt\n".encode()
+        response = self.client.post(reverse("contacts:import-export"), {
+            "file": SimpleUploadedFile("contacts.csv", content, content_type="text/csv"),
+        })
+        self.assertContains(response, "Galimi dublikatai: 1")
+        DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True, "check_on_import": False})
+        response = self.client.post(reverse("contacts:import-export"), {
+            "file": SimpleUploadedFile("contacts.csv", content, content_type="text/csv"),
+        })
+        self.assertNotContains(response, "Galimi dublikatai:")
+        self.assertEqual(Person.objects.filter(first_name="Rūta", last_name="Žukaitė").count(), 1)
 
     def test_contact_detail_contains_protocol_links(self):
         self.client.force_login(self.user)
