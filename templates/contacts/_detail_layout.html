@@ -68,11 +68,12 @@
       </div>
 
       <div class="tab-panel is-active" data-panel="log">
-        <form id="composer" method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="composer">{% csrf_token %}
+        <form id="composer" method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
           <input type="hidden" name="submission_token" value="{{ activity_token }}">
-          {{ activity_form.as_p }}
-          <p><label for="attachments">{% translate 'Failai ir nuotraukos' %}</label><input id="attachments" name="attachments" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"><small>{% translate 'Iki 10 MB vienam failui.' %}</small></p>
-          <button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button>
+          <label>{% translate 'Įrašo tipas' %}{{ activity_form.activity_type }}</label>
+          <label>{% translate 'Tekstas' %}{{ activity_form.text }}</label>
+          <label>{% translate 'Failai ir nuotraukos' %}<input name="attachments" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"><small>{% translate 'Iki 10 MB vienam failui.' %}</small></label>
+          <div><button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button></div>
         </form>
         <div class="timeline">
           {% for activity in log_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Įrašų dar nėra.' %}</p>{% endfor %}
@@ -82,9 +83,11 @@
       <div class="tab-panel" data-panel="reminders" hidden>
         {% if not is_company %}
         <details id="reminder-add"><summary>{% translate 'Pridėti priminimą' %}</summary>
-          <form method="post" action="{% url 'contacts:reminder-create' person.pk %}">{% csrf_token %}
-            <input type="hidden" name="submission_token" value="{{ reminder_token }}">{{ reminder_form.as_p }}
-            <button class="btn primary" type="submit">{% translate 'Pridėti' %}</button>
+          <form method="post" action="{% url 'contacts:reminder-create' person.pk %}" class="stack-form">{% csrf_token %}
+            <input type="hidden" name="submission_token" value="{{ reminder_token }}">
+            <label>{% translate 'Priminimas' %}{{ reminder_form.text }}</label>
+            <label>{% translate 'Data ir laikas' %}{{ reminder_form.due_at }}</label>
+            <div><button class="btn primary" type="submit">{% translate 'Pridėti' %}</button></div>
           </form>
         </details>
         {% endif %}
@@ -94,11 +97,11 @@
       </div>
 
       <div class="tab-panel" data-panel="comments" hidden>
-        <form method="post" action="{{ activity_action }}" class="comment-form">{% csrf_token %}
+        <form method="post" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
           <input type="hidden" name="activity_type" value="note">
           <input type="hidden" name="submission_token" value="{{ comment_token }}">
-          <textarea name="text" rows="3" required placeholder="{% translate 'Įrašykite komentarą...' %}"></textarea>
-          <button class="btn primary" type="submit">{% translate 'Pridėti komentarą' %}</button>
+          <label>{% translate 'Komentaras' %}<textarea name="text" rows="3" required placeholder="{% translate 'Įrašykite komentarą...' %}"></textarea></label>
+          <div><button class="btn primary" type="submit">{% translate 'Pridėti komentarą' %}</button></div>
         </form>
         <div class="timeline">
           {% for activity in comment_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Komentarų dar nėra.' %}</p>{% endfor %}

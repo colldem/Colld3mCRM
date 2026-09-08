@@ -145,11 +145,11 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .record-detail .field-values>div{margin:0}
 
 /* Boxed field look — label above, value in a bordered box */
-.detail-card.boxed .field-display{display:grid;gap:2px;cursor:pointer}
+.detail-card.boxed .field-display:not([hidden]){display:grid;gap:2px;cursor:pointer;padding:0}
 .detail-card.boxed .field-display>strong{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
 .detail-card.boxed .field-values{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff;font-size:13px;min-height:26px;margin-top:0;overflow-wrap:anywhere}
 .detail-card.boxed .field-values a{color:var(--navy-950)}
-.detail-card.boxed .field-display:hover:not(:focus-within),.detail-card.boxed .field-display:focus-visible{background:transparent}
+.detail-card.boxed .field-display:hover{background:transparent;outline:0}
 .detail-card.boxed .field-display:hover .field-values{border-color:var(--navy-950)}
 .detail-field.readonly .field-display{cursor:default}
 .detail-field.readonly .field-display:hover .field-values{border-color:var(--line)}
@@ -169,14 +169,15 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .detail-tabs .tab.is-active{color:var(--navy-950);border-bottom-color:var(--navy-950)}
 .detail-tabs .tab-panel{display:none}
 .detail-tabs .tab-panel.is-active{display:block}
-.record-detail .composer{padding:12px;margin-bottom:12px}
-.record-detail .composer p{margin:0 0 8px}
+.stack-form{display:grid;gap:8px;margin-bottom:14px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}
+.stack-form label{display:grid;gap:3px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:0}
+.stack-form input,.stack-form select,.stack-form textarea{font-size:13px;padding:6px 9px;min-height:32px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.stack-form textarea{min-height:60px;resize:vertical}
+.stack-form small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)}
+.stack-form .btn{min-height:32px;padding:5px 12px}
 .timeline-entry{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
 .timeline-entry:last-child{border-bottom:0}
 .timeline-entry small{display:block;color:var(--muted);margin:1px 0 4px}
-.comment-form textarea,.comment-form{display:block;width:100%}
-.comment-form{margin-bottom:12px}
-.comment-form textarea{margin-bottom:6px}
 .file-list,.related-list,.reminder-list{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}
 .file-list li,.related-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
 .file-list li small,.related-list li small{color:var(--muted)}
