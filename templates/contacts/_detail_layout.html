@@ -25,9 +25,9 @@
 
 <div class="record-detail">
   <div class="detail-main">
-    <section class="detail-card contact-card">
-      <h2>{% translate 'Kontaktinė informacija' %}</h2>
-      <div class="contact-card-body">
+    <div class="detail-top-row">
+      <section class="detail-card boxed contact-card">
+        <h2>{% translate 'Kontaktinė informacija' %}</h2>
         <div class="contact-lines">
           {% for item in contact_info_fields %}
             <div class="contact-line">
@@ -37,28 +37,23 @@
             </div>
           {% empty %}<p class="muted">{% translate 'Nėra duomenų.' %}</p>{% endfor %}
         </div>
-        {% if not is_company %}
-        <div class="contact-card-avatar">
-          <span class="avatar-xl">{{ person.first_name|first|upper }}{{ person.last_name|first|upper }}</span>
-        </div>
-        {% endif %}
-      </div>
-    </section>
+      </section>
 
-    <details class="detail-card collapsible" open>
-      <summary><h2>{% translate 'Papildomi laukai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
-      <div class="detail-fields-grid">
-        {% for item in grid_fields %}{% include "contacts/detail_field.html" %}{% endfor %}
-        <div class="detail-field readonly">
-          <div class="field-display"><strong>{% translate 'Paskutinis kontaktas' %}</strong><div class="field-values"><div>{% if last_activity %}{{ last_activity.created_at|date:"Y-m-d" }} · {{ last_activity.get_activity_type_display }}{% else %}–{% endif %}</div></div></div>
+      <details class="detail-card boxed collapsible" open>
+        <summary><h2>{% translate 'Papildomi laukai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
+        <div class="detail-fields-grid">
+          {% for item in grid_fields %}{% include "contacts/detail_field.html" %}{% endfor %}
+          <div class="detail-field readonly">
+            <div class="field-display"><strong>{% translate 'Paskutinis kontaktas' %}</strong><div class="field-values"><div>{% if last_activity %}{{ last_activity.created_at|date:"Y-m-d" }} · {{ last_activity.get_activity_type_display }}{% else %}–{% endif %}</div></div></div>
+          </div>
+          <div class="detail-field readonly">
+            <div class="field-display"><strong>{% translate 'Sekantis kontaktas' %}</strong><div class="field-values"><div>{% if next_reminder %}{{ next_reminder.due_at|date:"Y-m-d H:i" }}{% else %}–{% endif %}</div></div></div>
+          </div>
         </div>
-        <div class="detail-field readonly">
-          <div class="field-display"><strong>{% translate 'Sekantis kontaktas' %}</strong><div class="field-values"><div>{% if next_reminder %}{{ next_reminder.due_at|date:"Y-m-d H:i" }}{% else %}–{% endif %}</div></div></div>
-        </div>
-      </div>
-    </details>
+      </details>
+    </div>
 
-    <section class="detail-card">
+    <section class="detail-card boxed">
       <h2>{% translate 'Aprašymas' %}</h2>
       {% if description_field %}{% with item=description_field %}{% include "contacts/detail_field.html" %}{% endwith %}{% endif %}
     </section>

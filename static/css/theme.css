@@ -135,35 +135,34 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .detail-card.collapsible>summary .chev{transition:transform .15s;color:var(--muted)}
 .detail-card .edit-hint{display:none}
 
+/* Contact information + Additional fields sit side by side */
+.detail-top-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+@media(max-width:760px){.detail-top-row{grid-template-columns:1fr}}
+
 /* Compact overrides for the shared inline-edit blocks inside the detail cards */
 .record-detail .detail-field{border-bottom:0;padding:0;margin:0}
-.record-detail .field-display{padding:3px 4px}
-.record-detail .field-display:hover,.record-detail .field-display:focus-visible{background:var(--soft);outline:1px solid var(--line)}
-.record-detail .field-values{margin-top:1px;font-size:13px}
-.record-detail .field-values>div{margin:1px 0}
+.record-detail .field-display{padding:0}
+.record-detail .field-values>div{margin:0}
 
-.detail-fields-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 14px}
-.detail-fields-grid .field-display{display:grid;gap:0}
-.detail-fields-grid .field-display>strong{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+/* Boxed field look — label above, value in a bordered box */
+.detail-card.boxed .field-display{display:grid;gap:2px;cursor:pointer}
+.detail-card.boxed .field-display>strong{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+.detail-card.boxed .field-values{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff;font-size:13px;min-height:26px;margin-top:0;overflow-wrap:anywhere}
+.detail-card.boxed .field-values a{color:var(--navy-950)}
+.detail-card.boxed .field-display:hover:not(:focus-within),.detail-card.boxed .field-display:focus-visible{background:transparent}
+.detail-card.boxed .field-display:hover .field-values{border-color:var(--navy-950)}
 .detail-field.readonly .field-display{cursor:default}
+.detail-field.readonly .field-display:hover .field-values{border-color:var(--line)}
 
-/* Contact-information card (icon | label+value | copy) */
-.contact-card-body{display:flex;gap:12px;align-items:flex-start}
-.contact-lines{flex:1;min-width:0;display:grid;gap:4px}
-.contact-line{display:grid;grid-template-columns:16px minmax(0,1fr) 28px;align-items:center;gap:8px}
-.contact-line .ci-icon{width:15px;height:15px;fill:none;stroke:var(--muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.detail-fields-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px 10px}
+
+.contact-lines{min-width:0;display:grid;gap:6px}
+.contact-line{display:grid;grid-template-columns:15px minmax(0,1fr) 26px;align-items:end;gap:8px}
+.contact-line .ci-icon{width:14px;height:14px;margin-bottom:5px;fill:none;stroke:var(--muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .contact-line-field{min-width:0}
-.contact-card .field-display{display:grid;gap:1px;cursor:pointer;padding:2px 3px}
-.contact-card .field-display>strong{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
-.contact-card .field-values{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff;font-size:13px;min-height:0;margin-top:0;overflow-wrap:anywhere}
-.contact-card .field-values>div{margin:0}
-.contact-card .field-values a{color:var(--navy-950)}
-.contact-line-copy{display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer}
-.contact-line-copy svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.contact-line-copy{display:grid;place-items:center;width:26px;height:26px;margin-bottom:0;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer}
+.contact-line-copy svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .contact-line-copy:hover{background:var(--soft)}
-.contact-card-avatar{flex-shrink:0}
-.avatar-xl{display:grid;place-items:center;width:60px;height:60px;border-radius:50%;background:#e6effb;color:var(--navy-950);font-size:20px;font-weight:750}
-@media(max-width:560px){.contact-card-body{flex-direction:column-reverse;align-items:stretch}.contact-card-avatar{align-self:flex-start}}
 
 .detail-tabs .tab-strip{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0 -4px 10px}
 .detail-tabs .tab{min-height:0;padding:6px 10px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
