@@ -9,6 +9,7 @@
     <a class="{% if settings_section == 'tags' %}active{% endif %}" href="{% url 'contacts:settings-tags' %}">{% translate 'Žymos' %}</a>
     <a class="{% if settings_section == 'categories' %}active{% endif %}" href="{% url 'contacts:settings-categories' %}">{% translate 'Kategorijos' %}</a>
     <a class="{% if settings_section == 'duplicates' %}active{% endif %}" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Dublikatų tikrinimas' %}</a>
+    <a class="{% if settings_section == 'custom-fields' %}active{% endif %}" href="{% url 'contacts:settings-custom-fields' %}">{% translate 'Dinaminiai laukai' %}</a>
     {% if request.user.is_staff %}<a class="{% if settings_section == 'data-export' %}active{% endif %}" href="{% url 'contacts:settings-data-export' %}">{% translate 'Duomenų eksportas' %}</a>{% endif %}
     <a class="{% if settings_section == 'documentation' %}active{% endif %}" href="{% url 'contacts:settings-documentation' %}">{% translate 'Dokumentacija' %}</a>
   </nav>

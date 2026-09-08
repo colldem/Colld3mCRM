@@ -73,6 +73,7 @@ def apply_contact_filters(people, values):
             | Q(addresses__address__icontains=term)
             | Q(web_links__url__icontains=term)
             | Q(status__icontains=term)
+            | Q(custom_values__value__icontains=term)
         )
     if values["categories"]:
         people = people.filter(categories__pk__in=values["categories"])
@@ -105,6 +106,7 @@ def apply_company_filters(companies, values):
             | Q(people__job_title__icontains=term)
             | Q(people__emails__email__icontains=term)
             | Q(people__phones__number__icontains=term)
+            | Q(custom_values__value__icontains=term)
         )
     if values["categories"]:
         companies = companies.filter(categories__pk__in=values["categories"])

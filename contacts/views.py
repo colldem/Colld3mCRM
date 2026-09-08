@@ -404,6 +404,49 @@ def settings_page(request):
 
 
 @login_required
+def settings_custom_fields(request):
+    from .models import CustomField
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()[:60]
+        field_type = request.POST.get("field_type", CustomField.TEXT)
+        entity = request.POST.get("entity", "both")
+        options = [line.strip() for line in request.POST.get("options", "").splitlines() if line.strip()][:20]
+        valid_type = field_type in dict(CustomField.TYPE_CHOICES)
+        needs_options = field_type in (CustomField.SELECT, CustomField.MULTISELECT)
+        targets = [CustomField.PERSON, CustomField.COMPANY] if entity == "both" else [entity] if entity in (CustomField.PERSON, CustomField.COMPANY) else []
+        if not name or not valid_type or not targets or (needs_options and not options):
+            messages.error(request, tr("Nurodykite pavadinimą, tipą, paskirtį ir (jei reikia) reikšmes."))
+        else:
+            created = 0
+            for target in targets:
+                if not CustomField.objects.filter(entity=target, name__iexact=name).exists():
+                    order = (CustomField.objects.filter(entity=target).count())
+                    CustomField.objects.create(entity=target, name=name, field_type=field_type, options=options if needs_options else [], order=order)
+                    created += 1
+            messages.success(request, tr("Laukas pridėtas.") if created else tr("Toks laukas jau yra."))
+        return redirect("contacts:settings-custom-fields")
+    people_fields = CustomField.objects.filter(entity=CustomField.PERSON)
+    company_fields = CustomField.objects.filter(entity=CustomField.COMPANY)
+    return render(request, "settings/custom_fields.html", {
+        "settings_section": "custom-fields",
+        "people_fields": people_fields, "company_fields": company_fields,
+        "type_choices": CustomField.TYPE_CHOICES,
+    })
+
+
+@login_required
+def custom_field_delete(request, pk):
+    from .models import CustomField
+
+    field = get_object_or_404(CustomField, pk=pk)
+    if request.method == "POST":
+        field.delete()
+        messages.success(request, tr("Laukas pašalintas."))
+    return redirect("contacts:settings-custom-fields")
+
+
+@login_required
 def settings_password(request):
     form = PasswordChangeForm(request.user, request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -587,7 +630,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 @login_required
 def contact_detail(request, pk):
     from .detail_editing import detail_fields
-    person = get_object_or_404(Person.objects.prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company"), pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(Person.objects.prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field"), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
     return render(request, "contacts/detail.html", {
@@ -842,7 +885,7 @@ def company_list(request):
 @login_required
 def company_detail(request, pk):
     from .detail_editing import company_detail_fields
-    company = get_object_or_404(Company.objects.prefetch_related("person_links__person"), pk=pk, deleted_at__isnull=True)
+    company = get_object_or_404(Company.objects.prefetch_related("person_links__person", "custom_values__field"), pk=pk, deleted_at__isnull=True)
     history = Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__company_links__company=company)
     ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at")

@@ -252,3 +252,56 @@ class Reminder(TimestampedModel):
 def validate_relation_limit(instance, relation_name):
     if instance.pk and getattr(instance, relation_name).count() > 3:
         raise ValidationError(f"Galima pasirinkti ne daugiau kaip 3 {relation_name}.")
+
+
+class CustomField(models.Model):
+    PERSON = "person"
+    COMPANY = "company"
+    ENTITY_CHOICES = ((PERSON, tr("Kontaktai")), (COMPANY, tr("Įmonės")))
+    TEXT = "text"
+    TEXTAREA = "textarea"
+    BOOL = "bool"
+    SELECT = "select"
+    MULTISELECT = "multiselect"
+    TYPE_CHOICES = (
+        (TEXT, tr("Trumpas tekstas")),
+        (TEXTAREA, tr("Ilgas tekstas")),
+        (BOOL, tr("Žymimasis langelis")),
+        (SELECT, tr("Vienas pasirinkimas")),
+        (MULTISELECT, tr("Keli pasirinkimai")),
+    )
+
+    entity = models.CharField(max_length=10, choices=ENTITY_CHOICES, db_index=True)
+    name = models.CharField(max_length=60)
+    field_type = models.CharField(max_length=12, choices=TYPE_CHOICES, default=TEXT)
+    options = models.JSONField(default=list, blank=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "name"]
+        constraints = [models.UniqueConstraint(fields=["entity", "name"], name="unique_custom_field_name_per_entity")]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_entity_display()})"
+
+    @property
+    def key(self):
+        return f"cf_{self.pk}"
+
+    @property
+    def choice_type(self):
+        return self.field_type in (self.SELECT, self.MULTISELECT)
+
+
+class CustomValue(models.Model):
+    field = models.ForeignKey(CustomField, on_delete=models.CASCADE, related_name="values")
+    person = models.ForeignKey(Person, null=True, blank=True, on_delete=models.CASCADE, related_name="custom_values")
+    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="custom_values")
+    value = models.TextField(blank=True, default="")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["field", "person"], name="unique_custom_value_person", condition=models.Q(person__isnull=False)),
+            models.UniqueConstraint(fields=["field", "company"], name="unique_custom_value_company", condition=models.Q(company__isnull=False)),
+        ]

@@ -11,7 +11,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from contacts.models import Activity, Attachment, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
+from contacts.models import Activity, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
 from contacts.duplicates import find_company_duplicates, find_person_duplicates
 
 
@@ -1671,6 +1671,52 @@ class ContactViewTests(TestCase):
     def test_search_suggest_ignores_one_character_queries(self):
         self.client.force_login(self.user)
         self.assertEqual(self.client.get(reverse("contacts:search-suggest"), {"q": "v"}).json()["groups"], [])
+
+    def test_custom_field_creation_for_both_entities(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:settings-custom-fields"), {
+            "name": "Šaltinis", "field_type": "select", "entity": "both", "options": "Renginys\nSvetainė",
+        })
+        self.assertEqual(CustomField.objects.filter(name="Šaltinis").count(), 2)
+        self.assertEqual(set(CustomField.objects.filter(name="Šaltinis").values_list("entity", flat=True)), {"person", "company"})
+        field = CustomField.objects.get(name="Šaltinis", entity="person")
+        self.assertEqual(field.options, ["Renginys", "Svetainė"])
+
+    def test_custom_field_requires_options_for_choice_types(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:settings-custom-fields"), {
+            "name": "Kategorija X", "field_type": "select", "entity": "person", "options": "",
+        })
+        self.assertFalse(CustomField.objects.filter(name="Kategorija X").exists())
+
+    def test_custom_field_value_shows_and_edits_on_contact_card(self):
+        self.client.force_login(self.user)
+        field = CustomField.objects.create(entity="person", name="Šaltinis", field_type="text")
+        response = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
+        self.assertContains(response, "Šaltinis")
+        edit = self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {"field": field.key, "value": "Renginys"})
+        self.assertEqual(edit.status_code, 200)
+        self.assertEqual(CustomValue.objects.get(field=field, person=self.person).value, "Renginys")
+
+    def test_custom_multiselect_value_stores_only_known_options(self):
+        self.client.force_login(self.user)
+        field = CustomField.objects.create(entity="company", name="Kanalai", field_type="multiselect", options=["A", "B", "C"])
+        self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]), {"field": field.key, "value": ["A", "C", "X"]})
+        stored = CustomValue.objects.get(field=field, company=self.company).value
+        self.assertEqual(sorted(stored.splitlines()), ["A", "C"])
+
+    def test_search_matches_custom_field_values(self):
+        self.client.force_login(self.user)
+        field = CustomField.objects.create(entity="person", name="Šaltinis", field_type="text")
+        CustomValue.objects.create(field=field, person=self.person, value="Konferencija Kaune")
+        response = self.client.get(reverse("contacts:search"), {"q": "Konferencija"})
+        self.assertEqual(response.context["results"]["people_count"], 1)
+
+    def test_custom_field_can_be_deleted(self):
+        self.client.force_login(self.user)
+        field = CustomField.objects.create(entity="person", name="Laikinas", field_type="text")
+        self.client.post(reverse("contacts:custom-field-delete", args=[field.pk]))
+        self.assertFalse(CustomField.objects.filter(pk=field.pk).exists())
 
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)

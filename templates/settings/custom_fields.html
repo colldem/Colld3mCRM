@@ -1,0 +1,26 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Dinaminiai laukai' %}</h2><p>{% translate 'Sukurkite papildomus kontaktų ir įmonių laukus. Jie atsiranda kortelėje, sąrašo stulpeliuose, filtruose ir paieškoje.' %}</p></div></div>
+
+<form method="post" class="custom-field-create">{% csrf_token %}
+  <label>{% translate 'Pavadinimas' %}<input name="name" maxlength="60" required placeholder="{% translate 'pvz. Šaltinis' %}"></label>
+  <label>{% translate 'Tipas' %}<select name="field_type" class="cf-type-select">{% for value, label in type_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+  <label>{% translate 'Paskirtis' %}<select name="entity"><option value="both">{% translate 'Kontaktams ir įmonėms' %}</option><option value="person">{% translate 'Tik kontaktams' %}</option><option value="company">{% translate 'Tik įmonėms' %}</option></select></label>
+  <label class="cf-options-field">{% translate 'Reikšmės (viena eilutėje, tik pasirinkimo laukams)' %}<textarea name="options" rows="3" placeholder="{% translate 'Rekomendacija&#10;Renginys&#10;Svetainė' %}"></textarea></label>
+  <button class="btn primary" type="submit">{% translate 'Pridėti lauką' %}</button>
+</form>
+
+<h3>{% translate 'Kontaktų laukai' %}</h3>
+{% include "settings/_custom_field_list.html" with fields=people_fields %}
+<h3>{% translate 'Įmonių laukai' %}</h3>
+{% include "settings/_custom_field_list.html" with fields=company_fields %}
+<script>
+(() => {
+  const form = document.querySelector('.custom-field-create');
+  const type = form.querySelector('.cf-type-select');
+  const options = form.querySelector('.cf-options-field');
+  const sync = () => { options.hidden = !['select', 'multiselect'].includes(type.value); };
+  type.addEventListener('change', sync); sync();
+})();
+</script>
+{% endblock %}

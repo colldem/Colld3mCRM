@@ -1,0 +1,13 @@
+{% load i18n %}
+<ul class="settings-list custom-field-list">
+  {% for field in fields %}
+    <li>
+      <div class="custom-field-row">
+        <div><strong>{{ field.name }}</strong> <small>{{ field.get_field_type_display }}</small>{% if field.options %}<small>· {{ field.options|join:", " }}</small>{% endif %}</div>
+        <form method="post" action="{% url 'contacts:custom-field-delete' field.pk %}">{% csrf_token %}<button class="btn danger" type="submit">{% translate 'Pašalinti' %}</button></form>
+      </div>
+    </li>
+  {% empty %}
+    <li class="empty">{% translate 'Laukų dar nėra.' %}</li>
+  {% endfor %}
+</ul>

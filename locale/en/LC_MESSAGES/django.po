@@ -1222,3 +1222,75 @@ msgstr "All contacts in the list"
 
 msgid "Visos įmonės sąraše"
 msgstr "All companies in the list"
+
+msgid "Dinaminiai laukai"
+msgstr "Custom fields"
+
+msgid "Sukurkite papildomus kontaktų ir įmonių laukus. Jie atsiranda kortelėje, sąrašo stulpeliuose, filtruose ir paieškoje."
+msgstr "Create extra fields for contacts and companies. They appear on the card, in list columns, filters and search."
+
+msgid "Tipas"
+msgstr "Type"
+
+msgid "Paskirtis"
+msgstr "Applies to"
+
+msgid "Kontaktams ir įmonėms"
+msgstr "Contacts and companies"
+
+msgid "Tik kontaktams"
+msgstr "Contacts only"
+
+msgid "Tik įmonėms"
+msgstr "Companies only"
+
+msgid "Reikšmės (viena eilutėje, tik pasirinkimo laukams)"
+msgstr "Values (one per line, choice fields only)"
+
+msgid "Pridėti lauką"
+msgstr "Add field"
+
+msgid "pvz. Šaltinis"
+msgstr "e.g. Source"
+
+msgid "Rekomendacija&#10;Renginys&#10;Svetainė"
+msgstr "Referral&#10;Event&#10;Website"
+
+msgid "Kontaktų laukai"
+msgstr "Contact fields"
+
+msgid "Įmonių laukai"
+msgstr "Company fields"
+
+msgid "Laukų dar nėra."
+msgstr "No fields yet."
+
+msgid "Trumpas tekstas"
+msgstr "Short text"
+
+msgid "Ilgas tekstas"
+msgstr "Long text"
+
+msgid "Žymimasis langelis"
+msgstr "Checkbox"
+
+msgid "Vienas pasirinkimas"
+msgstr "Single choice"
+
+msgid "Keli pasirinkimai"
+msgstr "Multiple choice"
+
+msgid "Nurodykite pavadinimą, tipą, paskirtį ir (jei reikia) reikšmes."
+msgstr "Provide a name, type, target and (if needed) values."
+
+msgid "Laukas pridėtas."
+msgstr "Field added."
+
+msgid "Toks laukas jau yra."
+msgstr "That field already exists."
+
+msgid "Laukas pašalintas."
+msgstr "Field removed."
+
+msgid "Ne"
+msgstr "No"

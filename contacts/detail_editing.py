@@ -76,7 +76,9 @@ def company_field_context(company, field):
 
 
 def company_detail_fields(company):
-    return [company_field_context(company, field) for field in CompanyForm.Meta.fields]
+    from .custom_fields import detail_context
+
+    return [company_field_context(company, field) for field in CompanyForm.Meta.fields] + detail_context(company)
 
 
 def title_html(record, request):
@@ -89,7 +91,17 @@ def title_html(record, request):
 @transaction.atomic
 def edit_company_field(request, pk):
     company = get_object_or_404(Company.objects.select_for_update(), pk=pk, deleted_at__isnull=True)
-    field = request.POST.get("field")
+    field = request.POST.get("field", "")
+    if field.startswith("cf_"):
+        from .custom_fields import clean_and_store, field_by_key, single_context
+
+        custom = field_by_key(company, field)
+        if not custom:
+            return JsonResponse({"error": "Netinkamas laukas."}, status=400)
+        clean_and_store(company, custom, request.POST)
+        company.save(update_fields=["updated_at"])
+        html = render_to_string("contacts/detail_field.html", {"item": single_context(company, field)}, request=request)
+        return JsonResponse({"ok": True, "name": company.name, "html": html})
     if field not in CompanyForm.Meta.fields:
         return JsonResponse({"error": "Netinkamas laukas."}, status=400)
     try:
@@ -121,6 +133,10 @@ MULTIPLE = {
 
 
 def field_context(person, field):
+    if field.startswith("cf_"):
+        from .custom_fields import single_context
+
+        return single_context(person, field)
     if field in SCALARS:
         label = SCALARS[field]
         value = getattr(person, field)
@@ -145,7 +161,9 @@ def field_context(person, field):
 
 
 def detail_fields(person):
-    return [field_context(person, field) for field in ["companies", *SCALARS, *MULTIPLE]]
+    from .custom_fields import detail_context
+
+    return [field_context(person, field) for field in ["companies", *SCALARS, *MULTIPLE]] + detail_context(person)
 
 
 @login_required
@@ -153,7 +171,7 @@ def detail_fields(person):
 @transaction.atomic
 def edit_contact_field(request, pk):
     person = get_object_or_404(Person.objects.select_for_update(), pk=pk, deleted_at__isnull=True)
-    field = request.POST.get("field")
+    field = request.POST.get("field", "")
     try:
         if field == "full_name":
             first_name = forms.CharField(max_length=100).clean(request.POST.get("first_name", ""))
@@ -235,6 +253,14 @@ def edit_contact_field(request, pk):
                     first.is_primary = True
                     first.save(update_fields=["is_primary"])
                 person.save(update_fields=["updated_at"])
+        elif field.startswith("cf_"):
+            from .custom_fields import clean_and_store, field_by_key
+
+            custom = field_by_key(person, field)
+            if not custom:
+                return JsonResponse({"error": "Netinkamas laukas."}, status=400)
+            clean_and_store(person, custom, request.POST)
+            person.save(update_fields=["updated_at"])
         else:
             return JsonResponse({"error": "Netinkamas laukas."}, status=400)
     except ValidationError as error:

@@ -12,6 +12,13 @@
         <button class="btn add-company" type="button" aria-expanded="false">{% translate 'Pridėti naują' %}</button>
         <div class="new-company-input" hidden><label for="new-company-name">{% translate 'Įmonės pavadinimas' %}</label><input id="new-company-name" name="new_name" maxlength="200" disabled><small>{% translate 'Įmonė bus sukurta ir priskirta paspaudus „Išsaugoti“.' %}</small></div>
       </fieldset>
+    {% elif item.custom %}
+      <label for="field-{{ item.field }}">{{ item.label }}</label>
+      {% if item.custom_type == 'textarea' %}<textarea id="field-{{ item.field }}" name="value" rows="4" maxlength="1000">{{ item.value }}</textarea>
+      {% elif item.custom_type == 'bool' %}<label class="cf-check"><input id="field-{{ item.field }}" type="checkbox" name="value" value="1"{% if item.checked %} checked{% endif %}> {{ item.label }}</label>
+      {% elif item.custom_type == 'select' %}<select id="field-{{ item.field }}" name="value"><option value="">—</option>{% for opt in item.custom_options %}<option value="{{ opt }}"{% if opt == item.value %} selected{% endif %}>{{ opt }}</option>{% endfor %}</select>
+      {% elif item.custom_type == 'multiselect' %}<div class="cf-multi">{% for opt in item.custom_options %}<label><input type="checkbox" name="value" value="{{ opt }}"{% if opt in item.selected %} checked{% endif %}> {{ opt }}</label>{% endfor %}</div>
+      {% else %}<input id="field-{{ item.field }}" name="value" maxlength="200" value="{{ item.value }}">{% endif %}
     {% else %}
       <label for="field-{{ item.field }}">{% translate item.label %}</label>
       {% if item.multiple %}<textarea id="field-{{ item.field }}" name="value" rows="3">{{ item.value }}</textarea><small>{% translate 'Viena reikšmė eilutėje.' %}</small>{% else %}<input id="field-{{ item.field }}" name="value" value="{{ item.value }}">{% endif %}
