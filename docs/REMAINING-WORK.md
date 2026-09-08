@@ -106,7 +106,7 @@ Atidaryti, Redaguoti, Pridėti komentarą (`#tab-comments`), Sukurti priminimą
   `date_format` / `datetime_format` per context processor'ą visuose `|date:`.
 - ✅ **Importas** (`0.26.0`): CSV skyriklis (auto/`,`/`;`/tab) ir koduotė
   (auto → UTF-8, tada Windows-1257). LT „Excel" (cp1257 + `;`) importuojasi.
-- ⏸️ Pranešimai (el. pašto priminimai, SMTP) — atidėta (žr. D skiltį).
+- ➡️ Pranešimai (el. pašto priminimai, SMTP) — perkelta į **G7** (nebeatidėta).
 - Archyvas kaip skiltis — palikta atskiru meniu punktu (veikia).
 - Laukai (C4) ir Naudotojai/teisės (C6) — jau padaryta atskirai.
 
@@ -364,7 +364,7 @@ Pipedrive „visibility groups", Salesforce „role hierarchy + sharing rules".
 
 ## D. Žemas prioritetas / vėliau (`0.27.0`)
 
-- ⏸️ El. pašto priminimai — **kol kas nedarome** (naudotojo sprendimas 2026-09-08)
+- ➡️ El. pašto priminimai — naudotojas apsigalvojo, planuojama kaip **G7**
 - ⏸️ Greiti veiksmai kortelėje (Skambinti / Rašyti …) — **nedarome**
 - ⏸️ Žymų/kategorijų būsenos (aktyvi/neaktyvi, paskirtis) — **nereikia**
 - ✅ PWA — `/manifest.webmanifest` + `/sw.js` (šablonai, kad `{% static %}` hash'ai
@@ -456,8 +456,9 @@ Dėmesys: kontaktai, priminimai, komunikacija.
 kalendoriaus sinchronizacija = **.ics prenumerata** (vienpusė); užduotys =
 **praplėstas `Reminder`**, ne atskiras modelis; el. laiškams **bus atskira CRM dėžutė**.
 
-Vykdymo tvarka: G1 → G2 → G3 → G4 → G5 → G6. G4 mažas ir nepriklausomas —
-jei prireiks anksčiau, galima kelti į priekį.
+Vykdymo tvarka: G1 → G2 → **G7** → G3 → G4 → G5 → G6.
+G7 (pranešimai el. paštu) eina iškart po G2, nes priskirta užduotis be laiško neveikia.
+G4 mažas ir nepriklausomas — jei prireiks anksčiau, galima kelti į priekį.
 
 ### G1. Analitikos modulis — ❌
 Viskas skaičiuojama iš **jau esamų** duomenų (`Activity`, `Reminder`, `Person`,
@@ -502,6 +503,46 @@ mato tik savo skaičius. Laikotarpio filtras + CSV eksportas kiekvienai lentelei
 - Priminimų sąrašas gauna filtrus: man priskirtos / mano sukurtos / visos
 - Varpelyje pranešimas, kai kažkas priskiria užduotį tau
 - Priskirti galima tik naudotojams, kuriuos matai (matomumo ribose)
+
+### G7. Pranešimai el. paštu — ❌
+Grąžina anksčiau atidėtą B3 „Pranešimų" skiltį. **Rekomenduojama daryti iškart po G2** —
+priskirta užduotis be laiško praktiškai neveikia (kolega tiesiog nesužino).
+Naudoja tą pačią dėžutę ir tą patį periodinio konteinerio šabloną kaip G6.
+
+**Trys laiškų tipai**
+
+1. **Artėjantis įvykis** — prieš X. Numatyta 1 val.; naudotojas keičia (15 min. /
+   1 val. / 1 diena / išjungta). Gavėjas — `assigned_to` (po G2), kitaip `created_by`.
+2. **Ryto santrauka** — kasdien nustatytu laiku (numatyta 7:30, naudotojo laiko zona):
+   - **„Vėluoja" — atskira išskirta sekcija viršuje** (raudona `#c92a2a`): neatlikti
+     priminimai, kurių laikas jau praėjo
+   - Po jos — šiandienos darbotvarkė chronologiškai
+   - Kiekvienas įrašas: laikas, tekstas, kontaktas/įmonė, **telefonas ir adresas**, nuoroda
+   - **Galima atsisakyti**: jungiklis profilyje + „atsisakyti" nuoroda laiško apačioje (token)
+   - Nesiunčiama, jei nėra nei vėluojančių, nei šiandienos įvykių
+3. **Priskirta užduotis** — iškart, kai `assigned_to` pakeičiamas į kitą naudotoją.
+   Tekstas, terminas, prioritetas, kontaktas, kas priskyrė, nuoroda.
+
+**Laiško stilius — kaip pačios CRM**
+- `templates/email/base.html`: navy `#062b63` antraštė su „CRM", baltas turinys ant
+  `#f5f8fc`, linijos `#d9e1ea`, tekstas `#111318`, etiketės `#667085`, vėluoja `#c92a2a`
+- Laukų etiketės didžiosiomis + boksuotos reikšmės — ta pati kortelės logika
+- **Techninė riba:** pašto klientai neįkelia Inter šrifto, nesupranta CSS kintamųjų
+  nei flexbox → **lentelės + įrašyti (inline) stiliai**, 600 px plotis, šriftas
+  `-apple-system, "Segoe UI", Roboto, Arial, sans-serif`
+- `multipart/alternative` — kartu ir grynas tekstas (pasiekiamumas, spam balas)
+- LT / EN pagal naudotojo profilio kalbą
+
+**Technika**
+- Django `EMAIL_*` iš `.env` (host, port, TLS, user, password, `DEFAULT_FROM_EMAIL`) —
+  ta pati dėžutė kaip G6, slaptažodis **ne DB**
+- `manage.py send_notifications` cikle konteineryje kaip `crm-backup` (kas ~5 min.)
+- **Idempotencija:** `Reminder.notified_at` (išankstinis) ir `UserProfile.digest_sent_on`
+  (data) — kad tas pats laiškas neišeitų dukart
+- Nustatymai → **Pranešimai**: globalus jungiklis, SMTP būsena, numatytas išankstinis
+  laikas, santraukos laikas, **„Siųsti bandomąjį laišką"**
+- Profilyje: mano išankstinis laikas · santrauka įjungta/išjungta
+- Siuntimo klaida nelaužo ciklo — fiksuojama `AuditLog`
 
 ### G3. Pasikartojantys įvykiai — ❌
 `recurrence_rule` (RRULE-lite: `FREQ` DAILY/WEEKLY/MONTHLY/YEARLY, `INTERVAL`,
@@ -560,7 +601,7 @@ Asmeninė darbotvarkė: kiekvienas naudotojas mato **tik savo sukurtus** primini
 
 ## Būsena 2026-09-08 (`0.28.0`)
 
-A–F punktai įgyvendinti. Toliau — **G skiltis** (analitika, užduotys kolegai,
+A–F punktai įgyvendinti. Toliau — **G skiltis** (analitika, užduotys kolegai, pranešimai el. paštu,
 pasikartojantys įvykiai, .ics prenumerata, Entra ID, el. laiškų prisegimas).
 Sąmoningai atmesta: sandoriai/piltuvėlis, kortelės greiti „Skambinti / Rašyti"
 veiksmai, žymų/kategorijų būsenos, grafinis ryšių medis.
