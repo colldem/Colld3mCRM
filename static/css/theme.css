@@ -49,10 +49,6 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .page-links .btn{min-height:34px;padding:5px 10px}
 .page-links .page-number{width:34px;height:34px;font-size:13px}
 .page-gap{padding:0 3px;color:var(--muted)}
-.record-summary{display:grid;gap:6px;margin:0 0 20px;padding:13px 16px;border:1px solid var(--line);border-radius:8px;background:var(--soft);font-size:13px;line-height:1.5}
-.record-summary b{font-weight:650}
-.record-summary small{color:var(--muted)}
-.record-summary-warn{color:var(--danger);font-weight:600}
 .record-actions{flex-wrap:wrap}
 .record-actions form{flex:1 1 100%;min-width:0}
 .record-actions .bulk-bar{flex-wrap:wrap;height:auto;min-height:40px;gap:8px 10px}
@@ -114,13 +110,6 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .record-subtitle{margin:2px 0 0;color:var(--muted);font-size:13px}
 .record-detail-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .record-detail-actions .btn{min-height:32px;padding:5px 10px;font-size:13px}
-.record-more{position:relative}
-.record-more>summary{list-style:none}.record-more>summary::-webkit-details-marker{display:none}
-.record-more-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:1050;display:grid;min-width:180px;padding:6px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 12px 30px rgba(6,43,99,.16)}
-.record-more-menu button,.record-more-menu form{margin:0}
-.record-more-menu button{display:block;width:100%;padding:8px 9px;border:0;background:transparent;color:var(--ink);font:inherit;text-align:left;border-radius:6px;cursor:pointer}
-.record-more-menu button:hover{background:var(--soft)}
-.record-more-menu button.danger{color:var(--danger)}
 .record-detail-warn{margin:8px 0 0;color:var(--danger);font-weight:600;font-size:13px}
 .record-detail-head #field-save-status{margin:4px 0 0}
 

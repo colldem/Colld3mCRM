@@ -98,8 +98,8 @@ document.querySelectorAll('.detail-field,.detail-title-editor').forEach(bindDeta
 // Row-menu quick actions open the record with a hash: focus the matching form.
 (() => {
   const jump = () => {
-    if (location.hash === '#composer') {
-      const field = document.querySelector('.composer textarea, .composer input:not([type=hidden]):not([type=file])');
+    if (location.hash === '#tab-comments') {
+      const field = document.querySelector('[data-panel=comments] textarea');
       if (field) { field.focus({preventScroll: true}); field.scrollIntoView({block: 'center'}); }
     } else if (location.hash === '#reminder-add') {
       const box = document.getElementById('reminder-add');

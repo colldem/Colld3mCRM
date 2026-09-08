@@ -1,9 +1,0 @@
-{% extends "base.html" %}{% load i18n %}
-{% block title %}{% translate 'Nustatymai - CRM' %}{% endblock %}
-{% block content %}
-<div class="page-head"><div><h1>{% translate 'Nustatymai' %}</h1><p>{% translate 'Tvarkykite kontaktams naudojamas žymas ir kategorijas.' %}</p></div></div>
-<div class="settings-grid">
-  <section class="settings-card"><h2>{% translate 'Žymos' %}</h2><p>{% translate 'Trumpi požymiai kontaktų grupavimui ir paieškai.' %}</p><form method="post" class="settings-form">{% csrf_token %}<input type="hidden" name="kind" value="tag"><label class="sr-only" for="tag-name">{% translate 'Nauja žyma' %}</label><input id="tag-name" name="name" maxlength="60" required placeholder="{% translate 'Nauja žyma' %}"><button class="btn primary" type="submit">{% translate 'Pridėti' %}</button></form><ul class="settings-list">{% for tag in tags %}<li><span class="crm-label {{ tag.color_class }}">{{ tag.name }}</span></li>{% empty %}<li class="empty">{% translate 'Žymų dar nėra.' %}</li>{% endfor %}</ul></section>
-  <section class="settings-card"><h2>{% translate 'Kategorijos' %}</h2><p>{% translate 'Kontaktų suskirstymui pagal tipą ar santykį.' %}</p><form method="post" class="settings-form">{% csrf_token %}<input type="hidden" name="kind" value="category"><label class="sr-only" for="category-name">{% translate 'Nauja kategorija' %}</label><input id="category-name" name="name" maxlength="60" required placeholder="{% translate 'Nauja kategorija' %}"><button class="btn primary" type="submit">{% translate 'Pridėti' %}</button></form><ul class="settings-list">{% for category in categories %}<li>{{ category.name }}</li>{% empty %}<li class="empty">{% translate 'Kategorijų dar nėra.' %}</li>{% endfor %}</ul></section>
-</div>
-{% endblock %}

@@ -360,15 +360,46 @@ Pipedrive „visibility groups", Salesforce „role hierarchy + sharing rules".
 
 ## D. Žemas prioritetas / vėliau
 
-- ❌ El. pašto priminimai (reikia SMTP + worker; B5 ir B3 dalis)
+- ⏸️ El. pašto priminimai — **kol kas nedarome** (naudotojo sprendimas 2026-09-08)
+- ⏸️ Greiti veiksmai kortelėje (Skambinti / Rašyti …) — **nedarome**
+- ⏸️ Žymų/kategorijų būsenos (aktyvi/neaktyvi, paskirtis) — **nereikia**
 - ❌ PWA režimas (manifest.json, service worker, „pridėti į pradinį ekraną")
 - ❌ Neišsaugotų formos pakeitimų perspėjimas (`beforeunload`)
 - ❌ Grafinis ryšių medis (dabar tekstinis sąrašas — pakanka)
-- ❌ Veiklos tipai „Failas" ir „Sistemos pakeitimas"
-- ❌ Greiti veiksmai kortelėje (Skambinti / Rašyti / Registruoti skambutį / Planuoti susitikimą)
-- ❌ Žymų/kategorijų: aktyvi/neaktyvi, archyvavimas, paskirtis (kontaktams/įmonėms/abiem)
 - 🟡 Mobilus vaizdas — bazinis yra, reikia tankio ir lentelių peržiūros
 - 🟡 Retesni klaidų/tuščių būsenų ekranai, LT/EN spragos retose vietose
+
+## E. Kokybės darbai (naudotojo užsakyti 2026-09-08)
+
+### E1. Kodo švara — nereikalingo kodo pašalinimas — ✅ (dalinai)
+Atlikta (`0.21.0`):
+- ištrinti nebenaudojami šablonai `templates/record_summary.html`,
+  `templates/settings.html` (pakeitė `templates/settings/*`);
+- pašalintos mirusios CSS klasės: `app.css` — `.detail-grid` / `.facts` /
+  `.activity-column` / `.company-link` / `.composer` / `.reminder-panel` /
+  `.timeline article` / `.facts-labels` / `.contact-head`; `theme.css` —
+  `.record-summary*`, `.record-more*` / `.record-more-menu*`;
+- `detail-editing.js` — miręs `#composer` hash-šuolis pakeistas į `#tab-comments`;
+- `contact_detail` / `company_detail` konteksto valymas (`detail_fields`,
+  `history`, `next_reminder_person`, `_last_activity_context` supaprastintas).
+Cache-buster'iai: `app.css?v=20260908c`, `theme.css?v=20260908w`,
+`detail-editing.js?v=20260908d`.
+
+**Atviras klausimas naudotojui** — „mirusios" modelio dalys:
+- `Person.status` — nebenaudojamas niekur (išimtas iš formos, sąrašo, importo,
+  eksporto), bet stulpelis DB tebėra. Trynimas = migracija + duomenų praradimas.
+- `priority` / `contact_type` / `cooperation_start` / `internal_note` — modelyje ir
+  kūrimo/redagavimo formoje (`form.html`), bet nerodomi kortelėje. Palikti formoje
+  ar pašalinti visai?
+
+### E2. Kiekvieno mygtuko / lauko patikra — ❌
+Literaliai pereiti per visą sąsają (sąrašai, kortelės, nustatymai, importas,
+priminimai, paieška) ir patikrinti KIEKVIENĄ mygtuką bei lauką:
+- ar mygtukas paspaudžiamas ir atlieka veiksmą (ne 404 / ne klaida);
+- ar į kiekvieną įvesties lauką galima įrašyti reikšmę;
+- ar kiekvieną `select` / multiselect galima pasirinkti;
+- ar dukart spustelėjus kortelės laukus jie atsidaro ir išsisaugo.
+Priemonės: naršyklės patikra LT ir EN; rasti trūkumai fiksuojami ir taisomi.
 
 ---
 

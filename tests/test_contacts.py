@@ -837,7 +837,7 @@ class ContactViewTests(TestCase):
         Reminder.objects.create(person=self.person, text="Įmonės skambutis", due_at=timezone.now() + timedelta(days=2), created_by=self.user)
         response = self.client.get(reverse("contacts:company-detail", args=[self.company.pk]))
         self.assertContains(response, "Įmonės skambutis")
-        self.assertEqual(response.context["next_reminder_person"], self.person)
+        self.assertEqual(response.context["next_reminder"].person, self.person)
 
     def test_record_detail_warn_is_omitted_when_nothing_is_overdue(self):
         other = Person.objects.create(first_name="Tuščias", last_name="Kontaktas")
