@@ -33,6 +33,16 @@
 8. Sukūrus administratorių, pašalinti `CRM_SETUP_TOKEN` reikšmę iš `.env` ir perkrauti `crm-web`.
 9. Atšaukti panaudotą `TS_AUTHKEY` Tailscale valdymo puslapyje.
 
+## Atsarginės kopijos
+
+- `crm-backup` konteineris automatiškai daro PostgreSQL (`pg_dump -Fc`) ir
+  `runtime/media` kopijas į `runtime/backups/` kas `BACKUP_INTERVAL_SECONDS`
+  (numatyta 24 val.), palieka naujausias `BACKUP_KEEP` (numatyta 14) kiekvieno tipo.
+- Papildomai naudotojas per Nustatymai → Duomenų eksportas gali atsisiųsti
+  pilną ZIP (visi duomenys + priedai + atkūrimo instrukcija).
+- `runtime/backups/` periodiškai kopijuoti į išorinį diską ar kitą vietą —
+  RAID nėra atsarginė kopija.
+
 ## Saugos riba
 
 Neperkelti realių kontaktų, kol neįgyvendintas ir realiai neatliktas atsarginės kopijos atkūrimo testas. Produkcinė CRM turi būti pasiekiama tik per Tailscale HTTPS. Port forwarding maršrutizatoriuje nenaudojamas.

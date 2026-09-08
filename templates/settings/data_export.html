@@ -1,0 +1,13 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Duomenų eksportas' %}</h2><p>{% translate 'Visų CRM duomenų ir priedų kopija viename ZIP faile. Skirta pilnam atkūrimui, ne kasdieniam naudojimui.' %}</p></div></div>
+<p>{% translate 'ZIP faile bus:' %}</p>
+<ul class="doc-section" style="max-width:60ch">
+  <li><code>data.json</code> — {% translate 'kontaktai, įmonės, veiklos, priminimai, žymos, kategorijos, naudotojai ir nustatymai' %}</li>
+  <li><code>media/</code> — {% translate 'įrašų priedai ir profilių nuotraukos' %}</li>
+  <li><code>README.txt</code> — {% translate 'atkūrimo instrukcija' %}</li>
+</ul>
+<div class="doc-callout warning" style="max-width:60ch"><p>{% translate 'Faile yra asmens duomenys. Laikykite jį saugiai ir nesidalinkite.' %}</p></div>
+<form method="post" class="profile-form"><div class="form-actions"><button class="btn primary" type="submit">{% translate 'Atsisiųsti eksportą' %}</button></div>{% csrf_token %}</form>
+<p class="format-help">{% translate 'Automatinės kasdienės kopijos daromos serveryje atskirai (NAS runtime/backups).' %}</p>
+{% endblock %}

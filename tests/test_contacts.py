@@ -841,6 +841,33 @@ class ContactViewTests(TestCase):
         response = self.client.get(reverse("contacts:detail", args=[other.pk]))
         self.assertNotContains(response, "record-summary")
 
+    def test_data_export_zip_has_data_and_readme_for_staff(self):
+        import io
+        import json
+        import zipfile
+        staff = get_user_model().objects.create_user("bosas", password="very-secure-password", is_staff=True)
+        self.client.force_login(staff)
+        response = self.client.post(reverse("contacts:settings-data-export"))
+        self.assertEqual(response["Content-Type"], "application/zip")
+        archive = zipfile.ZipFile(io.BytesIO(response.content))
+        self.assertIn("data.json", archive.namelist())
+        self.assertIn("README.txt", archive.namelist())
+        rows = json.loads(archive.read("data.json"))
+        self.assertTrue(any(row["model"] == "contacts.person" for row in rows))
+
+    def test_data_export_is_denied_for_non_staff_users(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("contacts:settings-data-export")).status_code, 404)
+        self.assertEqual(self.client.post(reverse("contacts:settings-data-export")).status_code, 404)
+
+    def test_settings_nav_shows_data_export_only_to_staff(self):
+        url = reverse("contacts:settings-data-export")
+        self.client.force_login(self.user)
+        self.assertNotContains(self.client.get(reverse("contacts:settings")), url)
+        staff = get_user_model().objects.create_user("bosas2", password="very-secure-password", is_staff=True)
+        self.client.force_login(staff)
+        self.assertContains(self.client.get(reverse("contacts:settings")), url)
+
     def test_company_columns_and_saved_list_are_persistent_and_scoped(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:company-list"), {"columns": ["phone", "contacts"]})

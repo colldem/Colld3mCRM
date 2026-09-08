@@ -1129,3 +1129,30 @@ msgstr "yesterday"
 #, python-format
 msgid "prieš %(days)s d."
 msgstr "%(days)s days ago"
+
+msgid "Duomenų eksportas"
+msgstr "Data export"
+
+msgid "Visų CRM duomenų ir priedų kopija viename ZIP faile. Skirta pilnam atkūrimui, ne kasdieniam naudojimui."
+msgstr "A copy of all CRM data and attachments in one ZIP file. For a full restore, not everyday use."
+
+msgid "ZIP faile bus:"
+msgstr "The ZIP file will contain:"
+
+msgid "kontaktai, įmonės, veiklos, priminimai, žymos, kategorijos, naudotojai ir nustatymai"
+msgstr "contacts, companies, activities, reminders, tags, categories, users and settings"
+
+msgid "įrašų priedai ir profilių nuotraukos"
+msgstr "entry attachments and profile photos"
+
+msgid "atkūrimo instrukcija"
+msgstr "restore instructions"
+
+msgid "Faile yra asmens duomenys. Laikykite jį saugiai ir nesidalinkite."
+msgstr "The file contains personal data. Keep it safe and do not share it."
+
+msgid "Atsisiųsti eksportą"
+msgstr "Download export"
+
+msgid "Automatinės kasdienės kopijos daromos serveryje atskirai (NAS runtime/backups)."
+msgstr "Automatic daily backups are made on the server separately (NAS runtime/backups)."

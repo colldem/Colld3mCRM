@@ -20,6 +20,9 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
   bendravimas" (kontaktai) ir „Adresas" (įmonės) stulpeliai
 - ✅ **C2** — kortelės santrauka: paskutinis bendravimas (data · tipas · prieš N d.),
   kitas veiksmas (artimiausias priminimas), vėluojančių priminimų skaičius
+- ✅ **B5** — automatinės kasdienės kopijos: `crm-backup` Compose servisas
+  (`pg_dump` + media tar į `runtime/backups/`, 14 dienų saugojimas)
+- ✅ **C9** — Nustatymai → Duomenų eksportas: pilnas ZIP (data.json + media + README)
 
 ---
 
@@ -75,11 +78,10 @@ Yra 5 skiltys. Pagal planą trūksta:
 ### B4. Slaptažodžio keitimas iš profilio — ✅ padaryta
 Nustatymai → Slaptažodis (Django `PasswordChangeForm`, sesija išlieka).
 
-### B5. Automatinės atsarginės kopijos — ❌
-Reikalauta: kasdienė PostgreSQL kopija + priedai, saugojimo terminas (pvz. 14/8/12).
-Dabar kopijos daromos rankomis. Nėra `worker`/cron konteinerio.
-Kelias: 4-as Compose servisas (`crm-backup`) su `pg_dump` + `runtime/media` tar pagal cron,
-arba host cron `/volume1/docker/crm/backups`.
+### B5. Automatinės atsarginės kopijos — ✅ padaryta
+`crm-backup` Compose servisas (`scripts/backup.sh`): `pg_dump -Fc` + `runtime/media`
+tar į `runtime/backups/` kas `BACKUP_INTERVAL_SECONDS` (24 val.), palieka naujausias
+`BACKUP_KEEP` (14). Vėliau galima savaitės/mėnesio rotaciją ir kopiją už NAS ribų.
 
 ### B6. Priedų serverinė validacija — ✅ padaryta
 Veiklos priedai: 10 MB dydžio riba + plėtinių sąrašas (jpg/png/webp/gif/pdf/txt/
@@ -173,8 +175,9 @@ klaidingų eilučių ataskaitos atsisiuntimo (CSV), pasirinkimo „praleisti / a
 Yra archyvuoti + eksportuoti. Trūksta: pridėti/šalinti žymą, keisti kategoriją,
 masinis dublikatų sujungimas.
 
-### C9. Pilna atsarginė kopija iš sąsajos (ZIP/CRM paketas su failais) — ❌
-Reikalauta atskirai nuo CSV. Nustatymuose „Duomenų eksportas" → visas DB + `runtime/media`.
+### C9. Pilna atsarginė kopija iš sąsajos — ✅ padaryta
+Nustatymai → Duomenų eksportas (tik administratoriui): ZIP su `data.json`
+(`dumpdata` — kontaktai, naudotojai, nustatymai), `media/` ir `README.txt`.
 
 ---
 

@@ -49,6 +49,7 @@ urlpatterns = [
     path("settings/", views.settings_page, name="settings"),
     path("settings/avatar/", views.profile_avatar, name="profile-avatar"),
     path("settings/password/", views.settings_password, name="settings-password"),
+    path("settings/data-export/", views.settings_data_export, name="settings-data-export"),
     path("settings/tags/", views.settings_taxonomy, {"kind": "tag"}, name="settings-tags"),
     path("settings/categories/", views.settings_taxonomy, {"kind": "category"}, name="settings-categories"),
     path("settings/duplicates/", views.settings_duplicates, name="settings-duplicates"),

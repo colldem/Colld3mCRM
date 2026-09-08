@@ -292,6 +292,48 @@ def settings_password(request):
     return render(request, "settings/password.html", {"form": form, "settings_section": "password"})
 
 
+_EXPORT_README = (
+    "CRM duomenų eksportas / CRM data export\n"
+    "======================================\n\n"
+    "data.json  - visų CRM duomenų kopija (Django dumpdata).\n"
+    "media/     - įrašų priedai ir profilių nuotraukos.\n\n"
+    "Atkūrimas / restore:\n"
+    "  1. python manage.py migrate\n"
+    "  2. python manage.py loaddata data.json\n"
+    "  3. media/ turinį nukopijuoti į runtime/media/\n"
+)
+
+
+@login_required
+def settings_data_export(request):
+    if not request.user.is_staff:
+        raise Http404
+    if request.method == "POST":
+        import io
+        import zipfile
+        from django.core.management import call_command
+
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            dump = io.StringIO()
+            call_command(
+                "dumpdata", "auth.Group", "auth.User", "contacts",
+                natural_foreign=True, natural_primary=True, indent=2, stdout=dump,
+            )
+            archive.writestr("data.json", dump.getvalue())
+            archive.writestr("README.txt", _EXPORT_README)
+            media_root = str(settings.MEDIA_ROOT)
+            if os.path.isdir(media_root):
+                for folder, _subdirs, names in os.walk(media_root):
+                    for name in names:
+                        full = os.path.join(folder, name)
+                        archive.write(full, os.path.join("media", os.path.relpath(full, media_root)))
+        response = HttpResponse(buffer.getvalue(), content_type="application/zip")
+        response["Content-Disposition"] = 'attachment; filename="crm-eksportas-%s.zip"' % timezone.now().strftime("%Y%m%d-%H%M")
+        return response
+    return render(request, "settings/data_export.html", {"settings_section": "data-export"})
+
+
 @login_required
 def profile_avatar(request):
     profile = UserProfile.objects.filter(user=request.user).first()
