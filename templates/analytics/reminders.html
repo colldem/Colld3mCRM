@@ -8,9 +8,9 @@
   <div class="stat"><b>{{ upcoming }}</b><span>{% translate 'Būsimi' %}</span></div>
 </div>
 
-<div class="analytics-cols">
-  <section class="care-group">
-    <div class="care-head"><h2>{% translate 'Atlikimo procentas' %}</h2></div>
+<div class="panel-grid">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate 'Atlikimo procentas' %}</h2></div>
     {% localize off %}
     <div class="ring-wrap">
       <svg class="ring" viewBox="0 0 {{ ring.size }} {{ ring.size }}" role="img"
@@ -24,12 +24,12 @@
     </div>
     {% endlocalize %}
     {% if average_late %}
-      <p class="care-note">{% blocktranslate %}Vidutiniškai atliekama {{ average_late }} d. po termino.{% endblocktranslate %}</p>
+      <p class="panel-note">{% blocktranslate %}Vidutiniškai atliekama {{ average_late }} d. po termino.{% endblocktranslate %}</p>
     {% endif %}
   </section>
 
-  <section class="care-group">
-    <div class="care-head"><h2>{% translate 'Pagal naudotoją' %}</h2></div>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate 'Pagal naudotoją' %}</h2></div>
     <div class="table-wrap"><table>
       <thead><tr><th>{% translate 'Naudotojas' %}</th><th>{% translate 'Suplanuota' %}</th><th>{% translate 'Atlikta' %}</th><th>%</th></tr></thead>
       <tbody>

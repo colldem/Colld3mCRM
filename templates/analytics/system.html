@@ -7,13 +7,13 @@
   <div class="stat"><b>{{ imports }}</b><span>{% translate 'Importai' %}</span></div>
   <div class="stat"><b>{{ exports }}</b><span>{% translate 'Eksportai' %}</span></div>
 </div>
-<div class="analytics-cols">
-  <section class="care-group">
-    <div class="care-head"><h2>{% translate 'Pagal veiksmą' %}</h2></div>
+<div class="panel-grid">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate 'Pagal veiksmą' %}</h2></div>
     {% include "analytics/_barlist.html" with rows=by_action %}
   </section>
-  <section class="care-group">
-    <div class="care-head"><h2>{% translate 'Aktyviausi naudotojai' %}</h2></div>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate 'Aktyviausi naudotojai' %}</h2></div>
     {% include "analytics/_barlist.html" with rows=by_actor %}
   </section>
 </div>

@@ -14,7 +14,7 @@
 </nav>
 {% block period %}
   {% if periods %}
-    <div class="care-windows">
+    <div class="filter-row">
       <span>{% translate 'Laikotarpis:' %}</span>
       {% for option in periods %}
         <a class="btn{% if option == days %} primary{% endif %}" href="?days={{ option }}">{{ option }} {% translate 'd.' %}</a>

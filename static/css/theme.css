@@ -386,67 +386,75 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
  .cal-times{grid-template-columns:1fr}
  .cal-toolbar{align-items:stretch}
 }
-/* --- Analytics: dashboard + relationship care --- */
-.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
-.stat{display:grid;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff}
-.stat b{font-size:26px;line-height:1.1;color:var(--navy-950)}
-.stat span{font-size:12px;color:var(--muted)}
+/* --- Dashboard + analytics: one panel system for both --- */
+/* Panels: every block on the dashboard and the analytics pages is one of these. */
+.panel{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 16px}
+.panel>h2{margin:0 0 10px;font-size:14px;line-height:1.3;color:var(--navy-950)}
+.panel.is-warn{border-color:#f0c2c2;background:#fff8f8}
+.panel.is-warn>h2,.panel.is-warn .panel-head h2{color:var(--danger)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.panel-head h2{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;line-height:1.3;color:var(--navy-950)}
+.panel-head h2 span{padding:1px 8px;border-radius:12px;background:var(--soft);color:#5d6776;font-size:12px;font-weight:600}
+.panel-head .btn{flex:0 0 auto;min-height:30px;padding:3px 10px;font-size:12px}
+.panel-note{margin:9px 0 0;color:var(--muted);font-size:12px}
+.panel+.panel,.panel-grid+.panel,.panel+.panel-grid,.panel-grid+.panel-grid{margin-top:12px}
+/* Inside a grid the gap handles spacing; a margin would break the stretch. */
+.panel-grid>.panel{margin-top:0}
+/* Grid: rows stay level because the items stretch. */
+.panel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:stretch}
+.panel-grid.is-wide{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+/* Stat tiles keep a fixed size and pack from the left, whatever the count. */
+.stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,196px));justify-content:start;gap:12px;margin-bottom:12px}
+.stat{display:grid;align-content:start;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.stat b{font-size:24px;line-height:1.15;color:var(--navy-950)}
+.stat span{font-size:12px;line-height:1.35;color:var(--muted)}
 .stat small{color:var(--muted);font-size:11px}
 .stat.stat-warn b{color:var(--danger)}
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start}
-.dash-card{border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 16px}
-.dash-card>h2{margin:0 0 10px;font-size:14px;color:var(--navy-950)}
-.dash-card.dash-warn{border-color:#f0c2c2;background:#fff8f8}
-.dash-card.dash-warn>h2{color:var(--danger)}
-.dash-list{display:grid;gap:7px;margin:0;padding:0;list-style:none;font-size:13px}
+/* Lists inside panels */
+.dash-list{display:grid;align-content:start;gap:7px;margin:0;padding:0;list-style:none;font-size:13px}
 .dash-list li{display:flex;align-items:baseline;gap:9px}
 .dash-list form{margin:0 0 0 auto}
 .dash-list .btn{min-height:28px;padding:3px 9px;font-size:12px}
 .dash-time{flex:0 0 auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 .dash-main{min-width:0;overflow-wrap:anywhere}
 .dash-more{display:inline-block;margin-top:9px;font-size:12px;font-weight:650}
-.dash-bars{display:grid;gap:7px;margin:0;padding:0;list-style:none;font-size:13px}
-.dash-bars li{display:grid;grid-template-columns:110px minmax(0,1fr) 32px;align-items:center;gap:9px}
-.dash-bar{display:block;height:8px;border-radius:4px;background:var(--soft)}
-.dash-bar i{display:block;height:100%;min-width:2px;border-radius:4px;background:var(--navy-950)}
-.dash-bars b{text-align:right;font-variant-numeric:tabular-nums}
-.care-windows{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:16px;font-size:13px;color:var(--muted)}
-.care-windows .btn{min-height:32px;padding:4px 11px;font-size:13px}
-.care-group{margin-bottom:26px}
-.care-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
-.care-head h2{display:flex;align-items:center;gap:8px;margin:0;font-size:15px}
-.care-head h2 span{padding:1px 8px;border-radius:12px;background:var(--soft);color:#5d6776;font-size:12px}
-.care-head .btn{min-height:32px;padding:4px 11px;font-size:12px}
-.care-group .btn{min-height:30px;padding:3px 10px;font-size:12px}
-.care-note{margin:8px 0 0;color:var(--muted);font-size:12px}
-@media(max-width:640px){.dash-grid{grid-template-columns:1fr}.dash-bars li{grid-template-columns:88px minmax(0,1fr) 28px}}
-.analytics-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:10px}
-.analytics-nav a{padding:6px 11px;border:1px solid var(--line);border-radius:16px;color:var(--ink);font-size:12px;font-weight:650;text-decoration:none;white-space:nowrap}
-.analytics-nav a:hover{border-color:#9bbbe0;background:#f1f6fc}
-.analytics-nav a.active{border-color:var(--navy-950);background:var(--navy-950);color:#fff}
-.analytics-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px 22px;align-items:start}
-.chart-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 12px}
-.chart{display:block;width:100%;min-width:460px;height:auto}
-.chart-grid{stroke:var(--line);stroke-width:1}
-.chart-axis{fill:var(--muted);font-size:10px}
-.chart-area{fill:rgba(47,111,190,.14)}
-.chart-line{fill:none;stroke:var(--navy-950);stroke-width:2;stroke-linejoin:round}
-.chart-dot{fill:var(--navy-950)}
-.chart-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:9px 0 0;padding:0;list-style:none;font-size:12px;color:var(--muted)}
-.chart-legend li{display:flex;align-items:center;gap:6px}
-.chart-legend i{width:10px;height:10px;border-radius:2px}
-.chart-legend b{color:var(--ink)}
-.bar-list{display:grid;gap:7px;margin:0;padding:0;list-style:none;font-size:13px}
-.bar-list li{display:grid;grid-template-columns:minmax(90px,1fr) minmax(60px,1.4fr) 42px;align-items:center;gap:10px}
+.bar-list{display:grid;align-content:start;gap:7px;margin:0;padding:0;list-style:none;font-size:13px}
+.bar-list li{display:grid;grid-template-columns:minmax(90px,1fr) minmax(60px,1.3fr) 40px;align-items:center;gap:10px}
 .bar-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar-track{display:block;height:8px;border-radius:4px;background:var(--soft)}
 .bar-track i{display:block;height:100%;min-width:2px;border-radius:4px;background:var(--navy-950)}
 .bar-list b{text-align:right;font-variant-numeric:tabular-nums}
-.ring-wrap{position:relative;display:grid;place-items:center;width:132px;margin:4px 0}
+/* Charts: capped width so the fixed 900x210 viewBox never grows past ~210px tall. */
+.chart-wrap{max-width:900px;overflow-x:auto}
+.chart{display:block;width:100%;min-width:520px;height:auto}
+.chart-grid{stroke:var(--line);stroke-width:1}
+.chart-axis{fill:var(--muted);font-size:11px}
+.chart-area{fill:rgba(47,111,190,.14)}
+.chart-line{fill:none;stroke:var(--navy-950);stroke-width:2;stroke-linejoin:round}
+.chart-dot{fill:var(--navy-950)}
+.chart-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0 0;padding:0;list-style:none;font-size:12px;color:var(--muted)}
+.chart-legend li{display:flex;align-items:center;gap:6px}
+.chart-legend i{width:10px;height:10px;border-radius:2px}
+.chart-legend b{color:var(--ink)}
+.ring-wrap{position:relative;display:grid;place-items:center;width:132px;margin:2px 0 4px}
 .ring{width:132px;height:132px}
 .ring-track{fill:none;stroke:var(--soft)}
 .ring-value{fill:none;stroke:var(--navy-950);stroke-linecap:round}
 .ring-text{position:absolute;display:grid;justify-items:center;gap:1px;text-align:center}
-.ring-text b{font-size:23px;color:var(--navy-950)}
+.ring-text b{font-size:23px;line-height:1.1;color:var(--navy-950)}
 .ring-text span{font-size:11px;color:var(--muted)}
-@media(max-width:640px){.analytics-cols{grid-template-columns:1fr}.bar-list li{grid-template-columns:minmax(70px,1fr) minmax(40px,1fr) 36px}}
+/* Analytics section nav + period picker */
+.analytics-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.analytics-nav a{padding:6px 11px;border:1px solid var(--line);border-radius:16px;color:var(--ink);font-size:12px;font-weight:650;text-decoration:none;white-space:nowrap}
+.analytics-nav a:hover{border-color:#9bbbe0;background:#f1f6fc}
+.analytics-nav a.active{border-color:var(--navy-950);background:var(--navy-950);color:#fff}
+.filter-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--muted)}
+.filter-row .btn{min-height:30px;padding:3px 11px;font-size:12px}
+.panel .table-wrap{border:0;border-top:1px solid var(--line);border-radius:0;margin:0 -16px -14px;width:calc(100% + 32px)}
+.panel .table-wrap th,.panel .table-wrap td{padding:9px 16px;font-size:13px}
+@media(max-width:640px){
+ .panel-grid,.panel-grid.is-wide{grid-template-columns:1fr}
+ .stat-row{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
+ .bar-list li{grid-template-columns:minmax(70px,1fr) minmax(40px,1fr) 34px}
+ .chart{min-width:640px}
+}

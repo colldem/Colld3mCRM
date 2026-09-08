@@ -16,9 +16,9 @@
   <div class="stat{% if overdue_total %} stat-warn{% endif %}"><b>{{ overdue_total }}</b><span>{% translate 'Vėluoja' %}</span></div>
 </div>
 
-<div class="dash-grid">
+<div class="panel-grid">
   {% if overdue_events %}
-  <section class="dash-card dash-warn">
+  <section class="panel is-warn">
     <h2>{% translate 'Vėluojantys priminimai' %}</h2>
     <ul class="dash-list">
       {% for reminder in overdue_events %}
@@ -33,7 +33,7 @@
   </section>
   {% endif %}
 
-  <section class="dash-card">
+  <section class="panel">
     <h2>{% translate 'Šiandien' %}</h2>
     <ul class="dash-list">
       {% for reminder in today_events %}
@@ -45,7 +45,7 @@
     </ul>
   </section>
 
-  <section class="dash-card">
+  <section class="panel">
     <h2>{% translate 'Rytoj' %}</h2>
     <ul class="dash-list">
       {% for reminder in tomorrow_events %}
@@ -57,7 +57,7 @@
     </ul>
   </section>
 
-  <section class="dash-card">
+  <section class="panel">
     <h2>{% translate 'Paskutiniai mano liesti įrašai' %}</h2>
     <ul class="dash-list">
       {% for record in recently_touched %}
@@ -66,13 +66,13 @@
     </ul>
   </section>
 
-  <section class="dash-card">
+  <section class="panel">
     <h2>{% translate 'Mano veiklos šią savaitę' %}</h2>
-    <ul class="dash-bars">
+    <ul class="bar-list">
       {% for item in week_activity %}
         <li>
-          <span>{{ item.label }}</span>
-          <span class="dash-bar" aria-hidden="true">{% if item.total %}<i style="width:{% widthratio item.total week_activity_total 100 %}%"></i>{% endif %}</span>
+          <span class="bar-label">{{ item.label }}</span>
+          <span class="bar-track" aria-hidden="true">{% if item.total %}<i style="width:{% widthratio item.total week_activity_total 100 %}%"></i>{% endif %}</span>
           <b>{{ item.total }}</b>
         </li>
       {% endfor %}

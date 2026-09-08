@@ -7,12 +7,12 @@ No chart library: the CRM runs on a closed network where a CDN would not load.
 # Series colours, drawn from the CRM palette.
 SERIES_COLOURS = ("#062b63", "#2f6fbe", "#4f9ad8", "#168a45", "#d29a18", "#8b5cf6")
 
-WIDTH = 680
-HEIGHT = 190
+WIDTH = 900
+HEIGHT = 210
 PAD_LEFT = 36
 PAD_RIGHT = 30
 PAD_TOP = 10
-PAD_BOTTOM = 26
+PAD_BOTTOM = 28
 
 
 def _nice_max(value):

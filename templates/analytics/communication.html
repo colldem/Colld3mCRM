@@ -1,29 +1,29 @@
 {% extends "analytics/layout.html" %}{% load i18n %}
 {% block analytics_title %}{% translate 'Komunikacija' %}{% endblock %}
 {% block analytics_content %}
-<section class="care-group">
-  <div class="care-head"><h2>{% translate 'Veiklos laike' %} <span>{{ total }}</span></h2></div>
+<section class="panel">
+  <div class="panel-head"><h2>{% translate 'Veiklos laike' %} <span>{{ total }}</span></h2></div>
   {% if chart %}
     {% include "analytics/_chart.html" with chart=chart chart_label=_('Veiklos pagal tipą laike') %}
     <ul class="chart-legend">
       {% for item in legend %}<li><i style="background:{{ item.colour }}"></i>{{ item.label }} <b>{{ item.total }}</b></li>{% endfor %}
     </ul>
-    <p class="care-note">{% if monthly %}{% translate 'Sugrupuota pagal mėnesius.' %}{% else %}{% translate 'Sugrupuota pagal savaites.' %}{% endif %}
+    <p class="panel-note">{% if monthly %}{% translate 'Sugrupuota pagal mėnesius.' %}{% else %}{% translate 'Sugrupuota pagal savaites.' %}{% endif %}
       {% if average_gap %} · {% blocktranslate %}Vidutinis tarpas tarp veiklų: {{ average_gap }} d.{% endblocktranslate %}{% endif %}</p>
-  {% else %}<p class="muted care-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
+  {% else %}<p class="muted panel-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
 </section>
 
-<div class="analytics-cols">
-  <section class="care-group">
-    <div class="care-head"><h2>{% translate 'Aktyviausi kontaktai' %}</h2></div>
+<div class="panel-grid">
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate 'Aktyviausi kontaktai' %}</h2></div>
     {% include "analytics/_barlist.html" with rows=top_people %}
   </section>
-  <section class="care-group">
-    <div class="care-head"><h2>{% translate 'Aktyviausios įmonės' %}</h2></div>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate 'Aktyviausios įmonės' %}</h2></div>
     {% include "analytics/_barlist.html" with rows=top_companies %}
   </section>
-  <section class="care-group">
-    <div class="care-head"><h2>{% translate 'Pagal naudotoją' %}</h2></div>
+  <section class="panel">
+    <div class="panel-head"><h2>{% translate 'Pagal naudotoją' %}</h2></div>
     {% include "analytics/_barlist.html" with rows=by_user %}
   </section>
 </div>

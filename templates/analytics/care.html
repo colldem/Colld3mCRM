@@ -2,7 +2,7 @@
 {% block analytics_title %}{% translate 'Ryšių priežiūra' %}{% endblock %}
 {% block period %}{% endblock %}
 {% block analytics_content %}
-<div class="care-windows">
+<div class="filter-row">
   <span>{% translate 'Nutilusiais laikyti, kai nebendrauta ilgiau nei:' %}</span>
   {% for window in windows %}
     <a class="btn{% if window == days %} primary{% endif %}" href="?days={{ window }}">{{ window }} {% translate 'd.' %}</a>
@@ -10,8 +10,8 @@
 </div>
 
 {% for group in groups %}
-  <section class="care-group">
-    <div class="care-head">
+  <section class="panel">
+    <div class="panel-head">
       <h2>{{ group.label }} <span>{{ group.total }}</span></h2>
       {% if group.total %}<a class="btn" href="?days={{ days }}&amp;export={{ group.key }}">{% translate 'Eksportuoti CSV' %}</a>{% endif %}
     </div>
@@ -39,10 +39,10 @@
         </tbody>
       </table></div>
       {% if group.total > limit %}
-        <p class="care-note">{% blocktranslate with shown=limit total=group.total %}Rodoma {{ shown }} iš {{ total }} — visą sąrašą rasite CSV eksporte.{% endblocktranslate %}</p>
+        <p class="panel-note">{% blocktranslate with shown=limit total=group.total %}Rodoma {{ shown }} iš {{ total }} — visą sąrašą rasite CSV eksporte.{% endblocktranslate %}</p>
       {% endif %}
     {% else %}
-      <p class="muted care-note">{% translate 'Nieko nerasta — puiku.' %}</p>
+      <p class="muted panel-note">{% translate 'Nieko nerasta — puiku.' %}</p>
     {% endif %}
   </section>
 {% endfor %}
