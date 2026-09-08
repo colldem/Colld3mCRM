@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load i18n %}
+{% extends "base.html" %}{% load i18n crm_format %}
 {% block title %}{% translate 'Importas / eksportas - CRM' %}{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>{% translate 'Importas / eksportas' %}</h1><p>{% translate 'CSV failams naudokite UTF-8 koduotę ir kablelius.' %}</p></div></div>
@@ -7,16 +7,36 @@
     <div class="import-card-body">
       <h2>{% translate 'Importuoti kontaktus' %}</h2>
       {% if preview %}
-        <p>{% translate 'Faile rasta įrašų:' %} {{ preview.total }}. {% translate 'Prieš importuojant peržiūrėkite, ką sistema atliks.' %}</p>
+        <p>{% translate 'Faile rasta įrašų:' %} {{ preview.total }}. {% translate 'Priskirkite stulpelius, pasirinkite, ką daryti su jau esamais įrašais, ir patvirtinkite.' %}</p>
         <div class="import-result">
           <span>{% translate 'Bus sukurta:' %} {{ preview.created }}</span>
           <span>{% translate 'Bus atnaujinta:' %} {{ preview.updated }}</span>
           <span>{% translate 'Bus praleista (be vardo ir pavardės):' %} {{ preview.skipped }}</span>
+          {% if preview.problems %}<span class="import-warn">{% translate 'Eilučių su klaidomis:' %} {{ preview.problems }}</span>{% endif %}
         </div>
-        <div class="import-preview"><table><thead><tr>{% for header in preview.headers %}<th>{{ header }}</th>{% endfor %}</tr></thead><tbody>{% for row in preview.sample %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
-        <form method="post" class="import-confirm">{% csrf_token %}<input type="hidden" name="confirm" value="1"><button class="btn primary" type="submit">{% translate 'Patvirtinti importą' %}</button><a class="btn" href="{% url 'contacts:import-export' %}">{% translate 'Atšaukti' %}</a></form>
+        <form method="post" class="import-confirm">{% csrf_token %}<input type="hidden" name="confirm" value="1">
+          <fieldset class="import-mapping">
+            <legend>{% translate 'Stulpelių priskyrimas' %}</legend>
+            {% for header in preview.headers %}
+              <label>{{ header }}
+                <select name="map_{{ header }}">
+                  <option value="">{% translate '— nenaudoti' %}</option>
+                  {% for column in preview.columns %}<option value="{{ column.key }}" {% if preview.mapping|get_item:header == column.key %}selected{% endif %}>{{ column.label }}</option>{% endfor %}
+                </select>
+              </label>
+            {% endfor %}
+          </fieldset>
+          <fieldset class="import-dedup">
+            <legend>{% translate 'Kai įrašas jau egzistuoja (pagal el. paštą arba vardą ir pavardę)' %}</legend>
+            <label><input type="radio" name="dedup" value="update" checked> {% translate 'Atnaujinti esamą įrašą' %}</label>
+            <label><input type="radio" name="dedup" value="skip"> {% translate 'Praleisti (nieko nekeisti)' %}</label>
+            <label><input type="radio" name="dedup" value="new"> {% translate 'Visada kurti naują įrašą' %}</label>
+          </fieldset>
+          <div class="import-preview"><table><thead><tr>{% for header in preview.headers %}<th>{{ header }}</th>{% endfor %}</tr></thead><tbody>{% for row in preview.sample %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+          <div class="import-card-actions"><button class="btn primary" type="submit">{% translate 'Patvirtinti importą' %}</button><a class="btn" href="{% url 'contacts:import-export' %}">{% translate 'Atšaukti' %}</a></div>
+        </form>
       {% else %}
-        <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos.' %}</p>
+        <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius priskirsite kitame žingsnyje.' %}</p>
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
           <input type="file" name="file" accept=".csv,.xlsx" required>
@@ -28,10 +48,12 @@
             <span>{% translate 'Nauji:' %} {{ result.created }}</span>
             <span>{% translate 'Atnaujinti:' %} {{ result.updated }}</span>
             <span>{% translate 'Praleisti:' %} {{ result.skipped }}</span>
+            {% if result.error_count %}<span class="import-warn">{% translate 'Klaidos:' %} {{ result.error_count }}</span>{% endif %}
             {% if result.duplicate_check_enabled %}<span>{% translate 'Galimi dublikatai:' %} {{ result.possible_duplicates }}</span>{% endif %}
             {% if result.possible_duplicates %}<a href="{% url 'contacts:duplicate-list' %}">{% translate 'Peržiūrėti dublikatus' %}</a>{% endif %}
           </div>
         {% endif %}
+        {% if has_error_report %}<div class="import-card-actions"><a class="btn" href="{% url 'contacts:import-errors' %}">{% translate 'Atsisiųsti klaidų CSV' %}</a></div>{% endif %}
       {% endif %}
     </div>
   </section>

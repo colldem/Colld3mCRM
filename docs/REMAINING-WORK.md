@@ -42,7 +42,11 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **C5** — auditas: `AuditLog` + Nustatymai → Žurnalas (tik administratoriams),
   filtrai pagal naudotoją / veiksmą / datą. Registruojami įrašų, veiklų, priminimų,
   nustatymų, naudotojų, importo/eksporto ir prisijungimų įvykiai (sena→nauja).
-- ✅ **VERSION → 0.6.0**, `image: crm-web:0.6.0`
+- ✅ **C7** — importo vedlys: stulpelių priskyrimas (auto-atpažinimas + rankinis
+  perrinkimas), „jei įrašas jau yra" pasirinkimas (atnaujinti / praleisti /
+  visada naujas), klaidingos eilutės nenutraukia importo ir atsisiunčiamos
+  klaidų CSV ataskaita.
+- ✅ **VERSION → 0.7.0**, `image: crm-web:0.7.0`
 
 ---
 
@@ -221,10 +225,16 @@ konkretiems naudotojams, teisės pagal lauką, „org-wide default = private/pub
 3. Matomumo filtrai visuose sąrašuose/paieškoje/eksporte + testai
 4. Masinis „priskirti atsakingą" + „Atsakingas" filtras/stulpelis + CSV
 
-### C7. Importo vedlys — 🟡 iš dalies
-Pridėta **peržiūra prieš importą** (sukurta/atnaujinta/praleista + 8 eilučių pavyzdys,
-sesijoje, „Patvirtinti importą"). Vis dar trūksta: rankinio stulpelių susiejimo lango,
-klaidingų eilučių CSV ataskaitos, „praleisti / atnaujinti / visada naujas" pasirinkimo.
+### C7. Importo vedlys — ✅ padaryta
+Peržiūra prieš importą (sukurta/atnaujinta/praleista + 8 eilučių pavyzdys, sesijoje).
+**Stulpelių priskyrimas**: įkėlus failą, kiekvienam CSV/XLSX stulpeliui parenkamas
+CRM laukas (auto-atpažinimas pagal antraštę + rankinis perrinkimas, `IMPORT_COLUMNS`).
+**Dublikatų elgsena**: „atnaujinti esamą / praleisti / visada kurti naują"
+(`_import_contact_rows(..., mode=...)`). **Klaidų ataskaita**: klaidinga eilutė
+(pvz. >3 žymos) nenutraukia viso importo — įrašoma su eilutės numeriu ir
+priežastimi, po importo atsisiunčiama `importo-klaidos.csv`
+(`/import-export/errors.csv`). Vėliau galima: XLSX klaidų ataskaita, „sausas"
+bandymas be įrašymo.
 
 ### C8. Masiniai veiksmai — 🟡 iš dalies
 Yra archyvuoti, eksportuoti, **masinis žymos ir kategorijos priskyrimas** (kontaktams

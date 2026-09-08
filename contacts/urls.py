@@ -45,6 +45,7 @@ urlpatterns = [
     path("companies/<int:pk>/restore/", views.company_restore, name="company-restore"),
     path("companies/<int:pk>/activities/new/", views.company_activity_create, name="company-activity-create"),
     path("import-export/", views.contacts_import, name="import-export"),
+    path("import-export/errors.csv", views.contacts_import_errors, name="import-errors"),
     path("export/contacts.csv", views.contacts_export, name="contacts-export"),
     path("export/companies.csv", views.companies_export, name="companies-export"),
     path("archive/", views.archive_list, name="archive-list"),

@@ -1606,6 +1606,47 @@ class ContactViewTests(TestCase):
         response = self.client.post(reverse("contacts:import-export"), {"confirm": "1"})
         self.assertContains(response, "Importo peržiūra pasibaigė")
 
+    def test_import_column_mapping_maps_custom_headers(self):
+        self.client.force_login(self.user)
+        content = "Given,Family,Role\nGreta,Petrauskė,Vadovė\n".encode()
+        preview = self.client.post(reverse("contacts:import-export"), {
+            "file": SimpleUploadedFile("k.csv", content, content_type="text/csv"),
+        })
+        self.assertContains(preview, "Stulpelių priskyrimas")
+        self.client.post(reverse("contacts:import-export"), {
+            "confirm": "1", "map_Given": "Vardas", "map_Family": "Pavardė", "map_Role": "Pareigos",
+        })
+        person = Person.objects.get(first_name="Greta", last_name="Petrauskė")
+        self.assertEqual(person.job_title, "Vadovė")
+
+    def test_import_dedup_modes_skip_and_always_new(self):
+        self.client.force_login(self.user)
+        existing = Person.objects.create(first_name="Dima", last_name="Dublis", job_title="Senos")
+        row = "Vardas,Pavardė,Pareigos\nDima,Dublis,Naujos\n".encode()
+        # skip: existing record untouched
+        self.client.post(reverse("contacts:import-export"), {"file": SimpleUploadedFile("a.csv", row, content_type="text/csv")})
+        self.client.post(reverse("contacts:import-export"), {"confirm": "1", "dedup": "skip"})
+        existing.refresh_from_db()
+        self.assertEqual(existing.job_title, "Senos")
+        # always new: a second record with the same name is created
+        self.client.post(reverse("contacts:import-export"), {"file": SimpleUploadedFile("a.csv", row, content_type="text/csv")})
+        self.client.post(reverse("contacts:import-export"), {"confirm": "1", "dedup": "new"})
+        self.assertEqual(Person.objects.filter(first_name="Dima", last_name="Dublis").count(), 2)
+
+    def test_import_bad_rows_are_reported_without_aborting_and_downloadable(self):
+        self.client.force_login(self.user)
+        content = "Vardas,Pavardė,Tagai\nGera,Eilutė,A\nBloga,Eilutė,A;B;C;D\n".encode()
+        self.client.post(reverse("contacts:import-export"), {"file": SimpleUploadedFile("k.csv", content, content_type="text/csv")})
+        result = self.client.post(reverse("contacts:import-export"), {"confirm": "1"})
+        self.assertTrue(Person.objects.filter(first_name="Gera").exists())
+        self.assertFalse(Person.objects.filter(first_name="Bloga").exists())
+        self.assertContains(result, "Klaidos: 1")
+        report = self.client.get(reverse("contacts:import-errors"))
+        self.assertEqual(report["Content-Type"], "text/csv; charset=utf-8")
+        body = report.content.decode("utf-8-sig")
+        self.assertIn("Bloga", body)
+        self.assertIn("Klaida", body.splitlines()[0])
+
     def test_bulk_add_tag_and_category_to_selected_contacts(self):
         self.client.force_login(self.user)
         tag = Tag.objects.create(name="VIP")

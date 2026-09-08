@@ -1358,72 +1358,143 @@ def _resolve_import_owner(value, cache):
     return user
 
 
-@transaction.atomic
-def _import_contact_rows(rows, owner=None):
-    created = updated = skipped = possible_duplicates = 0
-    created_person_ids = set()
-    owner_cache = {}
-    duplicate_settings = DuplicateSettings.load()
-    report_duplicates = duplicate_settings.enabled and duplicate_settings.check_on_import
+# Canonical import field -> (human label, accepted header aliases). The first
+# alias is the key that _value()/_import_relation_names() look for first, so the
+# column-mapping step rewrites every row to use it.
+IMPORT_COLUMNS = [
+    ("Vardas", tr("Vardas"), ("Vardas", "first_name", "First name")),
+    ("Pavardė", tr("Pavardė"), ("Pavardė", "last_name", "Last name")),
+    ("Pareigos", tr("Pareigos"), ("Pareigos", "job_title", "Title")),
+    ("Įmonė", tr("Įmonė"), ("Įmonė", "company", "Company")),
+    ("Telefonai", tr("Telefonai"), ("Telefonai", "Telefonas", "phone", "Phone")),
+    ("El. paštai", tr("El. paštai"), ("El. paštai", "El. paštas", "email", "Email")),
+    ("Adresai", tr("Adresai"), ("Adresai", "Adresas", "address", "Address")),
+    ("URL", tr("Nuorodos"), ("URL", "url", "Website")),
+    ("Būsena", tr("Būsena"), ("Būsena", "status", "Status")),
+    ("Tagai", tr("Žymos"), ("Tagai", "Žymos", "Tags", "tags")),
+    ("Kategorijos", tr("Kategorijos"), ("Kategorijos", "Categories", "categories")),
+    ("Atsakingas", tr("Atsakingas"), ("Atsakingas", "owner", "Owner")),
+]
+IMPORT_FIELD_KEYS = [key for key, _label, _aliases in IMPORT_COLUMNS]
+
+
+def _guess_import_mapping(headers):
+    """Best-effort {csv header: canonical field} from header names."""
+    lookup = {}
+    for key, _label, aliases in IMPORT_COLUMNS:
+        for alias in aliases:
+            lookup[alias.strip().lower()] = key
+    mapping = {}
+    for header in headers:
+        match = lookup.get(str(header).strip().lower())
+        if match and match not in mapping.values():
+            mapping[header] = match
+    return mapping
+
+
+def _apply_import_mapping(rows, mapping):
+    """Rewrite each row so its keys are canonical field names (per `mapping`)."""
+    if not mapping:
+        return rows
+    remapped = []
     for row in rows:
-        first_name = _value(row, "Vardas", "first_name", "First name")
-        last_name = _value(row, "Pavardė", "last_name", "Last name")
-        company_names = _import_relation_names(row, "Įmonė", "company", "Company")
-        phone_values = list(filter(None, (item.strip() for item in _value(row, "Telefonai", "Telefonas", "phone", "Phone").split(";"))))
-        email_values = list(filter(None, (item.strip() for item in _value(row, "El. paštai", "El. paštas", "email", "Email").split(";"))))
-        email = email_values[0] if email_values else ""
-        if not first_name and not last_name:
-            skipped += 1
-            continue
-        person = None
+        new_row = {}
+        for header, field in mapping.items():
+            if field and header in row:
+                new_row[field] = row[header]
+        remapped.append(new_row)
+    return remapped
+
+
+def _import_one_row(row, owner, mode, owner_cache):
+    """Import a single already-mapped row. Returns 'created' / 'updated' / 'skipped'."""
+    first_name = _value(row, "Vardas", "first_name", "First name")
+    last_name = _value(row, "Pavardė", "last_name", "Last name")
+    if not first_name and not last_name:
+        return "skipped", None
+    email_values = list(filter(None, (item.strip() for item in _value(row, "El. paštai", "El. paštas", "email", "Email").split(";"))))
+    email = email_values[0] if email_values else ""
+    person = None
+    if mode != "new":
         if email:
             person = Person.objects.filter(emails__email__iexact=email, deleted_at__isnull=True).first()
         if not person:
             person = Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).first()
-        values = {"first_name": first_name, "last_name": last_name, "job_title": _value(row, "Pareigos", "job_title"), "status": _value(row, "Būsena", "status") or "Aktyvus"}
-        row_owner = _resolve_import_owner(_value(row, "Atsakingas", "owner", "Owner"), owner_cache)
-        if person:
-            for field, value in values.items():
-                if value:
-                    setattr(person, field, value)
-            if row_owner:
-                person.owner = row_owner
-            person.save()
-            updated += 1
-        else:
-            person = Person.objects.create(owner=row_owner or owner, **values)
+    if person and mode == "skip":
+        return "skipped", None
+    tag_names = _import_relation_names(row, "Tagai", "Žymos", "Tags", "tags")
+    category_names = _import_relation_names(row, "Kategorijos", "Categories", "categories")
+    if len(tag_names) > 3 or len(category_names) > 3:
+        raise ValueError(str(tr("Viršytas leistinas žymų arba kategorijų skaičius (daugiausia 3)")))
+    values = {"first_name": first_name, "last_name": last_name, "job_title": _value(row, "Pareigos", "job_title"), "status": _value(row, "Būsena", "status") or "Aktyvus"}
+    row_owner = _resolve_import_owner(_value(row, "Atsakingas", "owner", "Owner"), owner_cache)
+    if person:
+        for field, value in values.items():
+            if value:
+                setattr(person, field, value)
+        if row_owner:
+            person.owner = row_owner
+        person.save()
+        outcome = "updated"
+    else:
+        person = Person.objects.create(owner=row_owner or owner, **values)
+        outcome = "created"
+    for company_name in _import_relation_names(row, "Įmonė", "company", "Company"):
+        company, _ = Company.objects.get_or_create(name=company_name)
+        PersonCompanyLink.objects.get_or_create(
+            person=person, company=company,
+            defaults={"is_primary": not person.company_links.filter(is_primary=True).exists()},
+        )
+    for number in filter(None, (item.strip() for item in _value(row, "Telefonai", "Telefonas", "phone", "Phone").split(";"))):
+        PhoneNumber.objects.get_or_create(person=person, number=number, defaults={"is_primary": not person.phones.exists()})
+    for address in filter(None, (item.strip() for item in _value(row, "Adresai", "Adresas", "address", "Address").split(";"))):
+        PostalAddress.objects.get_or_create(person=person, address=address)
+    for url in filter(None, (item.strip() for item in _value(row, "URL", "url", "Website").split(";"))):
+        WebLink.objects.get_or_create(person=person, url=url)
+    for address in email_values:
+        EmailAddress.objects.get_or_create(person=person, email=address, defaults={"is_primary": not person.emails.exists()})
+    for tag_name in tag_names:
+        tag, _ = Tag.objects.get_or_create(name=tag_name[:60])
+        person.tags.add(tag)
+    for category_name in category_names:
+        category, _ = Category.objects.get_or_create(name=category_name[:60])
+        person.categories.add(category)
+    return outcome, person
+
+
+@transaction.atomic
+def _import_contact_rows(rows, owner=None, *, mode="update", collect_errors=False):
+    """Import mapped rows. With collect_errors=True a failing row is recorded and
+    skipped instead of aborting the whole batch."""
+    created = updated = skipped = possible_duplicates = 0
+    created_person_ids = set()
+    owner_cache = {}
+    errors = []
+    duplicate_settings = DuplicateSettings.load()
+    report_duplicates = duplicate_settings.enabled and duplicate_settings.check_on_import
+    for index, row in enumerate(rows, start=2):  # row 1 is the header line
+        try:
+            with transaction.atomic():
+                outcome, person = _import_one_row(row, owner, mode, owner_cache)
+        except Exception as error:
+            if not collect_errors:
+                raise
+            errors.append({"row": index, "error": str(error), "data": row})
+            continue
+        if outcome == "created":
             created += 1
             created_person_ids.add(person.pk)
-        for company_name in company_names:
-            company, _ = Company.objects.get_or_create(name=company_name)
-            PersonCompanyLink.objects.get_or_create(
-                person=person, company=company,
-                defaults={"is_primary": not person.company_links.filter(is_primary=True).exists()},
-            )
-        for number in phone_values:
-            PhoneNumber.objects.get_or_create(person=person, number=number, defaults={"is_primary": not person.phones.exists()})
-        for address in filter(None, (item.strip() for item in _value(row, "Adresai", "Adresas", "address", "Address").split(";"))):
-            PostalAddress.objects.get_or_create(person=person, address=address)
-        for url in filter(None, (item.strip() for item in _value(row, "URL", "url", "Website").split(";"))):
-            WebLink.objects.get_or_create(person=person, url=url)
-        for address in email_values:
-            EmailAddress.objects.get_or_create(person=person, email=address, defaults={"is_primary": not person.emails.exists()})
-        tag_names = _import_relation_names(row, "Tagai", "Tags", "tags")
-        category_names = _import_relation_names(row, "Kategorijos", "Categories", "categories")
-        if len(tag_names) > 3 or len(category_names) > 3:
-            raise ValueError(tr("Viršytas leistinas žymų arba kategorijų skaičius"))
-        for tag_name in tag_names:
-            tag, _ = Tag.objects.get_or_create(name=tag_name[:60])
-            person.tags.add(tag)
-        for category_name in category_names:
-            category, _ = Category.objects.get_or_create(name=category_name[:60])
-            person.categories.add(category)
+        elif outcome == "updated":
+            updated += 1
+        else:
+            skipped += 1
     if report_duplicates and created_person_ids:
         possible_duplicates = sum(
             1 for pair in all_person_duplicate_pairs(duplicate_settings.level)
             if pair["left"].pk in created_person_ids or pair["right"].pk in created_person_ids
         )
-    return {"created": created, "updated": updated, "skipped": skipped, "possible_duplicates": possible_duplicates, "duplicate_check_enabled": report_duplicates}
+    return {"created": created, "updated": updated, "skipped": skipped, "possible_duplicates": possible_duplicates,
+            "duplicate_check_enabled": report_duplicates, "errors": errors, "error_count": len(errors)}
 
 
 IMPORT_PREVIEW_LIMIT = 5000
@@ -1445,15 +1516,18 @@ def _read_import_rows(upload):
     return [{str(key): ("" if value is None else str(value)) for key, value in row.items() if key} for row in raw]
 
 
-def _import_preview(rows):
-    created = updated = skipped = 0
-    for row in rows:
+def _import_preview(rows, mapping):
+    mapped = _apply_import_mapping(rows, mapping)
+    created = updated = skipped = problems = 0
+    for row in mapped:
         first_name = _value(row, "Vardas", "first_name", "First name")
         last_name = _value(row, "Pavardė", "last_name", "Last name")
         emails = list(filter(None, (item.strip() for item in _value(row, "El. paštai", "El. paštas", "email", "Email").split(";"))))
         if not first_name and not last_name:
             skipped += 1
             continue
+        if len(_import_relation_names(row, "Tagai", "Žymos", "Tags", "tags")) > 3 or len(_import_relation_names(row, "Kategorijos", "Categories", "categories")) > 3:
+            problems += 1
         match = (emails and Person.objects.filter(emails__email__iexact=emails[0], deleted_at__isnull=True).exists()) or \
             Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).exists()
         if match:
@@ -1461,8 +1535,10 @@ def _import_preview(rows):
         else:
             created += 1
     headers = list(rows[0].keys()) if rows else []
-    return {"total": len(rows), "created": created, "updated": updated, "skipped": skipped,
-            "headers": headers, "sample": [[row.get(header, "") for header in headers] for row in rows[:8]]}
+    return {"total": len(rows), "created": created, "updated": updated, "skipped": skipped, "problems": problems,
+            "headers": headers, "sample": [[row.get(header, "") for header in headers] for row in rows[:8]],
+            "columns": [{"key": key, "label": label} for key, label, _aliases in IMPORT_COLUMNS],
+            "mapping": mapping}
 
 
 @login_required
@@ -1470,17 +1546,27 @@ def contacts_import(request):
     context = {}
     if request.method == "POST" and request.POST.get("confirm") == "1":
         rows = request.session.pop("import_rows", None)
+        stored_mapping = request.session.pop("import_mapping", {})
         if not rows:
             messages.error(request, tr("Importo peržiūra pasibaigė. Įkelkite failą iš naujo."))
         else:
+            headers = list(rows[0].keys()) if rows else []
+            submitted = {header: request.POST.get("map_" + header, "").strip() for header in headers if request.POST.get("map_" + header, "").strip() in IMPORT_FIELD_KEYS}
+            mapping = submitted or stored_mapping
+            mode = request.POST.get("dedup") if request.POST.get("dedup") in {"skip", "update", "new"} else "update"
             try:
-                context["result"] = _import_contact_rows(rows, owner=request.user)
-                result = context["result"]
-                audit_log(AuditLog.IMPORT, request=request, target_type="import", target_label=str(tr("Kontaktų importas")),
-                          new=str(tr("sukurta %(c)s, atnaujinta %(u)s, praleista %(s)s")) % {"c": result["created"], "u": result["updated"], "s": result["skipped"]},
-                          detail=result)
+                result = _import_contact_rows(_apply_import_mapping(rows, mapping), owner=request.user, mode=mode, collect_errors=True)
             except Exception:
-                messages.error(request, tr("Nepavyko importuoti. Patikrinkite žymų ir kategorijų skaičių bei stulpelius."))
+                messages.error(request, tr("Nepavyko importuoti. Patikrinkite stulpelius ir failo formatą."))
+            else:
+                context["result"] = result
+                if result["errors"]:
+                    request.session["import_errors"] = [{"row": e["row"], "error": e["error"], "data": e["data"]} for e in result["errors"]]
+                else:
+                    request.session.pop("import_errors", None)
+                audit_log(AuditLog.IMPORT, request=request, target_type="import", target_label=str(tr("Kontaktų importas")),
+                          new=str(tr("sukurta %(c)s, atnaujinta %(u)s, praleista %(s)s, klaidų %(e)s")) % {"c": result["created"], "u": result["updated"], "s": result["skipped"], "e": result["error_count"]},
+                          detail={k: v for k, v in result.items() if k != "errors"})
     elif request.method == "POST":
         upload = request.FILES.get("file")
         if not upload or upload.size > 10 * 1024 * 1024:
@@ -1494,10 +1580,35 @@ def contacts_import(request):
             if rows is not None and len(rows) > IMPORT_PREVIEW_LIMIT:
                 messages.error(request, tr("Peržiūrai skirtas failas su ne daugiau kaip %(n)s eilučių.") % {"n": IMPORT_PREVIEW_LIMIT})
             elif rows:
+                headers = list(rows[0].keys())
+                mapping = _guess_import_mapping(headers)
                 request.session["import_rows"] = rows
-                context["preview"] = _import_preview(rows)
+                request.session["import_mapping"] = mapping
+                context["preview"] = _import_preview(rows, mapping)
             elif rows is not None:
                 messages.error(request, tr("Faile nerasta įrašų."))
     else:
         request.session.pop("import_rows", None)
+        request.session.pop("import_mapping", None)
+    context["has_error_report"] = bool(request.session.get("import_errors"))
     return render(request, "import_export.html", context)
+
+
+@login_required
+def contacts_import_errors(request):
+    errors = request.session.get("import_errors")
+    if not errors:
+        raise Http404
+    field_names = []
+    for entry in errors:
+        for key in entry["data"].keys():
+            if key not in field_names:
+                field_names.append(key)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="importo-klaidos.csv"'
+    response.write("﻿")
+    writer = csv.writer(response)
+    writer.writerow([str(tr("Eilutė")), str(tr("Klaida"))] + field_names)
+    for entry in errors:
+        writer.writerow([entry["row"], entry["error"]] + [entry["data"].get(name, "") for name in field_names])
+    return response

@@ -1510,3 +1510,57 @@ msgstr "Full backup (ZIP)"
 
 msgid "sukurta %(c)s, atnaujinta %(u)s, praleista %(s)s"
 msgstr "created %(c)s, updated %(u)s, skipped %(s)s"
+
+msgid "Priskirkite stulpelius, pasirinkite, ką daryti su jau esamais įrašais, ir patvirtinkite."
+msgstr "Map the columns, choose what to do with existing records, and confirm."
+
+msgid "Stulpelių priskyrimas"
+msgstr "Column mapping"
+
+msgid "— nenaudoti"
+msgstr "— skip"
+
+msgid "Kai įrašas jau egzistuoja (pagal el. paštą arba vardą ir pavardę)"
+msgstr "When a record already exists (by e-mail or first and last name)"
+
+msgid "Atnaujinti esamą įrašą"
+msgstr "Update the existing record"
+
+msgid "Praleisti (nieko nekeisti)"
+msgstr "Skip (leave it unchanged)"
+
+msgid "Visada kurti naują įrašą"
+msgstr "Always create a new record"
+
+msgid "Eilučių su klaidomis:"
+msgstr "Rows with errors:"
+
+msgid "Klaidos:"
+msgstr "Errors:"
+
+msgid "Atsisiųsti klaidų CSV"
+msgstr "Download error CSV"
+
+msgid "Eilutė"
+msgstr "Row"
+
+msgid "Klaida"
+msgstr "Error"
+
+msgid "Viršytas leistinas žymų arba kategorijų skaičius (daugiausia 3)"
+msgstr "The tag or category limit was exceeded (3 maximum)"
+
+msgid "Nepavyko importuoti. Patikrinkite stulpelius ir failo formatą."
+msgstr "Import failed. Check the columns and the file format."
+
+msgid "sukurta %(c)s, atnaujinta %(u)s, praleista %(s)s, klaidų %(e)s"
+msgstr "created %(c)s, updated %(u)s, skipped %(s)s, errors %(e)s"
+
+msgid ""
+"Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, "
+"Adresai, URL, Būsena, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius "
+"priskirsite kitame žingsnyje."
+msgstr ""
+"Recognised columns: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, "
+"URL, Būsena, Tagai, Kategorijos, Atsakingas. You can map the rest in the next "
+"step."
