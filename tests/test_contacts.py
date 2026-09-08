@@ -408,6 +408,8 @@ class ContactViewTests(TestCase):
         self.assertContains(response, 'class="record-detail-actions"')
         response = self.client.get(reverse("contacts:person-create"))
         self.assertContains(response, 'class="form-actions"')
+        self.assertContains(response, "js/forms.js")
+        self.assertContains(response, 'class="data-form"')
 
     def test_companies_search_related_contact_fields_and_ignore_removed_contacts_filter(self):
         self.client.force_login(self.user)
