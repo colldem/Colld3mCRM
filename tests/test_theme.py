@@ -59,3 +59,11 @@ class ThemeTests(TestCase):
     def test_crm_timeline_disables_conflicting_adminlte_line(self):
         css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
         self.assertIn(".timeline::before{display:none}", css)
+
+    def test_native_form_controls_are_normalised_across_browsers(self):
+        css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        # A shared chevron and appearance reset so <select> looks the same in Safari/Firefox/Chrome.
+        self.assertIn("select{-webkit-appearance:none;-moz-appearance:none;appearance:none;", css)
+        self.assertIn("background-image:url(\"data:image/svg+xml", css)
+        # Checkboxes/radios follow the CRM navy instead of each browser's system accent.
+        self.assertIn("accent-color:var(--navy-950)", css)
