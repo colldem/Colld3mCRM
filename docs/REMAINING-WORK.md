@@ -30,6 +30,10 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **C4** — dinaminiai laukai: Nustatymai → Dinaminiai laukai (tekstas/ilgas tekstas/
   žymimasis/vienas/keli pasirinkimai; kontaktams, įmonėms ar abiem); rodomi ir
   redaguojami (double-click) kortelėje, sąrašo stulpeliuose, filtruose ir paieškoje
+- 🟡 **C6** — dalys 1–2: `owner` (atsakingas naudotojas) prie kontakto/įmonės
+  (numatytai kūrėjas, keičiamas kortelėje); Nustatymai → Naudotojai (kūrimas,
+  rolės, išjungimas, slaptažodžio atstatymas). Liko: matomumo filtravimas (3 dalis),
+  „owner" stulpelis/filtras/masinis priskyrimas (4 dalis).
 
 ---
 
@@ -134,7 +138,7 @@ Reikalauta „pradėti rinkti iš karto". Nėra: kas/kada/kurį lauką keitė, s
 reikšmė, prisijungimų istorija, importo/eksporto operacijų žurnalas, failų įkėlimai.
 Yra tik `created_at`/`updated_at`/`created_by`.
 
-### C6. Naudotojai, rolės, teisės ir atsakingas naudotojas — ❌
+### C6. Naudotojai, rolės, teisės ir atsakingas naudotojas — 🟡 dalys 1–2 padarytos
 Dabar 1 superuser. Reikia pilno modulio. Pagrindas — konkurentų praktika
 (Pipedrive „permission sets" + „visibility groups", HubSpot „users & teams" +
 record owner, Teamgate rolės + savininkas, Salesforce owner + org-wide defaults).
