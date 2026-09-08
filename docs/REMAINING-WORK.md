@@ -30,13 +30,15 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **C4** — dinaminiai laukai: Nustatymai → Dinaminiai laukai (tekstas/ilgas tekstas/
   žymimasis/vienas/keli pasirinkimai; kontaktams, įmonėms ar abiem); rodomi ir
   redaguojami (double-click) kortelėje, sąrašo stulpeliuose, filtruose ir paieškoje
-- 🟡 **C6** — dalys 1–3: `owner` (atsakingas naudotojas) prie kontakto/įmonės
+- ✅ **C6** — visos 4 dalys: `owner` (atsakingas naudotojas) prie kontakto/įmonės
   (numatytai kūrėjas, keičiamas kortelėje); Nustatymai → Naudotojai (kūrimas,
   rolės, išjungimas, slaptažodžio atstatymas); **matomumo filtravimas** — rolė
   „Naudotojas (tik savi įrašai)" mato tik savo ir dar nepriskirtus įrašus
   (sąrašai, kortelės, paieška, eksportas, archyvas, priminimai, dublikatai,
-  inline redagavimas, priedai). Liko: „owner" stulpelis/filtras/masinis
-  priskyrimas ir CSV stulpelis (4 dalis).
+  inline redagavimas, priedai); **„Atsakingas" stulpelis** (rikiuojamas),
+  filtras (bet kuris / nepriskirta / naudotojas), masinis priskyrimas
+  pažymėtiems (adminui ir pilnam naudotojui), „Atsakingas" stulpelis CSV
+  eksporte ir importe (pagal prisijungimo vardą, el. paštą arba vardą-pavardę).
 
 ---
 
@@ -162,7 +164,10 @@ Yra tik `created_at`/`updated_at`/`created_by`.
 - Filtravimas: pagal naudotoją, pagal veiksmą (action), pagal datų intervalą (nuo–iki).
   Puslapiavimas. Tik skaitymas, įrašai netrinami.
 
-### C6. Naudotojai, rolės, teisės ir atsakingas naudotojas — 🟡 dalys 1–3 padarytos
+### C6. Naudotojai, rolės, teisės ir atsakingas naudotojas — ✅ padaryta (4 dalys)
+Sąmoningai vėliau: komandų/skyrių hierarchija, matomumo grupės, įrašo dalijimasis
+konkretiems naudotojams, teisės pagal lauką.
+
 Dabar 1 superuser. Reikia pilno modulio. Pagrindas — konkurentų praktika
 (Pipedrive „permission sets" + „visibility groups", HubSpot „users & teams" +
 record owner, Teamgate rolės + savininkas, Salesforce owner + org-wide defaults).
