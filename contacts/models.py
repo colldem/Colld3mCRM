@@ -179,6 +179,32 @@ class DuplicateSettings(models.Model):
         return super().save(*args, **kwargs)
 
 
+class SystemSettings(models.Model):
+    PAGE_SIZE_CHOICES = ((25, "25"), (50, "50"), (100, "100"))
+    DATE_FORMAT_CHOICES = (
+        ("Y-m-d", "2026-12-31"),
+        ("d.m.Y", "31.12.2026"),
+        ("m/d/Y", "12/31/2026"),
+    )
+
+    default_page_size = models.PositiveSmallIntegerField(default=50, choices=PAGE_SIZE_CHOICES)
+    date_format = models.CharField(max_length=12, default="Y-m-d", choices=DATE_FORMAT_CHOICES)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def datetime_format(self):
+        return f"{self.date_format} H:i"
+
+    @classmethod
+    def load(cls):
+        settings_object, _ = cls.objects.get_or_create(pk=1)
+        return settings_object
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        return super().save(*args, **kwargs)
+
+
 class Person(RecordDetailsModel, TimestampedModel):
     merged_into = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="merged_people")
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="owned_people", db_index=True)

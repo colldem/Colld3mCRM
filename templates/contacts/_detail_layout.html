@@ -81,7 +81,7 @@
         </details>
         {% endif %}
         <div class="reminder-list">
-          {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:"Y-m-d H:i" }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span><form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form></div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
+          {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:datetime_format }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span><form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form></div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
         </div>
       </div>
 
@@ -94,7 +94,7 @@
           <div><button class="btn primary" type="submit">{% translate 'Įkelti' %}</button></div>
         </form>
         <ul class="file-list">
-          {% for attachment in attachment_entries %}<li><a href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a><small>{{ attachment.created_at|date:"Y-m-d H:i" }}</small></li>{% empty %}<li class="muted">{% translate 'Failų nėra.' %}</li>{% endfor %}
+          {% for attachment in attachment_entries %}<li><a href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a><small>{{ attachment.created_at|date:datetime_format }}</small></li>{% empty %}<li class="muted">{% translate 'Failų nėra.' %}</li>{% endfor %}
         </ul>
       </div>
     </section>
@@ -134,10 +134,10 @@
     <section class="aside-card">
       <h3>{% translate 'Papildoma informacija' %}</h3>
       <dl class="aside-meta">
-        <dt>{% translate 'Paskutinis kontaktas' %}</dt><dd>{% if last_activity %}{{ last_activity.created_at|date:"Y-m-d" }}{% else %}–{% endif %}</dd>
-        <dt>{% translate 'Sekantis kontaktas' %}</dt><dd>{% if next_reminder %}{{ next_reminder.due_at|date:"Y-m-d H:i" }}{% else %}–{% endif %}</dd>
-        <dt>{% translate 'Sukūrimo data' %}</dt><dd>{{ record.created_at|date:"Y-m-d" }}</dd>
-        <dt>{% translate 'Paskutinį kartą atnaujinta' %}</dt><dd>{{ record.updated_at|date:"Y-m-d" }}</dd>
+        <dt>{% translate 'Paskutinis kontaktas' %}</dt><dd>{% if last_activity %}{{ last_activity.created_at|date:date_format }}{% else %}–{% endif %}</dd>
+        <dt>{% translate 'Sekantis kontaktas' %}</dt><dd>{% if next_reminder %}{{ next_reminder.due_at|date:datetime_format }}{% else %}–{% endif %}</dd>
+        <dt>{% translate 'Sukūrimo data' %}</dt><dd>{{ record.created_at|date:date_format }}</dd>
+        <dt>{% translate 'Paskutinį kartą atnaujinta' %}</dt><dd>{{ record.updated_at|date:date_format }}</dd>
         <dt>{% translate 'Sukūrė' %}</dt><dd>{{ created_by_label|default:"–" }}</dd>
         <dt>{% translate 'Atnaujino' %}</dt><dd>{{ updated_by_label|default:"–" }}</dd>
       </dl>

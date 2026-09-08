@@ -1,0 +1,13 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div><h2>{% translate 'Sistema' %}</h2><p>{% translate 'Bendri sąrašų ir datų rodymo nustatymai.' %}</p></div>
+</div>
+<form method="post" class="profile-form">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <label class="duplicate-level-field"><strong>{{ form.default_page_size.label }}</strong>{{ form.default_page_size.errors }}{{ form.default_page_size }}<small>{% translate 'Naudojamas, kai naudotojas sąraše nepasirenka kito.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.date_format.label }}</strong>{{ form.date_format.errors }}{{ form.date_format }}<small>{% translate 'Kaip rodomos datos visoje sąsajoje.' %}</small></label>
+  <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
+</form>
+{% endblock %}

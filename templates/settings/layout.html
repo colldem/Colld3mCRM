@@ -13,6 +13,7 @@
     {% if is_crm_admin %}<a class="{% if settings_section == 'users' %}active{% endif %}" href="{% url 'contacts:settings-users' %}">{% translate 'Naudotojai' %}</a>{% endif %}
     {% if is_crm_admin %}<a class="{% if settings_section == 'teams' %}active{% endif %}" href="{% url 'contacts:settings-teams' %}">{% translate 'Komandos' %}</a>{% endif %}
     {% if is_crm_admin %}<a class="{% if settings_section == 'permissions' %}active{% endif %}" href="{% url 'contacts:settings-permissions' %}">{% translate 'Rolės ir teisės' %}</a>{% endif %}
+    {% if is_crm_admin %}<a class="{% if settings_section == 'system' %}active{% endif %}" href="{% url 'contacts:settings-system' %}">{% translate 'Sistema' %}</a>{% endif %}
     {% if crm_caps.can_view_audit %}<a class="{% if settings_section == 'audit' %}active{% endif %}" href="{% url 'contacts:settings-audit' %}">{% translate 'Žurnalas' %}</a>{% endif %}
     {% if request.user.is_staff %}<a class="{% if settings_section == 'data-export' %}active{% endif %}" href="{% url 'contacts:settings-data-export' %}">{% translate 'Duomenų eksportas' %}</a>{% endif %}
     <a class="{% if settings_section == 'documentation' %}active{% endif %}" href="{% url 'contacts:settings-documentation' %}">{% translate 'Dokumentacija' %}</a>

@@ -1830,3 +1830,30 @@ msgstr "deleted"
 
 msgid "Pašalinti visam laikui? Bus nuimta nuo visų susijusių įrašų."
 msgstr "Delete permanently? It will be removed from all related records."
+
+msgid "Sistema"
+msgstr "System"
+
+msgid "Sistemos nustatymai"
+msgstr "System settings"
+
+msgid "Sistemos nustatymai išsaugoti."
+msgstr "System settings saved."
+
+msgid "Bendri sąrašų ir datų rodymo nustatymai."
+msgstr "Shared list and date display settings."
+
+msgid "Numatytas eilučių skaičius sąrašuose"
+msgstr "Default rows per list"
+
+msgid "Datos formatas"
+msgstr "Date format"
+
+msgid "Naudojamas, kai naudotojas sąraše nepasirenka kito."
+msgstr "Used when a viewer has not picked another value in the list."
+
+msgid "Kaip rodomos datos visoje sąsajoje."
+msgstr "How dates are shown across the interface."
+
+msgid "25 eilutės"
+msgstr "25 rows"

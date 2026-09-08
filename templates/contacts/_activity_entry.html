@@ -1,7 +1,7 @@
 {% load i18n crm_format %}
 <article class="timeline-entry">
   <strong>{{ activity.get_activity_type_display }}</strong>
-  <small>{{ activity.created_at|date:"Y-m-d H:i" }} · {{ activity.created_by|user_display_name }}{% if activity.person_id and not activity.company_id and is_company %} · <a href="{{ activity.person.get_absolute_url }}">{{ activity.person }}</a>{% endif %}</small>
+  <small>{{ activity.created_at|date:datetime_format }} · {{ activity.created_by|user_display_name }}{% if activity.person_id and not activity.company_id and is_company %} · <a href="{{ activity.person.get_absolute_url }}">{{ activity.person }}</a>{% endif %}</small>
   <p>{{ activity.text|rich_text }}</p>
   {% if activity.company_id %}<a class="record-edit" href="{% url 'contacts:company-activity-edit' activity.company_id activity.pk %}">{% translate 'Redaguoti' %}</a>
   {% elif activity.person_id and not activity.person.deleted_at %}<a class="record-edit" href="{% url 'contacts:activity-edit' activity.person_id activity.pk %}">{% translate 'Redaguoti' %}</a>{% endif %}

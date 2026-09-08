@@ -16,7 +16,7 @@
   <tbody>
   {% for entry in page %}
     <tr>
-      <td>{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+      <td>{{ entry.created_at|date:datetime_format }}</td>
       <td>{{ entry.actor_label|default:"—" }}{% if entry.ip %}<small>{{ entry.ip }}</small>{% endif %}</td>
       <td>{{ entry.get_action_display }}</td>
       <td>{% if entry.target_label %}{{ entry.target_label }}{% else %}—{% endif %}{% if entry.target_type %}<small>{{ entry.target_type }}</small>{% endif %}</td>

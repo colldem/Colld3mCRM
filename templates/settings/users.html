@@ -19,7 +19,7 @@
   {% for row in rows %}
     <li>
       <div class="user-row">
-        <div class="user-row-info"><strong>{{ row.name }}</strong> <small>{{ row.user.username }}{% if row.user.email %} · {{ row.user.email }}{% endif %}</small><small>{% if row.user.last_login %}{% translate 'Paskutinis prisijungimas:' %} {{ row.user.last_login|date:"Y-m-d H:i" }}{% else %}{% translate 'Dar neprisijungė' %}{% endif %}{% if not row.user.is_active %} · <b>{% translate 'Išjungtas' %}</b>{% endif %}</small></div>
+        <div class="user-row-info"><strong>{{ row.name }}</strong> <small>{{ row.user.username }}{% if row.user.email %} · {{ row.user.email }}{% endif %}</small><small>{% if row.user.last_login %}{% translate 'Paskutinis prisijungimas:' %} {{ row.user.last_login|date:datetime_format }}{% else %}{% translate 'Dar neprisijungė' %}{% endif %}{% if not row.user.is_active %} · <b>{% translate 'Išjungtas' %}</b>{% endif %}</small></div>
         <form method="post" class="user-row-actions">{% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="user_id" value="{{ row.user.pk }}">
           <select name="role"{% if row.protected %} disabled{% endif %}>{% for value, label in role_choices %}<option value="{{ value }}"{% if value == row.role %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
           <select name="record_visibility" aria-label="{% translate 'Matomumas' %}"{% if row.protected %} disabled{% endif %}>{% for value, label in visibility_choices %}<option value="{{ value }}"{% if value == row.visibility %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>

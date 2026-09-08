@@ -1145,6 +1145,26 @@ class ContactViewTests(TestCase):
         self.assertFalse(duplicate_settings.enabled)
         self.assertEqual(duplicate_settings.level, "strict")
 
+    def test_system_settings_control_page_size_and_date_format(self):
+        from contacts.models import SystemSettings
+
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("contacts:settings-system")).status_code, 404)
+        self.user.is_superuser = True
+        self.user.save()
+        response = self.client.post(reverse("contacts:settings-system"), {
+            "default_page_size": "25",
+            "date_format": "d.m.Y",
+        })
+        self.assertRedirects(response, reverse("contacts:settings-system"))
+        system = SystemSettings.load()
+        self.assertEqual((system.default_page_size, system.date_format), (25, "d.m.Y"))
+        self.assertEqual(self.client.get(reverse("contacts:list")).context["page"].paginator.per_page, 25)
+        self.assertEqual(
+            self.client.get(reverse("contacts:list"), {"page_size": "100"}).context["page"].paginator.per_page, 100)
+        detail = self.client.get(self.person.get_absolute_url())
+        self.assertContains(detail, self.person.created_at.strftime("%d.%m.%Y"))
+
     def test_company_duplicate_warning_and_review(self):
         self.client.force_login(self.user)
         self.company.company_code = "123456789"

@@ -29,14 +29,14 @@
   {% if results.activities_count %}
   <section class="search-group">
     <h2>{% translate 'Veiklos' %} <span>{{ results.activities_count }}</span></h2>
-    <div class="search-list">{% for activity in results.activities %}<a href="{% if activity.person %}{{ activity.person.get_absolute_url }}{% elif activity.company %}{{ activity.company.get_absolute_url }}{% else %}#{% endif %}"><strong>{{ activity.get_activity_type_display }}</strong> {{ activity.text|truncatechars:100 }}<small>{{ activity.created_at|date:"Y-m-d" }} · {{ activity.person|default:activity.company }}</small></a>{% endfor %}</div>
+    <div class="search-list">{% for activity in results.activities %}<a href="{% if activity.person %}{{ activity.person.get_absolute_url }}{% elif activity.company %}{{ activity.company.get_absolute_url }}{% else %}#{% endif %}"><strong>{{ activity.get_activity_type_display }}</strong> {{ activity.text|truncatechars:100 }}<small>{{ activity.created_at|date:date_format }} · {{ activity.person|default:activity.company }}</small></a>{% endfor %}</div>
   </section>
   {% endif %}
 
   {% if results.reminders_count %}
   <section class="search-group">
     <h2>{% translate 'Priminimai' %} <span>{{ results.reminders_count }}</span></h2>
-    <div class="search-list">{% for reminder in results.reminders %}<a href="{{ reminder.person.get_absolute_url }}"><strong>{{ reminder.text|truncatechars:100 }}</strong><small>{{ reminder.due_at|date:"Y-m-d H:i" }} · {{ reminder.person }}</small></a>{% endfor %}</div>
+    <div class="search-list">{% for reminder in results.reminders %}<a href="{{ reminder.person.get_absolute_url }}"><strong>{{ reminder.text|truncatechars:100 }}</strong><small>{{ reminder.due_at|date:datetime_format }} · {{ reminder.person }}</small></a>{% endfor %}</div>
   </section>
   {% endif %}
 {% endif %}

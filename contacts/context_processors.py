@@ -1,7 +1,7 @@
 from django.utils import timezone
 
 from .reminder_queries import pending_reminders
-from .models import UserProfile
+from .models import SystemSettings, UserProfile
 
 
 def reminder_count(request):
@@ -18,6 +18,11 @@ def user_profile(request):
     if not request.user.is_authenticated:
         return {"crm_user_profile": None}
     return {"crm_user_profile": UserProfile.objects.filter(user=request.user).first()}
+
+
+def system_settings(request):
+    system = SystemSettings.load()
+    return {"date_format": system.date_format, "datetime_format": system.datetime_format}
 
 
 def crm_permissions(request):

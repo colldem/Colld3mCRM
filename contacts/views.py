@@ -31,7 +31,7 @@ from .filters import (
     filter_chips,
     saved_filter_payload,
 )
-from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, Team, UserProfile, WebLink
+from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, SystemSettings, Tag, Team, UserProfile, WebLink
 from .permissions import visible_companies, visible_people, visible_reminders
 from .audit import log as audit_log
 
@@ -75,6 +75,14 @@ def _can_assign_owner(user):
     from .permissions import has_capability
 
     return has_capability(user, "can_reassign_owner")
+
+
+def _list_page_size(request):
+    """Rows per list page: an explicit ?page_size wins, else the system default."""
+    raw = request.GET.get("page_size")
+    if raw in {"25", "50", "100"}:
+        return int(raw)
+    return SystemSettings.load().default_page_size
 
 
 def _require_capability(request, capability):
@@ -242,7 +250,7 @@ def contact_list(request):
         return redirect(redirect_to)
     filter_values = contact_filter_values(request.GET)
     query = filter_values["q"]
-    page_size = 100 if request.GET.get("page_size") == "100" else 50
+    page_size = _list_page_size(request)
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
     sort_map = {"id": ["id"], "name": ["last_name", "first_name"], "company": ["sort_company"], "phone": ["sort_phone"], "email": ["sort_email"], "category": ["sort_category"], "tags": ["sort_tag"], "owner": ["owner__first_name", "owner__last_name", "owner__username"], "last_contact": ["last_contact_at"], "created": ["created_at"], "updated": ["updated_at"]}
@@ -1003,6 +1011,26 @@ def settings_duplicates(request):
 
 
 @login_required
+def settings_system(request):
+    from .forms import SystemSettingsForm
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    system = SystemSettings.load()
+    form = SystemSettingsForm(request.POST or None, instance=system)
+    if request.method == "POST" and form.is_valid():
+        changed = list(form.changed_data)
+        form.save()
+        if changed:
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=str(tr("Sistemos nustatymai")), new=", ".join(changed))
+        messages.success(request, tr("Sistemos nustatymai išsaugoti."))
+        return redirect("contacts:settings-system")
+    return render(request, "settings/system.html", {"form": form, "settings_section": "system"})
+
+
+@login_required
 def documentation_page(request):
     topics = (
         ("overview", tr("Pradžia")),
@@ -1325,7 +1353,7 @@ def company_list(request):
     companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).select_related("owner").prefetch_related("people", "tags", "categories")
     filter_values = company_filter_values(request.GET)
     query = filter_values["q"]
-    page_size = 100 if request.GET.get("page_size") == "100" else 50
+    page_size = _list_page_size(request)
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
     companies = apply_company_filters(companies, filter_values, request.user)

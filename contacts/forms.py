@@ -4,7 +4,7 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
-from .models import Activity, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, Tag, UserProfile, WebLink
+from .models import Activity, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
 
 
 class UserProfileForm(forms.Form):
@@ -62,6 +62,16 @@ class DuplicateSettingsForm(forms.ModelForm):
             "check_on_import": tr("Tikrinti importuojant"),
         }
         widgets = {"level": forms.Select(attrs={"class": "duplicate-level-select"})}
+
+
+class SystemSettingsForm(forms.ModelForm):
+    class Meta:
+        model = SystemSettings
+        fields = ["default_page_size", "date_format"]
+        labels = {
+            "default_page_size": tr("Numatytas eilučių skaičius sąrašuose"),
+            "date_format": tr("Datos formatas"),
+        }
 
 
 class PersonForm(forms.ModelForm):
