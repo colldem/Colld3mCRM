@@ -1801,7 +1801,7 @@ class ContactViewTests(TestCase):
     def test_owner_is_shown_and_editable_inline_on_the_contact_card(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
-        self.assertContains(response, "Atsakingas")
+        self.assertContains(response, "Atsakingi")
         other = get_user_model().objects.create_user("kolege", password="very-secure-password")
         self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {"field": "owner", "value": other.pk})
         self.person.refresh_from_db()
@@ -1809,6 +1809,36 @@ class ContactViewTests(TestCase):
         self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {"field": "owner", "value": ""})
         self.person.refresh_from_db()
         self.assertIsNone(self.person.owner)
+
+    def test_responsibles_field_sets_primary_and_extra_users(self):
+        self.client.force_login(self.user)
+        a = get_user_model().objects.create_user("aa", password="very-secure-password")
+        b = get_user_model().objects.create_user("bb", password="very-secure-password")
+        self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {
+            "field": "responsibles", "responsible": [a.pk, b.pk], "primary": str(a.pk),
+        })
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.owner, a)
+        self.assertEqual(set(self.person.responsibles.all()), {b})
+        # clearing the primary keeps both as extra responsibles
+        self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {
+            "field": "responsibles", "responsible": [a.pk, b.pk], "primary": "",
+        })
+        self.person.refresh_from_db()
+        self.assertIsNone(self.person.owner)
+        self.assertEqual(set(self.person.responsibles.all()), {a, b})
+
+    def test_extra_responsible_user_can_see_the_record(self):
+        from contacts.models import UserProfile
+        restricted = get_user_model().objects.create_user("ribotas2", password="very-secure-password")
+        UserProfile.objects.create(user=restricted, role=UserProfile.ROLE_RESTRICTED)
+        owned_by_other = Person.objects.create(first_name="Kito", last_name="Klientas",
+                                               owner=get_user_model().objects.create_user("sav", password="very-secure-password"))
+        self.client.force_login(restricted)
+        self.assertEqual(self.client.get(reverse("contacts:detail", args=[owned_by_other.pk])).status_code, 404)
+        owned_by_other.responsibles.add(restricted)
+        self.assertEqual(self.client.get(reverse("contacts:detail", args=[owned_by_other.pk])).status_code, 200)
+        self.assertIn(owned_by_other.pk, [p.pk for p in self.client.get(reverse("contacts:list")).context["page"]])
 
     def test_company_owner_can_be_assigned_inline(self):
         self.client.force_login(self.user)

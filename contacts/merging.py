@@ -18,6 +18,22 @@ def _merge_labels(source, target):
         getattr(target, relation_name).add(*(combined - target_ids))
 
 
+def _merge_responsibles(source, target):
+    """Keep the target's primary owner; fold in the source's people as extra responsibles."""
+    fields = []
+    if not target.owner_id and source.owner_id:
+        target.owner_id = source.owner_id
+        fields.append("owner")
+    if fields:
+        target.save(update_fields=[*fields, "updated_at"])
+    extra = set(source.responsibles.values_list("pk", flat=True))
+    if source.owner_id:
+        extra.add(source.owner_id)
+    extra.discard(target.owner_id)
+    if extra:
+        target.responsibles.add(*extra)
+
+
 def _move_unique_children(source, target, relation_name, value_field, normalize):
     source_relation = getattr(source, relation_name)
     target_relation = getattr(target, relation_name)
@@ -90,6 +106,7 @@ def merge_people(source_pk, target_pk):
         raise ValidationError(_("Sujungti galima tik du aktyvius įrašus."))
 
     _merge_labels(source, target)
+    _merge_responsibles(source, target)
     changed_fields = []
     for field in ("first_name", "last_name", "job_title", "status"):
         if not getattr(target, field) and getattr(source, field):
@@ -130,6 +147,7 @@ def merge_companies(source_pk, target_pk):
         raise ValidationError(_("Sujungti galima tik dvi aktyvias įmones."))
 
     _merge_labels(source, target)
+    _merge_responsibles(source, target)
     changed_fields = []
     for field in ("name", "company_code", "vat_code", "address", "phone", "email", "url"):
         if not getattr(target, field) and getattr(source, field):

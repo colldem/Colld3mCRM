@@ -93,6 +93,12 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .cf-check{display:flex!important;align-items:center;gap:8px;font-weight:400}
 .cf-multi{display:grid;gap:6px}
 .cf-multi label{display:flex;align-items:center;gap:8px;font-weight:400}
+.responsible-editor{border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:0 0 8px}
+.responsible-editor legend{font-weight:600;padding:0 4px}
+.responsible-options{display:grid;gap:4px;max-height:220px;overflow:auto}
+.responsible-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.responsible-row label{display:flex;align-items:center;gap:8px;font-weight:400;margin:0}
+.responsible-primary{font-size:.85em;color:var(--muted)}
 .settings-list .user-row{display:grid;gap:10px}
 .user-row-info small{display:block;color:var(--muted);font-weight:400}
 .user-row-actions,.user-row-reset{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0}

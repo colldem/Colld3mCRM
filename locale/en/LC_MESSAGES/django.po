@@ -1564,3 +1564,21 @@ msgstr ""
 "Recognised columns: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, "
 "URL, Būsena, Tagai, Kategorijos, Atsakingas. You can map the rest in the next "
 "step."
+
+msgid "Atsakingi"
+msgstr "Responsible"
+
+msgid "pagrindinis"
+msgstr "primary"
+
+msgid "be pagrindinio"
+msgstr "no primary"
+
+msgid "Naudotojų dar nėra."
+msgstr "No users yet."
+
+msgid "Atsakingas (pagrindinis)"
+msgstr "Owner (primary)"
+
+msgid "Atsakingi (papildomi)"
+msgstr "Responsible (additional)"

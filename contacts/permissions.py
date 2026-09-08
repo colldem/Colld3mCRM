@@ -21,11 +21,25 @@ def sees_all_records(user):
     return role_of(user) in (UserProfile.ROLE_ADMIN, UserProfile.ROLE_MEMBER)
 
 
+def responsible_person_ids(user):
+    """Person ids where `user` is listed among the additional responsibles."""
+    from .models import Person
+
+    return Person.responsibles.through.objects.filter(user_id=user.pk).values_list("person_id", flat=True)
+
+
+def responsible_company_ids(user):
+    from .models import Company
+
+    return Company.responsibles.through.objects.filter(user_id=user.pk).values_list("company_id", flat=True)
+
+
 def visible_people(user, queryset=None):
     """Restrict a Person queryset to what `user` may see.
 
     Admins and regular members see everything. Restricted members see only the
-    records they own plus records with no owner yet.
+    records where they are the owner or an additional responsible, plus records
+    with no owner yet.
     """
     from .models import Person
 
@@ -35,7 +49,7 @@ def visible_people(user, queryset=None):
         return queryset
     from django.db.models import Q
 
-    return queryset.filter(Q(owner=user) | Q(owner__isnull=True))
+    return queryset.filter(Q(owner=user) | Q(pk__in=responsible_person_ids(user)) | Q(owner__isnull=True))
 
 
 def visible_companies(user, queryset=None):
@@ -48,7 +62,7 @@ def visible_companies(user, queryset=None):
         return queryset
     from django.db.models import Q
 
-    return queryset.filter(Q(owner=user) | Q(owner__isnull=True))
+    return queryset.filter(Q(owner=user) | Q(pk__in=responsible_company_ids(user)) | Q(owner__isnull=True))
 
 
 def visible_reminders(user, queryset=None):
@@ -61,7 +75,7 @@ def visible_reminders(user, queryset=None):
         return queryset
     from django.db.models import Q
 
-    return queryset.filter(Q(person__owner=user) | Q(person__owner__isnull=True))
+    return queryset.filter(Q(person__owner=user) | Q(person__pk__in=responsible_person_ids(user)) | Q(person__owner__isnull=True))
 
 
 def user_label(user):
@@ -79,11 +93,13 @@ def assignable_users():
 
 
 def can_see_person(user, person):
-    return sees_all_records(user) or person.owner_id in (None, user.pk)
+    return (sees_all_records(user) or person.owner_id in (None, user.pk)
+            or person.responsibles.filter(pk=user.pk).exists())
 
 
 def can_see_company(user, company):
-    return sees_all_records(user) or company.owner_id in (None, user.pk)
+    return (sees_all_records(user) or company.owner_id in (None, user.pk)
+            or company.responsibles.filter(pk=user.pk).exists())
 
 
 def active_admin_ids():

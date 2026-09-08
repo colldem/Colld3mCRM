@@ -81,7 +81,7 @@ def company_field_context(company, field):
 def company_detail_fields(company):
     from .custom_fields import detail_context
 
-    return [company_field_context(company, field) for field in CompanyForm.Meta.fields] + [owner_field_context(company)] + detail_context(company)
+    return [company_field_context(company, field) for field in CompanyForm.Meta.fields] + [responsibles_field_context(company)] + detail_context(company)
 
 
 def title_html(record, request):
@@ -100,12 +100,54 @@ def owner_field_context(record):
     return context
 
 
+def responsibles_field_context(record):
+    """Unified 'Atsakingi' card field: the primary (owner) plus extra responsibles."""
+    users = list(get_user_model().objects.filter(is_active=True).order_by("first_name", "last_name", "username"))
+    extra_ids = set(record.responsibles.values_list("id", flat=True))
+    selected = extra_ids | ({record.owner_id} if record.owner_id else set())
+    entries = []
+    if record.owner_id:
+        entries.append({"text": "%s · %s" % (_user_label(record.owner), _("pagrindinis"))})
+    for user in users:
+        if user.pk in extra_ids and user.pk != record.owner_id:
+            entries.append({"text": _user_label(user)})
+    context = {
+        "field": "responsibles", "label": _("Atsakingi"), "responsibles": True,
+        "has_primary": bool(record.owner_id),
+        "users": [{"pk": user.pk, "label": _user_label(user),
+                   "selected": user.pk in selected, "primary": user.pk == record.owner_id} for user in users],
+        "entries": entries,
+    }
+    context["person" if isinstance(record, Person) else "company"] = record
+    return context
+
+
 def set_owner(record, request_post):
     user_id = request_post.get("value") or None
     new_owner = get_user_model().objects.filter(pk=user_id, is_active=True).first() if user_id else None
     if record.owner_id != (new_owner.pk if new_owner else None):
         record.owner = new_owner
         record.save(update_fields=["owner", "updated_at"])
+
+
+def set_responsibles(record, request_post):
+    """Apply the 'Atsakingi' editor: `primary` -> owner, the rest -> responsibles."""
+    ids = [int(value) for value in request_post.getlist("responsible") if str(value).isdigit()]
+    valid = {user.pk for user in get_user_model().objects.filter(pk__in=ids, is_active=True)}
+    primary_raw = request_post.get("primary")
+    if primary_raw is None:
+        # `primary` field absent entirely: keep the current owner if still selected.
+        primary_id = record.owner_id if record.owner_id in valid else (sorted(valid)[0] if valid else None)
+    elif primary_raw.isdigit() and int(primary_raw) in valid:
+        primary_id = int(primary_raw)
+    else:
+        primary_id = None
+    record.responsibles.set(sorted(valid - {primary_id}))
+    if record.owner_id != primary_id:
+        record.owner_id = primary_id
+        record.save(update_fields=["owner", "updated_at"])
+    else:
+        record.save(update_fields=["updated_at"])
 
 
 @login_required
@@ -119,6 +161,11 @@ def edit_company_field(request, pk):
         set_owner(company, request.POST)
         _audit_field_changes(request, company, before)
         html = render_to_string("contacts/detail_field.html", {"item": owner_field_context(company)}, request=request)
+        return JsonResponse({"ok": True, "name": company.name, "html": html})
+    if field == "responsibles":
+        set_responsibles(company, request.POST)
+        _audit_field_changes(request, company, before)
+        html = render_to_string("contacts/detail_field.html", {"item": responsibles_field_context(company)}, request=request)
         return JsonResponse({"ok": True, "name": company.name, "html": html})
     if field.startswith("cf_"):
         from .custom_fields import clean_and_store, field_by_key, single_context
@@ -154,7 +201,8 @@ def edit_company_field(request, pk):
 
 
 SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"), "job_title": _("Pareigos"), "status": _("Būsena")}
-_AUDIT_LABELS = {**SCALARS, "companies": _("Įmonės"), "owner": _("Atsakingas"), "full_name": _("Vardas ir pavardė")}
+_AUDIT_LABELS = {**SCALARS, "companies": _("Įmonės"), "owner": _("Atsakingas"),
+                 "responsibles": _("Atsakingi"), "full_name": _("Vardas ir pavardė")}
 
 
 def _audit_snapshot(record):
@@ -168,6 +216,7 @@ def _audit_snapshot(record):
             data[name] = ", ".join(getattr(record, name).values_list(spec[1], flat=True))
         data["companies"] = ", ".join(record.company_links.values_list("company__name", flat=True))
     data["owner"] = _user_label(record.owner) if record.owner_id else ""
+    data["responsibles"] = ", ".join(sorted(_user_label(u) for u in record.responsibles.all()))
     for value in record.custom_values.select_related("field").all():
         data[value.field.key] = value.value
         _AUDIT_LABELS.setdefault(value.field.key, value.field.name)
@@ -193,6 +242,8 @@ MULTIPLE = {
 def field_context(person, field):
     if field == "owner":
         return owner_field_context(person)
+    if field == "responsibles":
+        return responsibles_field_context(person)
     if field.startswith("cf_"):
         from .custom_fields import single_context
 
@@ -223,7 +274,7 @@ def field_context(person, field):
 def detail_fields(person):
     from .custom_fields import detail_context
 
-    return [field_context(person, field) for field in ["companies", "owner", *SCALARS, *MULTIPLE]] + detail_context(person)
+    return [field_context(person, field) for field in ["companies", "responsibles", *SCALARS, *MULTIPLE]] + detail_context(person)
 
 
 @login_required
@@ -316,6 +367,8 @@ def edit_contact_field(request, pk):
                 person.save(update_fields=["updated_at"])
         elif field == "owner":
             set_owner(person, request.POST)
+        elif field == "responsibles":
+            set_responsibles(person, request.POST)
         elif field.startswith("cf_"):
             from .custom_fields import clean_and_store, field_by_key
 

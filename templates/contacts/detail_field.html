@@ -15,6 +15,18 @@
     {% elif item.owner %}
       <label for="field-owner">{% translate item.label %}</label>
       <select id="field-owner" name="value"><option value="">{% translate 'Nepriskirta' %}</option>{% for user in item.users %}<option value="{{ user.pk }}"{% if user.selected %} selected{% endif %}>{{ user.label }}</option>{% endfor %}</select>
+    {% elif item.responsibles %}
+      <fieldset class="responsible-editor"><legend>{% translate 'Atsakingi' %}</legend>
+        <div class="responsible-options">
+          {% for user in item.users %}
+          <div class="responsible-row">
+            <label><input type="checkbox" name="responsible" value="{{ user.pk }}"{% if user.selected %} checked{% endif %}> {{ user.label }}</label>
+            <label class="responsible-primary"><input type="radio" name="primary" value="{{ user.pk }}"{% if user.primary %} checked{% endif %}> {% translate 'pagrindinis' %}</label>
+          </div>
+          {% empty %}<p>{% translate 'Naudotojų dar nėra.' %}</p>{% endfor %}
+        </div>
+        <label class="responsible-primary"><input type="radio" name="primary" value=""{% if not item.has_primary %} checked{% endif %}> {% translate 'be pagrindinio' %}</label>
+      </fieldset>
     {% elif item.custom %}
       <label for="field-{{ item.field }}">{{ item.label }}</label>
       {% if item.custom_type == 'textarea' %}<textarea id="field-{{ item.field }}" name="value" rows="4" maxlength="1000">{{ item.value }}</textarea>

@@ -244,6 +244,71 @@ ir įmonėms, 3 riba, praleistų ataskaita). Trūksta: žymos šalinimo, masinio
 Nustatymai → Duomenų eksportas (tik administratoriui): ZIP su `data.json`
 (`dumpdata` — kontaktai, naudotojai, nustatymai), `media/` ir `README.txt`.
 
+### C10. Komandos, matomumo modelis ir detalios teisės — 🟡 dalis 1 padaryta (spec 2026-09-08)
+**Padaryta (1 dalis):** `Person.responsibles` / `Company.responsibles` M2M; kortelės
+laukas **„Atsakingi"** (double-click: pažymėti kelis, vienam radio „pagrindinis"
+arba „be pagrindinio" → `owner`); „savo įrašai" visur = `owner=user OR responsibles=user`
+(sąrašai, kortelė, paieška, priminimai, priedai); dublikatų sujungimas perkelia
+atsakingus; CSV eksporte/importe stulpelis „Atsakingi" (`;`-atskirti vardai).
+
+C6 išplėtimas. Konkurentų praktika: HubSpot „Teams" + „users & teams" matomumas,
+Pipedrive „visibility groups", Salesforce „role hierarchy + sharing rules".
+
+**1. Keli atsakingi naudotojai (`responsibles`)**
+- `Person` / `Company`: paliekamas `owner` (FK) = **pagrindinis atsakingas**;
+  pridedamas `responsibles` M2M (User) = **papildomi atsakingi**.
+- Kortelėje laukas **„Atsakingi"** — double-click, galima pridėti/šalinti vieną ar
+  kelis sistemos naudotojus. Pagrindinis pažymimas atskirai; „padaryti pagrindiniu".
+- „Savo įrašai" visur = `Q(owner=user) | Q(responsibles=user)`.
+- CSV eksporte/importe: „Atsakingi" stulpelis (`;`-atskirti prisijungimo vardai).
+
+**2. Komandos / grupės (`Team`)**
+- `Team` modelis: `name`, `visibility` (`team` / `all`, numatyta `all`).
+- `TeamMembership` (User↔Team, M2M; naudotojas gali būti keliose).
+- Nustatymai → **Komandos** (tik administratoriui): kurti/pervadinti/šalinti,
+  pridėti/šalinti narius.
+
+**3. Matomumo modelis (queryset lygyje)**
+- `UserProfile.record_visibility`: `own` / `team` / `all` (numatyta `all`).
+- Efektyvus matomumas = **griežtesnis** iš: naudotojo nustatymo IR (jei naudotojas
+  komandoje) komandos `visibility`. Administratorius — visada `all`.
+  - `all` → viskas
+  - `team` → įrašai, kurių `owner` ar `responsibles` yra to paties naudotojo
+    komandos narys (arba jis pats); + nepriskirti
+  - `own` → tik `owner=user | responsibles=user` (+ nepriskirti)
+- Sena rolė „Naudotojas (tik savi įrašai)" = `record_visibility=own`; „Naudotojas
+  (visi)" = `all`. Rolė lieka kaip greitas presetas, bet tikras raktas — `record_visibility`.
+- Veiklos, priminimai, priedai, dublikatai, eksportas — seka tą patį matomumą (kaip C6/3).
+
+**4. Filtrai**
+- „Atsakingas" filtras: greiti mygtukai **„Mano kontaktai" / „Mano įmonės"**
+  (`responsibles=me OR owner=me`), pasirinkimas **bet kurio naudotojo**, ir
+  **„Be atsakingo"** (nei `owner`, nei `responsibles`).
+- Jei pasirinkto naudotojo įrašų matyti negalima (matomumo ribos) — prie
+  „Rezultatų nerasta" rodomas paaiškinimas („Šio naudotojo įrašai jums nematomi").
+- Sąrašo masinis veiksmas **„Priskirti atsakingą"** — priskiria arba pakeičia
+  `owner` / prideda `responsibles` pažymėtiems įrašams (naudinga masiškai
+  perimti „be atsakingo" įrašus).
+
+**5. Detalios teisės (permission sets)**
+- Naudotojo/rolės lygyje jungiami gebėjimai: `can_import`, `can_export`,
+  `can_delete` (archyvuoti/trinti), `can_merge_duplicates`, `can_bulk_edit`,
+  `can_manage_custom_fields`, `can_manage_taxonomy`, `can_reassign_owner`,
+  `can_view_audit`.
+- Nustatymai → **Rolės ir teisės**: matrica rolė × gebėjimas (administratoriui);
+  arba individualūs perrašymai naudotojui.
+- Tikrinama view lygyje (dekoratorius/patikra) + slepiama UI.
+
+Įgyvendinimo dalys (atskiri diegimai, „tęsk" tvarka):
+1. **Keli atsakingi** — `responsibles` M2M, kortelės laukas, „savo" = owner|responsible
+   visur, CSV.
+2. **Komandos** — `Team` + `TeamMembership` + Nustatymai → Komandos.
+3. **Matomumo modelis** — `record_visibility`, komandos `visibility`, `visible_*`
+   perrašymas, „nematoma" paaiškinimas.
+4. **Filtrų politika** — „Mano" greiti mygtukai, bet kurio naudotojo pasirinkimas
+   su matomumo koreliacija, masinis „priskirti atsakingą" (owner + responsibles).
+5. **Detalios teisės** — gebėjimų rinkinys, rolė×teisė matrica, tikrinimas.
+
 ---
 
 ## D. Žemas prioritetas / vėliau

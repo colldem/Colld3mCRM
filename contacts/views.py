@@ -116,12 +116,12 @@ def _search_results(query, per_group, user=None):
         .select_related("person").order_by("due_at")
     )
     if user is not None:
-        from .permissions import sees_all_records
+        from .permissions import responsible_company_ids, responsible_person_ids, sees_all_records
 
         if not sees_all_records(user):
             activities = activities.filter(
-                Q(person__owner=user) | Q(person__owner__isnull=True)
-                | Q(company__owner=user) | Q(company__owner__isnull=True)
+                Q(person__owner=user) | Q(person__pk__in=responsible_person_ids(user)) | Q(person__owner__isnull=True)
+                | Q(company__owner=user) | Q(company__pk__in=responsible_company_ids(user)) | Q(company__owner__isnull=True)
             )
     return {
         "q": query,
@@ -907,7 +907,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 @login_required
 def contact_detail(request, pk):
     from .detail_editing import detail_fields
-    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field")), pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
     return render(request, "contacts/detail.html", {
@@ -1109,12 +1109,12 @@ def attachment_download(request, pk):
         Q(activity__person__isnull=False, activity__person__deleted_at__isnull=True)
         | Q(activity__company__isnull=False, activity__company__deleted_at__isnull=True)
     )
-    from .permissions import sees_all_records
+    from .permissions import responsible_company_ids, responsible_person_ids, sees_all_records
 
     if not sees_all_records(request.user):
         available = available.filter(
-            Q(activity__person__owner=request.user) | Q(activity__person__owner__isnull=True)
-            | Q(activity__company__owner=request.user) | Q(activity__company__owner__isnull=True)
+            Q(activity__person__owner=request.user) | Q(activity__person__pk__in=responsible_person_ids(request.user)) | Q(activity__person__owner__isnull=True)
+            | Q(activity__company__owner=request.user) | Q(activity__company__pk__in=responsible_company_ids(request.user)) | Q(activity__company__owner__isnull=True)
         )
     attachment = get_object_or_404(available, pk=pk)
     if not attachment.file:
@@ -1201,7 +1201,7 @@ def company_list(request):
 @login_required
 def company_detail(request, pk):
     from .detail_editing import company_detail_fields
-    company = get_object_or_404(visible_companies(request.user, Company.objects.select_related("owner").prefetch_related("person_links__person", "custom_values__field")), pk=pk, deleted_at__isnull=True)
+    company = get_object_or_404(visible_companies(request.user, Company.objects.select_related("owner").prefetch_related("person_links__person", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     history = Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__company_links__company=company)
     ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at")
@@ -1310,15 +1310,15 @@ def contacts_export(request):
     response["Content-Disposition"] = 'attachment; filename="crm-kontaktai.csv"'
     response.write("\ufeff")
     writer = csv.writer(response)
-    writer.writerow(["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Būsena", "Tagai", "Kategorijos", "Atsakingas"])
+    writer.writerow(["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Būsena", "Tagai", "Kategorijos", "Atsakingas", "Atsakingi"])
     people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     if request.method == "POST":
         people = people.filter(pk__in=request.POST.getlist("selected"))
-    people = people.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "company_links__company")
+    people = people.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "company_links__company", "responsibles")
     from .permissions import user_label
     rows = 0
     for person in people:
-        writer.writerow([person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), person.status, "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner)])
+        writer.writerow([person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), person.status, "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner), "; ".join(u.get_username() for u in person.responsibles.all())])
         rows += 1
     audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Kontaktai (CSV)")), new=str(rows))
     return response
@@ -1329,13 +1329,13 @@ def companies_export(request):
     response["Content-Disposition"] = 'attachment; filename="crm-imones.csv"'
     response.write("\ufeff")
     writer = csv.writer(response)
-    writer.writerow(["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Telefonas", "El. paštas", "Atsakingas"])
-    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).select_related("owner")
+    writer.writerow(["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Telefonas", "El. paštas", "Atsakingas", "Atsakingi"])
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).select_related("owner").prefetch_related("responsibles")
     if request.method == "POST": companies = companies.filter(pk__in=request.POST.getlist("selected"))
     from .permissions import user_label
     rows = 0
     for company in companies:
-        writer.writerow([company.name, company.company_code, company.vat_code, company.address, company.phone, company.email, user_label(company.owner)])
+        writer.writerow([company.name, company.company_code, company.vat_code, company.address, company.phone, company.email, user_label(company.owner), "; ".join(u.get_username() for u in company.responsibles.all())])
         rows += 1
     audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Įmonės (CSV)")), new=str(rows))
     return response
@@ -1373,7 +1373,8 @@ IMPORT_COLUMNS = [
     ("Būsena", tr("Būsena"), ("Būsena", "status", "Status")),
     ("Tagai", tr("Žymos"), ("Tagai", "Žymos", "Tags", "tags")),
     ("Kategorijos", tr("Kategorijos"), ("Kategorijos", "Categories", "categories")),
-    ("Atsakingas", tr("Atsakingas"), ("Atsakingas", "owner", "Owner")),
+    ("Atsakingas", tr("Atsakingas (pagrindinis)"), ("Atsakingas", "owner", "Owner")),
+    ("Atsakingi", tr("Atsakingi (papildomi)"), ("Atsakingi", "responsibles", "Responsibles")),
 ]
 IMPORT_FIELD_KEYS = [key for key, _label, _aliases in IMPORT_COLUMNS]
 
@@ -1459,6 +1460,10 @@ def _import_one_row(row, owner, mode, owner_cache):
     for category_name in category_names:
         category, _ = Category.objects.get_or_create(name=category_name[:60])
         person.categories.add(category)
+    extra = [_resolve_import_owner(name, owner_cache) for name in _import_relation_names(row, "Atsakingi", "responsibles", "Responsibles")]
+    extra = [u for u in extra if u and u.pk != person.owner_id]
+    if extra:
+        person.responsibles.add(*extra)
     return outcome, person
 
 
