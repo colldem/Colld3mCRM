@@ -982,10 +982,15 @@ def documentation_page(request):
     topic = request.GET.get("topic", "overview")
     if topic not in allowed_topics:
         topic = "overview"
+    try:
+        crm_version = (settings.BASE_DIR / "VERSION").read_text().strip()
+    except OSError:
+        crm_version = ""
     return render(request, "settings/documentation.html", {
         "settings_section": "documentation",
         "documentation_topic": topic,
         "documentation_topics": topics,
+        "crm_version": crm_version,
     })
 
 

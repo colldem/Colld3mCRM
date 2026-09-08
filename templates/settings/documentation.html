@@ -1,7 +1,7 @@
 {% extends "settings/layout.html" %}{% load i18n %}
 {% block settings_content %}
 <div class="documentation-head">
-  <span class="doc-eyebrow">CRM 0.4.0</span>
+  <span class="doc-eyebrow">CRM{% if crm_version %} {{ crm_version }}{% endif %}</span>
   <h2>{% translate 'Dokumentacija' %}</h2>
   <p>{% translate 'Techninė informacija, diegimo procedūros ir kasdienio darbo instrukcijos vienoje vietoje.' %}</p>
 </div>
@@ -24,7 +24,7 @@
     <a class="doc-topic-card" href="?topic=backup"><strong>{% translate 'Kurti ir tikrinti kopijas' %}</strong><span>{% translate 'PostgreSQL, failų kopijos, atkūrimo procedūra ir patikra.' %}</span></a>
   </div>
   <section class="doc-section"><h4>{% translate 'Sistemos paskirtis' %}</h4><p>CRM skirta bendrame registre tvarkyti kontaktinius asmenis ir įmones, jų ryšius, bendravimo istoriją, failus ir priminimus. Programa veikia naršyklėje, o duomenis saugo UGREEN NAS esančiuose Docker tomuose.</p></section>
-  <section class="doc-section"><h4>{% translate 'Technologijos' %}</h4><div class="doc-facts"><div><b>CRM</b><span>0.4.0</span></div><div><b>Python</b><span>3.13.15</span></div><div><b>Django</b><span>5.2.17</span></div><div><b>PostgreSQL</b><span>17.11</span></div><div><b>Gunicorn</b><span>26.2.0</span></div><div><b>Tailscale</b><span>1.102.2</span></div></div></section>
+  <section class="doc-section"><h4>{% translate 'Technologijos' %}</h4><div class="doc-facts"><div><b>CRM</b><span>{{ crm_version|default:"—" }}</span></div><div><b>Python</b><span>3.13.15</span></div><div><b>Django</b><span>5.2.17</span></div><div><b>PostgreSQL</b><span>17.11</span></div><div><b>Gunicorn</b><span>26.2.0</span></div><div><b>Tailscale</b><span>1.102.2</span></div></div></section>
   <aside class="doc-callout info"><strong>{% translate 'Svarbu' %}</strong><p>CRM nėra vienas perkeliamas duomenų failas. Duomenų bazė, įkelti failai, Tailscale būsena ir konfigūracija saugomi atskirose NAS katalogo vietose. Kopijuojant sistemą būtina įtraukti visas šias dalis.</p></aside>
 
 {% elif documentation_topic == "installation" %}

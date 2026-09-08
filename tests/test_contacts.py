@@ -951,6 +951,11 @@ class ContactViewTests(TestCase):
         for value in ("pg_dump", "pg_restore", "runtime/media", "Atkūrimo patikra"):
             self.assertContains(backup, value)
 
+        overview = self.client.get(url, {"topic": "overview"})
+        current_version = (settings.BASE_DIR / "VERSION").read_text().strip()
+        self.assertContains(overview, f"CRM {current_version}")
+        self.assertNotContains(overview, "CRM 0.4.0")
+
     def test_profile_settings_update_user_preferences_and_avatar_menu(self):
         from contacts.models import UserProfile
 

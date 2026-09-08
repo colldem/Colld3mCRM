@@ -392,14 +392,44 @@ Cache-buster'iai: `app.css?v=20260908c`, `theme.css?v=20260908w`,
   kūrimo/redagavimo formoje (`form.html`), bet nerodomi kortelėje. Palikti formoje
   ar pašalinti visai?
 
-### E2. Kiekvieno mygtuko / lauko patikra — ❌
-Literaliai pereiti per visą sąsają (sąrašai, kortelės, nustatymai, importas,
-priminimai, paieška) ir patikrinti KIEKVIENĄ mygtuką bei lauką:
-- ar mygtukas paspaudžiamas ir atlieka veiksmą (ne 404 / ne klaida);
-- ar į kiekvieną įvesties lauką galima įrašyti reikšmę;
-- ar kiekvieną `select` / multiselect galima pasirinkti;
-- ar dukart spustelėjus kortelės laukus jie atsidaro ir išsisaugo.
-Priemonės: naršyklės patikra LT ir EN; rasti trūkumai fiksuojami ir taisomi.
+### E2. Kiekvieno mygtuko / lauko patikra — ✅
+Pereita per visą sąsają naršyklėje (lokalus serveris, LT + EN, desktop + mobile).
+
+**Patikrinta ir veikia:**
+- Prisijungimas; kalbos perjungimas (LT/EN); globali paieška + autocomplete.
+- Kontaktų/įmonių sąrašai: filtrų skydelis (visi laukai + „Šaltinis“ custom),
+  stulpelių skydelis + „Išsaugoti rodinį“, rūšiavimo antraštės, „Mano kontaktai“,
+  žvaigždutė (favourite), eilutės meniu (atidaryti / redaguoti / komentaras /
+  priminimas / kopijuoti el. paštą), masiniai veiksmai (žyma / kategorija /
+  atsakingas / archyvuoti / eksportuoti), puslapiavimo dydis.
+- Išsaugoti filtrai: išsaugoti / pervadinti / numatytasis / ištrinti.
+- Kontakto/įmonės kūrimas: visi laukai (įsk. prioritetą, kontakto tipą,
+  bendradarbiavimo pradžią, telefonus/el. paštus/adresus/URL), `created_by`.
+- Kortelės inline redagavimas (double-click): pareigos, telefonai, el. paštai
+  (keli), adresai, nuorodos, aprašymas, „Šaltinis“ (tekstas ir pasirinkimas),
+  organizacija, atsakingi; „Kopijuoti nuorodą“, „Archyvuoti“ / „Atkurti“.
+- Tabai (Komentarai / Priminimai / Failai); komentaro forma; priminimo pridėjimas,
+  redagavimas, „Atlikta“; failo įkėlimas; žymų/kategorijų priskyrimas kortelėje.
+- Dublikatų peržiūra + sujungimas.
+- Nustatymai: profilis, slaptažodžio keitimas (validacija), žymos (kūrimas,
+  pervadinimas, spalva), kategorijos, dinaminiai laukai (kūrimas + „Pašalinti“),
+  naudotojų kūrimas, komandos (kūrimas + nariai + „Pašalinti“), rolės ir teisės,
+  žurnalas + filtrai, duomenų eksportas (ZIP), dublikatų nustatymai, dokumentacija.
+- Importas: CSV peržiūra + patvirtinimas; CSV eksportai (be „Būsena“ stulpelio).
+- Priminimų varpelis (topbar): tabai, redagavimo nuorodos.
+
+**Rasta ir pataisyta:**
+- Dokumentacijos puslapyje buvo įrašyta pasenusi versija „CRM 0.4.0“ (dviejose
+  vietose). Dabar rodoma tikroji versija iš `VERSION` failo (`crm_version`
+  kontekstas). Priklausomybių versijos (Python, Django, PostgreSQL, Gunicorn,
+  Tailscale) patikrintos — teisingos.
+
+**Atviri klausimai naudotojui:**
+- Žymų / kategorijų **negalima ištrinti** per sąsają (tik kurti ir pervadinti).
+  Dinaminius laukus, komandas ir naudotojų roles keisti/šalinti galima. Ar reikia
+  žymos/kategorijos trynimo mygtuko?
+- `Person.status` ir `priority`/`contact_type`/`cooperation_start`/`internal_note`
+  (žr. E1) — vis dar laukia sprendimo.
 
 ---
 
