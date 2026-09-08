@@ -27,6 +27,9 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **C8** — masinis žymos ir kategorijos priskyrimas pažymėtiems kontaktams/įmonėms (3 riba)
 - ✅ **C3** — universali paieška: gyvas grupuotas išskleidimas (kontaktai/įmonės/veiklos/
   priminimai) nuo 2 simbolių + atskiras `/search/` rezultatų puslapis
+- ✅ **C4** — dinaminiai laukai: Nustatymai → Dinaminiai laukai (tekstas/ilgas tekstas/
+  žymimasis/vienas/keli pasirinkimai; kontaktams, įmonėms ar abiem); rodomi ir
+  redaguojami (double-click) kortelėje, sąrašo stulpeliuose, filtruose ir paieškoje
 
 ---
 
@@ -119,10 +122,12 @@ Viršutinės juostos paieška: gyvas išskleidžiamas sąrašas (`/search/sugges
 `static/js/search.js`) su grupėmis Kontaktai / Įmonės / Veiklos / Priminimai nuo
 2 simbolių, ir pilnas `/search/` puslapis. Failų grupė — vėliau, jei prireiks.
 
-### C4. Individualūs (custom) laukai — ❌
-Reikalauta (Teamgate + planas p.8). Nėra `CustomField` modelio. Tipai:
-trumpas/ilgas tekstas, skaičius, data, taip/ne, vienas/keli pasirinkimai, URL;
-paskirtis asmeniui/įmonei/abiem.
+### C4. Dinaminiai (custom) laukai — ✅ padaryta
+`CustomField` + `CustomValue`. Nustatymai → Dinaminiai laukai: kūrimas (tekstas,
+ilgas tekstas, žymimasis langelis, vienas/keli pasirinkimai; kontaktams/įmonėms/abiem),
+šalinimas. Reikšmės kortelėje (inline double-click), sąrašo stulpeliuose (pasirenkami),
+filtruose (icontains) ir paieškoje. Vėliau galima: skaičiaus/datos tipai, stulpelio
+rikiavimas, laukų tvarkos keitimas, pasirinkimo laukų filtras su reikšmių sąrašu.
 
 ### C5. Pakeitimų istorija / auditas — ❌
 Reikalauta „pradėti rinkti iš karto". Nėra: kas/kada/kurį lauką keitė, sena→nauja

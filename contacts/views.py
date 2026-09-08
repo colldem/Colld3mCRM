@@ -30,7 +30,7 @@ from .filters import (
     filter_chips,
     saved_filter_payload,
 )
-from .models import Activity, Attachment, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, UserProfile, WebLink
+from .models import Activity, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, UserProfile, WebLink
 
 
 def _elided_page_numbers(page):
@@ -44,6 +44,22 @@ def _last_activity_context(last_activity):
     if last_activity:
         days = (timezone.localdate() - timezone.localtime(last_activity.created_at).date()).days
     return {"last_activity": last_activity, "last_activity_days": days}
+
+
+def _attach_custom_cells(records, custom_columns):
+    """Give each record a `.custom_cells` list aligned to `custom_columns` (one query)."""
+    for record in records:
+        record.custom_cells = []
+    if not custom_columns or not records:
+        return
+    from .custom_fields import _decode, display
+
+    entity_attr = "person" if custom_columns[0].entity == CustomField.PERSON else "company"
+    index = {}
+    for value in CustomValue.objects.filter(field__in=custom_columns, **{f"{entity_attr}__in": [r.pk for r in records]}).select_related("field"):
+        index.setdefault(getattr(value, f"{entity_attr}_id"), {})[value.field_id] = display(value.field, _decode(value.field, value.value))
+    for record in records:
+        record.custom_cells = [index.get(record.pk, {}).get(field.pk, "") for field in custom_columns]
 
 
 def _search_results(query, per_group):
@@ -180,7 +196,8 @@ def contact_list(request):
         sort_category=Min("categories__name"),
         sort_tag=Min("tags__name"),
     )
-    allowed_columns = ["company", "phone", "email", "category", "tags", "status", "last_contact", "updated"]
+    custom_fields = list(CustomField.objects.filter(entity=CustomField.PERSON))
+    allowed_columns = ["company", "phone", "email", "category", "tags", "status", "last_contact", "updated"] + [field.key for field in custom_fields]
     default_columns = ["company", "phone", "email", "category", "tags", "updated"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
@@ -191,6 +208,9 @@ def contact_list(request):
     from django.core.paginator import Paginator
 
     page = Paginator(people.order_by(*order, "id"), page_size).get_page(request.GET.get("page"))
+    page.object_list = list(page.object_list)
+    custom_columns = [field for field in custom_fields if field.key in columns]
+    _attach_custom_cells(page.object_list, custom_columns)
     list_query = request.GET.copy()
     for key in ("page", "sort", "direction"):
         list_query.pop(key, None)
@@ -199,13 +219,14 @@ def contact_list(request):
     label_maps = {
         "categories": {item.pk: item.name for item in categories},
         "tags": {item.pk: item.name for item in tags},
-        "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma")},
+        "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma"), **{field.key: field.name for field in custom_fields}},
     }
     return render(request, "contacts/list.html", {
         "page": page, "query": query, "page_size": page_size, "sort": sort_key,
         "page_numbers": _elided_page_numbers(page),
         "direction": direction, "columns": columns, "categories": categories,
         "tags": tags, "filter_values": filter_values,
+        "custom_fields": custom_fields, "custom_columns": custom_columns,
         "active_filter_count": active_filter_count(filter_values),
         "filter_chips": filter_chips(request.GET, filter_values, label_maps, request.path),
         "saved_filters": SavedFilter.objects.filter(user=request.user, scope="contacts"),
@@ -849,7 +870,8 @@ def company_list(request):
         sort_category=Min("categories__name"),
         sort_tag=Min("tags__name"),
     ).order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
-    allowed_columns = ("company_code", "vat_code", "address", "phone", "email", "contacts")
+    custom_fields = list(CustomField.objects.filter(entity=CustomField.COMPANY))
+    allowed_columns = ["company_code", "vat_code", "address", "phone", "email", "contacts"] + [field.key for field in custom_fields]
     default_columns = ["company_code", "vat_code", "phone", "email", "contacts"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
@@ -861,6 +883,9 @@ def company_list(request):
     from django.core.paginator import Paginator
 
     page = Paginator(companies, page_size).get_page(request.GET.get("page"))
+    page.object_list = list(page.object_list)
+    custom_columns = [field for field in custom_fields if field.key in columns]
+    _attach_custom_cells(page.object_list, custom_columns)
     list_query = request.GET.copy()
     for key in ("page", "sort", "direction"):
         list_query.pop(key, None)
@@ -869,10 +894,11 @@ def company_list(request):
     label_maps = {
         "categories": {item.pk: item.name for item in categories},
         "tags": {item.pk: item.name for item in tags},
-        "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma")},
+        "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma"), **{field.key: field.name for field in custom_fields}},
     }
     return render(request, "companies/list.html", {
         "page": page, "query": query, "page_size": page_size, "sort": sort_key, "direction": direction, "filter_values": filter_values, "columns": columns,
+        "custom_fields": custom_fields, "custom_columns": custom_columns,
         "page_numbers": _elided_page_numbers(page),
         "list_query": list_query.urlencode(),
         "active_filter_count": active_filter_count(filter_values),

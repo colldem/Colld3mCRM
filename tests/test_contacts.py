@@ -1718,6 +1718,38 @@ class ContactViewTests(TestCase):
         self.client.post(reverse("contacts:custom-field-delete", args=[field.pk]))
         self.assertFalse(CustomField.objects.filter(pk=field.pk).exists())
 
+    def test_custom_field_column_and_filter_on_contact_list(self):
+        self.client.force_login(self.user)
+        field = CustomField.objects.create(entity="person", name="Šaltinis", field_type="text")
+        CustomValue.objects.create(field=field, person=self.person, value="Renginys")
+        other = Person.objects.create(first_name="Kitas", last_name="Zmogus")
+        listed = self.client.get(reverse("contacts:list"), {"columns": [field.key]})
+        self.assertIn(field.key, listed.context["columns"])
+        self.assertContains(listed, "Renginys")
+        filtered = self.client.get(reverse("contacts:list"), {field.key: "Renginys"})
+        ids = [person.pk for person in filtered.context["page"]]
+        self.assertIn(self.person.pk, ids)
+        self.assertNotIn(other.pk, ids)
+        self.assertTrue(filtered.context["active_filter_count"])
+        self.assertContains(filtered, "Šaltinis")
+
+    def test_custom_field_column_and_filter_on_company_list(self):
+        self.client.force_login(self.user)
+        field = CustomField.objects.create(entity="company", name="Regionas", field_type="text")
+        CustomValue.objects.create(field=field, company=self.company, value="Vakarai")
+        Company.objects.create(name="Kita AB")
+        listed = self.client.get(reverse("contacts:company-list"), {"columns": [field.key]})
+        self.assertContains(listed, "Vakarai")
+        filtered = self.client.get(reverse("contacts:company-list"), {field.key: "Vakarai"})
+        self.assertEqual([company.pk for company in filtered.context["page"]], [self.company.pk])
+
+    def test_custom_filter_is_saved_into_a_saved_filter(self):
+        self.client.force_login(self.user)
+        field = CustomField.objects.create(entity="person", name="Šaltinis", field_type="text")
+        self.client.post(reverse("contacts:saved-filter-create"), {"name": "Renginiai", field.key: "Renginys"})
+        saved = SavedFilter.objects.get(name="Renginiai")
+        self.assertEqual(saved.filters.get(field.key), "Renginys")
+
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)
         response = self.client.get(self.company.get_absolute_url())

@@ -4,6 +4,18 @@ from django.db.models import Max, Q
 from django.utils.dateparse import parse_date
 from django.utils.translation import gettext as _
 
+from .models import CustomField
+
+
+def _custom_values(data, entity):
+    """Flatten non-empty custom-field filters as {"cf_<id>": "text"}."""
+    result = {}
+    for field in CustomField.objects.filter(entity=entity):
+        value = data.get(field.key, "").strip()
+        if value:
+            result[field.key] = value
+    return result
+
 
 CONTACT_FILTER_KEYS = (
     "q",
@@ -45,6 +57,7 @@ def contact_filter_values(data):
         "favourite": "1" if data.get("favourite") == "1" else "",
         "last_contact_from": _date(data, "last_contact_from"),
         "last_contact_to": _date(data, "last_contact_to"),
+        **_custom_values(data, CustomField.PERSON),
     }
 
 
@@ -56,7 +69,15 @@ def company_filter_values(data):
         "city": data.get("city", "").strip(),
         "last_contact_from": _date(data, "last_contact_from"),
         "last_contact_to": _date(data, "last_contact_to"),
+        **_custom_values(data, CustomField.COMPANY),
     }
+
+
+def _apply_custom_filters(queryset, values):
+    for key, value in values.items():
+        if key.startswith("cf_") and value:
+            queryset = queryset.filter(custom_values__field_id=key[3:], custom_values__value__icontains=value)
+    return queryset
 
 
 def apply_contact_filters(people, values):
@@ -88,6 +109,7 @@ def apply_contact_filters(people, values):
         people = people.filter(last_contact_at__date__gte=values["last_contact_from"])
     if values["last_contact_to"]:
         people = people.filter(last_contact_at__date__lte=values["last_contact_to"])
+    people = _apply_custom_filters(people, values)
     return people.distinct()
 
 
@@ -138,6 +160,7 @@ def apply_company_filters(companies, values):
             (Q(own_last_contact_at__isnull=True) | Q(own_last_contact_at__date__lte=values["last_contact_to"]))
             & (Q(linked_last_contact_at__isnull=True) | Q(linked_last_contact_at__date__lte=values["last_contact_to"]))
         )
+    companies = _apply_custom_filters(companies, values)
     return companies.distinct()
 
 

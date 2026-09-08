@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n crm_format %}
 <details class="drawer-control filter-drawer">
   <summary class="btn">{% translate '⌕ Filtrai' %}{% if active_filter_count %} <b>{{ active_filter_count }}</b>{% endif %}</summary>
   <form class="filter-panel" method="get">
@@ -8,6 +8,7 @@
     <fieldset class="filter-group"><legend>{% translate 'Žymos' %}</legend><details class="filter-multiselect" data-filter-multiselect><summary aria-label="{% translate 'Žymos' %}"><span class="filter-selected-values" data-filter-selected>{% for item in tags %}{% if item.pk in filter_values.tags %}<button type="button" class="filter-selected-tag crm-label {{ item.color_class }}" data-filter-remove="{{ item.pk }}" aria-label="{% translate 'Pašalinti' %} {{ item.name }}"><span>{{ item.name }}</span><b aria-hidden="true">×</b></button>{% endif %}{% endfor %}<span class="filter-placeholder"{% if filter_values.tags %} hidden{% endif %}>{% translate 'Pasirinkti' %}</span></span><span class="filter-chevron" aria-hidden="true">⌄</span></summary><div class="filter-options">{% for item in tags %}<label class="filter-choice"><input type="checkbox" name="tags" value="{{ item.pk }}" data-label="{{ item.name }}" data-color-class="{{ item.color_class }}" {% if item.pk in filter_values.tags %}checked{% endif %}><span class="crm-label {{ item.color_class }}">{{ item.name }}</span></label>{% empty %}<small>{% translate 'Žymų dar nėra.' %}</small>{% endfor %}</div></details></fieldset>
     <label class="filter-field">{% translate 'Miestas arba adresas' %}<input name="city" value="{{ filter_values.city }}" placeholder="{% translate 'Pavyzdžiui, Vilnius' %}"></label>
     <fieldset class="filter-group"><legend>{% translate 'Paskutinis bendravimas' %}</legend><div class="filter-date-range"><label>{% translate 'Nuo' %}<input type="date" name="last_contact_from" value="{{ filter_values.last_contact_from }}"></label><label>{% translate 'Iki' %}<input type="date" name="last_contact_to" value="{{ filter_values.last_contact_to }}"></label></div></fieldset>
+    {% for field in custom_fields %}<label class="filter-field">{{ field.name }}<input name="{{ field.key }}" value="{{ filter_values|get_item:field.key }}"></label>{% endfor %}
     <div class="filter-actions"><a class="btn filter-action" href="{% url 'contacts:company-list' %}">{% translate 'Išvalyti visus' %}</a><button class="btn filter-action" type="submit">{% translate 'Taikyti filtrus' %}</button></div>
   </form>
 </details>

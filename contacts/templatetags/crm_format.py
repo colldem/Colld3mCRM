@@ -21,6 +21,14 @@ def rich_text(value):
 
 
 @register.filter
+def get_item(mapping, key):
+    try:
+        return mapping.get(key, "")
+    except AttributeError:
+        return ""
+
+
+@register.filter
 def user_initials(user):
     initials = f"{(user.first_name or '')[:1]}{(user.last_name or '')[:1]}".strip()
     return (initials or user.get_username()[:2]).upper()

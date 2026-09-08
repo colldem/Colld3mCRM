@@ -1,7 +1,8 @@
-{% if filter_values.q %}<input type="hidden" name="q" value="{{ filter_values.q }}">{% endif %}
+{% load crm_format %}{% if filter_values.q %}<input type="hidden" name="q" value="{{ filter_values.q }}">{% endif %}
 {% for value in filter_values.categories %}<input type="hidden" name="categories" value="{{ value }}">{% endfor %}
 {% for value in filter_values.tags %}<input type="hidden" name="tags" value="{{ value }}">{% endfor %}
 {% if filter_values.email %}<input type="hidden" name="email" value="{{ filter_values.email }}">{% endif %}
 {% if filter_values.favourite %}<input type="hidden" name="favourite" value="1">{% endif %}
 {% if filter_values.last_contact_from %}<input type="hidden" name="last_contact_from" value="{{ filter_values.last_contact_from }}">{% endif %}
 {% if filter_values.last_contact_to %}<input type="hidden" name="last_contact_to" value="{{ filter_values.last_contact_to }}">{% endif %}
+{% for field in custom_fields %}{% with cfv=filter_values|get_item:field.key %}{% if cfv %}<input type="hidden" name="{{ field.key }}" value="{{ cfv }}">{% endif %}{% endwith %}{% endfor %}
