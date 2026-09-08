@@ -66,5 +66,6 @@ urlpatterns = [
     path("settings/audit/", views.settings_audit, name="settings-audit"),
     path("settings/documentation/", views.documentation_page, name="settings-documentation"),
     path("duplicates/", views.duplicate_list, name="duplicate-list"),
+    path("duplicates/merge-all/", views.duplicate_merge_all, name="duplicate-merge-all"),
     path("duplicates/<str:kind>/<int:source_pk>/merge-into/<int:target_pk>/", views.duplicate_merge, name="duplicate-merge"),
 ]

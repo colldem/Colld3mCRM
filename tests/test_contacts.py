@@ -1147,6 +1147,21 @@ class ContactViewTests(TestCase):
         self.assertFalse(duplicate_settings.enabled)
         self.assertEqual(duplicate_settings.level, "strict")
 
+    def test_bulk_merge_all_duplicates_keeps_the_older_record(self):
+        self.client.force_login(self.user)
+        keep = Person.objects.create(first_name="Petras", last_name="Petraitis")
+        dup1 = Person.objects.create(first_name="Petras", last_name="Petraitis")
+        dup2 = Person.objects.create(first_name="Petras", last_name="Petraitis")
+        response = self.client.post(reverse("contacts:duplicate-merge-all"), follow=True)
+        self.assertContains(response, "Sujungta dublikatų porų")
+        self.assertEqual(Person.objects.filter(first_name="Petras", deleted_at__isnull=True).count(), 1)
+        keep.refresh_from_db()
+        self.assertIsNone(keep.deleted_at)
+        for dup in (dup1, dup2):
+            dup.refresh_from_db()
+            self.assertEqual(dup.merged_into_id, keep.pk)
+        self.assertContains(self.client.get(reverse("contacts:duplicate-list")), "Galimų dublikatų nerasta")
+
     def test_system_settings_control_page_size_and_date_format(self):
         from contacts.models import SystemSettings
 

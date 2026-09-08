@@ -1896,3 +1896,15 @@ msgstr "Lithuanian Excel often exports as Windows-1257 with semicolons."
 
 msgid "Atidaryti importą"
 msgstr "Open import"
+
+msgid "Sujungti visus"
+msgstr "Merge all"
+
+msgid "Sujungti visas poras? Kiekvienoje poroje bus paliktas senesnis įrašas, o naujesnis archyvuotas."
+msgstr "Merge every pair? The older record is kept and the newer one archived in each pair."
+
+msgid "Sujungta dublikatų porų: %(n)s."
+msgstr "Duplicate pairs merged: %(n)s."
+
+msgid "Sujungiamų dublikatų nerasta."
+msgstr "No duplicates to merge."

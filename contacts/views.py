@@ -1092,6 +1092,48 @@ def duplicate_list(request):
 
 
 @login_required
+def duplicate_merge_all(request):
+    if request.method != "POST":
+        return redirect("contacts:duplicate-list")
+    _require_capability(request, "can_merge_duplicates")
+    duplicate_settings = DuplicateSettings.load()
+    if not duplicate_settings.enabled:
+        messages.error(request, tr("Dublikatų tikrinimas išjungtas."))
+        return redirect("contacts:duplicate-list")
+
+    from .merging import merge_companies, merge_people
+    from .permissions import can_see_company, can_see_person
+
+    merged = 0
+    plans = (
+        (all_person_duplicate_pairs(duplicate_settings.level), can_see_person, merge_people),
+        (all_company_duplicate_pairs(duplicate_settings.level), can_see_company, merge_companies),
+    )
+    for pairs, checker, merge_fn in plans:
+        for pair in pairs:
+            keep, drop = pair["left"], pair["right"]
+            keep.refresh_from_db()
+            drop.refresh_from_db()
+            # A record can already be gone via an earlier merge in a duplicate chain.
+            if keep.deleted_at or drop.deleted_at or keep.merged_into_id or drop.merged_into_id:
+                continue
+            if not (checker(request.user, keep) and checker(request.user, drop)):
+                continue
+            try:
+                target = merge_fn(drop.pk, keep.pk)
+            except ValidationError:
+                continue
+            audit_log(AuditLog.MERGE, request=request, target=target, old=str(drop), new=str(target),
+                      detail={"source_id": drop.pk, "target_id": keep.pk, "bulk": True})
+            merged += 1
+    if merged:
+        messages.success(request, tr("Sujungta dublikatų porų: %(n)s.") % {"n": merged})
+    else:
+        messages.info(request, tr("Sujungiamų dublikatų nerasta."))
+    return redirect("contacts:duplicate-list")
+
+
+@login_required
 def duplicate_merge(request, kind, source_pk, target_pk):
     if request.method != "POST":
         return HttpResponse(status=405)

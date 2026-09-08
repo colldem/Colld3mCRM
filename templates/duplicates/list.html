@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{% translate 'Galimi dublikatai - CRM' %}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>{% translate 'Galimi dublikatai' %}</h1><p>{% translate 'Palyginkite įrašus ir pasirinkite, kurį norite palikti. Kito įrašo duomenys bus perkelti į paliekamą įrašą.' %}</p></div><div class="page-actions"><a class="btn" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Tikrinimo nustatymai' %}</a></div></div>
+<div class="page-head"><div><h1>{% translate 'Galimi dublikatai' %}</h1><p>{% translate 'Palyginkite įrašus ir pasirinkite, kurį norite palikti. Kito įrašo duomenys bus perkelti į paliekamą įrašą.' %}</p></div><div class="page-actions">{% if pairs and crm_caps.can_merge_duplicates %}<form method="post" action="{% url 'contacts:duplicate-merge-all' %}" onsubmit="return confirm('{% translate 'Sujungti visas poras? Kiekvienoje poroje bus paliktas senesnis įrašas, o naujesnis archyvuotas.' %}')">{% csrf_token %}<button class="btn primary" type="submit">{% translate 'Sujungti visus' %}</button></form>{% endif %}<a class="btn" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Tikrinimo nustatymai' %}</a></div></div>
 {% if not duplicate_settings.enabled %}<div class="flash">{% translate 'Dublikatų tikrinimas išjungtas.' %}</div>{% endif %}
 <div class="duplicate-list">
   {% for pair in pairs %}
