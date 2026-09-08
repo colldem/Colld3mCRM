@@ -112,7 +112,7 @@
     <section class="aside-card">
       <h3>{% translate 'Kontaktiniai asmenys' %}</h3>
       <ul class="related-list">
-        {% for link in company.person_links.all %}<li><a href="{{ link.person.get_absolute_url }}">{{ link.person }}</a>{% if link.role or link.person.job_title %} <small>{{ link.role|default:link.person.job_title }}</small>{% endif %}</li>{% empty %}<li class="muted">{% translate 'Susietų asmenų nėra.' %}</li>{% endfor %}
+        {% for link in linked_people %}<li><a href="{{ link.person.get_absolute_url }}">{{ link.person }}</a>{% if link.role or link.person.job_title %} <small>{{ link.role|default:link.person.job_title }}</small>{% endif %}</li>{% empty %}<li class="muted">{% translate 'Susietų asmenų nėra.' %}</li>{% endfor %}
       </ul>
     </section>
     {% endif %}

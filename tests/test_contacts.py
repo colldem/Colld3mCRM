@@ -2195,6 +2195,54 @@ class ContactViewTests(TestCase):
         self.assertEqual(self.client.get(reverse("contacts:detail", args=[theirs.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("contacts:detail", args=[mates.pk])).status_code, 200)
 
+    def test_company_page_hides_linked_contacts_and_their_activity_from_outsiders(self):
+        from contacts.models import Activity, PersonCompanyLink, Reminder, Team
+        from django.utils import timezone
+        me = self._member("stebetojas", visibility="team")
+        outsider = self._member("kito-skyriaus")
+        Team.objects.create(name="Mano skyrius", visibility=Team.VISIBILITY_TEAM).members.add(me)
+        company = Company.objects.create(name="Bendra UAB")  # unassigned -> visible to everyone
+        hidden = Person.objects.create(first_name="Slaptas", last_name="Kontaktas", owner=outsider)
+        PersonCompanyLink.objects.create(person=hidden, company=company)
+        Activity.objects.create(person=hidden, activity_type="note", text="Konfidenciali pastaba", created_by=outsider)
+        Reminder.objects.create(person=hidden, text="Slaptas priminimas",
+                                due_at=timezone.now() + timedelta(days=1), created_by=outsider)
+        self.client.force_login(me)
+        response = self.client.get(company.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Slaptas Kontaktas")
+        self.assertNotContains(response, "Konfidenciali pastaba")
+        self.assertNotContains(response, "Slaptas priminimas")
+        self.assertEqual(list(response.context["linked_people"]), [])
+        self.assertEqual(list(response.context["comment_entries"]), [])
+        listing = self.client.get(reverse("contacts:company-list"), {"columns": "contacts"})
+        row = [c for c in listing.context["page"] if c.pk == company.pk][0]
+        self.assertEqual(row.contact_count, 0)
+
+    def test_import_cannot_hijack_a_contact_the_importer_may_not_see(self):
+        from contacts.models import EmailAddress
+        from contacts.permissions import has_capability
+
+        importer = self._member("importuotojas", visibility="own")
+        self.assertTrue(has_capability(importer, "can_import"))
+        self.assertTrue(has_capability(importer, "can_reassign_owner"))
+        outsider = self._member("kitas-savininkas")
+        hidden = Person.objects.create(first_name="Slaptas", last_name="Klientas", owner=outsider)
+        EmailAddress.objects.create(person=hidden, email="slaptas@example.lt")
+        self.client.force_login(importer)
+        content = "Vardas,Pavardė,El. paštai,Atsakingas\nSlaptas,Klientas,slaptas@example.lt,importuotojas\n".encode()
+        self.client.post(reverse("contacts:import-export"),
+                         {"file": SimpleUploadedFile("k.csv", content, content_type="text/csv")})
+        response = self.client.post(reverse("contacts:import-export"), {"confirm": "1"}, follow=True)
+        hidden.refresh_from_db()
+        self.assertEqual(hidden.owner, outsider)               # ownership untouched
+        self.assertEqual(hidden.first_name, "Slaptas")         # fields untouched
+        self.assertEqual(Person.objects.filter(last_name="Klientas").count(), 1)  # no duplicate created
+        self.assertContains(response, "Atnaujinti: 0")
+        self.assertContains(response, "Klaidos: 1")
+        errors_csv = self.client.get(reverse("contacts:import-errors")).content.decode()
+        self.assertIn("jums nematomas", errors_csv)
+
     def test_owner_filter_me_matches_owned_or_responsible(self):
         self.client.force_login(self.user)
         mate = get_user_model().objects.create_user("mate", password="very-secure-password")

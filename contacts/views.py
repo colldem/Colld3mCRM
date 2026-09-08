@@ -1444,8 +1444,14 @@ def company_list(request):
     }
     sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
+    # "Kontaktai" counts only the linked people this user is allowed to see.
+    from .permissions import sees_all_records, visible_person_ids
+
+    contact_count_filter = Q(people__deleted_at__isnull=True)
+    if not sees_all_records(request.user):
+        contact_count_filter &= Q(people__pk__in=visible_person_ids(request.user))
     companies = companies.distinct().annotate(
-        contact_count=Count("people", distinct=True),
+        contact_count=Count("people", filter=contact_count_filter, distinct=True),
         sort_category=Min("categories__name"),
         sort_tag=Min("tags__name"),
     ).order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
@@ -1495,12 +1501,18 @@ def company_list(request):
 def company_detail(request, pk):
     from .detail_editing import grouped_detail_fields
     company = get_object_or_404(visible_companies(request.user, Company.objects.select_related("owner", "created_by").prefetch_related("person_links__person", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
+    # Linked contacts, and anything hanging off them, must still respect record visibility.
+    visible_linked_ids = list(visible_people(
+        request.user, Person.objects.filter(company_links__company=company, deleted_at__isnull=True)
+    ).values_list("pk", flat=True))
+    linked_people = [link for link in company.person_links.all()
+                     if link.person.deleted_at is None and link.person_id in visible_linked_ids]
     history = list(Activity.objects.filter(deleted_at__isnull=True).filter(
-        Q(company=company) | Q(person__company_links__company=company)
+        Q(company=company) | Q(person__pk__in=visible_linked_ids)
     ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at"))
     now = timezone.now()
     linked_reminders = Reminder.objects.filter(
-        person__company_links__company=company, person__deleted_at__isnull=True,
+        person__pk__in=visible_linked_ids,
         completed_at__isnull=True, deleted_at__isnull=True,
     )
     next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
@@ -1515,6 +1527,7 @@ def company_detail(request, pk):
         "overdue_reminder_count": linked_reminders.filter(due_at__lte=now).count(),
         "comment_entries": history,
         "attachment_entries": [att for a in history for att in a.attachments.all()],
+        "linked_people": linked_people,
         **_authorship_context(company, "company"),
         **_last_activity_context(history[0] if history else None),
     })
@@ -1709,7 +1722,7 @@ def _apply_import_mapping(rows, mapping):
     return remapped
 
 
-def _import_one_row(row, owner, mode, owner_cache):
+def _import_one_row(row, owner, mode, owner_cache, can_reassign=True):
     """Import a single already-mapped row. Returns 'created' / 'updated' / 'skipped'."""
     first_name = _value(row, "Vardas", "first_name", "First name")
     last_name = _value(row, "Pavardė", "last_name", "Last name")
@@ -1719,10 +1732,17 @@ def _import_one_row(row, owner, mode, owner_cache):
     email = email_values[0] if email_values else ""
     person = None
     if mode != "new":
-        if email:
-            person = Person.objects.filter(emails__email__iexact=email, deleted_at__isnull=True).first()
-        if not person:
-            person = Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).first()
+        from .permissions import visible_people
+
+        base = Person.objects.filter(deleted_at__isnull=True)
+        match = base.filter(emails__email__iexact=email) if email else base.none()
+        if not match.exists():
+            match = base.filter(first_name__iexact=first_name, last_name__iexact=last_name)
+        person = visible_people(owner, match).first()
+        # A row that matches a record the importer may not see must not silently
+        # update it (and possibly reassign its owner) — that would expose the card.
+        if person is None and match.exists():
+            raise ValueError(str(tr("Kontaktas su šiuo el. paštu arba vardu jau yra, bet jums nematomas.")))
     if person and mode == "skip":
         return "skipped", None
     tag_names = _import_relation_names(row, "Tagai", "Žymos", "Tags", "tags")
@@ -1730,7 +1750,8 @@ def _import_one_row(row, owner, mode, owner_cache):
     if len(tag_names) > 3 or len(category_names) > 3:
         raise ValueError(str(tr("Viršytas leistinas žymų arba kategorijų skaičius (daugiausia 3)")))
     values = {"first_name": first_name, "last_name": last_name, "job_title": _value(row, "Pareigos", "job_title")}
-    row_owner = _resolve_import_owner(_value(row, "Atsakingas", "owner", "Owner"), owner_cache)
+    # Owner reassignment via import follows the same capability as the inline editor.
+    row_owner = _resolve_import_owner(_value(row, "Atsakingas", "owner", "Owner"), owner_cache) if can_reassign else None
     if person:
         for field, value in values.items():
             if value:
@@ -1762,10 +1783,11 @@ def _import_one_row(row, owner, mode, owner_cache):
     for category_name in category_names:
         category, _ = Category.objects.get_or_create(name=category_name[:60])
         person.categories.add(category)
-    extra = [_resolve_import_owner(name, owner_cache) for name in _import_relation_names(row, "Atsakingi", "responsibles", "Responsibles")]
-    extra = [u for u in extra if u and u.pk != person.owner_id]
-    if extra:
-        person.responsibles.add(*extra)
+    if can_reassign:
+        extra = [_resolve_import_owner(name, owner_cache) for name in _import_relation_names(row, "Atsakingi", "responsibles", "Responsibles")]
+        extra = [u for u in extra if u and u.pk != person.owner_id]
+        if extra:
+            person.responsibles.add(*extra)
     return outcome, person
 
 
@@ -1779,10 +1801,13 @@ def _import_contact_rows(rows, owner=None, *, mode="update", collect_errors=Fals
     errors = []
     duplicate_settings = DuplicateSettings.load()
     report_duplicates = duplicate_settings.enabled and duplicate_settings.check_on_import
+    from .permissions import has_capability
+
+    can_reassign = owner is None or has_capability(owner, "can_reassign_owner")
     for index, row in enumerate(rows, start=2):  # row 1 is the header line
         try:
             with transaction.atomic():
-                outcome, person = _import_one_row(row, owner, mode, owner_cache)
+                outcome, person = _import_one_row(row, owner, mode, owner_cache, can_reassign)
         except Exception as error:
             if not collect_errors:
                 raise

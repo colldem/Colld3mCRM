@@ -1911,3 +1911,6 @@ msgstr "No duplicates to merge."
 
 msgid "Kontaktų, įmonių ir priminimų valdymas."
 msgstr "Manage contacts, companies and reminders."
+
+msgid "Kontaktas su šiuo el. paštu arba vardu jau yra, bet jums nematomas."
+msgstr "A contact with this email or name already exists but is not visible to you."
