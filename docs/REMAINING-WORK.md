@@ -460,7 +460,15 @@ Vykdymo tvarka: G1 → G2 → **G7** → G3 → G4 → G5 → G6.
 G7 (pranešimai el. paštu) eina iškart po G2, nes priskirta užduotis be laiško neveikia.
 G4 mažas ir nepriklausomas — jei prireiks anksčiau, galima kelti į priekį.
 
-### G1. Analitikos modulis — ❌
+### G1. Analitikos modulis — 🟡 (1 dalis padaryta, `0.29.0`)
+**Padaryta (1 dalis):** darbastalis ties `/` (pakeitė peradresavimą į kontaktus) —
+rodikliai, vėluojantys / šiandienos / rytojaus darbotvarkės, paskutiniai mano liesti
+įrašai (iš `AuditLog`), savaitės veiklos pagal tipą; ir `/analytics/` ryšių priežiūra —
+nutilę (30/60/90 d.), niekada nebendrauta, be atsakingo, be telefono ir el. pašto,
+su „Suplanuoti" nuoroda ir CSV eksportu. Kodas: `contacts/analytics_views.py`,
+`templates/analytics/*`. **Liko 2 dalis:** komunikacijos statistika, priminimų
+vykdymas, bazės augimas ir sistemos naudojimas — su inline SVG grafikais.
+
 Viskas skaičiuojama iš **jau esamų** duomenų (`Activity`, `Reminder`, `Person`,
 `Company`, `AuditLog`, žymos/kategorijos/dinaminiai laukai) — naujų laukų nereikia.
 
