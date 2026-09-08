@@ -1827,6 +1827,63 @@ class ContactViewTests(TestCase):
         target.refresh_from_db()
         self.assertTrue(target.check_password("fresh-secure-pass-2026"))
 
+    # --- C6 part 3: owner-based visibility for the restricted role ---
+
+    def _restricted_user(self, username="ribotas"):
+        from contacts.models import UserProfile
+        user = get_user_model().objects.create_user(username, password="very-secure-password")
+        UserProfile.objects.create(user=user, role=UserProfile.ROLE_RESTRICTED)
+        return user
+
+    def test_restricted_user_sees_only_owned_and_unassigned_records(self):
+        other = get_user_model().objects.create_user("kitas", password="very-secure-password")
+        theirs = Person.objects.create(first_name="Svetimas", last_name="Kontaktas", owner=other)
+        theirs_co = Company.objects.create(name="Svetima UAB", owner=other)
+        restricted = self._restricted_user()
+        mine = Person.objects.create(first_name="Mano", last_name="Kontaktas", owner=restricted)
+        self.client.force_login(restricted)
+        people_ids = [p.pk for p in self.client.get(reverse("contacts:list")).context["page"]]
+        self.assertIn(mine.pk, people_ids)
+        self.assertIn(self.person.pk, people_ids)  # unassigned
+        self.assertNotIn(theirs.pk, people_ids)
+        company_ids = [c.pk for c in self.client.get(reverse("contacts:company-list")).context["page"]]
+        self.assertIn(self.company.pk, company_ids)
+        self.assertNotIn(theirs_co.pk, company_ids)
+
+    def test_restricted_user_gets_404_on_another_users_record(self):
+        other = get_user_model().objects.create_user("kitas", password="very-secure-password")
+        theirs = Person.objects.create(first_name="Svetimas", last_name="Kontaktas", owner=other)
+        restricted = self._restricted_user()
+        self.client.force_login(restricted)
+        self.assertEqual(self.client.get(reverse("contacts:detail", args=[theirs.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("contacts:detail", args=[self.person.pk])).status_code, 200)
+        self.assertEqual(self.client.post(reverse("contacts:archive", args=[theirs.pk])).status_code, 404)
+        theirs.refresh_from_db()
+        self.assertIsNone(theirs.deleted_at)
+        self.assertEqual(
+            self.client.post(reverse("contacts:field-edit", args=[theirs.pk]), {"field": "first_name", "value": "X"}).status_code,
+            404,
+        )
+
+    def test_restricted_user_search_and_export_are_filtered(self):
+        other = get_user_model().objects.create_user("kitas", password="very-secure-password")
+        Person.objects.create(first_name="Slaptas", last_name="Zmogus", owner=other)
+        restricted = self._restricted_user()
+        self.client.force_login(restricted)
+        results = self.client.get(reverse("contacts:search"), {"q": "Slaptas"}).context["results"]
+        self.assertEqual(results["people_count"], 0)
+        export = self.client.get(reverse("contacts:contacts-export"))
+        self.assertNotIn("Slaptas", export.content.decode("utf-8"))
+
+    def test_member_role_still_sees_every_record(self):
+        from contacts.models import UserProfile
+        other = get_user_model().objects.create_user("kitas", password="very-secure-password")
+        theirs = Person.objects.create(first_name="Svetimas", last_name="Kontaktas", owner=other)
+        member = get_user_model().objects.create_user("narys", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_MEMBER)
+        self.client.force_login(member)
+        self.assertEqual(self.client.get(reverse("contacts:detail", args=[theirs.pk])).status_code, 200)
+
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)
         response = self.client.get(self.company.get_absolute_url())

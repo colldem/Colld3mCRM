@@ -31,6 +31,7 @@ from .filters import (
     saved_filter_payload,
 )
 from .models import Activity, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, UserProfile, WebLink
+from .permissions import visible_companies, visible_people, visible_reminders
 
 
 def _elided_page_numbers(page):
@@ -62,8 +63,11 @@ def _attach_custom_cells(records, custom_columns):
         record.custom_cells = [index.get(record.pk, {}).get(field.pk, "") for field in custom_columns]
 
 
-def _search_results(query, per_group):
-    """Grouped global-search results. `per_group` caps each list; counts are full."""
+def _search_results(query, per_group, user=None):
+    """Grouped global-search results. `per_group` caps each list; counts are full.
+
+    When `user` is given, results are limited to the records that user may see.
+    """
     data = QueryDict(mutable=True)
     data["q"] = query
     terms = query.split()
@@ -72,11 +76,11 @@ def _search_results(query, per_group):
         text_match &= Q(text__icontains=term)
 
     people = apply_contact_filters(
-        Person.objects.filter(deleted_at__isnull=True).prefetch_related("emails", "company_links__company"),
+        visible_people(user, Person.objects.filter(deleted_at__isnull=True)).prefetch_related("emails", "company_links__company"),
         contact_filter_values(data),
     ).order_by("last_name", "first_name")
     companies = apply_company_filters(
-        Company.objects.filter(deleted_at__isnull=True).prefetch_related("people"),
+        visible_companies(user, Company.objects.filter(deleted_at__isnull=True)).prefetch_related("people"),
         company_filter_values(data),
     ).order_by("name")
     activities = (
@@ -86,9 +90,17 @@ def _search_results(query, per_group):
         .select_related("person", "company").order_by("-created_at")
     )
     reminders = (
-        Reminder.objects.filter(deleted_at__isnull=True, person__deleted_at__isnull=True).filter(text_match)
+        visible_reminders(user, Reminder.objects.filter(deleted_at__isnull=True, person__deleted_at__isnull=True)).filter(text_match)
         .select_related("person").order_by("due_at")
     )
+    if user is not None:
+        from .permissions import sees_all_records
+
+        if not sees_all_records(user):
+            activities = activities.filter(
+                Q(person__owner=user) | Q(person__owner__isnull=True)
+                | Q(company__owner=user) | Q(company__owner__isnull=True)
+            )
     return {
         "q": query,
         "people": people[:per_group], "people_count": people.count(),
@@ -101,7 +113,7 @@ def _search_results(query, per_group):
 @login_required
 def global_search(request):
     query = request.GET.get("q", "").strip()
-    results = _search_results(query, 50) if len(query) >= 2 else None
+    results = _search_results(query, 50, request.user) if len(query) >= 2 else None
     return render(request, "search.html", {"query": query, "results": results})
 
 
@@ -110,7 +122,7 @@ def search_suggest(request):
     query = request.GET.get("q", "").strip()
     if len(query) < 2:
         return JsonResponse({"q": query, "groups": []})
-    results = _search_results(query, 5)
+    results = _search_results(query, 5, request.user)
     search_url = f"{reverse('contacts:search')}?q={query}"
     groups = []
     if results["people_count"]:
@@ -185,7 +197,7 @@ def contact_list(request):
     sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
     order = [f"{order_prefix}{field}" for field in sort_map.get(sort_key, sort_map["name"])]
-    people = Person.objects.filter(deleted_at__isnull=True).prefetch_related(
+    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True)).prefetch_related(
         "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
     )
     people = people.annotate(last_contact_at=Max("activities__created_at", filter=Q(activities__deleted_at__isnull=True)))
@@ -274,7 +286,7 @@ def contact_bulk_action(request):
     ids = request.POST.getlist("selected")
     if not ids:
         return redirect("contacts:list")
-    people = Person.objects.filter(pk__in=ids, deleted_at__isnull=True)
+    people = visible_people(request.user, Person.objects.filter(pk__in=ids, deleted_at__isnull=True))
     if action == "archive":
         count = people.update(deleted_at=timezone.now())
         messages.success(request, tr("Archyvuota kontaktų: %(count)s.") % {"count": count})
@@ -291,7 +303,7 @@ def company_bulk_action(request):
     ids = request.POST.getlist("selected")
     if not ids:
         return redirect("contacts:company-list")
-    companies = Company.objects.filter(pk__in=ids, deleted_at__isnull=True)
+    companies = visible_companies(request.user, Company.objects.filter(pk__in=ids, deleted_at__isnull=True))
     if action == "archive":
         count = companies.update(deleted_at=timezone.now())
         if count:
@@ -303,7 +315,7 @@ def company_bulk_action(request):
 
 @login_required
 def contact_archive(request, pk):
-    person = get_object_or_404(Person, pk=pk)
+    person = get_object_or_404(visible_people(request.user), pk=pk)
     if request.method == "POST" and person.deleted_at is None:
         person.deleted_at = timezone.now()
         person.save(update_fields=["deleted_at", "updated_at"])
@@ -313,7 +325,7 @@ def contact_archive(request, pk):
 
 @login_required
 def company_archive(request, pk):
-    company = get_object_or_404(Company, pk=pk)
+    company = get_object_or_404(visible_companies(request.user), pk=pk)
     if request.method == "POST" and company.deleted_at is None:
         company.deleted_at = timezone.now()
         company.save(update_fields=["deleted_at", "updated_at"])
@@ -323,14 +335,14 @@ def company_archive(request, pk):
 
 @login_required
 def archive_list(request):
-    people = Person.objects.filter(deleted_at__isnull=False, merged_into__isnull=True).order_by("-deleted_at")
-    companies = Company.objects.filter(deleted_at__isnull=False, merged_into__isnull=True).order_by("-deleted_at")
+    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=False, merged_into__isnull=True)).order_by("-deleted_at")
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=False, merged_into__isnull=True)).order_by("-deleted_at")
     return render(request, "archive.html", {"people": people, "companies": companies})
 
 
 @login_required
 def contact_restore(request, pk):
-    person = get_object_or_404(Person, pk=pk, merged_into__isnull=True)
+    person = get_object_or_404(visible_people(request.user), pk=pk, merged_into__isnull=True)
     if request.method == "POST" and person.deleted_at is not None:
         person.deleted_at = None
         person.save(update_fields=["deleted_at", "updated_at"])
@@ -340,7 +352,7 @@ def contact_restore(request, pk):
 
 @login_required
 def company_restore(request, pk):
-    company = get_object_or_404(Company, pk=pk, merged_into__isnull=True)
+    company = get_object_or_404(visible_companies(request.user), pk=pk, merged_into__isnull=True)
     if request.method == "POST" and company.deleted_at is not None:
         company.deleted_at = None
         company.save(update_fields=["deleted_at", "updated_at"])
@@ -704,6 +716,14 @@ def documentation_page(request):
 def duplicate_list(request):
     duplicate_settings = DuplicateSettings.load()
     pairs = (all_person_duplicate_pairs(duplicate_settings.level) + all_company_duplicate_pairs(duplicate_settings.level)) if duplicate_settings.enabled else []
+    from .permissions import can_see_company, can_see_person
+
+    def _visible_pair(pair):
+        left, right = pair["left"], pair["right"]
+        checker = can_see_person if isinstance(left, Person) else can_see_company
+        return checker(request.user, left) and checker(request.user, right)
+
+    pairs = [pair for pair in pairs if _visible_pair(pair)]
     return render(request, "duplicates/list.html", {"pairs": pairs, "duplicate_settings": duplicate_settings})
 
 
@@ -722,6 +742,11 @@ def duplicate_merge(request, kind, source_pk, target_pk):
     target = model.objects.filter(pk=target_pk).first()
     if not source or not target:
         return HttpResponse("Vienas iš sujungiamų įrašų nerastas.", status=404)
+    from .permissions import can_see_company, can_see_person
+
+    checker = can_see_person if kind == "person" else can_see_company
+    if not (checker(request.user, source) and checker(request.user, target)):
+        raise Http404
     if source.merged_into_id == target.pk:
         return redirect(target.get_absolute_url())
 
@@ -746,7 +771,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 @login_required
 def contact_detail(request, pk):
     from .detail_editing import detail_fields
-    person = get_object_or_404(Person.objects.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field"), pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
     return render(request, "contacts/detail.html", {
@@ -785,7 +810,7 @@ def contact_create(request):
 
 @login_required
 def contact_edit(request, pk):
-    person = get_object_or_404(Person, pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user), pk=pk, deleted_at__isnull=True)
     initial = {
         "companies": person.companies.all(),
         "phone": "\n".join(person.phones.values_list("number", flat=True)),
@@ -833,7 +858,7 @@ def _report_rejected_attachments(request, rejected):
 
 @login_required
 def activity_create(request, pk):
-    person = get_object_or_404(Person, pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user), pk=pk, deleted_at__isnull=True)
     form = ActivityForm(request.POST)
     if form.is_valid():
         token = request.POST.get("submission_token", "")
@@ -850,7 +875,7 @@ def activity_create(request, pk):
 
 @login_required
 def activity_edit(request, person_pk, pk):
-    person = get_object_or_404(Person, pk=person_pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user), pk=person_pk, deleted_at__isnull=True)
     activity = get_object_or_404(person.activities, pk=pk, deleted_at__isnull=True)
     form = ActivityForm(request.POST or None, instance=activity)
     if request.method == "POST" and form.is_valid():
@@ -862,7 +887,7 @@ def activity_edit(request, person_pk, pk):
 
 @login_required
 def reminder_create(request, pk):
-    person = get_object_or_404(Person, pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user), pk=pk, deleted_at__isnull=True)
     form = ReminderForm(request.POST)
     if form.is_valid():
         token = request.POST.get("submission_token", "")
@@ -878,7 +903,7 @@ def reminder_create(request, pk):
 
 @login_required
 def reminder_complete(request, pk):
-    reminder = get_object_or_404(Reminder, pk=pk, deleted_at__isnull=True)
+    reminder = get_object_or_404(visible_reminders(request.user), pk=pk, deleted_at__isnull=True)
     if request.method == "POST":
         now = timezone.now()
         Reminder.objects.filter(pk=reminder.pk, deleted_at__isnull=True, completed_at__isnull=True).update(
@@ -889,7 +914,7 @@ def reminder_complete(request, pk):
 
 @login_required
 def reminder_edit(request, pk):
-    reminder = get_object_or_404(Reminder, pk=pk, deleted_at__isnull=True)
+    reminder = get_object_or_404(visible_reminders(request.user), pk=pk, deleted_at__isnull=True)
     original_due_at = reminder.due_at
     form = ReminderForm(request.POST or None, instance=reminder)
     if request.method == "POST" and form.is_valid():
@@ -903,7 +928,7 @@ def reminder_edit(request, pk):
 
 @login_required
 def reminder_delete(request, pk):
-    reminder = get_object_or_404(Reminder, pk=pk, deleted_at__isnull=True)
+    reminder = get_object_or_404(visible_reminders(request.user), pk=pk, deleted_at__isnull=True)
     if request.method == "POST":
         reminder.deleted_at = timezone.now()
         reminder.save(update_fields=["deleted_at", "updated_at"])
@@ -915,8 +940,8 @@ def reminder_delete(request, pk):
 def reminder_list(request):
     from .reminder_queries import pending_reminders
     now = timezone.now()
-    active = pending_reminders().filter(due_at__lte=now)
-    scheduled = pending_reminders().filter(due_at__gt=now)
+    active = pending_reminders(request.user).filter(due_at__lte=now)
+    scheduled = pending_reminders(request.user).filter(due_at__gt=now)
     active.filter(read_at__isnull=True).update(read_at=now)
     return render(request, "reminders/list.html", {"active_reminders": active, "scheduled_reminders": scheduled})
 
@@ -927,6 +952,13 @@ def attachment_download(request, pk):
         Q(activity__person__isnull=False, activity__person__deleted_at__isnull=True)
         | Q(activity__company__isnull=False, activity__company__deleted_at__isnull=True)
     )
+    from .permissions import sees_all_records
+
+    if not sees_all_records(request.user):
+        available = available.filter(
+            Q(activity__person__owner=request.user) | Q(activity__person__owner__isnull=True)
+            | Q(activity__company__owner=request.user) | Q(activity__company__owner__isnull=True)
+        )
     attachment = get_object_or_404(available, pk=pk)
     if not attachment.file:
         raise Http404
@@ -941,7 +973,7 @@ def company_list(request):
     redirect_to = _default_filter_redirect(request, "companies")
     if redirect_to:
         return redirect(redirect_to)
-    companies = Company.objects.filter(deleted_at__isnull=True).prefetch_related("people", "tags", "categories")
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).prefetch_related("people", "tags", "categories")
     filter_values = company_filter_values(request.GET)
     query = filter_values["q"]
     page_size = 100 if request.GET.get("page_size") == "100" else 50
@@ -1008,7 +1040,7 @@ def company_list(request):
 @login_required
 def company_detail(request, pk):
     from .detail_editing import company_detail_fields
-    company = get_object_or_404(Company.objects.select_related("owner").prefetch_related("person_links__person", "custom_values__field"), pk=pk, deleted_at__isnull=True)
+    company = get_object_or_404(visible_companies(request.user, Company.objects.select_related("owner").prefetch_related("person_links__person", "custom_values__field")), pk=pk, deleted_at__isnull=True)
     history = Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__company_links__company=company)
     ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at")
@@ -1031,7 +1063,7 @@ def company_detail(request, pk):
 
 @login_required
 def company_activity_edit(request, company_pk, pk):
-    company = get_object_or_404(Company, pk=company_pk, deleted_at__isnull=True)
+    company = get_object_or_404(visible_companies(request.user), pk=company_pk, deleted_at__isnull=True)
     activity = get_object_or_404(company.activities, pk=pk, deleted_at__isnull=True)
     form = ActivityForm(request.POST or None, instance=activity)
     if request.method == "POST" and form.is_valid():
@@ -1043,7 +1075,7 @@ def company_activity_edit(request, company_pk, pk):
 
 @login_required
 def company_activity_create(request, pk):
-    company = get_object_or_404(Company, pk=pk, deleted_at__isnull=True)
+    company = get_object_or_404(visible_companies(request.user), pk=pk, deleted_at__isnull=True)
     form = ActivityForm(request.POST)
     if form.is_valid():
         token = request.POST.get("submission_token", "")
@@ -1074,7 +1106,7 @@ def company_create(request):
 
 @login_required
 def company_edit(request, pk):
-    company = get_object_or_404(Company, pk=pk, deleted_at__isnull=True)
+    company = get_object_or_404(visible_companies(request.user), pk=pk, deleted_at__isnull=True)
     form = CompanyForm(request.POST or None, instance=company)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
@@ -1109,7 +1141,7 @@ def contacts_export(request):
     response.write("\ufeff")
     writer = csv.writer(response)
     writer.writerow(["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Būsena", "Tagai", "Kategorijos"])
-    people = Person.objects.filter(deleted_at__isnull=True)
+    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     if request.method == "POST":
         people = people.filter(pk__in=request.POST.getlist("selected"))
     people = people.prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "company_links__company")
@@ -1124,7 +1156,7 @@ def companies_export(request):
     response.write("\ufeff")
     writer = csv.writer(response)
     writer.writerow(["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Telefonas", "El. paštas"])
-    companies = Company.objects.filter(deleted_at__isnull=True)
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
     if request.method == "POST": companies = companies.filter(pk__in=request.POST.getlist("selected"))
     for company in companies: writer.writerow([company.name, company.company_code, company.vat_code, company.address, company.phone, company.email])
     return response

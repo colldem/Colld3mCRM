@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from .models import Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
 from .forms import CompanyForm
+from .permissions import visible_companies, visible_people
 from .duplicates import find_company_duplicates, find_person_duplicates
 
 
@@ -114,7 +115,7 @@ def set_owner(record, request_post):
 @require_POST
 @transaction.atomic
 def edit_company_field(request, pk):
-    company = get_object_or_404(Company.objects.select_for_update(), pk=pk, deleted_at__isnull=True)
+    company = get_object_or_404(visible_companies(request.user, Company.objects.select_for_update()), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field", "")
     if field == "owner":
         set_owner(company, request.POST)
@@ -200,7 +201,7 @@ def detail_fields(person):
 @require_POST
 @transaction.atomic
 def edit_contact_field(request, pk):
-    person = get_object_or_404(Person.objects.select_for_update(), pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user, Person.objects.select_for_update()), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field", "")
     try:
         if field == "full_name":

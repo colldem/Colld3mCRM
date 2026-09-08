@@ -30,10 +30,13 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **C4** — dinaminiai laukai: Nustatymai → Dinaminiai laukai (tekstas/ilgas tekstas/
   žymimasis/vienas/keli pasirinkimai; kontaktams, įmonėms ar abiem); rodomi ir
   redaguojami (double-click) kortelėje, sąrašo stulpeliuose, filtruose ir paieškoje
-- 🟡 **C6** — dalys 1–2: `owner` (atsakingas naudotojas) prie kontakto/įmonės
+- 🟡 **C6** — dalys 1–3: `owner` (atsakingas naudotojas) prie kontakto/įmonės
   (numatytai kūrėjas, keičiamas kortelėje); Nustatymai → Naudotojai (kūrimas,
-  rolės, išjungimas, slaptažodžio atstatymas). Liko: matomumo filtravimas (3 dalis),
-  „owner" stulpelis/filtras/masinis priskyrimas (4 dalis).
+  rolės, išjungimas, slaptažodžio atstatymas); **matomumo filtravimas** — rolė
+  „Naudotojas (tik savi įrašai)" mato tik savo ir dar nepriskirtus įrašus
+  (sąrašai, kortelės, paieška, eksportas, archyvas, priminimai, dublikatai,
+  inline redagavimas, priedai). Liko: „owner" stulpelis/filtras/masinis
+  priskyrimas ir CSV stulpelis (4 dalis).
 
 ---
 
@@ -138,7 +141,28 @@ Reikalauta „pradėti rinkti iš karto". Nėra: kas/kada/kurį lauką keitė, s
 reikšmė, prisijungimų istorija, importo/eksporto operacijų žurnalas, failų įkėlimai.
 Yra tik `created_at`/`updated_at`/`created_by`.
 
-### C6. Naudotojai, rolės, teisės ir atsakingas naudotojas — 🟡 dalys 1–2 padarytos
+**Patikslinta specifikacija (2026-09-08):**
+- `AuditLog` modelis: `actor` (FK user, SET_NULL), `action` (kategorija), `target_type`
+  (contact / company / setting / custom_field / user / import / export / activity /
+  reminder / auth), `target_id`, `target_label` (žmogui skaitomas pavadinimas),
+  `field` (kuris laukas), `old_value` / `new_value` (tekstu), `detail` (JSON papildomai),
+  `created_at`, `ip`.
+- Registruojami įvykiai:
+  - kontakto / įmonės kūrimas, trynimas (archyvavimas), atkūrimas, lauko redagavimas
+    (inline ir per formą) — su sena→nauja reikšme;
+  - sistemos nustatymų keitimas (dublikatai, žymos, kategorijos, profilis, sesijos t.t.)
+    — kuris naudotojas, kurį nustatymą, sena→nauja;
+  - dinaminio lauko sukūrimas / trynimas / pervadinimas;
+  - naudotojo sukūrimas / rolės keitimas / išjungimas / slaptažodžio atstatymas;
+  - importas (kiek eilučių, sukurta / atnaujinta / praleista) ir eksportas (ką, kiek);
+  - priedų įkėlimas / šalinimas;
+  - priminimo (veiksmo) suplanavimas, redagavimas, pažymėjimas atliktu, trynimas;
+  - prisijungimas / atsijungimas / nepavykęs prisijungimas.
+- **Atskira nustatymų skiltis „Žurnalas"** (`/settings/audit/`), matoma tik administratoriams.
+- Filtravimas: pagal naudotoją, pagal veiksmą (action), pagal datų intervalą (nuo–iki).
+  Puslapiavimas. Tik skaitymas, įrašai netrinami.
+
+### C6. Naudotojai, rolės, teisės ir atsakingas naudotojas — 🟡 dalys 1–3 padarytos
 Dabar 1 superuser. Reikia pilno modulio. Pagrindas — konkurentų praktika
 (Pipedrive „permission sets" + „visibility groups", HubSpot „users & teams" +
 record owner, Teamgate rolės + savininkas, Salesforce owner + org-wide defaults).

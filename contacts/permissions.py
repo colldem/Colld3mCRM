@@ -21,6 +21,57 @@ def sees_all_records(user):
     return role_of(user) in (UserProfile.ROLE_ADMIN, UserProfile.ROLE_MEMBER)
 
 
+def visible_people(user, queryset=None):
+    """Restrict a Person queryset to what `user` may see.
+
+    Admins and regular members see everything. Restricted members see only the
+    records they own plus records with no owner yet.
+    """
+    from .models import Person
+
+    if queryset is None:
+        queryset = Person.objects.all()
+    if user is None or sees_all_records(user):
+        return queryset
+    from django.db.models import Q
+
+    return queryset.filter(Q(owner=user) | Q(owner__isnull=True))
+
+
+def visible_companies(user, queryset=None):
+    """Restrict a Company queryset the same way as :func:`visible_people`."""
+    from .models import Company
+
+    if queryset is None:
+        queryset = Company.objects.all()
+    if user is None or sees_all_records(user):
+        return queryset
+    from django.db.models import Q
+
+    return queryset.filter(Q(owner=user) | Q(owner__isnull=True))
+
+
+def visible_reminders(user, queryset=None):
+    """Restrict a Reminder queryset to reminders on people `user` may see."""
+    from .models import Reminder
+
+    if queryset is None:
+        queryset = Reminder.objects.all()
+    if user is None or sees_all_records(user):
+        return queryset
+    from django.db.models import Q
+
+    return queryset.filter(Q(person__owner=user) | Q(person__owner__isnull=True))
+
+
+def can_see_person(user, person):
+    return sees_all_records(user) or person.owner_id in (None, user.pk)
+
+
+def can_see_company(user, company):
+    return sees_all_records(user) or company.owner_id in (None, user.pk)
+
+
 def active_admin_ids():
     from django.contrib.auth import get_user_model
 

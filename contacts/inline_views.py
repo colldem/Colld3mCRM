@@ -6,6 +6,7 @@ from django.views.decorators.http import require_POST
 from django.utils.translation import gettext as tr
 
 from .models import Company, Person
+from .permissions import visible_companies, visible_people
 
 
 @login_required
@@ -13,7 +14,8 @@ from .models import Company, Person
 @transaction.atomic
 def update_inline(request, kind, pk):
     model = Company if kind == "company" else Person
-    record = get_object_or_404(model.objects.select_for_update(), pk=pk, deleted_at__isnull=True)
+    scope = visible_companies if kind == "company" else visible_people
+    record = get_object_or_404(scope(request.user, model.objects.select_for_update()), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field")
     if field == "favourite" and kind == "person":
         record.favourite = request.POST.get("value") == "true"
