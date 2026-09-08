@@ -1914,3 +1914,15 @@ msgstr "Manage contacts, companies and reminders."
 
 msgid "Kontaktas su šiuo el. paštu arba vardu jau yra, bet jums nematomas."
 msgstr "A contact with this email or name already exists but is not visible to you."
+
+msgid "Didėjančiai"
+msgstr "Ascending"
+
+msgid "Mažėjančiai"
+msgstr "Descending"
+
+msgid "Netinkami sujungimo duomenys."
+msgstr "Invalid merge request."
+
+msgid "Pasirinkti įrašai pagal dabartines taisykles nėra dublikatai."
+msgstr "The selected records are not duplicates under the current rules."

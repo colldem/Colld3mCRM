@@ -1150,16 +1150,16 @@ def duplicate_merge(request, kind, source_pk, target_pk):
         return HttpResponse(status=405)
     _require_capability(request, "can_merge_duplicates")
     if kind not in {"person", "company"} or source_pk == target_pk:
-        return HttpResponse("Netinkami sujungimo duomenys.", status=400)
+        return HttpResponse(tr("Netinkami sujungimo duomenys."), status=400)
     duplicate_settings = DuplicateSettings.load()
     if not duplicate_settings.enabled:
-        return HttpResponse("Dublikatų tikrinimas išjungtas.", status=400)
+        return HttpResponse(tr("Dublikatų tikrinimas išjungtas."), status=400)
 
     model = Person if kind == "person" else Company
     source = model.objects.filter(pk=source_pk).first()
     target = model.objects.filter(pk=target_pk).first()
     if not source or not target:
-        return HttpResponse("Vienas iš sujungiamų įrašų nerastas.", status=404)
+        return HttpResponse(tr("Vienas iš sujungiamų įrašų nerastas."), status=404)
     from .permissions import can_see_company, can_see_person
 
     checker = can_see_person if kind == "person" else can_see_company
@@ -1174,7 +1174,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
         for pair in pair_function(duplicate_settings.level)
     )
     if not is_duplicate_pair:
-        return HttpResponse("Pasirinkti įrašai pagal dabartines taisykles nėra dublikatai.", status=400)
+        return HttpResponse(tr("Pasirinkti įrašai pagal dabartines taisykles nėra dublikatai."), status=400)
 
     from .merging import merge_companies, merge_people
     try:

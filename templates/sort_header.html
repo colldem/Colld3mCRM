@@ -2,8 +2,8 @@
 <details class="sort-control">
   <summary><span>{% translate label %}</span><span class="sort-indicator" aria-hidden="true">{% if sort == sort_key %}{% if direction == 'desc' %}↓{% else %}↑{% endif %}{% else %}⌄{% endif %}</span></summary>
   <div class="sort-menu">
-    <a {% if sort == sort_key and direction == 'asc' %}class="active" aria-current="true"{% endif %} href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort_key }}&amp;direction=asc"><span>A-Ž / 0-9</span><b aria-hidden="true">↑</b></a>
-    <a {% if sort == sort_key and direction == 'desc' %}class="active" aria-current="true"{% endif %} href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort_key }}&amp;direction=desc"><span>Ž-A / 9-0</span><b aria-hidden="true">↓</b></a>
+    <a {% if sort == sort_key and direction == 'asc' %}class="active" aria-current="true"{% endif %} href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort_key }}&amp;direction=asc"><span>{% translate 'Didėjančiai' %}</span><b aria-hidden="true">↑</b></a>
+    <a {% if sort == sort_key and direction == 'desc' %}class="active" aria-current="true"{% endif %} href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort={{ sort_key }}&amp;direction=desc"><span>{% translate 'Mažėjančiai' %}</span><b aria-hidden="true">↓</b></a>
     <hr>
     <a {% if sort == 'id' and direction == 'asc' %}class="active" aria-current="true"{% endif %} href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort=id&amp;direction=asc"><span>ID</span><b aria-hidden="true">↑</b></a>
     <a {% if sort == 'id' and direction == 'desc' %}class="active" aria-current="true"{% endif %} href="?{% if list_query %}{{ list_query }}&amp;{% endif %}sort=id&amp;direction=desc"><span>ID</span><b aria-hidden="true">↓</b></a>
