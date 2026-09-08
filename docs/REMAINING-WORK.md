@@ -460,48 +460,27 @@ Vykdymo tvarka: G1 → G2 → **G7** → G3 → G4 → G5 → G6.
 G7 (pranešimai el. paštu) eina iškart po G2, nes priskirta užduotis be laiško neveikia.
 G4 mažas ir nepriklausomas — jei prireiks anksčiau, galima kelti į priekį.
 
-### G1. Analitikos modulis — 🟡 (1 dalis padaryta, `0.29.0`)
-**Padaryta (1 dalis):** darbastalis ties `/` (pakeitė peradresavimą į kontaktus) —
+### G1. Analitikos modulis — ✅ padaryta (`0.29.0` + `0.30.0`)
+**1 dalis (`0.29.0`):** darbastalis ties `/` (pakeitė peradresavimą į kontaktus) —
 rodikliai, vėluojantys / šiandienos / rytojaus darbotvarkės, paskutiniai mano liesti
-įrašai (iš `AuditLog`), savaitės veiklos pagal tipą; ir `/analytics/` ryšių priežiūra —
+įrašai (iš `AuditLog`), savaitės veiklos pagal tipą. Ryšių priežiūra `/analytics/` —
 nutilę (30/60/90 d.), niekada nebendrauta, be atsakingo, be telefono ir el. pašto,
-su „Suplanuoti" nuoroda ir CSV eksportu. Kodas: `contacts/analytics_views.py`,
-`templates/analytics/*`. **Liko 2 dalis:** komunikacijos statistika, priminimų
-vykdymas, bazės augimas ir sistemos naudojimas — su inline SVG grafikais.
+su „Suplanuoti" nuoroda ir CSV eksportu.
 
-Viskas skaičiuojama iš **jau esamų** duomenų (`Activity`, `Reminder`, `Person`,
-`Company`, `AuditLog`, žymos/kategorijos/dinaminiai laukai) — naujų laukų nereikia.
+**2 dalis (`0.30.0`):** skilčių navigacija po `/analytics/` ir keturi puslapiai —
+- **Komunikacija:** veiklos laike sudėtinėmis juostomis pagal tipą (savaitėmis, o virš
+  120 d. — mėnesiais), aktyviausi kontaktai ir įmonės, pagal naudotoją, vidutinis
+  tarpas tarp veiklų
+- **Priminimų vykdymas:** suplanuota / atlikta / vėluoja / būsimi, atlikimo žiedas,
+  vidutinis vėlavimas, lentelė pagal naudotoją
+- **Bazė ir augimas:** 12 mėn. kontaktų kreivė, nauji per mėnesį, duomenų kokybė
+  (% su el. paštu / telefonu / įmone / atsakingu), pjūviai pagal kategoriją, žymą, atsakingą
+- **Sistemos naudojimas** (tik administratoriui): prisijungimai, nepavykę, importai,
+  eksportai, veiksmai pagal tipą ir aktyviausios paskyros
 
-**1. Darbastalis** (tampa `/` vietoj peradresavimo į kontaktų sąrašą)
-šiandienos ir rytojaus įvykiai · vėluojantys priminimai · mano paskutiniai liesti
-įrašai · nauji kontaktai per 30 d. · mano veiklos šią savaitę pagal tipą.
-
-**2. Ryšių priežiūra** (vertingiausia dalis kontaktų CRM)
-- **Nutilę kontaktai** — nėra veiklos >30/60/90 d., nuo seniausio, su „suplanuoti
-  priminimą" mygtuku tiesiai sąraše (`Person.last_contact_at` iš `Activity`)
-- **Niekada nebendrauta** — kontaktai be nė vienos veiklos
-- **Be atsakingo** (nei `owner`, nei `responsibles`) · **be telefono ir el. pašto**
-
-**3. Komunikacijos statistika**
-- Veiklų kiekis laike (savaitėmis / mėnesiais) pagal tipą — skambučiai, laiškai,
-  susitikimai, pastabos, užduotys
-- Aktyviausi kontaktai ir įmonės per laikotarpį (top 10)
-- Pagal naudotoją · vidutinis bendravimo dažnis (dienų tarp veiklų)
-
-**4. Priminimų vykdymas** — suplanuota / atlikta / vėluoja · atlikimo procentas ·
-vidutinis vėlavimas dienomis (`completed_at` vs `due_at`) · pagal naudotoją.
-
-**5. Bazės augimas ir sudėtis** — kontaktų/įmonių kreivė iš `created_at` ·
-pasiskirstymas pagal kategoriją, žymą, „Šaltinį" (dinaminis laukas), atsakingą ·
-duomenų kokybė (% su el. paštu / telefonu / įmone / atsakingu).
-
-**6. Sistemos naudojimas** (tik administratoriui, iš `AuditLog`) — prisijungimai ir
-nesėkmingi bandymai · importai/eksportai · aktyviausi naudotojai.
-
-Technika: `contacts/analytics_views.py`, `templates/analytics/*`.
-**Grafikai — inline SVG, be išorinių bibliotekų** (NAS uždarame tinkle, CDN nepasiektų).
-Visi skaičiavimai per `visible_people` / `visible_companies` — ribotas naudotojas
-mato tik savo skaičius. Laikotarpio filtras + CSV eksportas kiekvienai lentelei.
+Grafikai — savos gamybos **inline SVG** (`contacts/charts.py`), be bibliotekų.
+⚠️ Pastaba ateičiai: SVG blokai naudoja `{% localize off %}` — lietuviška lokalė
+koordinates rašo kaip `637,09`, o tai netinkamas SVG ir grafikai lieka tušti.
 
 ### G2. Užduočių priskyrimas kolegai — ❌
 `Reminder` praplečiamas: `assigned_to` (FK User, numatyta = `created_by`),
