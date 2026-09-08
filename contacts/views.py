@@ -590,7 +590,11 @@ def settings_page(request):
         response = redirect("contacts:settings")
         response.set_cookie(settings.LANGUAGE_COOKIE_NAME, profile.language, max_age=365 * 24 * 60 * 60, samesite="Lax")
         return response
-    return render(request, "settings/profile.html", {"form": form, "settings_section": "profile"})
+    return render(request, "settings/profile.html", {
+        "form": form,
+        "password_form": PasswordChangeForm(request.user),
+        "settings_section": "profile",
+    })
 
 
 @login_required
@@ -889,15 +893,22 @@ def settings_audit(request):
 
 @login_required
 def settings_password(request):
-    form = PasswordChangeForm(request.user, request.POST or None)
-    if request.method == "POST" and form.is_valid():
+    # The password form lives on the profile page; this endpoint only takes its POST.
+    if request.method != "POST":
+        return redirect("contacts:settings")
+    form = PasswordChangeForm(request.user, request.POST)
+    if form.is_valid():
         form.save()
         update_session_auth_hash(request, form.user)
         audit_log(AuditLog.UPDATE, request=request, target=request.user, target_type="user",
                   field=str(tr("Slaptažodis")), new=str(tr("pakeistas")))
         messages.success(request, tr("Slaptažodis pakeistas."))
-        return redirect("contacts:settings-password")
-    return render(request, "settings/password.html", {"form": form, "settings_section": "password"})
+        return redirect("contacts:settings")
+    return render(request, "settings/profile.html", {
+        "form": UserProfileForm(user=request.user),
+        "password_form": form,
+        "settings_section": "profile",
+    })
 
 
 _EXPORT_README = (

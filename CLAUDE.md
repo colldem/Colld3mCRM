@@ -30,6 +30,11 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
    tag'ą `compose.yaml`.
 5. **GitHub.** Tik po sėkmingo diegimo — `git push` į `main`. Commit žinutė
    `fix:` / `feat:` / `chore:` stiliumi, glausta, apie tą vieną pakeitimą.
+6. **Dokumentacija.** Jei pakeitimas prideda ar keičia funkciją, matomą
+   naudotojui (naują langą, mygtuką, nustatymą, prieigos taisyklę), tame
+   pačiame pakeitime atnaujinti in-app žinyną `templates/settings/documentation.html`
+   ir, jei keičiasi funkcijų sąrašas ar priklausomybės — `README.md` bei šio
+   failo „Struktūra" sąrašą. Versijos numeris žinyne imamas iš `VERSION`.
 
 ## Aplinka
 
@@ -43,10 +48,13 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 ## Struktūra
 
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
-  Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, DuplicateSettings.
-- `contacts/views.py` — pagrindiniai puslapiai; `detail_editing.py` /
-  `inline_views.py` — AJAX laukų redagavimas; `duplicates.py` / `merging.py` —
-  dublikatai; `filters.py` — sąrašų filtrai.
+  Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
+  RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings.
+- `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
+  darbastalis ir analitika; `calendar_views.py` — kalendorius;
+  `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
+  `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
+  `permissions.py` — rolės, teisės ir įrašų matomumas; `charts.py` — SVG grafikai.
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
 - `docs/DEPLOYMENT-UGREEN.md` — diegimo procedūra; prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.

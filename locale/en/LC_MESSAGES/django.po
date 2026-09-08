@@ -2178,3 +2178,9 @@ msgstr "Agenda"
 
 msgid "Vėluojančių nėra."
 msgstr "Nothing overdue."
+
+msgid "Darbastalis ir analitika"
+msgstr "Dashboard and analytics"
+
+msgid "Slaptažodžiai"
+msgstr "Passwords"

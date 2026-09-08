@@ -1028,7 +1028,7 @@ class ContactViewTests(TestCase):
             "new_password1": "another-secure-pass-99",
             "new_password2": "another-secure-pass-99",
         })
-        self.assertRedirects(response, reverse("contacts:settings-password"))
+        self.assertRedirects(response, reverse("contacts:settings"))
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("another-secure-pass-99"))
         self.assertEqual(self.client.get(reverse("contacts:list")).status_code, 200)
@@ -1055,10 +1055,18 @@ class ContactViewTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("very-secure-password"))
 
-    def test_settings_nav_links_to_password_section(self):
+    def test_profile_page_hosts_the_password_change_form(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:settings"))
-        self.assertContains(response, reverse("contacts:settings-password"))
+        self.assertContains(response, f'action="{reverse("contacts:settings-password")}"')
+        self.assertContains(response, "id_old_password")
+        # No standalone password section in the nav any more.
+        self.assertNotContains(response, ">" + "Slaptažodis" + "<")
+
+    def test_password_endpoint_get_redirects_to_profile(self):
+        self.client.force_login(self.user)
+        self.assertRedirects(
+            self.client.get(reverse("contacts:settings-password")), reverse("contacts:settings"))
 
     def test_activity_attachments_reject_oversized_and_unsupported_files(self):
         self.client.force_login(self.user)
@@ -1248,11 +1256,13 @@ class ContactViewTests(TestCase):
             self.assertContains(installation, value)
 
         screens = self.client.get(url, {"topic": "screens"})
-        for value in ("Kontaktų sąrašas", "Įmonių sąrašas", "Priminimai", "Importas / eksportas", "Archyvas", "Nustatymai"):
+        for value in ("Kontaktų sąrašas", "Įmonių sąrašas", "Priminimai", "Importas / eksportas",
+                      "Archyvas", "Nustatymai", "Darbastalis", "Analitika", "Kalendorius"):
             self.assertContains(screens, value)
 
         admin = self.client.get(url, {"topic": "admin"})
-        for value in ("changepassword", "axes_reset_username", "Django administravimas", "Nėra atskirų CRM vaidmenų"):
+        for value in ("changepassword", "axes_reset_username", "Rolės ir teisės",
+                      "Naudotojas (visi įrašai)", "Naudotojų valdymas"):
             self.assertContains(admin, value)
 
         backup = self.client.get(url, {"topic": "backup"})
