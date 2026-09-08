@@ -108,7 +108,7 @@ def merge_people(source_pk, target_pk):
     _merge_labels(source, target)
     _merge_responsibles(source, target)
     changed_fields = []
-    for field in ("first_name", "last_name", "job_title", "priority", "contact_type", "cooperation_start", "description", "internal_note"):
+    for field in ("first_name", "last_name", "job_title", "description"):
         if not getattr(target, field) and getattr(source, field):
             setattr(target, field, getattr(source, field))
             changed_fields.append(field)
@@ -149,7 +149,7 @@ def merge_companies(source_pk, target_pk):
     _merge_labels(source, target)
     _merge_responsibles(source, target)
     changed_fields = []
-    for field in ("name", "company_code", "vat_code", "address", "phone", "email", "url", "priority", "contact_type", "cooperation_start", "description", "internal_note"):
+    for field in ("name", "company_code", "vat_code", "address", "phone", "email", "url", "description"):
         if not getattr(target, field) and getattr(source, field):
             setattr(target, field, getattr(source, field))
             changed_fields.append(field)

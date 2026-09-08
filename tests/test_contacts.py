@@ -481,9 +481,7 @@ class ContactViewTests(TestCase):
         self.client.force_login(self.user)
         PostalAddress.objects.create(person=self.person, address="Gedimino pr. 1, Vilnius")
         WebLink.objects.create(person=self.person, url="https://ruta.example.lt")
-        self.person.status = "Laukiamas"
-        self.person.save(update_fields=["status", "updated_at"])
-        for query in ["Žukai", "Rūta Žukaitė", "Aukštaitijos", "645 21", "ruta@example", "Gedimino", "ruta.example", "Laukiam"]:
+        for query in ["Žukai", "Rūta Žukaitė", "Aukštaitijos", "645 21", "ruta@example", "Gedimino", "ruta.example"]:
             with self.subTest(query=query):
                 response = self.client.get(reverse("contacts:list"), {"q": query})
                 self.assertContains(response, "Rūta Žukaitė")
@@ -534,7 +532,6 @@ class ContactViewTests(TestCase):
             "email": "ruta@example",
             "last_contact_from": today,
             "last_contact_to": today,
-            "status": "Aktyvus",
         })
 
         self.assertEqual(list(response.context["page"]), [self.person])
@@ -1506,7 +1503,7 @@ class ContactViewTests(TestCase):
 
     def test_edit_replaces_multiple_contact_values_without_duplicates(self):
         self.client.force_login(self.user)
-        payload = {"first_name": "Rūta", "last_name": "Žukaitė", "status": "Aktyvus", "phone": "+370 600 00001\n+370 600 00002", "email": "ruta@example.lt\nruta2@example.lt"}
+        payload = {"first_name": "Rūta", "last_name": "Žukaitė", "phone": "+370 600 00001\n+370 600 00002", "email": "ruta@example.lt\nruta2@example.lt"}
         self.client.post(reverse("contacts:edit", args=[self.person.pk]), payload)
         self.client.post(reverse("contacts:edit", args=[self.person.pk]), payload)
         self.assertEqual(self.person.phones.count(), 2)
@@ -1878,20 +1875,12 @@ class ContactViewTests(TestCase):
         self.assertIsNone(self.person.owner)
         self.assertEqual(set(self.person.responsibles.all()), {a, b})
 
-    def test_priority_type_date_and_text_fields_are_inline_editable(self):
+    def test_description_field_is_inline_editable(self):
         self.client.force_login(self.user)
         edit = reverse("contacts:field-edit", args=[self.person.pk])
-        self.client.post(edit, {"field": "priority", "value": "high"})
-        self.client.post(edit, {"field": "contact_type", "value": "Tiekėjas"})
-        self.client.post(edit, {"field": "cooperation_start", "value": "2026-01-15"})
         self.client.post(edit, {"field": "description", "value": "Bendradarbiaujame IT srityje."})
-        self.client.post(edit, {"field": "internal_note", "value": "Skambinti po 15 d."})
         self.person.refresh_from_db()
-        self.assertEqual(self.person.priority, "high")
-        self.assertEqual(self.person.contact_type, "Tiekėjas")
-        self.assertEqual(self.person.cooperation_start.isoformat(), "2026-01-15")
         self.assertEqual(self.person.description, "Bendradarbiaujame IT srityje.")
-        self.assertEqual(self.person.internal_note, "Skambinti po 15 d.")
         # description is shown on the card; it opens on double-click
         page = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
         self.assertContains(page, "Bendradarbiaujame IT srityje.")
@@ -1932,12 +1921,12 @@ class ContactViewTests(TestCase):
         })
         self.assertTrue(Attachment.objects.filter(original_name="naujas.pdf").exists())
 
-    def test_company_priority_field_is_inline_editable(self):
+    def test_company_description_field_is_inline_editable(self):
         self.client.force_login(self.user)
         self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]),
-                         {"field": "priority", "value": "medium"})
+                         {"field": "description", "value": "Ilgametis partneris."})
         self.company.refresh_from_db()
-        self.assertEqual(self.company.priority, "medium")
+        self.assertEqual(self.company.description, "Ilgametis partneris.")
 
     def test_created_by_is_recorded_on_create(self):
         self.client.force_login(self.user)

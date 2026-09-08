@@ -73,9 +73,9 @@ class PersonForm(forms.ModelForm):
 
     class Meta:
         model = Person
-        fields = ["first_name", "last_name", "job_title", "priority", "contact_type", "cooperation_start", "description", "internal_note", "companies", "tags", "categories"]
-        labels = {"first_name": tr("Vardas"), "last_name": tr("Pavardė"), "job_title": tr("Pareigos"), "priority": tr("Prioritetas"), "contact_type": tr("Kontakto tipas"), "cooperation_start": tr("Bendradarbiavimo pradžia"), "description": tr("Aprašymas"), "internal_note": tr("Vidinė pastaba"), "tags": tr("Tagai"), "categories": tr("Kategorijos")}
-        widgets = {"tags": forms.CheckboxSelectMultiple, "categories": forms.CheckboxSelectMultiple, "cooperation_start": forms.DateInput(attrs={"type": "date"}), "description": forms.Textarea(attrs={"rows": 4}), "internal_note": forms.Textarea(attrs={"rows": 3})}
+        fields = ["first_name", "last_name", "job_title", "description", "companies", "tags", "categories"]
+        labels = {"first_name": tr("Vardas"), "last_name": tr("Pavardė"), "job_title": tr("Pareigos"), "description": tr("Aprašymas"), "tags": tr("Tagai"), "categories": tr("Kategorijos")}
+        widgets = {"tags": forms.CheckboxSelectMultiple, "categories": forms.CheckboxSelectMultiple, "description": forms.Textarea(attrs={"rows": 4})}
 
     def clean_tags(self):
         tags = self.cleaned_data["tags"]
@@ -118,9 +118,9 @@ class PersonForm(forms.ModelForm):
 class CompanyForm(forms.ModelForm):
     class Meta:
         model = Company
-        fields = ["name", "company_code", "vat_code", "address", "phone", "email", "url", "priority", "contact_type", "cooperation_start", "description", "internal_note"]
-        labels = {"name": tr("Pavadinimas"), "company_code": tr("Įmonės kodas"), "vat_code": tr("PVM kodas"), "address": tr("Adresas"), "phone": tr("Telefonas"), "email": tr("El. paštas"), "url": "URL", "priority": tr("Prioritetas"), "contact_type": tr("Kontakto tipas"), "cooperation_start": tr("Bendradarbiavimo pradžia"), "description": tr("Aprašymas"), "internal_note": tr("Vidinė pastaba")}
-        widgets = {"cooperation_start": forms.DateInput(attrs={"type": "date"}), "description": forms.Textarea(attrs={"rows": 4}), "internal_note": forms.Textarea(attrs={"rows": 3})}
+        fields = ["name", "company_code", "vat_code", "address", "phone", "email", "url", "description"]
+        labels = {"name": tr("Pavadinimas"), "company_code": tr("Įmonės kodas"), "vat_code": tr("PVM kodas"), "address": tr("Adresas"), "phone": tr("Telefonas"), "email": tr("El. paštas"), "url": "URL", "description": tr("Aprašymas")}
+        widgets = {"description": forms.Textarea(attrs={"rows": 4})}
 
 
 class ActivityForm(forms.ModelForm):

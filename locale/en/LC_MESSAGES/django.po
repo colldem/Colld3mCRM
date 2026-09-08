@@ -1703,29 +1703,8 @@ msgstr "Manage tags and categories"
 msgid "Matyti žurnalą"
 msgstr "View the audit log"
 
-msgid "Prioritetas"
-msgstr "Priority"
-
-msgid "Kontakto tipas"
-msgstr "Contact type"
-
-msgid "Bendradarbiavimo pradžia"
-msgstr "Cooperation since"
-
 msgid "Aprašymas"
 msgstr "Description"
-
-msgid "Vidinė pastaba"
-msgstr "Internal note"
-
-msgid "Žemas"
-msgstr "Low"
-
-msgid "Vidutinis"
-msgstr "Medium"
-
-msgid "Aukštas"
-msgstr "High"
 
 msgid "Kontaktinė informacija"
 msgstr "Contact information"

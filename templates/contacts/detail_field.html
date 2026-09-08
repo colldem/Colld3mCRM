@@ -2,7 +2,7 @@
 <div class="detail-field" data-field="{{ item.field }}">
   <div class="field-display" tabindex="0" role="group" aria-label="{% translate item.label %}: {% translate 'dukart spustelėkite redaguoti' %}">
     <strong>{% translate item.label %}</strong>
-    <div class="field-values">{% for entry in item.entries %}<div>{% if entry.href %}<a href="{{ entry.href }}"{% if item.field == 'web_links' or item.field == 'url' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ entry.text }}</a>{% elif item.field == 'priority' and item.priority_class %}<span class="prio-badge {{ item.priority_class }}">{{ entry.text }}</span>{% else %}{{ entry.text|default:"-" }}{% endif %}</div>{% empty %}<span>{% translate 'Nepriskirta' %}</span>{% endfor %}</div>
+    <div class="field-values">{% for entry in item.entries %}<div>{% if entry.href %}<a href="{{ entry.href }}"{% if item.field == 'web_links' or item.field == 'url' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ entry.text }}</a>{% else %}{{ entry.text|default:"-" }}{% endif %}</div>{% empty %}<span>{% translate 'Nepriskirta' %}</span>{% endfor %}</div>
   </div>
   <form class="field-editor" method="post" action="{% if item.company %}{% url 'contacts:company-field-edit' item.company.pk %}{% else %}{% url 'contacts:field-edit' item.person.pk %}{% endif %}" hidden>
     {% csrf_token %}<input type="hidden" name="field" value="{{ item.field }}">
@@ -35,12 +35,6 @@
       {% elif item.custom_type == 'select' %}<select id="field-{{ item.field }}" name="value"><option value="">—</option>{% for opt in item.custom_options %}<option value="{{ opt }}"{% if opt == item.value %} selected{% endif %}>{{ opt }}</option>{% endfor %}</select>
       {% elif item.custom_type == 'multiselect' %}<div class="cf-multi">{% for opt in item.custom_options %}<label><input type="checkbox" name="value" value="{{ opt }}"{% if opt in item.selected %} checked{% endif %}> {{ opt }}</label>{% endfor %}</div>
       {% else %}<input id="field-{{ item.field }}" name="value" maxlength="200" value="{{ item.value }}">{% endif %}
-    {% elif item.kind == 'date' %}
-      <label for="field-{{ item.field }}">{% translate item.label %}</label>
-      <input id="field-{{ item.field }}" type="date" name="value" value="{{ item.value }}">
-    {% elif item.kind == 'choice' %}
-      <label for="field-{{ item.field }}">{% translate item.label %}</label>
-      <select id="field-{{ item.field }}" name="value"><option value="">—</option>{% for value, label in item.choices %}<option value="{{ value }}"{% if value == item.value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
     {% elif item.kind == 'textarea' %}
       <label for="field-{{ item.field }}">{% translate item.label %}</label>
       <textarea id="field-{{ item.field }}" name="value" rows="4" maxlength="5000">{{ item.value }}</textarea>

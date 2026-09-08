@@ -125,7 +125,6 @@ def apply_contact_filters(people, values, user=None):
             | Q(categories__name__icontains=term)
             | Q(addresses__address__icontains=term)
             | Q(web_links__url__icontains=term)
-            | Q(status__icontains=term)
             | Q(custom_values__value__icontains=term)
         )
     if values["categories"]:

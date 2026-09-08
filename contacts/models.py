@@ -5,27 +5,12 @@ from django.db import models
 from django.urls import reverse
 
 
-PRIORITY_CHOICES = (
-    ("low", tr("Žemas")),
-    ("medium", tr("Vidutinis")),
-    ("high", tr("Aukštas")),
-)
-
-
 class RecordDetailsModel(models.Model):
-    """Shared descriptive fields for a contact/company card (priority, notes, dates)."""
-    priority = models.CharField(max_length=8, blank=True, default="", choices=PRIORITY_CHOICES)
-    contact_type = models.CharField(max_length=60, blank=True)
-    cooperation_start = models.DateField(null=True, blank=True)
+    """Shared free-text description for a contact/company card."""
     description = models.TextField(blank=True, max_length=5000)
-    internal_note = models.TextField(blank=True, max_length=2000)
 
     class Meta:
         abstract = True
-
-    @property
-    def priority_class(self):
-        return f"prio-{self.priority}" if self.priority else ""
 
 
 class TimestampedModel(models.Model):
@@ -203,7 +188,6 @@ class Person(RecordDetailsModel, TimestampedModel):
     first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100, db_index=True)
     job_title = models.CharField(max_length=160, blank=True)
-    status = models.CharField(max_length=40, blank=True, default="Aktyvus")
     companies = models.ManyToManyField(Company, through="PersonCompanyLink", related_name="people", blank=True)
     tags = models.ManyToManyField(Tag, related_name="people", blank=True)
     categories = models.ManyToManyField(Category, related_name="people", blank=True)

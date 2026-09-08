@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
-from .models import PRIORITY_CHOICES, AuditLog, Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
+from .models import AuditLog, Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
 from .forms import CompanyForm
 from .permissions import has_capability, user_label as _user_label, visible_companies, visible_people
 from .duplicates import find_company_duplicates, find_person_duplicates
@@ -71,33 +71,20 @@ def company_duplicate_data(company, *, field, value):
 
 
 # Extra descriptive fields shared by contact and company cards (RecordDetailsModel).
-EXTRA_FIELDS = {
-    "priority": _("Prioritetas"),
-    "contact_type": _("Kontakto tipas"),
-    "cooperation_start": _("Bendradarbiavimo pradžia"),
-    "description": _("Aprašymas"),
-    "internal_note": _("Vidinė pastaba"),
-}
-FIELD_KINDS = {"priority": "choice", "cooperation_start": "date", "description": "textarea", "internal_note": "textarea"}
+EXTRA_FIELDS = {"description": _("Aprašymas")}
+FIELD_KINDS = {"description": "textarea"}
 
 
 def _scalar_context(record, field, label):
     """Field context for a plain model attribute, with a `kind` the editor branches on."""
     value = getattr(record, field)
-    kind = FIELD_KINDS.get(field, "text")
-    context = {"field": field, "label": label, "kind": kind}
-    if kind == "date":
-        context["value"] = value.isoformat() if value else ""
-        context["entries"] = [{"text": value.strftime("%Y-%m-%d")}] if value else []
-    elif kind == "choice":
-        context["value"] = value or ""
-        context["choices"] = list(PRIORITY_CHOICES)
-        context["priority_class"] = record.priority_class
-        display = record.get_priority_display() if value else ""
-        context["entries"] = [{"text": display}] if display else []
-    else:
-        context["value"] = value or ""
-        context["entries"] = [{"text": value}] if value else []
+    context = {
+        "field": field,
+        "label": label,
+        "kind": FIELD_KINDS.get(field, "text"),
+        "value": value or "",
+        "entries": [{"text": value}] if value else [],
+    }
     context["person" if isinstance(record, Person) else "company"] = record
     return context
 
@@ -239,7 +226,7 @@ def edit_company_field(request, pk):
     return JsonResponse({"ok": True, "name": company.name, "html": html})
 
 
-SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"), "job_title": _("Pareigos"), "contact_type": _("Kontakto tipas")}
+SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"), "job_title": _("Pareigos")}
 _AUDIT_LABELS = {**SCALARS, **EXTRA_FIELDS, "companies": _("Įmonės"), "owner": _("Atsakingas"),
                  "responsibles": _("Atsakingi"), "full_name": _("Vardas ir pavardė")}
 
@@ -314,7 +301,7 @@ def detail_fields(person):
     from .custom_fields import detail_context
 
     order = ["companies", "responsibles", "first_name", "last_name", "job_title",
-             "contact_type", "priority", "cooperation_start", *MULTIPLE, "description", "internal_note"]
+             *MULTIPLE, "description"]
     return [field_context(person, field) for field in order] + detail_context(person)
 
 
@@ -346,8 +333,7 @@ def grouped_detail_fields(record):
             out["job_title_field"] = item
         elif key.startswith("cf_"):
             out["custom_fields"].append(item)
-        # priority / contact_type / cooperation_start / internal_note / first_name /
-        # last_name / name are intentionally not shown on the card.
+        # first_name / last_name / name are intentionally not shown on the card.
     return out
 
 

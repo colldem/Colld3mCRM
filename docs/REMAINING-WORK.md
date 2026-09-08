@@ -431,7 +431,9 @@ Pereita per visą sąsają naršyklėje (lokalus serveris, LT + EN, desktop + mo
 **Išspręsta po E2 (naudotojo sprendimai 2026-09-08):**
 - Žymų / kategorijų trynimas — ✅ pridėta (Nustatymai + masinis „Nuimti"). Žr. C8.
 - `Person.status` + `priority`/`contact_type`/`cooperation_start`/`internal_note` —
-  naudotojas nusprendė **išmesti visus 5** su migracija (atskiras darbas).
+  ✅ **išmesti** (migracija `0021`, `RecordDetailsModel` palieka tik `description`).
+  Pašalinta ir iš formų, `merging.py`, paieškos filtro, `detail_field.html`
+  (`date`/`choice` redaktoriai, `prio-badge`), nebenaudojami vertimai.
 
 ---
 
