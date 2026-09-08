@@ -2199,3 +2199,9 @@ msgstr "Normal"
 
 msgid "Aukštas"
 msgstr "High"
+
+msgid "Failai (nebūtina)"
+msgstr "Files (optional)"
+
+msgid "Veiklos įrašų dar nėra."
+msgstr "No activity yet."

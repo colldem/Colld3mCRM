@@ -22,119 +22,48 @@
 </div>
 
 <div class="record-detail">
-  <div class="detail-main">
-    <div class="detail-top-row">
-      <section class="detail-card boxed contact-card">
-        <h2>{% translate 'Kontaktinė informacija' %}</h2>
-        <div class="contact-lines">
-          {% for item in contact_info_fields %}
-            <div class="contact-line">
-              {% include "contacts/_contact_icon.html" with field=item.field %}
-              <div class="contact-line-field">{% include "contacts/detail_field.html" %}</div>
-              {% with copyable=item.entries.0.text %}{% if copyable %}<button type="button" class="contact-line-copy copy-value" data-copy="{{ copyable }}" aria-label="{% translate 'Kopijuoti' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button>{% endif %}{% endwith %}
-            </div>
-          {% empty %}<p class="muted">{% translate 'Nėra duomenų.' %}</p>{% endfor %}
-        </div>
-      </section>
-
-      <details class="detail-card boxed collapsible" open>
-        <summary><h2>{% translate 'Papildomi laukai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
-        <div class="detail-fields-grid">
-          {% for item in custom_fields %}{% include "contacts/detail_field.html" %}{% empty %}<p class="muted">{% translate 'Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai.' %}</p>{% endfor %}
-        </div>
-      </details>
-    </div>
-
-    <section class="detail-card boxed">
-      <h2>{% translate 'Aprašymas' %}</h2>
-      {% if description_field %}{% with item=description_field %}{% include "contacts/detail_field.html" %}{% endwith %}{% endif %}
+  <div class="detail-cards">
+    <section class="detail-card boxed contact-card">
+      <h2>{% translate 'Kontaktinė informacija' %}</h2>
+      <div class="contact-lines">
+        {% for item in contact_info_fields %}
+          <div class="contact-line">
+            {% include "contacts/_contact_icon.html" with field=item.field %}
+            <div class="contact-line-field">{% include "contacts/detail_field.html" %}</div>
+            {% with copyable=item.entries.0.text %}{% if copyable %}<button type="button" class="contact-line-copy copy-value" data-copy="{{ copyable }}" aria-label="{% translate 'Kopijuoti' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button>{% endif %}{% endwith %}
+          </div>
+        {% empty %}<p class="muted">{% translate 'Nėra duomenų.' %}</p>{% endfor %}
+      </div>
     </section>
 
-    <section class="detail-card detail-tabs" data-tabs>
-      <div class="tab-strip" role="tablist">
-        <button type="button" role="tab" class="tab is-active" data-tab="comments" id="tab-comments">{% translate 'Komentarai' %}</button>
-        <button type="button" role="tab" class="tab" data-tab="reminders" id="tab-reminders">{% translate 'Priminimai' %}</button>
-        <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %}</button>
+    <details class="detail-card boxed collapsible" open>
+      <summary><h2>{% translate 'Papildomi laukai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
+      <div class="detail-fields-grid">
+        {% for item in custom_fields %}{% include "contacts/detail_field.html" %}{% empty %}<p class="muted">{% translate 'Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai.' %}</p>{% endfor %}
       </div>
+    </details>
 
-      <div class="tab-panel is-active" data-panel="comments">
-        <form method="post" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
-          <input type="hidden" name="activity_type" value="note">
-          <input type="hidden" name="submission_token" value="{{ comment_token }}">
-          <label>{% translate 'Komentaras' %}<textarea name="text" rows="3" required placeholder="{% translate 'Įrašykite komentarą...' %}"></textarea></label>
-          <div><button class="btn primary" type="submit">{% translate 'Pridėti komentarą' %}</button></div>
-        </form>
-        <div class="timeline">
-          {% for activity in comment_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Komentarų dar nėra.' %}</p>{% endfor %}
-        </div>
-      </div>
-
-      <div class="tab-panel" data-panel="reminders" hidden>
-        {% if not is_company %}
-        <details id="reminder-add"><summary>{% translate 'Pridėti priminimą' %}</summary>
-          <form method="post" action="{% url 'contacts:reminder-create' person.pk %}" class="stack-form">{% csrf_token %}
-            <input type="hidden" name="submission_token" value="{{ reminder_token }}">
-            <label>{% translate 'Priminimas' %}{{ reminder_form.text }}</label>
-            <label>{% translate 'Data ir laikas' %}{{ reminder_form.due_at }}</label>
-            <label>{% translate 'Priskirta' %}{{ reminder_form.assigned_to }}</label>
-            <label>{% translate 'Prioritetas' %}{{ reminder_form.priority }}</label>
-            <div><button class="btn primary" type="submit">{% translate 'Pridėti' %}</button></div>
-          </form>
-        </details>
-        {% endif %}
-        <div class="reminder-list">
-          {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:datetime_format }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span><form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form></div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
-        </div>
-      </div>
-
-      <div class="tab-panel" data-panel="files" hidden>
-        <form method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
-          <input type="hidden" name="activity_type" value="note">
-          <input type="hidden" name="submission_token" value="{{ file_token }}">
-          <label>{% translate 'Failas' %}<input name="attachments" type="file" multiple required accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"><small>{% translate 'Iki 10 MB vienam failui.' %}</small></label>
-          <label>{% translate 'Pastaba (nebūtina)' %}<input name="text" maxlength="200" placeholder="{% translate 'pvz. Pasirašyta sutartis' %}"></label>
-          <div><button class="btn primary" type="submit">{% translate 'Įkelti' %}</button></div>
-        </form>
-        <ul class="file-list">
-          {% for attachment in attachment_entries %}<li><a href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a><small>{{ attachment.created_at|date:datetime_format }}</small></li>{% empty %}<li class="muted">{% translate 'Failų nėra.' %}</li>{% endfor %}
+    <section class="detail-card org-card">
+      <h2>{% if is_company %}{% translate 'Kontaktiniai asmenys' %}{% else %}{% translate 'Organizacija' %}{% endif %}</h2>
+      {% if is_company %}
+        <ul class="related-list">
+          {% for link in linked_people %}<li><a href="{{ link.person.get_absolute_url }}">{{ link.person }}</a>{% if link.role or link.person.job_title %} <small>{{ link.role|default:link.person.job_title }}</small>{% endif %}</li>{% empty %}<li class="muted">{% translate 'Susietų asmenų nėra.' %}</li>{% endfor %}
         </ul>
-      </div>
-    </section>
-  </div>
-
-  <aside class="detail-aside">
-    {% if not is_company and companies_field %}
-    <section class="aside-card">
-      <h3>{% translate 'Organizacija' %}</h3>
-      {% with item=companies_field %}{% include "contacts/detail_field.html" %}{% endwith %}
-    </section>
-    {% endif %}
-
-    {% if is_company %}
-    <section class="aside-card">
-      <h3>{% translate 'Kontaktiniai asmenys' %}</h3>
-      <ul class="related-list">
-        {% for link in linked_people %}<li><a href="{{ link.person.get_absolute_url }}">{{ link.person }}</a>{% if link.role or link.person.job_title %} <small>{{ link.role|default:link.person.job_title }}</small>{% endif %}</li>{% empty %}<li class="muted">{% translate 'Susietų asmenų nėra.' %}</li>{% endfor %}
-      </ul>
-    </section>
-    {% endif %}
-
-    {% if responsibles_field %}
-    <section class="aside-card">
-      <h3>{% translate 'Atsakingi' %}</h3>
-      {% with item=responsibles_field %}{% include "contacts/detail_field.html" %}{% endwith %}
-    </section>
-    {% endif %}
-
-    <section class="aside-card">
+      {% elif companies_field %}
+        <div class="org-field org-primary">{% with item=companies_field %}{% include "contacts/detail_field.html" %}{% endwith %}</div>
+      {% endif %}
+      {% if responsibles_field %}
+        <h3>{% translate 'Atsakingi' %}</h3>
+        <div class="org-field">{% with item=responsibles_field %}{% include "contacts/detail_field.html" %}{% endwith %}</div>
+      {% endif %}
       <h3>{% translate 'Žymos' %}</h3>
       {% include "inline_choices.html" with kind=inline_kind record=record field="tags" selected=record.tags.all choices=tags title="Žymos" %}
       <h3>{% translate 'Kategorijos' %}</h3>
       {% include "inline_choices.html" with kind=inline_kind record=record field="categories" selected=record.categories.all choices=categories title="Kategorijos" %}
     </section>
 
-    <section class="aside-card">
-      <h3>{% translate 'Papildoma informacija' %}</h3>
+    <section class="detail-card">
+      <h2>{% translate 'Papildoma informacija' %}</h2>
       <dl class="aside-meta">
         <dt>{% translate 'Paskutinis kontaktas' %}</dt><dd>{% if last_activity %}{{ last_activity.created_at|date:date_format }}{% else %}–{% endif %}</dd>
         <dt>{% translate 'Sekantis kontaktas' %}</dt><dd>{% if next_reminder %}{{ next_reminder.due_at|date:datetime_format }}{% else %}–{% endif %}</dd>
@@ -144,5 +73,75 @@
         <dt>{% translate 'Atnaujino' %}</dt><dd>{{ updated_by_label|default:"–" }}</dd>
       </dl>
     </section>
-  </aside>
+  </div>
+
+  <section class="detail-card desc-card">
+    <h2>{% translate 'Aprašymas' %}</h2>
+    {% if description_field %}{% with item=description_field %}{% include "contacts/detail_field.html" %}{% endwith %}{% endif %}
+  </section>
+
+  <section class="detail-card detail-tabs" data-tabs>
+    <div class="tab-strip" role="tablist">
+      <button type="button" role="tab" class="tab is-active" data-tab="comments" id="tab-comments">{% translate 'Komentarai' %}</button>
+      <button type="button" role="tab" class="tab" data-tab="reminders" id="tab-reminders">{% translate 'Priminimai' %}</button>
+      <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %}</button>
+      <button type="button" role="tab" class="tab" data-tab="activity">{% translate 'Veikla' %}</button>
+    </div>
+
+    <div class="tab-panel is-active" data-panel="comments">
+      <form method="post" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
+        <input type="hidden" name="activity_type" value="note">
+        <input type="hidden" name="submission_token" value="{{ comment_token }}">
+        <label>{% translate 'Komentaras' %}<textarea name="text" rows="3" required placeholder="{% translate 'Įrašykite komentarą...' %}"></textarea></label>
+        <div><button class="btn primary" type="submit">{% translate 'Pridėti komentarą' %}</button></div>
+      </form>
+      <div class="timeline">
+        {% for activity in comment_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Komentarų dar nėra.' %}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="reminders" hidden>
+      {% if not is_company %}
+      <details id="reminder-add"><summary>{% translate 'Pridėti priminimą' %}</summary>
+        <form method="post" action="{% url 'contacts:reminder-create' person.pk %}" class="stack-form">{% csrf_token %}
+          <input type="hidden" name="submission_token" value="{{ reminder_token }}">
+          <label>{% translate 'Priminimas' %}{{ reminder_form.text }}</label>
+          <label>{% translate 'Data ir laikas' %}{{ reminder_form.due_at }}</label>
+          <label>{% translate 'Priskirta' %}{{ reminder_form.assigned_to }}</label>
+          <label>{% translate 'Prioritetas' %}{{ reminder_form.priority }}</label>
+          <div><button class="btn primary" type="submit">{% translate 'Pridėti' %}</button></div>
+        </form>
+      </details>
+      {% endif %}
+      <div class="reminder-list">
+        {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:datetime_format }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span><form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form></div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="files" hidden>
+      <form method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
+        <input type="hidden" name="activity_type" value="note">
+        <input type="hidden" name="submission_token" value="{{ file_token }}">
+        <label>{% translate 'Failas' %}<input name="attachments" type="file" multiple required accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"><small>{% translate 'Iki 10 MB vienam failui.' %}</small></label>
+        <label>{% translate 'Pastaba (nebūtina)' %}<input name="text" maxlength="200" placeholder="{% translate 'pvz. Pasirašyta sutartis' %}"></label>
+        <div><button class="btn primary" type="submit">{% translate 'Įkelti' %}</button></div>
+      </form>
+      <ul class="file-list">
+        {% for attachment in attachment_entries %}<li><a href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a><small>{{ attachment.created_at|date:datetime_format }}</small></li>{% empty %}<li class="muted">{% translate 'Failų nėra.' %}</li>{% endfor %}
+      </ul>
+    </div>
+
+    <div class="tab-panel" data-panel="activity" hidden>
+      <form method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
+        <input type="hidden" name="submission_token" value="{{ activity_token }}">
+        <label>{% translate 'Įrašo tipas' %}{{ activity_form.activity_type }}</label>
+        <label>{% translate 'Tekstas' %}<textarea name="text" rows="3" placeholder="{% translate 'Įrašykite pastabą...' %}"></textarea></label>
+        <label>{% translate 'Failai (nebūtina)' %}<input name="attachments" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"></label>
+        <div><button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button></div>
+      </form>
+      <div class="timeline">
+        {% for activity in activity_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Veiklos įrašų dar nėra.' %}</p>{% endfor %}
+      </div>
+    </div>
+  </section>
 </div>

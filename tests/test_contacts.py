@@ -2297,15 +2297,17 @@ class ContactViewTests(TestCase):
             self.assertContains(page, 'data-tab="comments"')
             self.assertContains(page, 'data-tab="reminders"')
             self.assertContains(page, 'data-tab="files"')
+            self.assertContains(page, 'data-tab="activity"')
             self.assertNotContains(page, 'data-tab="log"')
             self.assertNotContains(page, 'data-tab="related"')
 
-    def test_comments_tab_shows_every_activity(self):
+    def test_comments_tab_shows_notes_and_activity_tab_shows_the_rest(self):
         self.client.force_login(self.user)
         Activity.objects.create(person=self.person, activity_type="note", text="Vidinis komentaras", created_by=self.user)
         Activity.objects.create(person=self.person, activity_type="call", text="Skambučio įrašas", created_by=self.user)
         page = self.client.get(self.person.get_absolute_url())
-        self.assertEqual(sorted(a.text for a in page.context["comment_entries"]), ["Skambučio įrašas", "Vidinis komentaras"])
+        self.assertEqual([a.text for a in page.context["comment_entries"]], ["Vidinis komentaras"])
+        self.assertEqual([a.text for a in page.context["activity_entries"]], ["Skambučio įrašas"])
 
     def test_files_tab_lists_attachments_and_accepts_an_upload(self):
         from contacts.models import Attachment

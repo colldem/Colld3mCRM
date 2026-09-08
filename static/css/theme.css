@@ -109,20 +109,21 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .record-detail-warn{margin:8px 0 0;color:var(--danger);font-weight:600;font-size:13px}
 .record-detail-head #field-save-status{margin:4px 0 0}
 
-.record-detail{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:12px;align-items:start}
-.detail-main{display:grid;gap:10px;min-width:0}
-.detail-card{border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:12px 14px}
-.detail-card>h2,.detail-card>summary h2{font-size:13px;margin:0 0 8px;color:var(--navy-950)}
+.record-detail{display:grid;gap:12px}
+.detail-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}
+@media(max-width:1250px){.detail-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.detail-cards{grid-template-columns:1fr}}
+.detail-card{border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:14px 16px}
+.detail-card>h2,.detail-card>summary h2{font-size:var(--fs-md);font-weight:700;margin:0 0 12px;color:var(--navy-950)}
+.detail-card h3{font-size:var(--fs-sm);font-weight:700;color:var(--navy-950);margin:16px 0 6px}
 .detail-card.collapsible>summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none}
 .detail-card.collapsible>summary::-webkit-details-marker{display:none}
 .detail-card.collapsible>summary h2{margin:0}
+.detail-card.collapsible:not([open])>summary h2{margin:0}
+.detail-card.collapsible[open]>summary{margin-bottom:12px}
 .detail-card.collapsible[open]>summary .chev{transform:rotate(180deg)}
 .detail-card.collapsible>summary .chev{transition:transform .15s;color:var(--muted)}
 .detail-card .edit-hint{display:none}
-
-/* Contact information + Additional fields sit side by side */
-.detail-top-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
-@media(max-width:760px){.detail-top-row{grid-template-columns:1fr}}
 
 /* Compact overrides for the shared inline-edit blocks inside the detail cards */
 .record-detail .detail-field{border-bottom:0;padding:0;margin:0}
@@ -131,7 +132,7 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 
 /* Boxed field look — label above, value in a bordered box */
 .detail-card.boxed .field-display:not([hidden]){display:grid;gap:2px;cursor:pointer;padding:0}
-.detail-card.boxed .field-display>strong{font-size:var(--fs-2xs);font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+.detail-card.boxed .field-display>strong{font-size:var(--fs-xs);font-weight:500;letter-spacing:0;color:var(--muted)}
 .detail-card.boxed .field-values{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff;font-size:13px;min-height:32px;margin-top:0;overflow-wrap:anywhere}
 .detail-card.boxed .field-values a{color:var(--navy-950)}
 .detail-card.boxed .field-display:hover{background:transparent;outline:0}
@@ -182,26 +183,32 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .record-detail #reminder-add{margin-bottom:8px}
 .muted{color:var(--muted);font-size:13px}
 
-.detail-aside{display:grid;gap:10px;align-content:start}
-.aside-card{border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:10px 12px}
-.aside-card h3{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:0 0 6px}
-.aside-card h3+h3{margin-top:8px}
 .aside-link{display:block;font-weight:600;font-size:13px;color:var(--navy-950);text-decoration:none}
 .aside-sub{display:block;margin-top:2px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
-.aside-meta{display:grid;grid-template-columns:1fr auto;gap:4px 10px;margin:0;font-size:12px}
+.aside-meta{display:grid;grid-template-columns:1fr auto;gap:7px 12px;margin:0;font-size:var(--fs-sm)}
 .aside-meta dt{color:var(--muted)}
 .aside-meta dd{margin:0;text-align:right}
-.detail-aside .detail-field{margin:0}
-.detail-aside .detail-field .field-display{padding:0;cursor:pointer}
-.detail-aside .detail-field .field-display:hover{background:transparent;outline:0}
-.detail-aside .detail-field .field-display>strong{display:none}
-.detail-aside .detail-field .field-values{font-size:13px;margin:0}
-.detail-aside .detail-field .field-values>div{margin:0}
-.detail-aside .detail-field .field-values a{color:var(--navy-950)}
-.detail-aside .field-editor{margin-top:8px;font-size:13px}
-.detail-aside .field-editor .company-options,.detail-aside .field-editor select[multiple]{max-height:170px}
-.detail-aside .field-editor label{font-size:13px}
-@media(max-width:900px){.record-detail{grid-template-columns:1fr}}
+/* "Organizacija" card: label-less inline fields for company / responsibles */
+.org-card>h3:first-of-type{margin-top:12px}
+.org-card .related-list+h3{margin-top:12px}
+.org-card .org-field .detail-field{margin:0}
+.org-card .org-field .field-display{padding:0;cursor:pointer;display:block}
+.org-card .org-field .field-display:hover{background:transparent;outline:0}
+.org-card .org-field .field-display>strong{display:none}
+.org-card .org-field .field-values{font-size:13px;margin:0;border:0;padding:0;min-height:0}
+.org-card .org-field .field-values>div{margin:0}
+.org-card .org-field .field-values a{color:var(--navy-950);font-weight:600}
+.org-card .org-field .field-editor{margin-top:8px;font-size:13px}
+.org-card .org-field .field-editor .company-options,.org-card .org-field .field-editor select[multiple]{max-height:170px}
+.org-card .org-field .field-editor label{font-size:13px}
+.org-card .choice-trigger{padding:2px 0}
+.org-card .related-list li{flex-direction:column;align-items:flex-start;gap:2px;border-bottom:0;padding:3px 0}
+.org-card .related-list li small{color:var(--muted)}
+/* "Aprašymas" card: plain paragraph, no boxed label */
+.desc-card .field-display>strong{display:none}
+.desc-card .field-display{padding:0;cursor:pointer}
+.desc-card .field-display:hover{background:transparent;outline:0}
+.desc-card .field-values{font-size:var(--fs-sm);line-height:1.6;margin:0}
 .settings-list .user-row{display:grid;gap:10px}
 .user-row-info small{display:block;color:var(--muted);font-weight:400}
 .user-row-actions,.user-row-reset{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0}
@@ -303,8 +310,8 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
  th,td{padding:9px 8px;font-size:13px}
  .table-wrap table{min-width:640px}
  .record-detail{gap:10px}
- .detail-card{padding:10px 11px}
- .aside-card{padding:9px 10px}
+ .detail-cards{gap:10px}
+ .detail-card{padding:12px}
  .detail-tabs .tab{padding:6px 8px;font-size:12px}
  .stack-form{padding:10px}
  .settings-content{padding:16px}
