@@ -90,16 +90,15 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 
 ---
 
-## B. Aukštas prioritetas — nepadaryta / iš dalies
+## B. Aukštas prioritetas — ✅ visi padaryti
 
 ### B1. Išsaugoti filtrai („Mano filtrai") — ✅ padaryta
 Pervadinti, ištrinti, numatytasis (pritaikomas kartą per sesiją). Bendras
 `templates/filters/saved_filters.html` partial.
 
 ### B2. Greiti veiksmai sąrašo eilutėje (⋮ meniu) — ✅ padaryta
-Pridėti įrašą + Sukurti priminimą (nuoroda į kortelę su fokusuota forma per
-`#composer` / `#reminder-add`), Kopijuoti el. paštą (į iškarpinę). Įmonėms —
-be priminimo. Vėliau galima papildyti inline modalu, jei prireiks.
+Atidaryti, Redaguoti, Pridėti komentarą (`#tab-comments`), Sukurti priminimą
+(`#reminder-add`), Kopijuoti el. paštą (į iškarpinę). Įmonėms — be priminimo.
 
 ### B3. Nustatymų puslapio skiltys — ✅ (kas planuota)
 - ✅ **Sistema** (`0.25.0`): numatytas sąrašo eilučių skaičius (25/50/100),
@@ -248,10 +247,10 @@ priežastimi, po importo atsisiunčiama `importo-klaidos.csv`
 (`/import-export/errors.csv`). Vėliau galima: XLSX klaidų ataskaita, „sausas"
 bandymas be įrašymo.
 
-### C8. Masiniai veiksmai — 🟡 iš dalies
-Yra archyvuoti, eksportuoti, **masinis žymos ir kategorijos priskyrimas** IR
-**nuėmimas** (kontaktams ir įmonėms; „Nuimti" mygtukas prie žymos/kategorijos
-masinio veiksmo). Trūksta: masinio dublikatų sujungimo.
+### C8. Masiniai veiksmai — ✅ padaryta
+Archyvuoti, eksportuoti, **masinis žymos/kategorijos priskyrimas IR nuėmimas**
+(kontaktams ir įmonėms), masinis atsakingo priskyrimas, ir **masinis dublikatų
+sujungimas** („Sujungti visus" dublikatų puslapyje, `0.27.0`).
 
 Žymas ir kategorijas dabar galima ir **ištrinti** (Nustatymai → Žymos/Kategorijos,
 „Pašalinti" su patvirtinimu — nuimama nuo visų įrašų).
@@ -403,12 +402,9 @@ Atlikta (`0.21.0`):
 Cache-buster'iai: `app.css?v=20260908c`, `theme.css?v=20260908w`,
 `detail-editing.js?v=20260908d`.
 
-**Atviras klausimas naudotojui** — „mirusios" modelio dalys:
-- `Person.status` — nebenaudojamas niekur (išimtas iš formos, sąrašo, importo,
-  eksporto), bet stulpelis DB tebėra. Trynimas = migracija + duomenų praradimas.
-- `priority` / `contact_type` / `cooperation_start` / `internal_note` — modelyje ir
-  kūrimo/redagavimo formoje (`form.html`), bet nerodomi kortelėje. Palikti formoje
-  ar pašalinti visai?
+**„Mirusios" modelio dalys — išspręsta (`0.24.0`, migracija `0021`):** `Person.status`
+ir `priority` / `contact_type` / `cooperation_start` / `internal_note` (Person + Company)
+visai pašalinti; `RecordDetailsModel` palieka tik `description`.
 
 ### E2. Kiekvieno mygtuko / lauko patikra — ✅
 Pereita per visą sąsają naršyklėje (lokalus serveris, LT + EN, desktop + mobile).
@@ -451,7 +447,13 @@ Pereita per visą sąsają naršyklėje (lokalus serveris, LT + EN, desktop + mo
 
 ---
 
-## Siūloma vykdymo tvarka
+## Būsena 2026-09-08 (`0.27.0`)
+
+Visi A–E ir D punktai įgyvendinti. Lieka tik sąmoningai atidėti / atmesti dalykai:
+el. pašto priminimai (SMTP), kortelės greiti „Skambinti / Rašyti" veiksmai,
+žymų/kategorijų būsenos, grafinis ryšių medis. Naujų darbų nėra.
+
+## Siūloma vykdymo tvarka (istorinė — visa atlikta)
 
 1. **B1** išsaugotų filtrų pervadinimas / trynimas / numatytasis
 2. **B2** greiti veiksmai eilutėje (pastaba, priminimas, kopijuoti el. paštą)
