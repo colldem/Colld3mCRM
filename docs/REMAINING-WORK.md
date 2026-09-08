@@ -447,6 +447,20 @@ Pereita per visą sąsają naršyklėje (lokalus serveris, LT + EN, desktop + mo
 
 ---
 
+## F. Kalendorius — ✅ padaryta (`0.28.0`)
+
+Asmeninė darbotvarkė: kiekvienas naudotojas mato **tik savo sukurtus** priminimus.
+- `Reminder` praplėstas: `company` FK, `end_at` (trukmė), `person` tapo neprivalomas —
+  įvykis gali būti prie kontakto, prie įmonės arba be įrašo. Tie patys priminimai
+  ir toliau matomi kortelėje bei varpelyje (viena sąvoka, ne dublikatas).
+- `/calendar/` — **diena / savaitė / mėnuo**. Dienos ir savaitės vaizde valandų
+  tinklelis, gyva „dabar" linija, persidengiantys įvykiai dedami greta.
+  Praėję įvykiai blankesni.
+- Paspaudus arba **patempus** laisvą laiką (15 min. žingsnis) atsidaro dialogas su
+  užpildytu laiku; pasirinkus kontaktą/įmonę rodomi jos **telefonas ir adresas**
+  iš kortelės. Įvykį galima redaguoti ir pašalinti.
+- Kodas: `contacts/calendar_views.py`, `templates/calendar/*`, `static/js/calendar.js`.
+
 ## Būsena 2026-09-08 (`0.27.0`)
 
 Visi A–E ir D punktai įgyvendinti. Lieka tik sąmoningai atidėti / atmesti dalykai:
