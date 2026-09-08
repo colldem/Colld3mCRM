@@ -1294,3 +1294,6 @@ msgstr "Field removed."
 
 msgid "Ne"
 msgstr "No"
+
+msgid "Atsakingas"
+msgstr "Owner"

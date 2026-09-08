@@ -1750,6 +1750,37 @@ class ContactViewTests(TestCase):
         saved = SavedFilter.objects.get(name="Renginiai")
         self.assertEqual(saved.filters.get(field.key), "Renginys")
 
+    def test_new_records_are_owned_by_their_creator(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:person-create"), {"first_name": "Nauja", "last_name": "Savininkė"})
+        self.assertEqual(Person.objects.get(first_name="Nauja").owner, self.user)
+        self.client.post(reverse("contacts:company-create"), {"name": "Nauja AB"})
+        self.assertEqual(Company.objects.get(name="Nauja AB").owner, self.user)
+
+    def test_owner_is_shown_and_editable_inline_on_the_contact_card(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
+        self.assertContains(response, "Atsakingas")
+        other = get_user_model().objects.create_user("kolege", password="very-secure-password")
+        self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {"field": "owner", "value": other.pk})
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.owner, other)
+        self.client.post(reverse("contacts:field-edit", args=[self.person.pk]), {"field": "owner", "value": ""})
+        self.person.refresh_from_db()
+        self.assertIsNone(self.person.owner)
+
+    def test_company_owner_can_be_assigned_inline(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]), {"field": "owner", "value": self.user.pk})
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.owner, self.user)
+
+    def test_import_sets_owner_to_the_importing_user(self):
+        self.client.force_login(self.user)
+        content = "Vardas,Pavardė\nImportuota,Savininkė\n".encode()
+        self._import_file(SimpleUploadedFile("k.csv", content, content_type="text/csv"))
+        self.assertEqual(Person.objects.get(first_name="Importuota").owner, self.user)
+
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)
         response = self.client.get(self.company.get_absolute_url())

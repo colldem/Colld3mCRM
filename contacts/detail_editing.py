@@ -1,6 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 """Field-scoped contact editing. Each request owns only one field or relation."""
 from django import forms
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -78,12 +79,35 @@ def company_field_context(company, field):
 def company_detail_fields(company):
     from .custom_fields import detail_context
 
-    return [company_field_context(company, field) for field in CompanyForm.Meta.fields] + detail_context(company)
+    return [company_field_context(company, field) for field in CompanyForm.Meta.fields] + [owner_field_context(company)] + detail_context(company)
 
 
 def title_html(record, request):
     context = {"person": record} if isinstance(record, Person) else {"company": record}
     return render_to_string("contacts/detail_title.html", context, request=request)
+
+
+def _user_label(user):
+    return user.get_full_name().strip() or user.get_username() if user else ""
+
+
+def owner_field_context(record):
+    users = list(get_user_model().objects.filter(is_active=True).order_by("username"))
+    context = {
+        "field": "owner", "label": _("Atsakingas"), "owner": True,
+        "users": [{"pk": user.pk, "label": _user_label(user), "selected": user.pk == record.owner_id} for user in users],
+        "entries": [{"text": _user_label(record.owner)}] if record.owner_id else [],
+    }
+    context["person" if isinstance(record, Person) else "company"] = record
+    return context
+
+
+def set_owner(record, request_post):
+    user_id = request_post.get("value") or None
+    new_owner = get_user_model().objects.filter(pk=user_id, is_active=True).first() if user_id else None
+    if record.owner_id != (new_owner.pk if new_owner else None):
+        record.owner = new_owner
+        record.save(update_fields=["owner", "updated_at"])
 
 
 @login_required
@@ -92,6 +116,10 @@ def title_html(record, request):
 def edit_company_field(request, pk):
     company = get_object_or_404(Company.objects.select_for_update(), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field", "")
+    if field == "owner":
+        set_owner(company, request.POST)
+        html = render_to_string("contacts/detail_field.html", {"item": owner_field_context(company)}, request=request)
+        return JsonResponse({"ok": True, "name": company.name, "html": html})
     if field.startswith("cf_"):
         from .custom_fields import clean_and_store, field_by_key, single_context
 
@@ -133,6 +161,8 @@ MULTIPLE = {
 
 
 def field_context(person, field):
+    if field == "owner":
+        return owner_field_context(person)
     if field.startswith("cf_"):
         from .custom_fields import single_context
 
@@ -163,7 +193,7 @@ def field_context(person, field):
 def detail_fields(person):
     from .custom_fields import detail_context
 
-    return [field_context(person, field) for field in ["companies", *SCALARS, *MULTIPLE]] + detail_context(person)
+    return [field_context(person, field) for field in ["companies", "owner", *SCALARS, *MULTIPLE]] + detail_context(person)
 
 
 @login_required
@@ -253,6 +283,8 @@ def edit_contact_field(request, pk):
                     first.is_primary = True
                     first.save(update_fields=["is_primary"])
                 person.save(update_fields=["updated_at"])
+        elif field == "owner":
+            set_owner(person, request.POST)
         elif field.startswith("cf_"):
             from .custom_fields import clean_and_store, field_by_key
 

@@ -651,7 +651,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 @login_required
 def contact_detail(request, pk):
     from .detail_editing import detail_fields
-    person = get_object_or_404(Person.objects.prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field"), pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(Person.objects.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field"), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
     return render(request, "contacts/detail.html", {
@@ -682,7 +682,9 @@ def contact_create(request):
         duplicates = find_person_duplicates(form.cleaned_data, level=duplicate_settings.level) if duplicate_settings.enabled else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį"), "duplicate_candidates": duplicates})
-        return redirect(form.save())
+        person = form.save()
+        Person.objects.filter(pk=person.pk, owner__isnull=True).update(owner=request.user)
+        return redirect(person)
     return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį")})
 
 
@@ -911,7 +913,7 @@ def company_list(request):
 @login_required
 def company_detail(request, pk):
     from .detail_editing import company_detail_fields
-    company = get_object_or_404(Company.objects.prefetch_related("person_links__person", "custom_values__field"), pk=pk, deleted_at__isnull=True)
+    company = get_object_or_404(Company.objects.select_related("owner").prefetch_related("person_links__person", "custom_values__field"), pk=pk, deleted_at__isnull=True)
     history = Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__company_links__company=company)
     ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at")
@@ -969,7 +971,9 @@ def company_create(request):
         duplicates = find_company_duplicates(form.cleaned_data, level=duplicate_settings.level) if duplicate_settings.enabled else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/", "duplicate_candidates": duplicates})
-        return redirect(form.save())
+        company = form.save()
+        Company.objects.filter(pk=company.pk, owner__isnull=True).update(owner=request.user)
+        return redirect(company)
     return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/"})
 
 
@@ -1032,7 +1036,7 @@ def companies_export(request):
 
 
 @transaction.atomic
-def _import_contact_rows(rows):
+def _import_contact_rows(rows, owner=None):
     created = updated = skipped = possible_duplicates = 0
     created_person_ids = set()
     duplicate_settings = DuplicateSettings.load()
@@ -1060,7 +1064,7 @@ def _import_contact_rows(rows):
             person.save()
             updated += 1
         else:
-            person = Person.objects.create(**values)
+            person = Person.objects.create(owner=owner, **values)
             created += 1
             created_person_ids.add(person.pk)
         for company_name in company_names:
@@ -1143,7 +1147,7 @@ def contacts_import(request):
             messages.error(request, tr("Importo peržiūra pasibaigė. Įkelkite failą iš naujo."))
         else:
             try:
-                context["result"] = _import_contact_rows(rows)
+                context["result"] = _import_contact_rows(rows, owner=request.user)
             except Exception:
                 messages.error(request, tr("Nepavyko importuoti. Patikrinkite žymų ir kategorijų skaičių bei stulpelius."))
     elif request.method == "POST":

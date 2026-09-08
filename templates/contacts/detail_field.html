@@ -12,6 +12,9 @@
         <button class="btn add-company" type="button" aria-expanded="false">{% translate 'Pridėti naują' %}</button>
         <div class="new-company-input" hidden><label for="new-company-name">{% translate 'Įmonės pavadinimas' %}</label><input id="new-company-name" name="new_name" maxlength="200" disabled><small>{% translate 'Įmonė bus sukurta ir priskirta paspaudus „Išsaugoti“.' %}</small></div>
       </fieldset>
+    {% elif item.owner %}
+      <label for="field-owner">{% translate item.label %}</label>
+      <select id="field-owner" name="value"><option value="">{% translate 'Nepriskirta' %}</option>{% for user in item.users %}<option value="{{ user.pk }}"{% if user.selected %} selected{% endif %}>{{ user.label }}</option>{% endfor %}</select>
     {% elif item.custom %}
       <label for="field-{{ item.field }}">{{ item.label }}</label>
       {% if item.custom_type == 'textarea' %}<textarea id="field-{{ item.field }}" name="value" rows="4" maxlength="1000">{{ item.value }}</textarea>
