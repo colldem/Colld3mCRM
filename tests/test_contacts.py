@@ -1946,6 +1946,54 @@ class ContactViewTests(TestCase):
         self._import_file(SimpleUploadedFile("k.csv", content, content_type="text/csv"))
         self.assertEqual(Person.objects.get(first_name="Importuota").owner, kolege)
 
+    # --- C5: audit log ---
+
+    def test_audit_log_records_create_update_archive_and_settings(self):
+        from contacts.models import AuditLog
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:person-create"), {"first_name": "Audituota", "last_name": "Asmuo"})
+        person = Person.objects.get(first_name="Audituota")
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.CREATE, target_type="person", target_id=str(person.pk)).exists())
+        self.client.post(reverse("contacts:field-edit", args=[person.pk]), {"field": "job_title", "value": "Vadovė"})
+        change = AuditLog.objects.filter(action=AuditLog.UPDATE, target_id=str(person.pk)).first()
+        self.assertEqual(change.new_value, "Vadovė")
+        self.assertEqual(change.actor, self.user)
+        self.client.post(reverse("contacts:archive", args=[person.pk]))
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.ARCHIVE, target_id=str(person.pk)).exists())
+        self.client.post(reverse("contacts:settings-tags"), {"name": "Žurnalinė žyma"})
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.SETTING, target_label__icontains="Žurnalinė žyma").exists())
+
+    def test_audit_log_records_login_and_failed_login(self):
+        from contacts.models import AuditLog
+        get_user_model().objects.create_user("audituser", password="correct-horse-battery-staple")
+        self.client.post(reverse("login"), {"username": "audituser", "password": "wrong"})
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.LOGIN_FAILED, target_label="audituser").exists())
+        self.client.post(reverse("login"), {"username": "audituser", "password": "correct-horse-battery-staple"})
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.LOGIN, target_label="audituser").exists())
+
+    def test_audit_log_records_import_and_export(self):
+        from contacts.models import AuditLog
+        self.client.force_login(self.user)
+        self._import_file(SimpleUploadedFile("k.csv", "Vardas,Pavardė\nŽurn,Import\n".encode(), content_type="text/csv"))
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.IMPORT).exists())
+        self.client.get(reverse("contacts:contacts-export"))
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.EXPORT, target_label__icontains="CSV").exists())
+
+    def test_audit_page_is_admin_only_and_filters(self):
+        from contacts.models import AuditLog
+        AuditLog.objects.create(actor=self.user, actor_label="admin", action=AuditLog.CREATE, target_type="person", target_label="X")
+        other = get_user_model().objects.create_user("kt", password="very-secure-password")
+        AuditLog.objects.create(actor=other, actor_label="kt", action=AuditLog.EXPORT, target_label="Y")
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("contacts:settings-audit")).status_code, 404)
+        self.user.is_superuser = True
+        self.user.save()
+        response = self.client.get(reverse("contacts:settings-audit"), {"action": AuditLog.EXPORT})
+        rows = list(response.context["page"])
+        self.assertTrue(all(r.action == AuditLog.EXPORT for r in rows))
+        by_actor = self.client.get(reverse("contacts:settings-audit"), {"actor": str(other.pk)})
+        self.assertTrue(all(r.actor_id == other.pk for r in by_actor.context["page"]))
+
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)
         response = self.client.get(self.company.get_absolute_url())

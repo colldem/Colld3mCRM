@@ -18,6 +18,7 @@ from django.http import FileResponse, Http404, HttpResponse, JsonResponse, Query
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from .forms import ActivityForm, CompanyForm, DuplicateSettingsForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
 from .duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
@@ -30,8 +31,9 @@ from .filters import (
     filter_chips,
     saved_filter_payload,
 )
-from .models import Activity, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, UserProfile, WebLink
+from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, UserProfile, WebLink
 from .permissions import visible_companies, visible_people, visible_reminders
+from .audit import log as audit_log
 
 
 def _elided_page_numbers(page):
@@ -293,6 +295,8 @@ def _bulk_add_label(request, queryset, action):
         try:
             relation.add(item)
             added += 1
+            audit_log(AuditLog.UPDATE, request=request, target=record,
+                      field=tr("Žyma") if action == "add_tag" else tr("Kategorija"), new=item.name)
         except ValidationError:
             skipped += 1
     if added:
@@ -313,6 +317,13 @@ def _bulk_assign_owner(request, queryset):
         if not owner:
             messages.error(request, tr("Pasirinktas naudotojas nerastas."))
             return
+    from .permissions import user_label
+
+    records = list(queryset.select_related("owner"))
+    for record in records:
+        if record.owner_id != (owner.pk if owner else None):
+            audit_log(AuditLog.UPDATE, request=request, target=record, field=tr("Atsakingas"),
+                      old=user_label(record.owner), new=user_label(owner))
     count = queryset.update(owner=owner, updated_at=timezone.now())
     if owner:
         messages.success(request, tr("Atsakingas priskirtas įrašams: %(n)s.") % {"n": count})
@@ -330,6 +341,8 @@ def contact_bulk_action(request):
         return redirect("contacts:list")
     people = visible_people(request.user, Person.objects.filter(pk__in=ids, deleted_at__isnull=True))
     if action == "archive":
+        for person in people:
+            audit_log(AuditLog.ARCHIVE, request=request, target=person)
         count = people.update(deleted_at=timezone.now())
         messages.success(request, tr("Archyvuota kontaktų: %(count)s.") % {"count": count})
     elif action in {"add_tag", "add_category"}:
@@ -349,6 +362,8 @@ def company_bulk_action(request):
         return redirect("contacts:company-list")
     companies = visible_companies(request.user, Company.objects.filter(pk__in=ids, deleted_at__isnull=True))
     if action == "archive":
+        for company in companies:
+            audit_log(AuditLog.ARCHIVE, request=request, target=company)
         count = companies.update(deleted_at=timezone.now())
         if count:
             messages.success(request, tr("Archyvuota įmonių: %(count)s.") % {"count": count})
@@ -365,6 +380,7 @@ def contact_archive(request, pk):
     if request.method == "POST" and person.deleted_at is None:
         person.deleted_at = timezone.now()
         person.save(update_fields=["deleted_at", "updated_at"])
+        audit_log(AuditLog.ARCHIVE, request=request, target=person)
         messages.success(request, tr("Kontaktas perkeltas į archyvą."))
     return redirect("contacts:list")
 
@@ -375,6 +391,7 @@ def company_archive(request, pk):
     if request.method == "POST" and company.deleted_at is None:
         company.deleted_at = timezone.now()
         company.save(update_fields=["deleted_at", "updated_at"])
+        audit_log(AuditLog.ARCHIVE, request=request, target=company)
         messages.success(request, tr("Įmonė perkelta į archyvą."))
     return redirect("contacts:company-list")
 
@@ -392,6 +409,7 @@ def contact_restore(request, pk):
     if request.method == "POST" and person.deleted_at is not None:
         person.deleted_at = None
         person.save(update_fields=["deleted_at", "updated_at"])
+        audit_log(AuditLog.RESTORE, request=request, target=person)
         messages.success(request, tr("Kontaktas atkurtas."))
     return redirect("contacts:archive-list")
 
@@ -402,6 +420,7 @@ def company_restore(request, pk):
     if request.method == "POST" and company.deleted_at is not None:
         company.deleted_at = None
         company.save(update_fields=["deleted_at", "updated_at"])
+        audit_log(AuditLog.RESTORE, request=request, target=company)
         messages.success(request, tr("Įmonė atkurta."))
     return redirect("contacts:archive-list")
 
@@ -475,7 +494,11 @@ def settings_page(request):
         return settings_taxonomy(request, request.POST["kind"])
     form = UserProfileForm(request.POST or None, request.FILES or None, user=request.user)
     if request.method == "POST" and form.is_valid():
+        changed = list(form.changed_data)
         profile = form.save()
+        if changed:
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=str(tr("Profilis")), new=", ".join(changed))
         messages.success(request, tr("Profilis atnaujintas."))
         response = redirect("contacts:settings")
         response.set_cookie(settings.LANGUAGE_COOKIE_NAME, profile.language, max_age=365 * 24 * 60 * 60, samesite="Lax")
@@ -502,8 +525,10 @@ def settings_custom_fields(request):
             for target in targets:
                 if not CustomField.objects.filter(entity=target, name__iexact=name).exists():
                     order = (CustomField.objects.filter(entity=target).count())
-                    CustomField.objects.create(entity=target, name=name, field_type=field_type, options=options if needs_options else [], order=order)
+                    field = CustomField.objects.create(entity=target, name=name, field_type=field_type, options=options if needs_options else [], order=order)
                     created += 1
+                    audit_log(AuditLog.CREATE, request=request, target_type="custom_field", target_id=field.pk,
+                              target_label=f"{name} ({field.get_entity_display()})", new=field.get_field_type_display())
             messages.success(request, tr("Laukas pridėtas.") if created else tr("Toks laukas jau yra."))
         return redirect("contacts:settings-custom-fields")
     people_fields = CustomField.objects.filter(entity=CustomField.PERSON)
@@ -521,7 +546,9 @@ def custom_field_delete(request, pk):
 
     field = get_object_or_404(CustomField, pk=pk)
     if request.method == "POST":
+        label = f"{field.name} ({field.get_entity_display()})"
         field.delete()
+        audit_log(AuditLog.DELETE, request=request, target_type="custom_field", target_id=pk, target_label=label)
         messages.success(request, tr("Laukas pašalintas."))
     return redirect("contacts:settings-custom-fields")
 
@@ -549,11 +576,13 @@ def _create_crm_user(request):
         is_staff=role == UserProfile.ROLE_ADMIN,
     )
     UserProfile.objects.update_or_create(user=user, defaults={"role": role})
+    audit_log(AuditLog.CREATE, request=request, target=user, target_type="user", field=str(tr("Rolė")),
+              new=dict(UserProfile.ROLE_CHOICES).get(role, role))
     messages.success(request, tr("Naudotojas sukurtas."))
 
 
 def _update_crm_user(request, target):
-    from .permissions import active_admin_ids, is_admin
+    from .permissions import active_admin_ids, is_admin, role_of
 
     role = request.POST.get("role", UserProfile.ROLE_MEMBER)
     if role not in dict(UserProfile.ROLE_CHOICES):
@@ -567,10 +596,20 @@ def _update_crm_user(request, target):
     if target.is_superuser and (role != UserProfile.ROLE_ADMIN or not active):
         messages.error(request, tr("Pagrindinio administratoriaus keisti negalima."))
         return
+    old_role = role_of(target)
+    old_active = target.is_active
     target.is_active = active
     target.is_staff = role == UserProfile.ROLE_ADMIN
     target.save(update_fields=["is_active", "is_staff"])
     UserProfile.objects.update_or_create(user=target, defaults={"role": role})
+    labels = dict(UserProfile.ROLE_CHOICES)
+    if old_role != role:
+        audit_log(AuditLog.UPDATE, request=request, target=target, target_type="user", field=str(tr("Rolė")),
+                  old=labels.get(old_role, old_role), new=labels.get(role, role))
+    if old_active != active:
+        audit_log(AuditLog.UPDATE, request=request, target=target, target_type="user", field=str(tr("Būsena")),
+                  old=str(tr("aktyvus")) if old_active else str(tr("išjungtas")),
+                  new=str(tr("aktyvus")) if active else str(tr("išjungtas")))
     messages.success(request, tr("Naudotojas atnaujintas."))
 
 
@@ -587,6 +626,8 @@ def _reset_crm_user_password(request, target):
     target.save(update_fields=["password"])
     if target.pk == request.user.pk:
         update_session_auth_hash(request, target)
+    audit_log(AuditLog.UPDATE, request=request, target=target, target_type="user", field=str(tr("Slaptažodis")),
+              new=str(tr("atstatytas")))
     messages.success(request, tr("Slaptažodis atstatytas."))
 
 
@@ -621,11 +662,49 @@ def settings_users(request):
 
 
 @login_required
+def settings_audit(request):
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    entries = AuditLog.objects.select_related("actor").all()
+    actor_id = request.GET.get("actor", "").strip()
+    action = request.GET.get("action", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    if actor_id.isdigit():
+        entries = entries.filter(actor_id=actor_id)
+    if action in dict(AuditLog.ACTION_CHOICES):
+        entries = entries.filter(action=action)
+    if date_from and parse_date(date_from):
+        entries = entries.filter(created_at__date__gte=date_from)
+    if date_to and parse_date(date_to):
+        entries = entries.filter(created_at__date__lte=date_to)
+    from django.core.paginator import Paginator
+
+    page = Paginator(entries, 100).get_page(request.GET.get("page"))
+    list_query = request.GET.copy()
+    list_query.pop("page", None)
+    return render(request, "settings/audit.html", {
+        "settings_section": "audit",
+        "page": page,
+        "page_numbers": _elided_page_numbers(page),
+        "actors": get_user_model().objects.filter(audit_entries__isnull=False).distinct().order_by("username"),
+        "action_choices": AuditLog.ACTION_CHOICES,
+        "filter_actor": actor_id, "filter_action": action,
+        "filter_date_from": date_from, "filter_date_to": date_to,
+        "list_query": list_query.urlencode(),
+    })
+
+
+@login_required
 def settings_password(request):
     form = PasswordChangeForm(request.user, request.POST or None)
     if request.method == "POST" and form.is_valid():
         form.save()
         update_session_auth_hash(request, form.user)
+        audit_log(AuditLog.UPDATE, request=request, target=request.user, target_type="user",
+                  field=str(tr("Slaptažodis")), new=str(tr("pakeistas")))
         messages.success(request, tr("Slaptažodis pakeistas."))
         return redirect("contacts:settings-password")
     return render(request, "settings/password.html", {"form": form, "settings_section": "password"})
@@ -669,6 +748,7 @@ def settings_data_export(request):
                         archive.write(full, os.path.join("media", os.path.relpath(full, media_root)))
         response = HttpResponse(buffer.getvalue(), content_type="application/zip")
         response["Content-Disposition"] = 'attachment; filename="crm-eksportas-%s.zip"' % timezone.now().strftime("%Y%m%d-%H%M")
+        audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Pilna atsarginė kopija (ZIP)")))
         return response
     return render(request, "settings/data_export.html", {"settings_section": "data-export"})
 
@@ -713,12 +793,16 @@ def settings_taxonomy(request, kind):
                 item.color = color
                 update_fields.append("color")
             item.save(update_fields=update_fields)
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=(str(tr("Žyma")) if kind == "tag" else str(tr("Kategorija"))) + f": {name}", new=str(tr("atnaujinta")))
             messages.success(request, tr("Žyma atnaujinta.") if kind == "tag" else tr("Kategorija atnaujinta."))
         else:
             item = model.objects.create(name=name)
             if kind == "tag" and request.POST.get("color") in dict(Tag.COLOR_CHOICES):
                 item.color = request.POST["color"]
                 item.save(update_fields=["color"])
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=(str(tr("Žyma")) if kind == "tag" else str(tr("Kategorija"))) + f": {name}", new=str(tr("sukurta")))
             messages.success(request, tr("Žyma pridėta.") if kind == "tag" else tr("Kategorija pridėta."))
         return redirect("contacts:settings-tags" if kind == "tag" else "contacts:settings-categories")
     items = model.objects.annotate(people_count=Count("people", distinct=True), companies_count=Count("companies", distinct=True))
@@ -730,7 +814,11 @@ def settings_duplicates(request):
     duplicate_settings = DuplicateSettings.load()
     form = DuplicateSettingsForm(request.POST or None, instance=duplicate_settings)
     if request.method == "POST" and form.is_valid():
+        changed = list(form.changed_data)
         form.save()
+        if changed:
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=str(tr("Dublikatų tikrinimas")), new=", ".join(changed))
         messages.success(request, tr("Dublikatų tikrinimo nustatymai išsaugoti."))
         return redirect("contacts:settings-duplicates")
     return render(request, "settings/duplicates.html", {"form": form, "settings_section": "duplicates"})
@@ -810,6 +898,8 @@ def duplicate_merge(request, kind, source_pk, target_pk):
     except ValidationError as error:
         messages.error(request, " ".join(error.messages))
         return redirect("contacts:duplicate-list")
+    audit_log(AuditLog.MERGE, request=request, target=target,
+              old=str(source), new=str(target), detail={"source_id": source_pk, "target_id": target_pk})
     messages.success(request, _("Įrašai sėkmingai sujungti."))
     return redirect(target.get_absolute_url())
 
@@ -850,6 +940,7 @@ def contact_create(request):
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį"), "duplicate_candidates": duplicates})
         person = form.save()
         Person.objects.filter(pk=person.pk, owner__isnull=True).update(owner=request.user)
+        audit_log(AuditLog.CREATE, request=request, target=person)
         return redirect(person)
     return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį")})
 
@@ -870,7 +961,10 @@ def contact_edit(request, pk):
         duplicates = find_person_duplicates(form.cleaned_data, exclude_pk=person.pk, level=duplicate_settings.level) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person, "duplicate_candidates": duplicates})
-        return redirect(form.save())
+        person = form.save()
+        for name in form.changed_data:
+            audit_log(AuditLog.UPDATE, request=request, target=person, field=name, new=form.cleaned_data.get(name))
+        return redirect(person)
     return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person})
 
 
@@ -894,6 +988,8 @@ def _save_attachments(request, activity):
             activity=activity, file=upload, original_name=upload.name[:255],
             content_type=getattr(upload, "content_type", "") or "", size=upload.size,
         )
+        audit_log(AuditLog.UPDATE, request=request, target=(activity.person or activity.company),
+                  field=tr("Priedas"), new=upload.name[:255])
     return rejected
 
 
@@ -915,6 +1011,8 @@ def activity_create(request, pk):
         activity.created_by = request.user
         activity.submission_token = token or None
         activity.save()
+        audit_log(AuditLog.CREATE, request=request, target=person,
+                  field=str(tr("Veikla")) + ": " + str(activity.get_activity_type_display()), new=activity.text[:200])
         _report_rejected_attachments(request, _save_attachments(request, activity))
     return redirect(person)
 
@@ -925,7 +1023,10 @@ def activity_edit(request, person_pk, pk):
     activity = get_object_or_404(person.activities, pk=pk, deleted_at__isnull=True)
     form = ActivityForm(request.POST or None, instance=activity)
     if request.method == "POST" and form.is_valid():
+        old_text = Activity.objects.get(pk=activity.pk).text
         form.save()
+        audit_log(AuditLog.UPDATE, request=request, target=person, field=str(tr("Veikla")),
+                  old=old_text[:200], new=activity.text[:200])
         messages.success(request, tr("Įrašas atnaujintas."))
         return redirect(person)
     return render(request, "contacts/activity_form.html", {"form": form, "person": person, "activity": activity})
@@ -944,6 +1045,8 @@ def reminder_create(request, pk):
         reminder.created_by = request.user
         reminder.submission_token = token or None
         reminder.save()
+        audit_log(AuditLog.CREATE, request=request, target=person, field=str(tr("Priminimas")),
+                  new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
     return redirect(person)
 
 
@@ -952,9 +1055,12 @@ def reminder_complete(request, pk):
     reminder = get_object_or_404(visible_reminders(request.user), pk=pk, deleted_at__isnull=True)
     if request.method == "POST":
         now = timezone.now()
-        Reminder.objects.filter(pk=reminder.pk, deleted_at__isnull=True, completed_at__isnull=True).update(
+        updated = Reminder.objects.filter(pk=reminder.pk, deleted_at__isnull=True, completed_at__isnull=True).update(
             completed_at=now, updated_at=now,
         )
+        if updated:
+            audit_log(AuditLog.UPDATE, request=request, target=reminder.person, field=str(tr("Priminimas")),
+                      old=reminder.text[:150], new=str(tr("atliktas")))
     return redirect(reminder.person)
 
 
@@ -967,6 +1073,9 @@ def reminder_edit(request, pk):
         if form.cleaned_data["due_at"] != original_due_at:
             form.instance.read_at = None
         form.save()
+        audit_log(AuditLog.UPDATE, request=request, target=reminder.person, field=str(tr("Priminimas")),
+                  old=f"{timezone.localtime(original_due_at):%Y-%m-%d %H:%M}",
+                  new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
         messages.success(request, tr("Priminimas atnaujintas."))
         return redirect("contacts:reminder-list")
     return render(request, "reminders/form.html", {"form": form, "reminder": reminder})
@@ -978,6 +1087,8 @@ def reminder_delete(request, pk):
     if request.method == "POST":
         reminder.deleted_at = timezone.now()
         reminder.save(update_fields=["deleted_at", "updated_at"])
+        audit_log(AuditLog.DELETE, request=request, target=reminder.person, field=str(tr("Priminimas")),
+                  old=reminder.text[:150])
         messages.success(request, tr("Priminimas pašalintas."))
     return redirect("contacts:reminder-list")
 
@@ -1117,7 +1228,10 @@ def company_activity_edit(request, company_pk, pk):
     activity = get_object_or_404(company.activities, pk=pk, deleted_at__isnull=True)
     form = ActivityForm(request.POST or None, instance=activity)
     if request.method == "POST" and form.is_valid():
+        old_text = Activity.objects.get(pk=activity.pk).text
         form.save()
+        audit_log(AuditLog.UPDATE, request=request, target=company, field=str(tr("Veikla")),
+                  old=old_text[:200], new=activity.text[:200])
         messages.success(request, tr("Įrašas atnaujintas."))
         return redirect(company)
     return render(request, "contacts/activity_form.html", {"form": form, "person": company, "activity": activity})
@@ -1136,6 +1250,8 @@ def company_activity_create(request, pk):
         activity.created_by = request.user
         activity.submission_token = token or None
         activity.save()
+        audit_log(AuditLog.CREATE, request=request, target=company,
+                  field=str(tr("Veikla")) + ": " + str(activity.get_activity_type_display()), new=activity.text[:200])
         _report_rejected_attachments(request, _save_attachments(request, activity))
     return redirect(company)
 
@@ -1150,6 +1266,7 @@ def company_create(request):
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/", "duplicate_candidates": duplicates})
         company = form.save()
         Company.objects.filter(pk=company.pk, owner__isnull=True).update(owner=request.user)
+        audit_log(AuditLog.CREATE, request=request, target=company)
         return redirect(company)
     return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/"})
 
@@ -1163,7 +1280,10 @@ def company_edit(request, pk):
         duplicates = find_company_duplicates(form.cleaned_data, exclude_pk=company.pk, level=duplicate_settings.level) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti įmonę"), "company": company, "cancel_url": company.get_absolute_url(), "duplicate_candidates": duplicates})
-        return redirect(form.save())
+        company = form.save()
+        for name in form.changed_data:
+            audit_log(AuditLog.UPDATE, request=request, target=company, field=name, new=form.cleaned_data.get(name))
+        return redirect(company)
     return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti įmonę"), "company": company, "cancel_url": company.get_absolute_url()})
 
 
@@ -1196,8 +1316,11 @@ def contacts_export(request):
         people = people.filter(pk__in=request.POST.getlist("selected"))
     people = people.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "company_links__company")
     from .permissions import user_label
+    rows = 0
     for person in people:
         writer.writerow([person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), person.status, "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner)])
+        rows += 1
+    audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Kontaktai (CSV)")), new=str(rows))
     return response
 
 @login_required
@@ -1210,7 +1333,11 @@ def companies_export(request):
     companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).select_related("owner")
     if request.method == "POST": companies = companies.filter(pk__in=request.POST.getlist("selected"))
     from .permissions import user_label
-    for company in companies: writer.writerow([company.name, company.company_code, company.vat_code, company.address, company.phone, company.email, user_label(company.owner)])
+    rows = 0
+    for company in companies:
+        writer.writerow([company.name, company.company_code, company.vat_code, company.address, company.phone, company.email, user_label(company.owner)])
+        rows += 1
+    audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Įmonės (CSV)")), new=str(rows))
     return response
 
 
@@ -1348,6 +1475,10 @@ def contacts_import(request):
         else:
             try:
                 context["result"] = _import_contact_rows(rows, owner=request.user)
+                result = context["result"]
+                audit_log(AuditLog.IMPORT, request=request, target_type="import", target_label=str(tr("Kontaktų importas")),
+                          new=str(tr("sukurta %(c)s, atnaujinta %(u)s, praleista %(s)s")) % {"c": result["created"], "u": result["updated"], "s": result["skipped"]},
+                          detail=result)
             except Exception:
                 messages.error(request, tr("Nepavyko importuoti. Patikrinkite žymų ir kategorijų skaičių bei stulpelius."))
     elif request.method == "POST":

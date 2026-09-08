@@ -1384,3 +1384,129 @@ msgstr "Owner assigned to records: %(n)s."
 
 msgid "Atsakingas pašalintas nuo įrašų: %(n)s."
 msgstr "Owner removed from records: %(n)s."
+
+msgid "Žurnalas"
+msgstr "Audit log"
+
+msgid "Kas, kada ir ką pakeitė. Įrašai netrinami."
+msgstr "Who changed what and when. Entries are never deleted."
+
+msgid "Naudotojas"
+msgstr "User"
+
+msgid "Veiksmas"
+msgstr "Action"
+
+msgid "Data"
+msgstr "Date"
+
+msgid "Laukas"
+msgstr "Field"
+
+msgid "Objektas"
+msgstr "Object"
+
+msgid "Buvo"
+msgstr "Was"
+
+msgid "Tapo"
+msgstr "Became"
+
+msgid "Filtruoti"
+msgstr "Filter"
+
+msgid "Išvalyti"
+msgstr "Clear"
+
+msgid "Įrašų nėra."
+msgstr "No entries."
+
+msgid "Veikla"
+msgstr "Activity"
+
+msgid "Priedas"
+msgstr "Attachment"
+
+msgid "Vardas ir pavardė"
+msgstr "Full name"
+
+msgid "Sukūrimas"
+msgstr "Created"
+
+msgid "Keitimas"
+msgstr "Changed"
+
+msgid "Archyvavimas"
+msgstr "Archived"
+
+msgid "Atkūrimas"
+msgstr "Restored"
+
+msgid "Trynimas"
+msgstr "Deleted"
+
+msgid "Sujungimas"
+msgstr "Merged"
+
+msgid "Importas"
+msgstr "Import"
+
+msgid "Eksportas"
+msgstr "Export"
+
+msgid "Nustatymų keitimas"
+msgstr "Setting change"
+
+msgid "Prisijungimas"
+msgstr "Sign in"
+
+msgid "Atsijungimas"
+msgstr "Sign out"
+
+msgid "Nepavykęs prisijungimas"
+msgstr "Failed sign in"
+
+msgid "taip"
+msgstr "yes"
+
+msgid "ne"
+msgstr "no"
+
+msgid "Mėgstamas"
+msgstr "Favourite"
+
+msgid "atliktas"
+msgstr "completed"
+
+msgid "atstatytas"
+msgstr "reset"
+
+msgid "pakeistas"
+msgstr "changed"
+
+msgid "aktyvus"
+msgstr "active"
+
+msgid "išjungtas"
+msgstr "disabled"
+
+msgid "atnaujinta"
+msgstr "updated"
+
+msgid "sukurta"
+msgstr "created"
+
+msgid "Kontaktai (CSV)"
+msgstr "Contacts (CSV)"
+
+msgid "Įmonės (CSV)"
+msgstr "Companies (CSV)"
+
+msgid "Kontaktų importas"
+msgstr "Contact import"
+
+msgid "Pilna atsarginė kopija (ZIP)"
+msgstr "Full backup (ZIP)"
+
+msgid "sukurta %(c)s, atnaujinta %(u)s, praleista %(s)s"
+msgstr "created %(c)s, updated %(u)s, skipped %(s)s"

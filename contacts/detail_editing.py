@@ -10,10 +10,11 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
-from .models import Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
+from .models import AuditLog, Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
 from .forms import CompanyForm
 from .permissions import user_label as _user_label, visible_companies, visible_people
 from .duplicates import find_company_duplicates, find_person_duplicates
+from .audit import log as audit_log
 
 
 DUPLICATE_REASON_LABELS = {
@@ -113,8 +114,10 @@ def set_owner(record, request_post):
 def edit_company_field(request, pk):
     company = get_object_or_404(visible_companies(request.user, Company.objects.select_for_update()), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field", "")
+    before = _audit_snapshot(company)
     if field == "owner":
         set_owner(company, request.POST)
+        _audit_field_changes(request, company, before)
         html = render_to_string("contacts/detail_field.html", {"item": owner_field_context(company)}, request=request)
         return JsonResponse({"ok": True, "name": company.name, "html": html})
     if field.startswith("cf_"):
@@ -125,6 +128,7 @@ def edit_company_field(request, pk):
             return JsonResponse({"error": "Netinkamas laukas."}, status=400)
         clean_and_store(company, custom, request.POST)
         company.save(update_fields=["updated_at"])
+        _audit_field_changes(request, company, before)
         html = render_to_string("contacts/detail_field.html", {"item": single_context(company, field)}, request=request)
         return JsonResponse({"ok": True, "name": company.name, "html": html})
     if field not in CompanyForm.Meta.fields:
@@ -142,6 +146,7 @@ def edit_company_field(request, pk):
     if changed:
         setattr(company, field, value)
         company.save(update_fields=[field, "updated_at"])
+    _audit_field_changes(request, company, before)
     html = title_html(company, request) if request.POST.get("render_title") == "1" and field == "name" else render_to_string(
         "contacts/detail_field.html", {"item": company_field_context(company, field)}, request=request
     )
@@ -149,6 +154,34 @@ def edit_company_field(request, pk):
 
 
 SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"), "job_title": _("Pareigos"), "status": _("Būsena")}
+_AUDIT_LABELS = {**SCALARS, "companies": _("Įmonės"), "owner": _("Atsakingas"), "full_name": _("Vardas ir pavardė")}
+
+
+def _audit_snapshot(record):
+    """A flat {field: text} view of everything editable on a contact/company card."""
+    is_person = isinstance(record, Person)
+    data = {}
+    for name in (SCALARS if is_person else CompanyForm.Meta.fields):
+        data[name] = str(getattr(record, name, "") or "")
+    if is_person:
+        for name, spec in MULTIPLE.items():
+            data[name] = ", ".join(getattr(record, name).values_list(spec[1], flat=True))
+        data["companies"] = ", ".join(record.company_links.values_list("company__name", flat=True))
+    data["owner"] = _user_label(record.owner) if record.owner_id else ""
+    for value in record.custom_values.select_related("field").all():
+        data[value.field.key] = value.value
+        _AUDIT_LABELS.setdefault(value.field.key, value.field.name)
+    return data
+
+
+def _audit_field_changes(request, record, before):
+    record.refresh_from_db()
+    after = _audit_snapshot(record)
+    for name in before.keys() | after.keys():
+        old, new = before.get(name, ""), after.get(name, "")
+        if str(old) != str(new):
+            audit_log(AuditLog.UPDATE, request=request, target=record,
+                      field=str(_AUDIT_LABELS.get(name, name)), old=old, new=new)
 MULTIPLE = {
     "phones": (PhoneNumber, "number", _("Telefonai"), "tel:"),
     "emails": (EmailAddress, "email", _("El. paštas"), "mailto:"),
@@ -199,6 +232,7 @@ def detail_fields(person):
 def edit_contact_field(request, pk):
     person = get_object_or_404(visible_people(request.user, Person.objects.select_for_update()), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field", "")
+    before = _audit_snapshot(person)
     try:
         if field == "full_name":
             first_name = forms.CharField(max_length=100).clean(request.POST.get("first_name", ""))
@@ -294,6 +328,7 @@ def edit_contact_field(request, pk):
             return JsonResponse({"error": "Netinkamas laukas."}, status=400)
     except ValidationError as error:
         return JsonResponse({"error": " ".join(error.messages)}, status=400)
+    _audit_field_changes(request, person, before)
     html = title_html(person, request) if field == "full_name" else render_to_string(
         "contacts/detail_field.html", {"item": field_context(person, field)}, request=request
     )

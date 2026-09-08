@@ -58,6 +58,7 @@ urlpatterns = [
     path("settings/users/", views.settings_users, name="settings-users"),
     path("settings/custom-fields/", views.settings_custom_fields, name="settings-custom-fields"),
     path("settings/custom-fields/<int:pk>/delete/", views.custom_field_delete, name="custom-field-delete"),
+    path("settings/audit/", views.settings_audit, name="settings-audit"),
     path("settings/documentation/", views.documentation_page, name="settings-documentation"),
     path("duplicates/", views.duplicate_list, name="duplicate-list"),
     path("duplicates/<str:kind>/<int:source_pk>/merge-into/<int:target_pk>/", views.duplicate_merge, name="duplicate-merge"),

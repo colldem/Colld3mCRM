@@ -1,0 +1,43 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Žurnalas' %}</h2><p>{% translate 'Kas, kada ir ką pakeitė. Įrašai netrinami.' %}</p></div></div>
+
+<form method="get" class="audit-filters">
+  <label>{% translate 'Naudotojas' %}<select name="actor"><option value="">{% translate 'Visi' %}</option>{% for u in actors %}<option value="{{ u.pk }}" {% if u.pk|stringformat:'s' == filter_actor %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></label>
+  <label>{% translate 'Veiksmas' %}<select name="action"><option value="">{% translate 'Visi' %}</option>{% for value, label in action_choices %}<option value="{{ value }}" {% if value == filter_action %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>{% translate 'Nuo' %}<input type="date" name="date_from" value="{{ filter_date_from }}"></label>
+  <label>{% translate 'Iki' %}<input type="date" name="date_to" value="{{ filter_date_to }}"></label>
+  <button class="btn primary" type="submit">{% translate 'Filtruoti' %}</button>
+  <a class="btn" href="{% url 'contacts:settings-audit' %}">{% translate 'Išvalyti' %}</a>
+</form>
+
+<div class="table-wrap"><table class="audit-table">
+  <thead><tr><th>{% translate 'Data' %}</th><th>{% translate 'Naudotojas' %}</th><th>{% translate 'Veiksmas' %}</th><th>{% translate 'Objektas' %}</th><th>{% translate 'Laukas' %}</th><th>{% translate 'Buvo' %}</th><th>{% translate 'Tapo' %}</th></tr></thead>
+  <tbody>
+  {% for entry in page %}
+    <tr>
+      <td>{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+      <td>{{ entry.actor_label|default:"—" }}{% if entry.ip %}<small>{{ entry.ip }}</small>{% endif %}</td>
+      <td>{{ entry.get_action_display }}</td>
+      <td>{% if entry.target_label %}{{ entry.target_label }}{% else %}—{% endif %}{% if entry.target_type %}<small>{{ entry.target_type }}</small>{% endif %}</td>
+      <td>{{ entry.field|default:"—" }}</td>
+      <td>{{ entry.old_value|default:"—"|truncatechars:120 }}</td>
+      <td>{{ entry.new_value|default:"—"|truncatechars:120 }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="7" class="empty">{% translate 'Įrašų nėra.' %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+{% if page.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="{% translate 'Puslapiai' %}">
+  <span>{{ page.start_index }}-{{ page.end_index }} {% translate 'iš' %} {{ page.paginator.count }}</span>
+  <div class="page-links">
+    {% if page.has_previous %}<a class="btn page-step" href="?{% if list_query %}{{ list_query }}&amp;{% endif %}page={{ page.previous_page_number }}">{% translate 'Ankstesnis' %}</a>{% endif %}
+    {% for num in page_numbers %}{% if num == page.number %}<span class="page-number" aria-current="page">{{ num }}</span>{% elif num == "…" %}<span class="page-gap">…</span>{% else %}<a class="btn page-num" href="?{% if list_query %}{{ list_query }}&amp;{% endif %}page={{ num }}">{{ num }}</a>{% endif %}{% endfor %}
+    {% if page.has_next %}<a class="btn page-step" href="?{% if list_query %}{{ list_query }}&amp;{% endif %}page={{ page.next_page_number }}">{% translate 'Kitas' %}</a>{% endif %}
+  </div>
+</nav>
+{% endif %}
+{% endblock %}

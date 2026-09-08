@@ -317,3 +317,54 @@ class CustomValue(models.Model):
             models.UniqueConstraint(fields=["field", "person"], name="unique_custom_value_person", condition=models.Q(person__isnull=False)),
             models.UniqueConstraint(fields=["field", "company"], name="unique_custom_value_company", condition=models.Q(company__isnull=False)),
         ]
+
+
+class AuditLog(models.Model):
+    """Append-only trail: who did what, to which record or setting, when."""
+    CREATE = "create"
+    UPDATE = "update"
+    ARCHIVE = "archive"
+    RESTORE = "restore"
+    DELETE = "delete"
+    MERGE = "merge"
+    IMPORT = "import"
+    EXPORT = "export"
+    SETTING = "setting"
+    LOGIN = "login"
+    LOGOUT = "logout"
+    LOGIN_FAILED = "login_failed"
+    ACTION_CHOICES = (
+        (CREATE, tr("Sukūrimas")),
+        (UPDATE, tr("Keitimas")),
+        (ARCHIVE, tr("Archyvavimas")),
+        (RESTORE, tr("Atkūrimas")),
+        (DELETE, tr("Trynimas")),
+        (MERGE, tr("Sujungimas")),
+        (IMPORT, tr("Importas")),
+        (EXPORT, tr("Eksportas")),
+        (SETTING, tr("Nustatymų keitimas")),
+        (LOGIN, tr("Prisijungimas")),
+        (LOGOUT, tr("Atsijungimas")),
+        (LOGIN_FAILED, tr("Nepavykęs prisijungimas")),
+    )
+
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_entries")
+    actor_label = models.CharField(max_length=150, blank=True)
+    action = models.CharField(max_length=16, choices=ACTION_CHOICES, db_index=True)
+    target_type = models.CharField(max_length=32, blank=True, db_index=True)
+    target_id = models.CharField(max_length=32, blank=True)
+    target_label = models.CharField(max_length=255, blank=True)
+    field = models.CharField(max_length=64, blank=True)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    detail = models.JSONField(default=dict, blank=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        verbose_name = "Žurnalo įrašas"
+        verbose_name_plural = "Žurnalas"
+
+    def __str__(self):
+        return f"{self.created_at:%Y-%m-%d %H:%M} {self.actor_label} {self.action} {self.target_label}".strip()
