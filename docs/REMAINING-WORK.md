@@ -39,6 +39,10 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
   filtras (bet kuris / nepriskirta / naudotojas), masinis priskyrimas
   pažymėtiems (adminui ir pilnam naudotojui), „Atsakingas" stulpelis CSV
   eksporte ir importe (pagal prisijungimo vardą, el. paštą arba vardą-pavardę).
+- ✅ **C5** — auditas: `AuditLog` + Nustatymai → Žurnalas (tik administratoriams),
+  filtrai pagal naudotoją / veiksmą / datą. Registruojami įrašų, veiklų, priminimų,
+  nustatymų, naudotojų, importo/eksporto ir prisijungimų įvykiai (sena→nauja).
+- ✅ **VERSION → 0.6.0**, `image: crm-web:0.6.0`
 
 ---
 
@@ -138,12 +142,20 @@ ilgas tekstas, žymimasis langelis, vienas/keli pasirinkimai; kontaktams/įmonė
 filtruose (icontains) ir paieškoje. Vėliau galima: skaičiaus/datos tipai, stulpelio
 rikiavimas, laukų tvarkos keitimas, pasirinkimo laukų filtras su reikšmių sąrašu.
 
-### C5. Pakeitimų istorija / auditas — ❌
-Reikalauta „pradėti rinkti iš karto". Nėra: kas/kada/kurį lauką keitė, sena→nauja
-reikšmė, prisijungimų istorija, importo/eksporto operacijų žurnalas, failų įkėlimai.
-Yra tik `created_at`/`updated_at`/`created_by`.
+### C5. Pakeitimų istorija / auditas — ✅ padaryta
+`AuditLog` modelis + `contacts/audit.py` (`log(...)`, `log_change(...)`).
+Nustatymai → **Žurnalas** (`/settings/audit/`, tik administratoriams): lentelė su
+filtrais pagal naudotoją, veiksmą ir datų intervalą, puslapiavimas po 100, tik
+skaitymas. Registruojama: kontakto/įmonės kūrimas, lauko keitimas (sena→nauja,
+inline ir per formą), archyvavimas, atkūrimas, sujungimas; veiklos ir priminimų
+kūrimas/keitimas/atlikimas/trynimas; priedų įkėlimas; žymų/kategorijų/dublikatų/
+profilio/slaptažodžio nustatymų keitimas; dinaminio lauko kūrimas/šalinimas;
+naudotojo kūrimas/rolės/išjungimo/slaptažodžio atstatymo veiksmai; CSV importas ir
+eksportas; prisijungimas / atsijungimas / nepavykęs prisijungimas (per auth signalus).
+Vėliau galima: įrašo „istorijos" kortelė detaliame puslapyje, eksportas į CSV,
+saugojimo terminas.
 
-**Patikslinta specifikacija (2026-09-08):**
+**Pradinė specifikacija (2026-09-08):**
 - `AuditLog` modelis: `actor` (FK user, SET_NULL), `action` (kategorija), `target_type`
   (contact / company / setting / custom_field / user / import / export / activity /
   reminder / auth), `target_id`, `target_label` (žmogui skaitomas pavadinimas),
