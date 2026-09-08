@@ -132,13 +132,16 @@ def set_owner(record, request_post):
 
 def set_responsibles(record, request_post):
     """Apply the 'Atsakingi' editor: `primary` -> owner, the rest -> responsibles."""
-    ids = [int(value) for value in request_post.getlist("responsible") if str(value).isdigit()]
-    valid = {user.pk for user in get_user_model().objects.filter(pk__in=ids, is_active=True)}
+    raw = list(request_post.getlist("responsible"))
     primary_raw = request_post.get("primary")
+    if primary_raw and str(primary_raw).isdigit():
+        raw.append(primary_raw)  # the primary is always one of the responsibles
+    ids = {int(value) for value in raw if str(value).isdigit()}
+    valid = {user.pk for user in get_user_model().objects.filter(pk__in=ids, is_active=True)}
     if primary_raw is None:
         # `primary` field absent entirely: keep the current owner if still selected.
-        primary_id = record.owner_id if record.owner_id in valid else (sorted(valid)[0] if valid else None)
-    elif primary_raw.isdigit() and int(primary_raw) in valid:
+        primary_id = record.owner_id if record.owner_id in valid else None
+    elif str(primary_raw).isdigit() and int(primary_raw) in valid:
         primary_id = int(primary_raw)
     else:
         primary_id = None

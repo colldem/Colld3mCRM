@@ -17,15 +17,16 @@
       <select id="field-owner" name="value"><option value="">{% translate 'Nepriskirta' %}</option>{% for user in item.users %}<option value="{{ user.pk }}"{% if user.selected %} selected{% endif %}>{{ user.label }}</option>{% endfor %}</select>
     {% elif item.responsibles %}
       <fieldset class="responsible-editor"><legend>{% translate 'Atsakingi' %}</legend>
-        <div class="responsible-options">
-          {% for user in item.users %}
-          <div class="responsible-row">
-            <label><input type="checkbox" name="responsible" value="{{ user.pk }}"{% if user.selected %} checked{% endif %}> {{ user.label }}</label>
-            <label class="responsible-primary"><input type="radio" name="primary" value="{{ user.pk }}"{% if user.primary %} checked{% endif %}> {% translate 'pagrindinis' %}</label>
-          </div>
-          {% empty %}<p>{% translate 'Naudotojų dar nėra.' %}</p>{% endfor %}
-        </div>
-        <label class="responsible-primary"><input type="radio" name="primary" value=""{% if not item.has_primary %} checked{% endif %}> {% translate 'be pagrindinio' %}</label>
+        <label for="field-responsibles">{% translate 'Naudotojai' %}</label>
+        <select id="field-responsibles" name="responsible" multiple size="6">
+          {% for user in item.users %}<option value="{{ user.pk }}"{% if user.selected %} selected{% endif %}>{{ user.label }}</option>{% empty %}<option disabled>{% translate 'Naudotojų dar nėra.' %}</option>{% endfor %}
+        </select>
+        <small>{% translate 'Laikykite Ctrl / Cmd, kad pažymėtumėte kelis.' %}</small>
+        <label for="field-primary">{% translate 'Pagrindinis' %}</label>
+        <select id="field-primary" name="primary">
+          <option value="">{% translate 'be pagrindinio' %}</option>
+          {% for user in item.users %}<option value="{{ user.pk }}"{% if user.primary %} selected{% endif %}>{{ user.label }}</option>{% endfor %}
+        </select>
       </fieldset>
     {% elif item.custom %}
       <label for="field-{{ item.field }}">{{ item.label }}</label>

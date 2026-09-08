@@ -9,6 +9,7 @@
     <label>{% translate 'Vardas' %}<input name="first_name" maxlength="150"></label>
     <label>{% translate 'Pavardė' %}<input name="last_name" maxlength="150"></label>
     <label>{% translate 'Rolė' %}<select name="role">{% for value, label in role_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>{% translate 'Matomumas' %}<select name="record_visibility">{% for value, label in visibility_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
     <label>{% translate 'Pradinis slaptažodis' %}<input type="text" name="password" required><small>{% translate 'Bent 12 simbolių. Naudotojas galės jį pasikeisti.' %}</small></label>
   </div>
   <button class="btn primary" type="submit">{% translate 'Pridėti naudotoją' %}</button>
@@ -21,9 +22,11 @@
         <div class="user-row-info"><strong>{{ row.name }}</strong> <small>{{ row.user.username }}{% if row.user.email %} · {{ row.user.email }}{% endif %}</small><small>{% if row.user.last_login %}{% translate 'Paskutinis prisijungimas:' %} {{ row.user.last_login|date:"Y-m-d H:i" }}{% else %}{% translate 'Dar neprisijungė' %}{% endif %}{% if not row.user.is_active %} · <b>{% translate 'Išjungtas' %}</b>{% endif %}</small></div>
         <form method="post" class="user-row-actions">{% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="user_id" value="{{ row.user.pk }}">
           <select name="role"{% if row.protected %} disabled{% endif %}>{% for value, label in role_choices %}<option value="{{ value }}"{% if value == row.role %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+          <select name="record_visibility" aria-label="{% translate 'Matomumas' %}"{% if row.protected %} disabled{% endif %}>{% for value, label in visibility_choices %}<option value="{{ value }}"{% if value == row.visibility %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
           <label class="cf-check"><input type="checkbox" name="active" value="1"{% if row.user.is_active %} checked{% endif %}{% if row.protected %} disabled{% endif %}> {% translate 'Aktyvus' %}</label>
           {% if not row.protected %}<button class="btn" type="submit">{% translate 'Išsaugoti' %}</button>{% endif %}
         </form>
+        {% if row.teams %}<small class="user-row-teams">{% translate 'Komandos:' %} {{ row.teams }}{% if row.effective_visibility != row.visibility %} · {% translate 'faktinis matomumas:' %} {{ row.effective_visibility }}{% endif %}</small>{% endif %}
         <form method="post" class="user-row-reset">{% csrf_token %}<input type="hidden" name="action" value="reset"><input type="hidden" name="user_id" value="{{ row.user.pk }}">
           <input type="text" name="password" placeholder="{% translate 'Naujas slaptažodis' %}" required>
           <button class="btn" type="submit">{% translate 'Atstatyti slaptažodį' %}</button>

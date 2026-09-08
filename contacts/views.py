@@ -116,12 +116,11 @@ def _search_results(query, per_group, user=None):
         .select_related("person").order_by("due_at")
     )
     if user is not None:
-        from .permissions import responsible_company_ids, responsible_person_ids, sees_all_records
+        from .permissions import sees_all_records, visible_company_ids, visible_person_ids
 
         if not sees_all_records(user):
             activities = activities.filter(
-                Q(person__owner=user) | Q(person__pk__in=responsible_person_ids(user)) | Q(person__owner__isnull=True)
-                | Q(company__owner=user) | Q(company__pk__in=responsible_company_ids(user)) | Q(company__owner__isnull=True)
+                Q(person__pk__in=visible_person_ids(user)) | Q(company__pk__in=visible_company_ids(user))
             )
     return {
         "q": query,
@@ -570,12 +569,15 @@ def _create_crm_user(request):
     except ValidationError as error:
         messages.error(request, " ".join(error.messages))
         return
+    visibility = request.POST.get("record_visibility")
+    if visibility not in dict(UserProfile.VISIBILITY_CHOICES):
+        visibility = UserProfile.VISIBILITY_OWN if role == UserProfile.ROLE_RESTRICTED else UserProfile.VISIBILITY_ALL
     user = User.objects.create_user(
         username=username, email=request.POST.get("email", "").strip(), password=password,
         first_name=request.POST.get("first_name", "").strip(), last_name=request.POST.get("last_name", "").strip(),
         is_staff=role == UserProfile.ROLE_ADMIN,
     )
-    UserProfile.objects.update_or_create(user=user, defaults={"role": role})
+    UserProfile.objects.update_or_create(user=user, defaults={"role": role, "record_visibility": visibility})
     audit_log(AuditLog.CREATE, request=request, target=user, target_type="user", field=str(tr("Rolė")),
               new=dict(UserProfile.ROLE_CHOICES).get(role, role))
     messages.success(request, tr("Naudotojas sukurtas."))
@@ -598,14 +600,23 @@ def _update_crm_user(request, target):
         return
     old_role = role_of(target)
     old_active = target.is_active
+    old_profile = UserProfile.objects.filter(user=target).first()
+    old_visibility = old_profile.record_visibility if old_profile else UserProfile.VISIBILITY_ALL
+    visibility = request.POST.get("record_visibility")
+    if visibility not in dict(UserProfile.VISIBILITY_CHOICES):
+        visibility = old_visibility
     target.is_active = active
     target.is_staff = role == UserProfile.ROLE_ADMIN
     target.save(update_fields=["is_active", "is_staff"])
-    UserProfile.objects.update_or_create(user=target, defaults={"role": role})
+    UserProfile.objects.update_or_create(user=target, defaults={"role": role, "record_visibility": visibility})
     labels = dict(UserProfile.ROLE_CHOICES)
+    vis_labels = dict(UserProfile.VISIBILITY_CHOICES)
     if old_role != role:
         audit_log(AuditLog.UPDATE, request=request, target=target, target_type="user", field=str(tr("Rolė")),
                   old=labels.get(old_role, old_role), new=labels.get(role, role))
+    if old_visibility != visibility:
+        audit_log(AuditLog.UPDATE, request=request, target=target, target_type="user", field=str(tr("Matomumas")),
+                  old=vis_labels.get(old_visibility, old_visibility), new=vis_labels.get(visibility, visibility))
     if old_active != active:
         audit_log(AuditLog.UPDATE, request=request, target=target, target_type="user", field=str(tr("Būsena")),
                   old=str(tr("aktyvus")) if old_active else str(tr("išjungtas")),
@@ -649,15 +660,20 @@ def settings_users(request):
             elif target:
                 _reset_crm_user_password(request, target)
         return redirect("contacts:settings-users")
+    from .permissions import record_visibility as effective_visibility
     rows = [{
         "user": user,
         "name": user.get_full_name().strip() or user.get_username(),
         "role": role_of(user),
+        "visibility": getattr(getattr(user, "crm_profile", None), "record_visibility", UserProfile.VISIBILITY_ALL),
+        "effective_visibility": effective_visibility(user),
+        "teams": ", ".join(user.crm_teams.values_list("name", flat=True)),
         "is_self": user.pk == request.user.pk,
         "protected": user.is_superuser,
-    } for user in User.objects.select_related("crm_profile").order_by("username")]
+    } for user in User.objects.select_related("crm_profile").prefetch_related("crm_teams").order_by("username")]
     return render(request, "settings/users.html", {
         "settings_section": "users", "rows": rows, "role_choices": UserProfile.ROLE_CHOICES,
+        "visibility_choices": UserProfile.VISIBILITY_CHOICES,
     })
 
 
@@ -1167,12 +1183,12 @@ def attachment_download(request, pk):
         Q(activity__person__isnull=False, activity__person__deleted_at__isnull=True)
         | Q(activity__company__isnull=False, activity__company__deleted_at__isnull=True)
     )
-    from .permissions import responsible_company_ids, responsible_person_ids, sees_all_records
+    from .permissions import sees_all_records, visible_company_ids, visible_person_ids
 
     if not sees_all_records(request.user):
         available = available.filter(
-            Q(activity__person__owner=request.user) | Q(activity__person__pk__in=responsible_person_ids(request.user)) | Q(activity__person__owner__isnull=True)
-            | Q(activity__company__owner=request.user) | Q(activity__company__pk__in=responsible_company_ids(request.user)) | Q(activity__company__owner__isnull=True)
+            Q(activity__person__pk__in=visible_person_ids(request.user))
+            | Q(activity__company__pk__in=visible_company_ids(request.user))
         )
     attachment = get_object_or_404(available, pk=pk)
     if not attachment.file:

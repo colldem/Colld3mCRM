@@ -1627,3 +1627,18 @@ msgstr "All records"
 
 msgid "Tik komandos įrašai"
 msgstr "Team records only"
+
+msgid "Tik savo įrašai"
+msgstr "Own records only"
+
+msgid "Laikykite Ctrl / Cmd, kad pažymėtumėte kelis."
+msgstr "Hold Ctrl / Cmd to select several."
+
+msgid "Pagrindinis"
+msgstr "Primary"
+
+msgid "Komandos:"
+msgstr "Teams:"
+
+msgid "faktinis matomumas:"
+msgstr "effective visibility:"

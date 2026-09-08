@@ -100,8 +100,18 @@ class UserProfile(models.Model):
         (ROLE_RESTRICTED, tr("Naudotojas (tik savi įrašai)")),
     )
 
+    VISIBILITY_ALL = "all"
+    VISIBILITY_TEAM = "team"
+    VISIBILITY_OWN = "own"
+    VISIBILITY_CHOICES = (
+        (VISIBILITY_ALL, tr("Visi įrašai")),
+        (VISIBILITY_TEAM, tr("Tik komandos įrašai")),
+        (VISIBILITY_OWN, tr("Tik savo įrašai")),
+    )
+
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="crm_profile")
     role = models.CharField(max_length=12, choices=ROLE_CHOICES, default=ROLE_MEMBER)
+    record_visibility = models.CharField(max_length=8, choices=VISIBILITY_CHOICES, default=VISIBILITY_ALL)
     language = models.CharField(max_length=5, choices=(("lt", "Lietuvių"), ("en", "English")), default="lt")
     timezone = models.CharField(max_length=64, default="Europe/Vilnius")
     avatar = models.FileField(upload_to="avatars/%Y/%m/", blank=True)

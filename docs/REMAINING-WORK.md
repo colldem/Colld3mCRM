@@ -244,7 +244,7 @@ ir įmonėms, 3 riba, praleistų ataskaita). Trūksta: žymos šalinimo, masinio
 Nustatymai → Duomenų eksportas (tik administratoriui): ZIP su `data.json`
 (`dumpdata` — kontaktai, naudotojai, nustatymai), `media/` ir `README.txt`.
 
-### C10. Komandos, matomumo modelis ir detalios teisės — 🟡 dalys 1–2 padarytos (spec 2026-09-08)
+### C10. Komandos, matomumo modelis ir detalios teisės — 🟡 dalys 1–3 padarytos (spec 2026-09-08)
 **Padaryta (1 dalis):** `Person.responsibles` / `Company.responsibles` M2M; kortelės
 laukas **„Atsakingi"** (double-click: pažymėti kelis, vienam radio „pagrindinis"
 arba „be pagrindinio" → `owner`); „savo įrašai" visur = `owner=user OR responsibles=user`
@@ -253,8 +253,18 @@ atsakingus; CSV eksporte/importe stulpelis „Atsakingi" (`;`-atskirti vardai).
 
 **Padaryta (2 dalis):** `Team` modelis (`name`, `visibility` = `all` / `team`,
 `members` M2M). Nustatymai → **Komandos** (tik administratoriui): kurti, pervadinti,
-keisti matomumą, valdyti narius, šalinti. Veiksmai žurnaluojami. `visibility` laukas
-paruoštas 3 daliai, dar netaikomas matomumui.
+keisti matomumą, valdyti narius, šalinti. Veiksmai žurnaluojami.
+
+**Padaryta (3 dalis):** `UserProfile.record_visibility` (`all` / `team` / `own`,
+numatyta `all`; migracija: „restricted" rolė → `own`). `record_visibility(user)` =
+**griežtesnis** iš: naudotojo nustatymo, „restricted" rolės grindų (`own`) ir bet
+kurios komandos su `visibility=team` (`team`). `sees_all_records` dabar = `== all`.
+`visible_people` / `visible_companies` / `visible_reminders` + veiklų/priedų filtrai
+perrašyti: `team` → įrašai, kurių `owner`/`responsibles` yra to paties naudotojo
+komandų narys (+ nepriskirti); `own` kaip anksčiau. Nustatymai → Naudotojai:
+„Matomumas" stulpelis, rodomas ir faktinis matomumas jei komanda griežtesnė.
+Kortelės „Atsakingi" laukas — **multiselect dropdown** (naudotojų sąrašas) +
+atskiras „Pagrindinis" dropdown.
 
 C6 išplėtimas. Konkurentų praktika: HubSpot „Teams" + „users & teams" matomumas,
 Pipedrive „visibility groups", Salesforce „role hierarchy + sharing rules".

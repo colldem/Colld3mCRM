@@ -1937,6 +1937,44 @@ class ContactViewTests(TestCase):
         self.assertEqual(Team.objects.filter(name__iexact="rinkodara").count(), 1)
         self.assertContains(response, "jau yra")
 
+    # --- C10 part 3: team-scoped visibility ---
+
+    def _member(self, username, visibility="all"):
+        from contacts.models import UserProfile
+        user = get_user_model().objects.create_user(username, password="very-secure-password")
+        UserProfile.objects.create(user=user, role=UserProfile.ROLE_MEMBER, record_visibility=visibility)
+        return user
+
+    def test_team_visibility_shows_teammates_records_only(self):
+        from contacts.models import Team
+        me = self._member("mano", visibility="team")
+        mate = self._member("kolega1")
+        outsider = self._member("nepriklauso")
+        team = Team.objects.create(name="Skyrius", visibility=Team.VISIBILITY_TEAM)
+        team.members.add(me, mate)
+        mine = Person.objects.create(first_name="Mano", last_name="K", owner=me)
+        mates = Person.objects.create(first_name="Kolegos", last_name="K", owner=mate)
+        theirs = Person.objects.create(first_name="Svetimo", last_name="K", owner=outsider)
+        self.client.force_login(me)
+        ids = [p.pk for p in self.client.get(reverse("contacts:list")).context["page"]]
+        self.assertIn(mine.pk, ids)
+        self.assertIn(mates.pk, ids)
+        self.assertNotIn(theirs.pk, ids)
+        self.assertEqual(self.client.get(reverse("contacts:detail", args=[theirs.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("contacts:detail", args=[mates.pk])).status_code, 200)
+
+    def test_team_visibility_setting_clamps_a_member_who_would_see_all(self):
+        from contacts.models import Team
+        me = self._member("visimato", visibility="all")
+        team = Team.objects.create(name="Uždaras", visibility=Team.VISIBILITY_TEAM)
+        team.members.add(me)
+        from contacts.permissions import record_visibility
+        self.assertEqual(record_visibility(me), "team")
+        other = self._member("kitas9")
+        theirs = Person.objects.create(first_name="Ne", last_name="Komandos", owner=other)
+        self.client.force_login(me)
+        self.assertNotIn(theirs.pk, [p.pk for p in self.client.get(reverse("contacts:list")).context["page"]])
+
     # --- C6 part 3: owner-based visibility for the restricted role ---
 
     def _restricted_user(self, username="ribotas"):
