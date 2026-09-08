@@ -1840,6 +1840,37 @@ class ContactViewTests(TestCase):
         self.assertIsNone(self.person.owner)
         self.assertEqual(set(self.person.responsibles.all()), {a, b})
 
+    def test_priority_type_date_and_text_fields_are_inline_editable(self):
+        self.client.force_login(self.user)
+        edit = reverse("contacts:field-edit", args=[self.person.pk])
+        self.client.post(edit, {"field": "priority", "value": "high"})
+        self.client.post(edit, {"field": "contact_type", "value": "Tiekėjas"})
+        self.client.post(edit, {"field": "cooperation_start", "value": "2026-01-15"})
+        self.client.post(edit, {"field": "description", "value": "Bendradarbiaujame IT srityje."})
+        self.client.post(edit, {"field": "internal_note", "value": "Skambinti po 15 d."})
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.priority, "high")
+        self.assertEqual(self.person.contact_type, "Tiekėjas")
+        self.assertEqual(self.person.cooperation_start.isoformat(), "2026-01-15")
+        self.assertEqual(self.person.description, "Bendradarbiaujame IT srityje.")
+        self.assertEqual(self.person.internal_note, "Skambinti po 15 d.")
+        page = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
+        self.assertContains(page, "prio-high")
+
+    def test_company_priority_field_is_inline_editable(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]),
+                         {"field": "priority", "value": "medium"})
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.priority, "medium")
+
+    def test_created_by_is_recorded_on_create(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:person-create"), {"first_name": "Nauja", "last_name": "Kūrėja"})
+        self.assertEqual(Person.objects.get(first_name="Nauja").created_by, self.user)
+        self.client.post(reverse("contacts:company-create"), {"name": "Nauja UAB"})
+        self.assertEqual(Company.objects.get(name="Nauja UAB").created_by, self.user)
+
     def test_extra_responsible_user_can_see_the_record(self):
         from contacts.models import UserProfile
         restricted = get_user_model().objects.create_user("ribotas2", password="very-secure-password")

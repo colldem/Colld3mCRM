@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
-from .models import AuditLog, Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
+from .models import PRIORITY_CHOICES, AuditLog, Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
 from .forms import CompanyForm
 from .permissions import has_capability, user_label as _user_label, visible_companies, visible_people
 from .duplicates import find_company_duplicates, find_person_duplicates
@@ -70,7 +70,41 @@ def company_duplicate_data(company, *, field, value):
     return data
 
 
+# Extra descriptive fields shared by contact and company cards (RecordDetailsModel).
+EXTRA_FIELDS = {
+    "priority": _("Prioritetas"),
+    "contact_type": _("Kontakto tipas"),
+    "cooperation_start": _("Bendradarbiavimo pradžia"),
+    "description": _("Aprašymas"),
+    "internal_note": _("Vidinė pastaba"),
+}
+FIELD_KINDS = {"priority": "choice", "cooperation_start": "date", "description": "textarea", "internal_note": "textarea"}
+
+
+def _scalar_context(record, field, label):
+    """Field context for a plain model attribute, with a `kind` the editor branches on."""
+    value = getattr(record, field)
+    kind = FIELD_KINDS.get(field, "text")
+    context = {"field": field, "label": label, "kind": kind}
+    if kind == "date":
+        context["value"] = value.isoformat() if value else ""
+        context["entries"] = [{"text": value.strftime("%Y-%m-%d")}] if value else []
+    elif kind == "choice":
+        context["value"] = value or ""
+        context["choices"] = list(PRIORITY_CHOICES)
+        context["priority_class"] = record.priority_class
+        display = record.get_priority_display() if value else ""
+        context["entries"] = [{"text": display}] if display else []
+    else:
+        context["value"] = value or ""
+        context["entries"] = [{"text": value}] if value else []
+    context["person" if isinstance(record, Person) else "company"] = record
+    return context
+
+
 def company_field_context(company, field):
+    if field in EXTRA_FIELDS:
+        return _scalar_context(company, field, EXTRA_FIELDS[field])
     value = getattr(company, field)
     href = {"phone": "tel:", "email": "mailto:"}.get(field, "")
     href = (href + value) if href and value else value if field == "url" else ""
@@ -205,8 +239,8 @@ def edit_company_field(request, pk):
     return JsonResponse({"ok": True, "name": company.name, "html": html})
 
 
-SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"), "job_title": _("Pareigos"), "status": _("Būsena")}
-_AUDIT_LABELS = {**SCALARS, "companies": _("Įmonės"), "owner": _("Atsakingas"),
+SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"), "job_title": _("Pareigos"), "status": _("Būsena"), "contact_type": _("Kontakto tipas")}
+_AUDIT_LABELS = {**SCALARS, **EXTRA_FIELDS, "companies": _("Įmonės"), "owner": _("Atsakingas"),
                  "responsibles": _("Atsakingi"), "full_name": _("Vardas ir pavardė")}
 
 
@@ -214,7 +248,7 @@ def _audit_snapshot(record):
     """A flat {field: text} view of everything editable on a contact/company card."""
     is_person = isinstance(record, Person)
     data = {}
-    for name in (SCALARS if is_person else CompanyForm.Meta.fields):
+    for name in ([*SCALARS, *EXTRA_FIELDS] if is_person else CompanyForm.Meta.fields):
         data[name] = str(getattr(record, name, "") or "")
     if is_person:
         for name, spec in MULTIPLE.items():
@@ -254,10 +288,10 @@ def field_context(person, field):
 
         return single_context(person, field)
     if field in SCALARS:
-        label = SCALARS[field]
-        value = getattr(person, field)
-        entries = [{"text": value}]
-    elif field in MULTIPLE:
+        return _scalar_context(person, field, SCALARS[field])
+    if field in EXTRA_FIELDS:
+        return _scalar_context(person, field, EXTRA_FIELDS[field])
+    if field in MULTIPLE:
         model, column, label, prefix = MULTIPLE[field]
         entries = []
         for item in getattr(person, field).all():
@@ -279,7 +313,9 @@ def field_context(person, field):
 def detail_fields(person):
     from .custom_fields import detail_context
 
-    return [field_context(person, field) for field in ["companies", "responsibles", *SCALARS, *MULTIPLE]] + detail_context(person)
+    order = ["companies", "responsibles", "first_name", "last_name", "job_title", "status",
+             "contact_type", "priority", "cooperation_start", *MULTIPLE, "description", "internal_note"]
+    return [field_context(person, field) for field in order] + detail_context(person)
 
 
 @login_required
@@ -306,7 +342,7 @@ def edit_contact_field(request, pk):
                 person.first_name = first_name
                 person.last_name = last_name
                 person.save(update_fields=["first_name", "last_name", "updated_at"])
-        elif field in SCALARS:
+        elif field in SCALARS or field in EXTRA_FIELDS:
             value = person._meta.get_field(field).formfield().clean(request.POST.get("value", ""))
             changed = getattr(person, field) != value
             if changed and field in {"first_name", "last_name"}:

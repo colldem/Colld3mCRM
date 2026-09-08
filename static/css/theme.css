@@ -101,6 +101,10 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .permissions-table th,.permissions-table td{padding:8px 12px;border-bottom:1px solid var(--border);text-align:left}
 .permissions-table thead th:not(:first-child),.permissions-cell{text-align:center}
 .user-row-teams{display:block;color:var(--muted);font-weight:400;margin-top:4px}
+.prio-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.prio-badge.prio-low{background:#d1fae5;color:#065f46}
+.prio-badge.prio-medium{background:#fef3c7;color:#92400e}
+.prio-badge.prio-high{background:#fee2e2;color:#991b1b}
 .settings-list .user-row{display:grid;gap:10px}
 .user-row-info small{display:block;color:var(--muted);font-weight:400}
 .user-row-actions,.user-row-reset{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0}

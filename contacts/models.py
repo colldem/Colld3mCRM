@@ -5,6 +5,29 @@ from django.db import models
 from django.urls import reverse
 
 
+PRIORITY_CHOICES = (
+    ("low", tr("Žemas")),
+    ("medium", tr("Vidutinis")),
+    ("high", tr("Aukštas")),
+)
+
+
+class RecordDetailsModel(models.Model):
+    """Shared descriptive fields for a contact/company card (priority, notes, dates)."""
+    priority = models.CharField(max_length=8, blank=True, default="", choices=PRIORITY_CHOICES)
+    contact_type = models.CharField(max_length=60, blank=True)
+    cooperation_start = models.DateField(null=True, blank=True)
+    description = models.TextField(blank=True, max_length=5000)
+    internal_note = models.TextField(blank=True, max_length=2000)
+
+    class Meta:
+        abstract = True
+
+    @property
+    def priority_class(self):
+        return f"prio-{self.priority}" if self.priority else ""
+
+
 class TimestampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -14,10 +37,11 @@ class TimestampedModel(models.Model):
         abstract = True
 
 
-class Company(TimestampedModel):
+class Company(RecordDetailsModel, TimestampedModel):
     merged_into = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="merged_companies")
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="owned_companies", db_index=True)
     responsibles = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="responsible_for_companies")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_companies")
     tags = models.ManyToManyField("Tag", blank=True, related_name="companies")
     categories = models.ManyToManyField("Category", blank=True, related_name="companies")
     name = models.CharField(max_length=200, db_index=True)
@@ -170,10 +194,11 @@ class DuplicateSettings(models.Model):
         return super().save(*args, **kwargs)
 
 
-class Person(TimestampedModel):
+class Person(RecordDetailsModel, TimestampedModel):
     merged_into = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True, related_name="merged_people")
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="owned_people", db_index=True)
     responsibles = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="responsible_for_people")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_people")
     favourite = models.BooleanField(default=False, db_index=True)
     first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100, db_index=True)

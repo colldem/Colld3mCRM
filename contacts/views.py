@@ -42,6 +42,16 @@ def _elided_page_numbers(page):
     return [number if isinstance(number, int) else "…" for number in raw]
 
 
+def _authorship_context(record, target_type):
+    """`Sukūrė` from the record's created_by; `Atnaujino` from the newest audit entry."""
+    from .permissions import user_label
+
+    last_edit = (AuditLog.objects.filter(target_type=target_type, target_id=str(record.pk))
+                 .exclude(action=AuditLog.CREATE).order_by("-created_at").first())
+    updated_by = last_edit.actor_label if last_edit and last_edit.actor_label else user_label(record.created_by)
+    return {"created_by_label": user_label(record.created_by), "updated_by_label": updated_by}
+
+
 def _last_activity_context(last_activity):
     days = None
     if last_activity:
@@ -1044,7 +1054,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 @login_required
 def contact_detail(request, pk):
     from .detail_editing import detail_fields
-    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
     return render(request, "contacts/detail.html", {
@@ -1058,6 +1068,7 @@ def contact_detail(request, pk):
         "active_reminders": open_reminders,
         "next_reminder": open_reminders.filter(due_at__gt=now).order_by("due_at").first(),
         "overdue_reminder_count": open_reminders.filter(due_at__lte=now).count(),
+        **_authorship_context(person, "person"),
         **_last_activity_context(person.activities.filter(deleted_at__isnull=True).order_by("-created_at").first()),
     })
 
@@ -1076,6 +1087,7 @@ def contact_create(request):
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį"), "duplicate_candidates": duplicates})
         person = form.save()
+        Person.objects.filter(pk=person.pk).update(created_by=request.user)
         Person.objects.filter(pk=person.pk, owner__isnull=True).update(owner=request.user)
         audit_log(AuditLog.CREATE, request=request, target=person)
         return redirect(person)
@@ -1339,7 +1351,7 @@ def company_list(request):
 @login_required
 def company_detail(request, pk):
     from .detail_editing import company_detail_fields
-    company = get_object_or_404(visible_companies(request.user, Company.objects.select_related("owner").prefetch_related("person_links__person", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
+    company = get_object_or_404(visible_companies(request.user, Company.objects.select_related("owner", "created_by").prefetch_related("person_links__person", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     history = Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__company_links__company=company)
     ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at")
@@ -1356,6 +1368,7 @@ def company_detail(request, pk):
         "next_reminder": next_reminder,
         "next_reminder_person": next_reminder.person if next_reminder else None,
         "overdue_reminder_count": linked_reminders.filter(due_at__lte=now).count(),
+        **_authorship_context(company, "company"),
         **_last_activity_context(history.first()),
     })
 
@@ -1403,6 +1416,7 @@ def company_create(request):
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/", "duplicate_candidates": duplicates})
         company = form.save()
+        Company.objects.filter(pk=company.pk).update(created_by=request.user)
         Company.objects.filter(pk=company.pk, owner__isnull=True).update(owner=request.user)
         audit_log(AuditLog.CREATE, request=request, target=company)
         return redirect(company)
@@ -1578,7 +1592,7 @@ def _import_one_row(row, owner, mode, owner_cache):
         person.save()
         outcome = "updated"
     else:
-        person = Person.objects.create(owner=row_owner or owner, **values)
+        person = Person.objects.create(owner=row_owner or owner, created_by=owner, **values)
         outcome = "created"
     for company_name in _import_relation_names(row, "Įmonė", "company", "Company"):
         company, _ = Company.objects.get_or_create(name=company_name)
