@@ -44,6 +44,8 @@
           </select>
         {% endif %}
         <button class="btn" type="submit">{% translate 'Išsaugoti' %}</button>
+        <button class="btn danger" type="submit" name="delete" value="1" formnovalidate
+                onclick="return confirm('{% translate 'Pašalinti visam laikui? Bus nuimta nuo visų susijusių įrašų.' %}')">{% translate 'Pašalinti' %}</button>
       </form>
     </li>
   {% empty %}

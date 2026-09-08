@@ -1061,6 +1061,20 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "Kontaktai: 1, įmonės: 0")
         self.assertContains(self.client.get(reverse("contacts:list")), "tag-color-6")
 
+    def test_taxonomy_settings_delete_tag_removes_it_from_records(self):
+        self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
+        tag = Tag.objects.create(name="Laikinas")
+        self.person.tags.add(tag)
+        response = self.client.post(reverse("contacts:settings-tags"), {
+            "item_id": tag.pk,
+            "delete": "1",
+        })
+        self.assertRedirects(response, reverse("contacts:settings-tags"))
+        self.assertFalse(Tag.objects.filter(pk=tag.pk).exists())
+        self.assertEqual(self.person.tags.count(), 0)
+
     def test_taxonomy_settings_reject_duplicate_name_and_invalid_color(self):
         self.client.force_login(self.user)
         self.user.is_superuser = True
@@ -1669,6 +1683,27 @@ class ContactViewTests(TestCase):
         self.assertIn(tag, other.tags.all())
         self.assertIn(category, self.person.categories.all())
         self.assertNotIn(category, other.categories.all())
+
+    def test_bulk_remove_tag_and_category_from_selected_records(self):
+        self.client.force_login(self.user)
+        tag = Tag.objects.create(name="Nuimamas")
+        category = Category.objects.create(name="Nuimama")
+        other = Person.objects.create(first_name="Antra", last_name="Pavardė")
+        for record in (self.person, other):
+            record.tags.add(tag)
+        self.person.categories.add(category)
+        self.company.tags.add(tag)
+        self.client.post(reverse("contacts:bulk-action"),
+                         {"action": "remove_tag", "tag": tag.pk, "selected": [self.person.pk, other.pk]})
+        self.client.post(reverse("contacts:bulk-action"),
+                         {"action": "remove_category", "category": category.pk, "selected": [self.person.pk]})
+        self.client.post(reverse("contacts:company-bulk-action"),
+                         {"action": "remove_tag", "tag": tag.pk, "selected": [self.company.pk]})
+        self.assertEqual(self.person.tags.count(), 0)
+        self.assertEqual(other.tags.count(), 0)
+        self.assertEqual(self.person.categories.count(), 0)
+        self.assertEqual(self.company.tags.count(), 0)
+        self.assertTrue(Tag.objects.filter(pk=tag.pk).exists())
 
     def test_bulk_add_tag_respects_the_three_tag_limit(self):
         self.client.force_login(self.user)

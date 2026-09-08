@@ -1833,3 +1833,21 @@ msgstr "Upload"
 
 msgid "Įkeltas failas"
 msgstr "Uploaded file"
+
+msgid "Nuimti"
+msgstr "Remove"
+
+msgid "Nuimta nuo įrašų: %(n)s."
+msgstr "Removed from records: %(n)s."
+
+msgid "Žyma ištrinta."
+msgstr "Tag deleted."
+
+msgid "Kategorija ištrinta."
+msgstr "Category deleted."
+
+msgid "ištrinta"
+msgstr "deleted"
+
+msgid "Pašalinti visam laikui? Bus nuimta nuo visų susijusių įrašų."
+msgstr "Delete permanently? It will be removed from all related records."

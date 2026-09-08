@@ -336,6 +336,27 @@ def _bulk_add_label(request, queryset, action):
         messages.error(request, limit_msg % {"n": skipped})
 
 
+def _bulk_remove_label(request, queryset, action):
+    """Remove one tag or category from every record in queryset."""
+    if action == "remove_tag":
+        model, field, key = Tag, "tags", "tag"
+    else:
+        model, field, key = Category, "categories", "category"
+    item = model.objects.filter(pk=request.POST.get(key)).first()
+    if not item:
+        return
+    removed = 0
+    for record in queryset:
+        relation = getattr(record, field)
+        if relation.filter(pk=item.pk).exists():
+            relation.remove(item)
+            removed += 1
+            audit_log(AuditLog.UPDATE, request=request, target=record,
+                      field=tr("Žyma") if action == "remove_tag" else tr("Kategorija"), old=item.name)
+    if removed:
+        messages.success(request, tr("Nuimta nuo įrašų: %(n)s.") % {"n": removed})
+
+
 def _bulk_assign_owner(request, queryset):
     """Set (or clear, when value is empty) the owner for every record in queryset."""
     if not _can_assign_owner(request.user):
@@ -380,6 +401,9 @@ def contact_bulk_action(request):
     elif action in {"add_tag", "add_category"}:
         _require_capability(request, "can_bulk_edit")
         _bulk_add_label(request, people, action)
+    elif action in {"remove_tag", "remove_category"}:
+        _require_capability(request, "can_bulk_edit")
+        _bulk_remove_label(request, people, action)
     elif action == "assign_owner":
         _bulk_assign_owner(request, people)
     return redirect("contacts:list")
@@ -404,6 +428,9 @@ def company_bulk_action(request):
     elif action in {"add_tag", "add_category"}:
         _require_capability(request, "can_bulk_edit")
         _bulk_add_label(request, companies, action)
+    elif action in {"remove_tag", "remove_category"}:
+        _require_capability(request, "can_bulk_edit")
+        _bulk_remove_label(request, companies, action)
     elif action == "assign_owner":
         _bulk_assign_owner(request, companies)
     return redirect("contacts:company-list")
@@ -920,6 +947,14 @@ def settings_taxonomy(request, kind):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
         item_id = request.POST.get("item_id", "").strip()
+        if request.POST.get("delete") and item_id:
+            item = get_object_or_404(model, pk=item_id)
+            label = item.name
+            item.delete()
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=(str(tr("Žyma")) if kind == "tag" else str(tr("Kategorija"))) + f": {label}", new=str(tr("ištrinta")))
+            messages.success(request, tr("Žyma ištrinta.") if kind == "tag" else tr("Kategorija ištrinta."))
+            return redirect("contacts:settings-tags" if kind == "tag" else "contacts:settings-categories")
         if not name:
             messages.error(request, tr("Žyma negali būti tuščia.") if kind == "tag" else tr("Kategorija negali būti tuščia."))
         elif model.objects.filter(name__iexact=name).exclude(pk=item_id or None).exists():

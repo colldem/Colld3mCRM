@@ -248,8 +248,12 @@ priežastimi, po importo atsisiunčiama `importo-klaidos.csv`
 bandymas be įrašymo.
 
 ### C8. Masiniai veiksmai — 🟡 iš dalies
-Yra archyvuoti, eksportuoti, **masinis žymos ir kategorijos priskyrimas** (kontaktams
-ir įmonėms, 3 riba, praleistų ataskaita). Trūksta: žymos šalinimo, masinio dublikatų sujungimo.
+Yra archyvuoti, eksportuoti, **masinis žymos ir kategorijos priskyrimas** IR
+**nuėmimas** (kontaktams ir įmonėms; „Nuimti" mygtukas prie žymos/kategorijos
+masinio veiksmo). Trūksta: masinio dublikatų sujungimo.
+
+Žymas ir kategorijas dabar galima ir **ištrinti** (Nustatymai → Žymos/Kategorijos,
+„Pašalinti" su patvirtinimu — nuimama nuo visų įrašų).
 
 ### C9. Pilna atsarginė kopija iš sąsajos — ✅ padaryta
 Nustatymai → Duomenų eksportas (tik administratoriui): ZIP su `data.json`
@@ -424,12 +428,10 @@ Pereita per visą sąsają naršyklėje (lokalus serveris, LT + EN, desktop + mo
   kontekstas). Priklausomybių versijos (Python, Django, PostgreSQL, Gunicorn,
   Tailscale) patikrintos — teisingos.
 
-**Atviri klausimai naudotojui:**
-- Žymų / kategorijų **negalima ištrinti** per sąsają (tik kurti ir pervadinti).
-  Dinaminius laukus, komandas ir naudotojų roles keisti/šalinti galima. Ar reikia
-  žymos/kategorijos trynimo mygtuko?
-- `Person.status` ir `priority`/`contact_type`/`cooperation_start`/`internal_note`
-  (žr. E1) — vis dar laukia sprendimo.
+**Išspręsta po E2 (naudotojo sprendimai 2026-09-08):**
+- Žymų / kategorijų trynimas — ✅ pridėta (Nustatymai + masinis „Nuimti"). Žr. C8.
+- `Person.status` + `priority`/`contact_type`/`cooperation_start`/`internal_note` —
+  naudotojas nusprendė **išmesti visus 5** su migracija (atskiras darbas).
 
 ---
 
