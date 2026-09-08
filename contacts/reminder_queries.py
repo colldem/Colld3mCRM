@@ -4,6 +4,11 @@ from .models import Reminder
 from .permissions import visible_reminders
 
 
+def mine_q(user):
+    """Reminders `user` owns: assigned to them, or created by them and still unassigned."""
+    return Q(assigned_to=user) | Q(assigned_to__isnull=True, created_by=user)
+
+
 def pending_reminders(user=None):
     queryset = Reminder.objects.filter(
         completed_at__isnull=True, deleted_at__isnull=True,

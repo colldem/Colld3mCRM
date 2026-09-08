@@ -50,7 +50,7 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-web:
-    image: crm-web:0.40.0
+    image: crm-web:0.41.0
     build: .
     environment:
       DB_HOST: crm-db

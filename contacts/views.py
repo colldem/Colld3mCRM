@@ -1393,15 +1393,26 @@ def reminder_complete(request, pk):
 
 @login_required
 def reminder_edit(request, pk):
+    from .permissions import user_label
+
     reminder = get_object_or_404(visible_reminders(request.user), pk=pk, deleted_at__isnull=True)
     original_due_at = reminder.due_at
+    original_assignee_id = reminder.assigned_to_id
     form = ReminderForm(request.POST or None, instance=reminder, user=request.user)
     if request.method == "POST" and form.is_valid():
         if form.cleaned_data["due_at"] != original_due_at:
             form.instance.read_at = None
         reminder = form.save(commit=False)
         reminder.assigned_to = reminder.assigned_to or request.user
+        # Handed to someone else -> it lands unread in their bell.
+        handed_over = reminder.assigned_to_id != original_assignee_id and reminder.assigned_to_id != request.user.pk
+        if handed_over:
+            reminder.read_at = None
         reminder.save()
+        if handed_over:
+            audit_log(AuditLog.UPDATE, request=request, target=reminder.record, target_type="" if reminder.record else "reminder",
+                      target_label="" if reminder.record else reminder.text[:80], field=str(tr("Priskirta")),
+                      new=user_label(reminder.assigned_to))
         audit_log(AuditLog.UPDATE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                   old=f"{timezone.localtime(original_due_at):%Y-%m-%d %H:%M}",
                   new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
@@ -1422,17 +1433,30 @@ def reminder_delete(request, pk):
     return redirect("contacts:reminder-list")
 
 
+REMINDER_SCOPES = ("assigned", "created", "all")
+
+
 @login_required
 def reminder_list(request):
-    from .reminder_queries import pending_reminders
+    from .reminder_queries import mine_q, pending_reminders
     now = timezone.now()
-    active = pending_reminders(request.user).filter(due_at__lte=now)
-    scheduled = pending_reminders(request.user).filter(due_at__gt=now)
+    scope = request.GET.get("scope", "assigned")
+    if scope not in REMINDER_SCOPES:
+        scope = "assigned"
+    base = pending_reminders(request.user)
+    if scope == "assigned":
+        base = base.filter(mine_q(request.user))
+    elif scope == "created":
+        base = base.filter(created_by=request.user)
+    active = base.filter(due_at__lte=now)
+    scheduled = base.filter(due_at__gt=now)
     # Opening the list clears the "unread" badge, but only for a genuine same-site
     # visit — a cross-site link or <img> must not silently reset it.
     if request.headers.get("Sec-Fetch-Site", "same-origin") in ("same-origin", "same-site", "none"):
-        active.filter(read_at__isnull=True).update(read_at=now)
-    return render(request, "reminders/list.html", {"active_reminders": active, "scheduled_reminders": scheduled})
+        base.filter(read_at__isnull=True).update(read_at=now)
+    return render(request, "reminders/list.html", {
+        "active_reminders": active, "scheduled_reminders": scheduled, "reminder_scope": scope,
+    })
 
 
 @login_required

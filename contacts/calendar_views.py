@@ -6,7 +6,6 @@ they created while unassigned) — a personal agenda, not a shared team calendar
 from datetime import date, datetime, time, timedelta
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -16,11 +15,7 @@ from django.views.decorators.http import require_POST
 from .models import AuditLog, Company, Person, Reminder
 from .audit import log as audit_log
 from .permissions import visible_companies, visible_people
-
-
-def _mine_q(user):
-    """Reminders this user owns: assigned to them, or created by them and unassigned."""
-    return Q(assigned_to=user) | Q(assigned_to__isnull=True, created_by=user)
+from .reminder_queries import mine_q as _mine_q
 
 VIEWS = ("day", "week", "month")
 MINUTES_IN_DAY = 24 * 60

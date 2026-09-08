@@ -482,7 +482,7 @@ Grafikai — savos gamybos **inline SVG** (`contacts/charts.py`), be bibliotekų
 ⚠️ Pastaba ateičiai: SVG blokai naudoja `{% localize off %}` — lietuviška lokalė
 koordinates rašo kaip `637,09`, o tai netinkamas SVG ir grafikai lieka tušti.
 
-### G2. Užduočių priskyrimas kolegai — 🟡 1 dalis padaryta (`0.38.0`)
+### G2. Užduočių priskyrimas kolegai — ✅ padaryta (`0.38.0` + `0.41.0`)
 `Reminder` praplėstas: `assigned_to` (FK User, `SET_NULL`), `priority`
 (žemas/įprastas/aukštas). „Vykdoma" būsenos neįvedžiau — `completed_at` pakanka.
 
@@ -496,10 +496,16 @@ koordinates rašo kaip `637,09`, o tai netinkamas SVG ir grafikai lieka tušti.
   `calendar_event_save/delete` leidžia ir priskirtąjį.
 - `visible_reminders` papildyta `Q(assigned_to=user)` — priskirtą užduotį matai visada.
 
-**2 dalis (liko):**
-- Priminimų sąrašas gauna filtrus: man priskirtos / mano sukurtos / visos
-- Varpelyje pranešimas, kai kažkas priskiria užduotį tau
-- (galutinis „priskirti tik matomiems" tikrinimas formos `clean`)
+**2 dalis (`0.41.0`) — padaryta:**
+- Priminimų sąrašas: filtrai „Man priskirtos" (numatyta) / „Mano sukurtos" /
+  „Visos matomos" (`?scope=`); rodomas prioritetas ir kam priskirta.
+- Kai kolega priskiria tau užduotį (redaguojant priminimą), ji varpelyje
+  atsiranda iškart, net jei terminas dar tolimas, kol jos neatidarai
+  (`read_at` nuliuojamas; `context_processors.reminder_count` įtraukia
+  „perduota man ir neatidaryta").
+- „Priskirti tik matomiems" — `ReminderForm.assigned_to` queryset ribojamas
+  `assignable_users_for`, tad neteisingas ID atmetamas formos validacijoje.
+- `_mine_q` perkeltas į `reminder_queries.mine_q` (bendras kalendoriui ir sąrašui).
 
 ### G7. Pranešimai el. paštu — ❌
 Grąžina anksčiau atidėtą B3 „Pranešimų" skiltį. **Rekomenduojama daryti iškart po G2** —

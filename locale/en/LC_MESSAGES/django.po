@@ -2205,3 +2205,18 @@ msgstr "Files (optional)"
 
 msgid "Veiklos įrašų dar nėra."
 msgstr "No activity yet."
+
+msgid "Man priskirtos"
+msgstr "Assigned to me"
+
+msgid "Mano sukurtos"
+msgstr "Created by me"
+
+msgid "Visos matomos"
+msgstr "All visible"
+
+msgid "priskirta:"
+msgstr "assigned to:"
+
+msgid "Aukštas prioritetas"
+msgstr "High priority"

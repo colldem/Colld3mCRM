@@ -82,13 +82,16 @@ class AnalyticsTests(TestCase):
     def _person(self, first, **kwargs):
         return Person.objects.create(first_name=first, last_name="Testas", **kwargs)
 
-    def test_dashboard_splits_overdue_today_and_tomorrow_for_this_user_only(self):
+    @patch("django.utils.timezone.now")
+    def test_dashboard_splits_overdue_today_and_tomorrow_for_this_user_only(self, mock_now):
+        from datetime import datetime, timezone as _tz
+        mock_now.return_value = datetime(2026, 6, 15, 12, 0, tzinfo=_tz.utc)
         talkative = self._person("Kalbus")
-        midnight = self.now.replace(hour=0, minute=0, second=0, microsecond=0)
+        midnight = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
         Reminder.objects.create(person=talkative, text="Vėluoja", created_by=self.user,
-                                due_at=self.now - timedelta(hours=4))
+                                due_at=mock_now.return_value - timedelta(hours=4))
         Reminder.objects.create(person=talkative, text="Šiandien vėliau", created_by=self.user,
-                                due_at=midnight + timedelta(hours=23, minutes=30))
+                                due_at=midnight + timedelta(hours=20))
         Reminder.objects.create(person=talkative, text="Rytoj", created_by=self.user,
                                 due_at=midnight + timedelta(days=1, hours=9))
         Reminder.objects.create(person=talkative, text="Kolegos", created_by=self.mate,
@@ -382,6 +385,63 @@ class CalendarTests(TestCase):
                                    record_visibility=UserProfile.VISIBILITY_OWN)
         hidden = self.client.get(reverse("contacts:calendar-records"), {"q": "Gorin"}).json()["results"]
         self.assertEqual(hidden, [])
+
+
+class ReminderAssignmentTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("man", password="very-secure-password")
+        self.mate = get_user_model().objects.create_user("kolega", password="very-secure-password")
+        self.stranger = get_user_model().objects.create_user("svetimas", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Ruslan", last_name="Gorin")
+        self.client.force_login(self.user)
+        self.due = timezone.now().replace(microsecond=0).strftime("%Y-%m-%dT%H:%M")
+
+    def _reminder(self, **kw):
+        d = {"person": self.person, "text": "X", "due_at": timezone.now() + timedelta(days=2),
+             "created_by": self.user, "assigned_to": self.user}
+        return Reminder.objects.create(**{**d, **kw})
+
+    def test_list_scopes_split_assigned_created_and_all(self):
+        mine = self._reminder(text="Man")
+        i_made_for_mate = self._reminder(text="Kolegai", assigned_to=self.mate)
+        someone_elses = self._reminder(text="Svetimas", created_by=self.mate, assigned_to=self.mate)
+        texts = lambda scope: {r.text for r in self.client.get(
+            reverse("contacts:reminder-list"), {"scope": scope}).context["scheduled_reminders"]}
+        self.assertEqual(texts("assigned"), {"Man"})
+        self.assertEqual(texts("created"), {"Man", "Kolegai"})
+        self.assertEqual(texts("all"), {"Man", "Kolegai", "Svetimas"})
+
+    def test_a_handed_over_task_rings_the_recipients_bell_until_they_open_it(self):
+        task = self._reminder(text="Perduota", assigned_to=self.user, created_by=self.mate)
+        # It counts for the recipient even though it is two days out.
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("contacts:list"))
+        self.assertEqual(page.context["active_reminder_count"], 1)
+        self.assertIn(task, list(page.context["active_reminders_menu"]))
+        # Opening the reminder list marks it read and clears the bell.
+        self.client.get(reverse("contacts:reminder-list"), HTTP_SEC_FETCH_SITE="same-origin")
+        self.assertEqual(self.client.get(reverse("contacts:list")).context["active_reminder_count"], 0)
+
+    def test_reassigning_via_the_edit_form_resets_read_and_is_scoped_to_visible_users(self):
+        from contacts.models import Team, UserProfile
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        team = Team.objects.create(name="Komanda")
+        team.members.add(self.user, self.mate)
+        task = self._reminder(text="Redaguoju")
+        Reminder.objects.filter(pk=task.pk).update(read_at=timezone.now())
+        # Hand it to a teammate.
+        self.client.post(reverse("contacts:reminder-edit", args=[task.pk]),
+                         {"text": "Redaguoju", "due_at": self.due, "assigned_to": self.mate.pk, "priority": "normal"})
+        task.refresh_from_db()
+        self.assertEqual(task.assigned_to, self.mate)
+        self.assertIsNone(task.read_at)
+        # A user outside the team (and outside the form's queryset) is rejected.
+        resp = self.client.post(reverse("contacts:reminder-edit", args=[task.pk]),
+                                {"text": "Redaguoju", "due_at": self.due, "assigned_to": self.stranger.pk, "priority": "normal"})
+        self.assertEqual(resp.status_code, 200)
+        task.refresh_from_db()
+        self.assertEqual(task.assigned_to, self.mate)
 
 
 class ContactModelTests(TestCase):
