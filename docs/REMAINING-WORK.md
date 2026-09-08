@@ -23,6 +23,8 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **B5** — automatinės kasdienės kopijos: `crm-backup` Compose servisas
   (`pg_dump` + media tar į `runtime/backups/`, 14 dienų saugojimas)
 - ✅ **C9** — Nustatymai → Duomenų eksportas: pilnas ZIP (data.json + media + README)
+- ✅ **C7** — importo peržiūra: įkėlus failą rodoma, kas bus sukurta/atnaujinta/praleista + pavyzdys, tik tada „Patvirtinti importą"
+- ✅ **C8** — masinis žymos ir kategorijos priskyrimas pažymėtiems kontaktams/įmonėms (3 riba)
 
 ---
 
@@ -166,14 +168,14 @@ konkretiems naudotojams, teisės pagal lauką, „org-wide default = private/pub
 3. Matomumo filtrai visuose sąrašuose/paieškoje/eksporte + testai
 4. Masinis „priskirti atsakingą" + „Atsakingas" filtras/stulpelis + CSV
 
-### C7. Importo vedlys — 🟡
-Dabar: failas → rezultatas (sukurta/atnaujinta/praleista/galimi dubliai).
-Trūksta: stulpelių susiejimo lango, duomenų peržiūros prieš importą,
-klaidingų eilučių ataskaitos atsisiuntimo (CSV), pasirinkimo „praleisti / atnaujinti / naujas".
+### C7. Importo vedlys — 🟡 iš dalies
+Pridėta **peržiūra prieš importą** (sukurta/atnaujinta/praleista + 8 eilučių pavyzdys,
+sesijoje, „Patvirtinti importą"). Vis dar trūksta: rankinio stulpelių susiejimo lango,
+klaidingų eilučių CSV ataskaitos, „praleisti / atnaujinti / visada naujas" pasirinkimo.
 
-### C8. Masiniai veiksmai — išplėtimas — 🟡
-Yra archyvuoti + eksportuoti. Trūksta: pridėti/šalinti žymą, keisti kategoriją,
-masinis dublikatų sujungimas.
+### C8. Masiniai veiksmai — 🟡 iš dalies
+Yra archyvuoti, eksportuoti, **masinis žymos ir kategorijos priskyrimas** (kontaktams
+ir įmonėms, 3 riba, praleistų ataskaita). Trūksta: žymos šalinimo, masinio dublikatų sujungimo.
 
 ### C9. Pilna atsarginė kopija iš sąsajos — ✅ padaryta
 Nustatymai → Duomenų eksportas (tik administratoriui): ZIP su `data.json`

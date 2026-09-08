@@ -137,23 +137,69 @@ def contact_list(request):
     })
 
 
+def _bulk_add_label(request, queryset, action):
+    """Add one tag or category to every record in queryset, keeping the 3-item cap."""
+    if action == "add_tag":
+        model, field = Tag, "tags"
+        item = model.objects.filter(pk=request.POST.get("tag")).first()
+        limit_msg = tr("Praleista (jau 3 žymos): %(n)s.")
+    else:
+        model, field = Category, "categories"
+        item = model.objects.filter(pk=request.POST.get("category")).first()
+        limit_msg = tr("Praleista (jau 3 kategorijos): %(n)s.")
+    if not item:
+        return
+    added = skipped = 0
+    for record in queryset:
+        relation = getattr(record, field)
+        if relation.filter(pk=item.pk).exists():
+            continue
+        if relation.count() >= 3:
+            skipped += 1
+            continue
+        try:
+            relation.add(item)
+            added += 1
+        except ValidationError:
+            skipped += 1
+    if added:
+        messages.success(request, tr("Priskirta įrašams: %(n)s.") % {"n": added})
+    if skipped:
+        messages.error(request, limit_msg % {"n": skipped})
+
+
 @login_required
 def contact_bulk_action(request):
     if request.method != "POST":
         return redirect("contacts:list")
+    action = request.POST.get("action")
     ids = request.POST.getlist("selected")
-    if request.POST.get("action") == "archive" and ids:
-        Person.objects.filter(pk__in=ids, deleted_at__isnull=True).update(deleted_at=timezone.now())
-        messages.success(request, tr("Archyvuota kontaktų: %(count)s.") % {"count": len(ids)})
+    if not ids:
+        return redirect("contacts:list")
+    people = Person.objects.filter(pk__in=ids, deleted_at__isnull=True)
+    if action == "archive":
+        count = people.update(deleted_at=timezone.now())
+        messages.success(request, tr("Archyvuota kontaktų: %(count)s.") % {"count": count})
+    elif action in {"add_tag", "add_category"}:
+        _bulk_add_label(request, people, action)
     return redirect("contacts:list")
+
 
 @login_required
 def company_bulk_action(request):
-    if request.method == "POST" and request.POST.get("action") == "archive":
-        ids = request.POST.getlist("selected")
-        updated = Company.objects.filter(pk__in=ids, deleted_at__isnull=True).update(deleted_at=timezone.now())
-        if updated:
-            messages.success(request, tr("Archyvuota įmonių: %(count)s.") % {"count": updated})
+    if request.method != "POST":
+        return redirect("contacts:company-list")
+    action = request.POST.get("action")
+    ids = request.POST.getlist("selected")
+    if not ids:
+        return redirect("contacts:company-list")
+    companies = Company.objects.filter(pk__in=ids, deleted_at__isnull=True)
+    if action == "archive":
+        count = companies.update(deleted_at=timezone.now())
+        if count:
+            messages.success(request, tr("Archyvuota įmonių: %(count)s.") % {"count": count})
+    elif action in {"add_tag", "add_category"}:
+        _bulk_add_label(request, companies, action)
     return redirect("contacts:company-list")
 
 
@@ -904,26 +950,74 @@ def _import_contact_rows(rows):
     return {"created": created, "updated": updated, "skipped": skipped, "possible_duplicates": possible_duplicates, "duplicate_check_enabled": report_duplicates}
 
 
+IMPORT_PREVIEW_LIMIT = 5000
+
+
+def _read_import_rows(upload):
+    name = upload.name.lower()
+    if name.endswith(".csv"):
+        raw = list(csv.DictReader(TextIOWrapper(upload.file, encoding="utf-8-sig")))
+    elif name.endswith(".xlsx"):
+        from openpyxl import load_workbook
+
+        sheet = load_workbook(upload, read_only=True, data_only=True).active
+        headers = [str(cell.value or "").strip() for cell in next(sheet.iter_rows())]
+        raw = [{headers[index]: cell.value for index, cell in enumerate(row)} for row in sheet.iter_rows(min_row=2)]
+    else:
+        raise ValueError(tr("Netinkamas failo formatas"))
+    # Normalise every value to a string so the rows are JSON/session safe.
+    return [{str(key): ("" if value is None else str(value)) for key, value in row.items() if key} for row in raw]
+
+
+def _import_preview(rows):
+    created = updated = skipped = 0
+    for row in rows:
+        first_name = _value(row, "Vardas", "first_name", "First name")
+        last_name = _value(row, "Pavardė", "last_name", "Last name")
+        emails = list(filter(None, (item.strip() for item in _value(row, "El. paštai", "El. paštas", "email", "Email").split(";"))))
+        if not first_name and not last_name:
+            skipped += 1
+            continue
+        match = (emails and Person.objects.filter(emails__email__iexact=emails[0], deleted_at__isnull=True).exists()) or \
+            Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).exists()
+        if match:
+            updated += 1
+        else:
+            created += 1
+    headers = list(rows[0].keys()) if rows else []
+    return {"total": len(rows), "created": created, "updated": updated, "skipped": skipped,
+            "headers": headers, "sample": [[row.get(header, "") for header in headers] for row in rows[:8]]}
+
+
 @login_required
 def contacts_import(request):
-    result = None
-    if request.method == "POST":
+    context = {}
+    if request.method == "POST" and request.POST.get("confirm") == "1":
+        rows = request.session.pop("import_rows", None)
+        if not rows:
+            messages.error(request, tr("Importo peržiūra pasibaigė. Įkelkite failą iš naujo."))
+        else:
+            try:
+                context["result"] = _import_contact_rows(rows)
+            except Exception:
+                messages.error(request, tr("Nepavyko importuoti. Patikrinkite žymų ir kategorijų skaičių bei stulpelius."))
+    elif request.method == "POST":
         upload = request.FILES.get("file")
         if not upload or upload.size > 10 * 1024 * 1024:
             messages.error(request, tr("Pasirinkite iki 10 MB dydžio CSV arba XLSX failą."))
         else:
-            name = upload.name.lower()
             try:
-                if name.endswith(".csv"):
-                    rows = list(csv.DictReader(TextIOWrapper(upload.file, encoding="utf-8-sig")))
-                elif name.endswith(".xlsx"):
-                    from openpyxl import load_workbook
-                    sheet = load_workbook(upload, read_only=True, data_only=True).active
-                    headers = [str(cell.value or "").strip() for cell in next(sheet.iter_rows())]
-                    rows = [{headers[index]: cell.value for index, cell in enumerate(row)} for row in sheet.iter_rows(min_row=2)]
-                else:
-                    raise ValueError(tr("Netinkamas failo formatas"))
-                result = _import_contact_rows(rows)
+                rows = _read_import_rows(upload)
             except Exception:
+                rows = None
                 messages.error(request, tr("Nepavyko perskaityti failo. Patikrinkite stulpelius ir failo formatą."))
-    return render(request, "import_export.html", {"result": result})
+            if rows is not None and len(rows) > IMPORT_PREVIEW_LIMIT:
+                messages.error(request, tr("Peržiūrai skirtas failas su ne daugiau kaip %(n)s eilučių.") % {"n": IMPORT_PREVIEW_LIMIT})
+            elif rows:
+                request.session["import_rows"] = rows
+                context["preview"] = _import_preview(rows)
+            elif rows is not None:
+                messages.error(request, tr("Faile nerasta įrašų."))
+    else:
+        request.session.pop("import_rows", None)
+    return render(request, "import_export.html", context)

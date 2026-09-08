@@ -1156,3 +1156,51 @@ msgstr "Download export"
 
 msgid "Automatinės kasdienės kopijos daromos serveryje atskirai (NAS runtime/backups)."
 msgstr "Automatic daily backups are made on the server separately (NAS runtime/backups)."
+
+msgid "Žyma…"
+msgstr "Tag…"
+
+msgid "Kategorija…"
+msgstr "Category…"
+
+msgid "Praleista (jau 3 žymos): %(n)s."
+msgstr "Skipped (already 3 tags): %(n)s."
+
+msgid "Praleista (jau 3 kategorijos): %(n)s."
+msgstr "Skipped (already 3 categories): %(n)s."
+
+msgid "Priskirta įrašams: %(n)s."
+msgstr "Assigned to records: %(n)s."
+
+msgid "Peržiūrėti importą"
+msgstr "Preview import"
+
+msgid "Patvirtinti importą"
+msgstr "Confirm import"
+
+msgid "Faile rasta įrašų:"
+msgstr "Records found in the file:"
+
+msgid "Prieš importuojant peržiūrėkite, ką sistema atliks."
+msgstr "Review what the system will do before importing."
+
+msgid "Bus sukurta:"
+msgstr "Will be created:"
+
+msgid "Bus atnaujinta:"
+msgstr "Will be updated:"
+
+msgid "Bus praleista (be vardo ir pavardės):"
+msgstr "Will be skipped (no name):"
+
+msgid "Faile nerasta įrašų."
+msgstr "No records found in the file."
+
+msgid "Peržiūrai skirtas failas su ne daugiau kaip %(n)s eilučių."
+msgstr "The preview supports files with at most %(n)s rows."
+
+msgid "Importo peržiūra pasibaigė. Įkelkite failą iš naujo."
+msgstr "The import preview expired. Upload the file again."
+
+msgid "Nepavyko importuoti. Patikrinkite žymų ir kategorijų skaičių bei stulpelius."
+msgstr "Import failed. Check the number of tags and categories and the columns."

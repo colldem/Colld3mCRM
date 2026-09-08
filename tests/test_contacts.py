@@ -373,6 +373,12 @@ class ContactViewTests(TestCase):
         PhoneNumber.objects.create(person=self.person, number="+370 645 21 987", is_primary=True)
         EmailAddress.objects.create(person=self.person, email="ruta@example.lt", is_primary=True)
 
+    def _import_file(self, upload):
+        """Upload a file for import and confirm it (the two-step wizard)."""
+        preview = self.client.post(reverse("contacts:import-export"), {"file": upload})
+        result = self.client.post(reverse("contacts:import-export"), {"confirm": "1"})
+        return preview, result
+
     def test_contacts_require_login(self):
         response = self.client.get(reverse("contacts:list"))
         self.assertEqual(response.status_code, 302)
@@ -1395,9 +1401,8 @@ class ContactViewTests(TestCase):
     def test_import_does_not_report_exact_record_that_it_updates(self):
         self.client.force_login(self.user)
         content = "Vardas,Pavardė,El. paštai\nRūta,Žukaitė,ruta@example.lt\n".encode()
-        response = self.client.post(reverse("contacts:import-export"), {
-            "file": SimpleUploadedFile("contacts.csv", content, content_type="text/csv"),
-        })
+        preview, response = self._import_file(SimpleUploadedFile("contacts.csv", content, content_type="text/csv"))
+        self.assertContains(preview, "Bus atnaujinta: 1")
         self.assertContains(response, "Galimi dublikatai: 0")
         self.assertNotContains(response, "Peržiūrėti dublikatus")
         self.assertContains(response, "Atnaujinti: 1")
@@ -1406,9 +1411,7 @@ class ContactViewTests(TestCase):
     def test_import_uses_selected_duplicate_level_and_reports_real_phone_duplicate(self):
         self.client.force_login(self.user)
         content = "Vardas,Pavardė,Telefonai\nKitas,Asmuo,+370 645 21 987\n".encode()
-        response = self.client.post(reverse("contacts:import-export"), {
-            "file": SimpleUploadedFile("contacts.csv", content, content_type="text/csv"),
-        })
+        _preview, response = self._import_file(SimpleUploadedFile("contacts.csv", content, content_type="text/csv"))
         self.assertContains(response, "Galimi dublikatai: 1")
         imported = Person.objects.get(first_name="Kitas", last_name="Asmuo")
         review = self.client.get(reverse("contacts:duplicate-list"))
@@ -1417,9 +1420,7 @@ class ContactViewTests(TestCase):
         self.assertContains(review, "Tas pats telefonas")
 
         DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True, "check_on_import": False})
-        response = self.client.post(reverse("contacts:import-export"), {
-            "file": SimpleUploadedFile("contacts.csv", content, content_type="text/csv"),
-        })
+        _preview, response = self._import_file(SimpleUploadedFile("contacts.csv", content, content_type="text/csv"))
         self.assertNotContains(response, "Galimi dublikatai:")
 
     def test_contact_detail_contains_protocol_links(self):
@@ -1514,7 +1515,7 @@ class ContactViewTests(TestCase):
         content = "Vardas,Pavardė,Įmonė,Telefonai,El. paštai\nJonas,Jonauskas,Nauja įmonė,+37060000000,jonas@example.lt\n"
         for _ in range(2):
             upload = SimpleUploadedFile("kontaktai.csv", content.encode("utf-8"), content_type="text/csv")
-            response = self.client.post(reverse("contacts:import-export"), {"file": upload})
+            _preview, response = self._import_file(upload)
             self.assertContains(response, "Importas baigtas")
         self.assertEqual(Person.objects.filter(first_name="Jonas", last_name="Jonauskas").count(), 1)
         response = self.client.get(reverse("contacts:contacts-export"))
@@ -1526,7 +1527,7 @@ class ContactViewTests(TestCase):
         content = "Vardas,Pavardė,Tagai,Kategorijos\nJonas,Jonauskas,VIP;Partneris,Klientas;Svarbus\n"
         for _ in range(2):
             upload = SimpleUploadedFile("kontaktai.csv", content.encode("utf-8"), content_type="text/csv")
-            response = self.client.post(reverse("contacts:import-export"), {"file": upload})
+            _preview, response = self._import_file(upload)
             self.assertContains(response, "Importas baigtas")
         person = Person.objects.get(first_name="Jonas", last_name="Jonauskas")
         self.assertEqual(list(person.tags.values_list("name", flat=True)), ["Partneris", "VIP"])
@@ -1582,9 +1583,58 @@ class ContactViewTests(TestCase):
         output = BytesIO()
         workbook.save(output)
         upload = SimpleUploadedFile("kontaktai.xlsx", output.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-        response = self.client.post(reverse("contacts:import-export"), {"file": upload})
+        preview, response = self._import_file(upload)
+        self.assertContains(preview, "Bus sukurta: 1")
         self.assertContains(response, "Importas baigtas")
         self.assertTrue(Person.objects.filter(first_name="Ona", last_name="Onaitė").exists())
+
+    def test_import_preview_does_not_write_until_confirmed(self):
+        self.client.force_login(self.user)
+        content = "Vardas,Pavardė,El. paštai\nNaujas,Žmogus,naujas@example.lt\n".encode()
+        preview = self.client.post(reverse("contacts:import-export"), {
+            "file": SimpleUploadedFile("k.csv", content, content_type="text/csv"),
+        })
+        self.assertContains(preview, "Bus sukurta: 1")
+        self.assertContains(preview, "Patvirtinti importą")
+        self.assertFalse(Person.objects.filter(first_name="Naujas").exists())
+        result = self.client.post(reverse("contacts:import-export"), {"confirm": "1"})
+        self.assertContains(result, "Importas baigtas")
+        self.assertTrue(Person.objects.filter(first_name="Naujas").exists())
+
+    def test_import_confirm_without_a_preview_is_reported(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:import-export"), {"confirm": "1"})
+        self.assertContains(response, "Importo peržiūra pasibaigė")
+
+    def test_bulk_add_tag_and_category_to_selected_contacts(self):
+        self.client.force_login(self.user)
+        tag = Tag.objects.create(name="VIP")
+        category = Category.objects.create(name="Klientas")
+        other = Person.objects.create(first_name="Antra", last_name="Pavardė")
+        self.client.post(reverse("contacts:bulk-action"), {"action": "add_tag", "tag": tag.pk, "selected": [self.person.pk, other.pk]})
+        self.client.post(reverse("contacts:bulk-action"), {"action": "add_category", "category": category.pk, "selected": [self.person.pk]})
+        self.assertIn(tag, self.person.tags.all())
+        self.assertIn(tag, other.tags.all())
+        self.assertIn(category, self.person.categories.all())
+        self.assertNotIn(category, other.categories.all())
+
+    def test_bulk_add_tag_respects_the_three_tag_limit(self):
+        self.client.force_login(self.user)
+        for name in ("A", "B", "C"):
+            self.person.tags.add(Tag.objects.create(name=name))
+        extra = Tag.objects.create(name="D")
+        response = self.client.post(
+            reverse("contacts:bulk-action"),
+            {"action": "add_tag", "tag": extra.pk, "selected": [self.person.pk]}, follow=True,
+        )
+        self.assertNotIn(extra, self.person.tags.all())
+        self.assertContains(response, "Praleista")
+
+    def test_bulk_add_tag_to_selected_companies(self):
+        self.client.force_login(self.user)
+        tag = Tag.objects.create(name="Tiekėjas")
+        self.client.post(reverse("contacts:company-bulk-action"), {"action": "add_tag", "tag": tag.pk, "selected": [self.company.pk]})
+        self.assertIn(tag, self.company.tags.all())
 
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)

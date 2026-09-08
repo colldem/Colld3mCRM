@@ -6,21 +6,32 @@
   <section class="import-card">
     <div class="import-card-body">
       <h2>{% translate 'Importuoti kontaktus' %}</h2>
-      <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos.' %}</p>
-      <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <input type="file" name="file" accept=".csv,.xlsx" required>
-        <div class="import-card-actions"><button class="btn primary" type="submit">{% translate 'Importuoti' %}</button></div>
-      </form>
-      {% if result %}
+      {% if preview %}
+        <p>{% translate 'Faile rasta įrašų:' %} {{ preview.total }}. {% translate 'Prieš importuojant peržiūrėkite, ką sistema atliks.' %}</p>
         <div class="import-result">
-          <strong>{% translate 'Importas baigtas' %}</strong>
-          <span>{% translate 'Nauji:' %} {{ result.created }}</span>
-          <span>{% translate 'Atnaujinti:' %} {{ result.updated }}</span>
-          <span>{% translate 'Praleisti:' %} {{ result.skipped }}</span>
-          {% if result.duplicate_check_enabled %}<span>{% translate 'Galimi dublikatai:' %} {{ result.possible_duplicates }}</span>{% endif %}
-          {% if result.possible_duplicates %}<a href="{% url 'contacts:duplicate-list' %}">{% translate 'Peržiūrėti dublikatus' %}</a>{% endif %}
+          <span>{% translate 'Bus sukurta:' %} {{ preview.created }}</span>
+          <span>{% translate 'Bus atnaujinta:' %} {{ preview.updated }}</span>
+          <span>{% translate 'Bus praleista (be vardo ir pavardės):' %} {{ preview.skipped }}</span>
         </div>
+        <div class="import-preview"><table><thead><tr>{% for header in preview.headers %}<th>{{ header }}</th>{% endfor %}</tr></thead><tbody>{% for row in preview.sample %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+        <form method="post" class="import-confirm">{% csrf_token %}<input type="hidden" name="confirm" value="1"><button class="btn primary" type="submit">{% translate 'Patvirtinti importą' %}</button><a class="btn" href="{% url 'contacts:import-export' %}">{% translate 'Atšaukti' %}</a></form>
+      {% else %}
+        <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos.' %}</p>
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="file" name="file" accept=".csv,.xlsx" required>
+          <div class="import-card-actions"><button class="btn primary" type="submit">{% translate 'Peržiūrėti importą' %}</button></div>
+        </form>
+        {% if result %}
+          <div class="import-result">
+            <strong>{% translate 'Importas baigtas' %}</strong>
+            <span>{% translate 'Nauji:' %} {{ result.created }}</span>
+            <span>{% translate 'Atnaujinti:' %} {{ result.updated }}</span>
+            <span>{% translate 'Praleisti:' %} {{ result.skipped }}</span>
+            {% if result.duplicate_check_enabled %}<span>{% translate 'Galimi dublikatai:' %} {{ result.possible_duplicates }}</span>{% endif %}
+            {% if result.possible_duplicates %}<a href="{% url 'contacts:duplicate-list' %}">{% translate 'Peržiūrėti dublikatus' %}</a>{% endif %}
+          </div>
+        {% endif %}
       {% endif %}
     </div>
   </section>
