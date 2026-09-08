@@ -38,6 +38,13 @@ def _elided_page_numbers(page):
     return [number if isinstance(number, int) else "…" for number in raw]
 
 
+def _last_activity_context(last_activity):
+    days = None
+    if last_activity:
+        days = (timezone.localdate() - timezone.localtime(last_activity.created_at).date()).days
+    return {"last_activity": last_activity, "last_activity_days": days}
+
+
 def health_live(request):
     return JsonResponse({"status": "live"})
 
@@ -417,6 +424,8 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 def contact_detail(request, pk):
     from .detail_editing import detail_fields
     person = get_object_or_404(Person.objects.prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company"), pk=pk, deleted_at__isnull=True)
+    now = timezone.now()
+    open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
     return render(request, "contacts/detail.html", {
         "person": person,
         "detail_fields": detail_fields(person),
@@ -425,7 +434,10 @@ def contact_detail(request, pk):
         "reminder_form": ReminderForm(),
         "activity_token": uuid.uuid4().hex,
         "reminder_token": uuid.uuid4().hex,
-        "active_reminders": person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True),
+        "active_reminders": open_reminders,
+        "next_reminder": open_reminders.filter(due_at__gt=now).order_by("due_at").first(),
+        "overdue_reminder_count": open_reminders.filter(due_at__lte=now).count(),
+        **_last_activity_context(person.activities.filter(deleted_at__isnull=True).order_by("-created_at").first()),
     })
 
 
@@ -670,7 +682,21 @@ def company_detail(request, pk):
     history = Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__company_links__company=company)
     ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at")
-    return render(request, "companies/detail.html", {"company": company, "detail_fields": company_detail_fields(company), "tags": Tag.objects.all(), "categories": Category.objects.all(), "history": history, "activity_form": ActivityForm(), "activity_token": uuid.uuid4().hex})
+    now = timezone.now()
+    linked_reminders = Reminder.objects.filter(
+        person__company_links__company=company, person__deleted_at__isnull=True,
+        completed_at__isnull=True, deleted_at__isnull=True,
+    )
+    next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
+    return render(request, "companies/detail.html", {
+        "company": company, "detail_fields": company_detail_fields(company),
+        "tags": Tag.objects.all(), "categories": Category.objects.all(),
+        "history": history, "activity_form": ActivityForm(), "activity_token": uuid.uuid4().hex,
+        "next_reminder": next_reminder,
+        "next_reminder_person": next_reminder.person if next_reminder else None,
+        "overdue_reminder_count": linked_reminders.filter(due_at__lte=now).count(),
+        **_last_activity_context(history.first()),
+    })
 
 
 @login_required

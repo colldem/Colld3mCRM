@@ -813,6 +813,34 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "page=1")
         self.assertContains(response, "page=3")
 
+    def test_contact_detail_summary_shows_last_contact_next_action_and_overdue(self):
+        self.client.force_login(self.user)
+        Activity.objects.create(person=self.person, activity_type="call", text="Skambinta", created_by=self.user)
+        Reminder.objects.create(person=self.person, text="Perskambinti", due_at=timezone.now() + timedelta(days=3), created_by=self.user)
+        Reminder.objects.create(person=self.person, text="Uždelsta", due_at=timezone.now() - timedelta(days=1), created_by=self.user)
+        response = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
+        self.assertContains(response, "record-summary")
+        self.assertContains(response, "Paskutinis bendravimas")
+        self.assertContains(response, "Kitas veiksmas")
+        self.assertContains(response, "Perskambinti")
+        self.assertContains(response, "Vėluojantys priminimai")
+        self.assertEqual(response.context["overdue_reminder_count"], 1)
+
+    def test_company_detail_summary_uses_linked_contact_activity_and_reminders(self):
+        self.client.force_login(self.user)
+        Activity.objects.create(company=self.company, activity_type="meeting", text="Susitikta", created_by=self.user)
+        Reminder.objects.create(person=self.person, text="Įmonės skambutis", due_at=timezone.now() + timedelta(days=2), created_by=self.user)
+        response = self.client.get(reverse("contacts:company-detail", args=[self.company.pk]))
+        self.assertContains(response, "record-summary")
+        self.assertContains(response, "Įmonės skambutis")
+        self.assertEqual(response.context["next_reminder_person"], self.person)
+
+    def test_record_summary_is_omitted_when_there_is_nothing_to_show(self):
+        other = Person.objects.create(first_name="Tuščias", last_name="Kontaktas")
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:detail", args=[other.pk]))
+        self.assertNotContains(response, "record-summary")
+
     def test_company_columns_and_saved_list_are_persistent_and_scoped(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:company-list"), {"columns": ["phone", "contacts"]})

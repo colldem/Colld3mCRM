@@ -1113,3 +1113,19 @@ msgstr "First page"
 
 msgid "Paskutinis puslapis"
 msgstr "Last page"
+
+msgid "Kitas veiksmas"
+msgstr "Next action"
+
+msgid "Vėluojantys priminimai"
+msgstr "Overdue reminders"
+
+msgid "šiandien"
+msgstr "today"
+
+msgid "vakar"
+msgstr "yesterday"
+
+#, python-format
+msgid "prieš %(days)s d."
+msgstr "%(days)s days ago"

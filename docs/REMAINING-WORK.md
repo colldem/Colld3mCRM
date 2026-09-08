@@ -18,6 +18,8 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **C1** — sąrašų UX: pažymėtų eilučių paryškinimas, „Atšaukti pasirinkimą",
   pilna puslapių navigacija (pirmas/numeruoti/paskutinis), „Paskutinis
   bendravimas" (kontaktai) ir „Adresas" (įmonės) stulpeliai
+- ✅ **C2** — kortelės santrauka: paskutinis bendravimas (data · tipas · prieš N d.),
+  kitas veiksmas (artimiausias priminimas), vėluojančių priminimų skaičius
 
 ---
 
@@ -101,9 +103,10 @@ Pažymėtų eilučių paryškinimas, „Atšaukti pasirinkimą", pilna puslapių
 (kontaktai, rikiuojamas) ir „Adresas" stulpelis (įmonės). Abu — pasirenkami
 per „Stulpeliai".
 
-### C2. Paskutinio ir kito kontakto informacija kortelėje/sąraše — ❌
-Reikalauta (Teamgate): „Paskutinis kontaktas", „Dienų nuo paskutinio",
-„Kitas suplanuotas veiksmas", „vėluojančios užduotys". Dabar nerodoma niekur.
+### C2. Paskutinio ir kito kontakto informacija kortelėje — ✅ padaryta
+`templates/record_summary.html` kontakto ir įmonės kortelėse: paskutinis
+bendravimas (data · tipas · prieš N d.), kitas veiksmas, vėluojančių priminimų
+skaičius. Sąraše paskutinio bendravimo data yra kaip C1 stulpelis.
 
 ### C3. Universali paieška su grupėmis — ❌
 Dabar `?q=` tik nukreipia į kontaktų sąrašą. Reikalauta: rezultatai grupėmis

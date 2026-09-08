@@ -49,6 +49,10 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .page-links .btn{min-height:34px;padding:5px 10px}
 .page-links .page-number{width:34px;height:34px;font-size:13px}
 .page-gap{padding:0 3px;color:var(--muted)}
+.record-summary{display:grid;gap:6px;margin:0 0 20px;padding:13px 16px;border:1px solid var(--line);border-radius:8px;background:var(--soft);font-size:13px;line-height:1.5}
+.record-summary b{font-weight:650}
+.record-summary small{color:var(--muted)}
+.record-summary-warn{color:var(--danger);font-weight:600}
 .reminder-popover{z-index:1045;max-width:calc(100vw - 24px)}
 .crm-label{border:1px solid transparent;font-size:12px;font-weight:600;line-height:1.3}
 .tag-color-0{background:#dbeafe;color:#1e40af;border-color:#bfdbfe}

@@ -1,0 +1,8 @@
+{% load i18n %}
+{% if last_activity or next_reminder or overdue_reminder_count %}
+<div class="record-summary">
+  {% if last_activity %}<div><b>{% translate 'Paskutinis bendravimas' %}:</b> {{ last_activity.created_at|date:"Y-m-d" }} · {{ last_activity.get_activity_type_display }} · <small>{% if last_activity_days == 0 %}{% translate 'šiandien' %}{% elif last_activity_days == 1 %}{% translate 'vakar' %}{% else %}{% blocktranslate with days=last_activity_days %}prieš {{ days }} d.{% endblocktranslate %}{% endif %}</small></div>{% endif %}
+  {% if next_reminder %}<div><b>{% translate 'Kitas veiksmas' %}:</b> {{ next_reminder.due_at|date:"Y-m-d H:i" }} — {{ next_reminder.text }}{% if next_reminder_person %} <small>· {{ next_reminder_person }}</small>{% endif %}</div>{% endif %}
+  {% if overdue_reminder_count %}<div class="record-summary-warn">⚠ {% translate 'Vėluojantys priminimai' %}: {{ overdue_reminder_count }}</div>{% endif %}
+</div>
+{% endif %}
