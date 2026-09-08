@@ -1,7 +1,7 @@
 from django.shortcuts import redirect
 from django.urls import path
 
-from . import calendar_views, views
+from . import analytics_views, calendar_views, views
 from .inline_views import update_inline
 from .detail_editing import edit_contact_field, edit_company_field
 from .reminder_live import reminder_snapshot
@@ -14,7 +14,8 @@ urlpatterns = [
     path("companies/<int:pk>/field/", edit_company_field, name="company-field-edit"),
     path("contacts/<int:pk>/field/", edit_contact_field, name="field-edit"),
     path("inline/<str:kind>/<int:pk>/", update_inline, name="inline-update"),
-    path("", lambda request: redirect("contacts:list"), name="home"),
+    path("", analytics_views.dashboard, name="home"),
+    path("analytics/", analytics_views.relationship_care, name="analytics-care"),
     path("search/", views.global_search, name="search"),
     path("search/suggest/", views.search_suggest, name="search-suggest"),
     path("contacts/", views.contact_list, name="list"),

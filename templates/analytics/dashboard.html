@@ -1,0 +1,82 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Darbastalis' %} - CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate 'Darbastalis' %}</h1><p>{% translate 'Kas šiandien svarbu.' %}</p></div>
+  <div class="page-actions">
+    <a class="btn" href="{% url 'contacts:calendar' %}">{% translate 'Kalendorius' %}</a>
+    <a class="btn" href="{% url 'contacts:analytics-care' %}">{% translate 'Ryšių priežiūra' %}</a>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat"><b>{{ people_total }}</b><span>{% translate 'Kontaktai' %}</span><small>+{{ new_people }} {% translate 'per 30 d.' %}</small></div>
+  <div class="stat"><b>{{ companies_total }}</b><span>{% translate 'Įmonės' %}</span><small>+{{ new_companies }} {% translate 'per 30 d.' %}</small></div>
+  <div class="stat"><b>{{ week_activity_total }}</b><span>{% translate 'Mano veiklos šią savaitę' %}</span></div>
+  <div class="stat{% if overdue_total %} stat-warn{% endif %}"><b>{{ overdue_total }}</b><span>{% translate 'Vėluoja' %}</span></div>
+</div>
+
+<div class="dash-grid">
+  {% if overdue_events %}
+  <section class="dash-card dash-warn">
+    <h2>{% translate 'Vėluojantys priminimai' %}</h2>
+    <ul class="dash-list">
+      {% for reminder in overdue_events %}
+        <li>
+          <span class="dash-time">{{ reminder.due_at|date:datetime_format }}</span>
+          <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
+          <form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if overdue_total > 10 %}<a class="dash-more" href="{% url 'contacts:reminder-list' %}">{% translate 'Visi priminimai' %} →</a>{% endif %}
+  </section>
+  {% endif %}
+
+  <section class="dash-card">
+    <h2>{% translate 'Šiandien' %}</h2>
+    <ul class="dash-list">
+      {% for reminder in today_events %}
+        <li>
+          <span class="dash-time">{{ reminder.due_at|date:"H:i" }}</span>
+          <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
+        </li>
+      {% empty %}<li class="muted">{% translate 'Šiandien įvykių nėra.' %}</li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="dash-card">
+    <h2>{% translate 'Rytoj' %}</h2>
+    <ul class="dash-list">
+      {% for reminder in tomorrow_events %}
+        <li>
+          <span class="dash-time">{{ reminder.due_at|date:"H:i" }}</span>
+          <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
+        </li>
+      {% empty %}<li class="muted">{% translate 'Rytoj įvykių nėra.' %}</li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="dash-card">
+    <h2>{% translate 'Paskutiniai mano liesti įrašai' %}</h2>
+    <ul class="dash-list">
+      {% for record in recently_touched %}
+        <li><span class="dash-main"><a href="{{ record.get_absolute_url }}">{{ record }}</a></span></li>
+      {% empty %}<li class="muted">{% translate 'Dar nieko nekeitėte.' %}</li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="dash-card">
+    <h2>{% translate 'Mano veiklos šią savaitę' %}</h2>
+    <ul class="dash-bars">
+      {% for item in week_activity %}
+        <li>
+          <span>{{ item.label }}</span>
+          <span class="dash-bar" aria-hidden="true">{% if item.total %}<i style="width:{% widthratio item.total week_activity_total 100 %}%"></i>{% endif %}</span>
+          <b>{{ item.total }}</b>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

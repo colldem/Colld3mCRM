@@ -1,0 +1,53 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Ryšių priežiūra' %} - CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate 'Ryšių priežiūra' %}</h1><p>{% translate 'Kontaktai, kuriems reikia dėmesio.' %}</p></div>
+  <div class="page-actions"><a class="btn" href="{% url 'contacts:home' %}">{% translate 'Darbastalis' %}</a></div>
+</div>
+
+<div class="care-windows">
+  <span>{% translate 'Nutilusiais laikyti, kai nebendrauta ilgiau nei:' %}</span>
+  {% for window in windows %}
+    <a class="btn{% if window == days %} primary{% endif %}" href="?days={{ window }}">{{ window }} {% translate 'd.' %}</a>
+  {% endfor %}
+</div>
+
+{% for group in groups %}
+  <section class="care-group">
+    <div class="care-head">
+      <h2>{{ group.label }} <span>{{ group.total }}</span></h2>
+      {% if group.total %}<a class="btn" href="?days={{ days }}&amp;export={{ group.key }}">{% translate 'Eksportuoti CSV' %}</a>{% endif %}
+    </div>
+    {% if group.rows %}
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>{% translate 'Asmuo' %}</th><th>{% translate 'Įmonė' %}</th>
+          <th>{% translate 'Telefonas' %}</th><th>{% translate 'El. paštas' %}</th>
+          <th>{% translate 'Atsakingas' %}</th>
+          {% if group.dated %}<th>{% translate 'Paskutinis kontaktas' %}</th>{% endif %}
+          <th><span class="sr-only">{% translate 'Veiksmai' %}</span></th>
+        </tr></thead>
+        <tbody>
+          {% for person in group.rows %}
+            <tr>
+              <td><a href="{{ person.get_absolute_url }}"><strong>{{ person }}</strong>{% if person.job_title %}<small>{{ person.job_title }}</small>{% endif %}</a></td>
+              <td>{% with link=person.company_links.all.0 %}{% if link %}<a href="{{ link.company.get_absolute_url }}">{{ link.company.name }}</a>{% endif %}{% endwith %}</td>
+              <td>{% with phone=person.phones.all.0 %}{% if phone %}<a href="tel:{{ phone.number }}">{{ phone.number }}</a>{% endif %}{% endwith %}</td>
+              <td>{% with email=person.emails.all.0 %}{% if email %}<a href="mailto:{{ email.email }}">{{ email.email }}</a>{% endif %}{% endwith %}</td>
+              <td>{% if person.owner %}{{ person.owner.get_full_name|default:person.owner.username }}{% else %}–{% endif %}</td>
+              {% if group.dated %}<td>{{ person.last_contact_at|date:date_format|default:"–" }}</td>{% endif %}
+              <td><a class="btn" href="{{ person.get_absolute_url }}#reminder-add">{% translate 'Suplanuoti' %}</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+      {% if group.total > limit %}
+        <p class="care-note">{% blocktranslate with shown=limit total=group.total %}Rodoma {{ shown }} iš {{ total }} — visą sąrašą rasite CSV eksporte.{% endblocktranslate %}</p>
+      {% endif %}
+    {% else %}
+      <p class="muted care-note">{% translate 'Nieko nerasta — puiku.' %}</p>
+    {% endif %}
+  </section>
+{% endfor %}
+{% endblock %}

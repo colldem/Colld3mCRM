@@ -72,6 +72,126 @@ class PWATests(TestCase):
         self.assertContains(page, 'name="theme-color"')
 
 
+class AnalyticsTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("analitikas", password="very-secure-password")
+        self.mate = get_user_model().objects.create_user("kitas", password="very-secure-password")
+        self.client.force_login(self.user)
+        self.now = timezone.localtime()
+
+    def _person(self, first, **kwargs):
+        return Person.objects.create(first_name=first, last_name="Testas", **kwargs)
+
+    def test_dashboard_splits_overdue_today_and_tomorrow_for_this_user_only(self):
+        talkative = self._person("Kalbus")
+        midnight = self.now.replace(hour=0, minute=0, second=0, microsecond=0)
+        Reminder.objects.create(person=talkative, text="Vėluoja", created_by=self.user,
+                                due_at=self.now - timedelta(hours=4))
+        Reminder.objects.create(person=talkative, text="Šiandien vėliau", created_by=self.user,
+                                due_at=midnight + timedelta(hours=23, minutes=30))
+        Reminder.objects.create(person=talkative, text="Rytoj", created_by=self.user,
+                                due_at=midnight + timedelta(days=1, hours=9))
+        Reminder.objects.create(person=talkative, text="Kolegos", created_by=self.mate,
+                                due_at=midnight + timedelta(hours=10))
+
+        response = self.client.get(reverse("contacts:home"))
+        self.assertEqual(response.status_code, 200)
+        texts = lambda key: [r.text for r in response.context[key]]
+        self.assertEqual(texts("overdue_events"), ["Vėluoja"])
+        self.assertIn("Šiandien vėliau", texts("today_events"))
+        self.assertEqual(texts("tomorrow_events"), ["Rytoj"])
+        for key in ("overdue_events", "today_events", "tomorrow_events"):
+            self.assertNotIn("Kolegos", texts(key))
+
+    def test_dashboard_counts_my_week_activity_by_type(self):
+        person = self._person("Veiklus")
+        Activity.objects.create(person=person, activity_type="call", text="Skambinta", created_by=self.user)
+        Activity.objects.create(person=person, activity_type="call", text="Ir dar", created_by=self.user)
+        Activity.objects.create(person=person, activity_type="note", text="Kolegos", created_by=self.mate)
+        response = self.client.get(reverse("contacts:home"))
+        counts = {item["label"]: item["total"] for item in response.context["week_activity"]}
+        self.assertEqual(counts["Skambutis"], 2)
+        self.assertEqual(counts["Pastaba"], 0)
+        self.assertEqual(response.context["week_activity_total"], 2)
+
+    def test_dashboard_lists_records_this_user_recently_changed(self):
+        from contacts.audit import log
+        from contacts.models import AuditLog
+
+        mine = self._person("Mano")
+        theirs = self._person("Svetimas")
+        log(AuditLog.UPDATE, actor=self.user, target=mine)
+        log(AuditLog.UPDATE, actor=self.mate, target=theirs)
+        response = self.client.get(reverse("contacts:home"))
+        touched = [str(record) for record in response.context["recently_touched"]]
+        self.assertIn(str(mine), touched)
+        self.assertNotIn(str(theirs), touched)
+
+    def test_care_lists_group_contacts_that_need_attention(self):
+        quiet = self._person("Nutiles")
+        old = Activity.objects.create(person=quiet, activity_type="call", text="Seniai", created_by=self.user)
+        Activity.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=75))
+        fresh = self._person("Sviezias", owner=self.user)
+        PhoneNumber.objects.create(person=fresh, number="+370 600 00000")
+        Activity.objects.create(person=fresh, activity_type="call", text="Vakar", created_by=self.user)
+        never = self._person("Niekada", owner=self.user)
+        EmailAddress.objects.create(person=never, email="niekada@example.lt")
+
+        response = self.client.get(reverse("contacts:analytics-care"), {"days": 60})
+        groups = {group["key"]: [str(p) for p in group["rows"]] for group in response.context["groups"]}
+        self.assertEqual(response.context["days"], 60)
+        self.assertIn(str(quiet), groups["silent"])
+        self.assertNotIn(str(fresh), groups["silent"])
+        self.assertIn(str(never), groups["never"])
+        self.assertNotIn(str(quiet), groups["never"])
+        self.assertIn(str(quiet), groups["no_owner"])       # owner never set
+        self.assertNotIn(str(fresh), groups["no_owner"])
+        self.assertIn(str(quiet), groups["no_details"])      # no phone, no email
+        self.assertNotIn(str(never), groups["no_details"])
+
+    def test_care_window_switches_between_30_60_and_90_days(self):
+        person = self._person("Ribinis")
+        activity = Activity.objects.create(person=person, activity_type="call", text="x", created_by=self.user)
+        Activity.objects.filter(pk=activity.pk).update(created_at=timezone.now() - timedelta(days=45))
+        silent = lambda days: [str(p) for group in self.client.get(
+            reverse("contacts:analytics-care"), {"days": days}).context["groups"]
+            if group["key"] == "silent" for p in group["rows"]]
+        self.assertIn(str(person), silent(30))
+        self.assertNotIn(str(person), silent(60))
+        self.assertNotIn(str(person), silent(90))
+        # An unknown window falls back to 60 rather than erroring
+        self.assertEqual(self.client.get(reverse("contacts:analytics-care"), {"days": "abc"}).context["days"], 60)
+
+    def test_care_exports_a_group_as_csv(self):
+        person = self._person("Eksportui", owner=self.user)
+        EmailAddress.objects.create(person=person, email="eksportui@example.lt")
+        response = self.client.get(reverse("contacts:analytics-care"), {"export": "never"})
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("crm-never.csv", response["Content-Disposition"])
+        body = response.content.decode("utf-8-sig")
+        self.assertIn("Eksportui", body)
+        self.assertIn("eksportui@example.lt", body)
+
+    def test_care_group_labels_follow_the_active_language(self):
+        # The labels live in a module-level dict, so they must be lazily translated.
+        self.assertContains(self.client.get(reverse("contacts:analytics-care")), "Nutilę kontaktai")
+        self.client.cookies["django_language"] = "en"
+        response = self.client.get(reverse("contacts:analytics-care"))
+        self.assertContains(response, "Contacts gone quiet")
+        self.assertNotContains(response, "Nutilę kontaktai")
+
+    def test_analytics_respect_record_visibility(self):
+        from contacts.models import UserProfile
+
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_MEMBER,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        hidden = self._person("Slaptas", owner=self.mate)
+        response = self.client.get(reverse("contacts:analytics-care"))
+        for group in response.context["groups"]:
+            self.assertNotIn(str(hidden), [str(p) for p in group["rows"]])
+        self.assertEqual(self.client.get(reverse("contacts:home")).context["people_total"], 0)
+
+
 class CalendarTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user("agenda", password="very-secure-password")

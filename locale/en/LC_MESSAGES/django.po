@@ -1983,3 +1983,75 @@ msgstr "Click or drag a free slot to schedule an event. Past events are dimmed."
 
 msgid "Spustelėkite dienos langelį, kad suplanuotumėte įvykį. Praėję įvykiai rodomi blankiau."
 msgstr "Click a day cell to schedule an event. Past events are dimmed."
+
+msgid "Darbastalis"
+msgstr "Dashboard"
+
+msgid "Analitika"
+msgstr "Analytics"
+
+msgid "Kas šiandien svarbu."
+msgstr "What matters today."
+
+msgid "Ryšių priežiūra"
+msgstr "Relationship care"
+
+msgid "Kontaktai, kuriems reikia dėmesio."
+msgstr "Contacts that need attention."
+
+msgid "per 30 d."
+msgstr "in 30 days"
+
+msgid "Mano veiklos šią savaitę"
+msgstr "My activity this week"
+
+msgid "Vėluoja"
+msgstr "Overdue"
+
+
+msgid "Visi priminimai"
+msgstr "All reminders"
+
+msgid "Šiandien įvykių nėra."
+msgstr "Nothing scheduled today."
+
+msgid "Rytoj"
+msgstr "Tomorrow"
+
+msgid "Rytoj įvykių nėra."
+msgstr "Nothing scheduled tomorrow."
+
+msgid "Paskutiniai mano liesti įrašai"
+msgstr "Records I touched most recently"
+
+msgid "Dar nieko nekeitėte."
+msgstr "You have not changed anything yet."
+
+msgid "Nutilusiais laikyti, kai nebendrauta ilgiau nei:"
+msgstr "Treat as gone quiet after:"
+
+msgid "d."
+msgstr "days"
+
+msgid "Nutilę kontaktai"
+msgstr "Contacts gone quiet"
+
+msgid "Niekada nebendrauta"
+msgstr "Never contacted"
+
+
+msgid "Be telefono ir el. pašto"
+msgstr "No phone and no email"
+
+msgid "Eksportuoti CSV"
+msgstr "Export CSV"
+
+msgid "Suplanuoti"
+msgstr "Schedule"
+
+
+msgid "Nieko nerasta — puiku."
+msgstr "Nothing here — good."
+
+msgid "Rodoma %(shown)s iš %(total)s — visą sąrašą rasite CSV eksporte."
+msgstr "Showing %(shown)s of %(total)s — the full list is in the CSV export."
