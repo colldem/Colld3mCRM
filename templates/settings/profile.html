@@ -24,6 +24,13 @@
 </form>
 
 <div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% translate 'Kalendoriaus prenumerata' %}</h2><p>{% translate 'Vienpusė nuoroda į jums priskirtus įvykius. Įklijuokite ją prenumeruojant kalendorių pagal URL (Google, Outlook, Apple).' %}</p></div></div>
+  <p><input type="text" readonly value="{{ calendar_feed_url }}" style="max-width:520px" onclick="this.select()"></p>
+  <form method="post"><input type="hidden" name="action" value="new_calendar_token">{% csrf_token %}<button class="btn" type="submit">{% translate 'Sukurti naują nuorodą' %}</button></form>
+  <p class="muted">{% translate 'Sukūrus naują, senoji nebeveikia — reikės iš naujo prenumeruoti.' %}</p>
+</div>
+
+<div class="settings-subsection">
   <div class="settings-section-head"><div><h2>{% translate 'Slaptažodžio keitimas' %}</h2><p>{% translate 'Įveskite dabartinį slaptažodį ir naują — ne trumpesnį nei 12 simbolių.' %}</p></div></div>
   <form method="post" action="{% url 'contacts:settings-password' %}" class="profile-form">{% csrf_token %}
     {{ password_form.non_field_errors }}

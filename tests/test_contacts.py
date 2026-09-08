@@ -3135,3 +3135,43 @@ class RecurringReminderTests(TestCase):
         Reminder.objects.filter(pk__in=newest).delete()
         call_command("extend_recurrences")
         self.assertGreaterEqual(Reminder.objects.filter(recurrence_parent=root).count(), before)
+
+
+class CalendarFeedTests(TestCase):
+    def setUp(self):
+        from contacts.models import UserProfile
+        self.user = get_user_model().objects.create_user("feedas", password="very-secure-password")
+        self.mate = get_user_model().objects.create_user("kitas", password="very-secure-password")
+        self.profile = UserProfile.objects.create(user=self.user)
+        self.person = Person.objects.create(first_name="Ruslan", last_name="Gorin")
+        PhoneNumber.objects.create(person=self.person, number="+370 600 11111")
+        PostalAddress.objects.create(person=self.person, address="Vilnius, Lietuva")
+
+    def _url(self, token=None):
+        return reverse("contacts:calendar-feed", args=[token or self.profile.calendar_token])
+
+    def test_feed_lists_the_users_reminders_as_vevents(self):
+        Reminder.objects.create(person=self.person, text="Skambutis", created_by=self.user, assigned_to=self.user,
+                                due_at=timezone.now() + timedelta(days=1))
+        Reminder.objects.create(person=self.person, text="Kolegos", created_by=self.mate, assigned_to=self.mate,
+                                due_at=timezone.now() + timedelta(days=1))
+        response = self.client.get(self._url())
+        self.assertEqual(response["Content-Type"], "text/calendar; charset=utf-8")
+        body = response.content.decode()
+        self.assertIn("BEGIN:VCALENDAR", body)
+        self.assertIn("SUMMARY:Skambutis", body)
+        self.assertIn("LOCATION:Vilnius\\, Lietuva", body)
+        self.assertIn("URL:", body)
+        self.assertNotIn("Kolegos", body)  # not assigned to this user
+
+    def test_feed_needs_no_login_but_a_bad_token_is_404(self):
+        self.assertEqual(self.client.get(self._url("nonsense")).status_code, 404)
+        self.assertEqual(self.client.get(self._url()).status_code, 200)
+
+    def test_regenerating_the_token_breaks_the_old_link(self):
+        old = self.profile.calendar_token
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:settings"), {"action": "new_calendar_token"})
+        self.profile.refresh_from_db()
+        self.assertNotEqual(self.profile.calendar_token, old)
+        self.assertEqual(self.client.get(self._url(old)).status_code, 404)

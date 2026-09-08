@@ -2361,3 +2361,18 @@ msgstr "Leave empty if limiting by date."
 
 msgid "Pasikartojantis"
 msgstr "Recurring"
+
+msgid "Kalendoriaus prenumerata"
+msgstr "Calendar subscription"
+
+msgid "Sukurti naują nuorodą"
+msgstr "Generate a new link"
+
+msgid "Sukūrus naują, senoji nebeveikia — reikės iš naujo prenumeruoti."
+msgstr "A new link makes the old one stop working - you will need to re-subscribe."
+
+msgid "Vienpusė nuoroda į jums priskirtus įvykius. Įklijuokite ją prenumeruojant kalendorių pagal URL (Google, Outlook, Apple)."
+msgstr "A one-way link to the events assigned to you. Paste it when subscribing to a calendar by URL (Google, Outlook, Apple)."
+
+msgid "Kalendoriaus nuoroda atnaujinta. Senoji nebeveikia."
+msgstr "Calendar link regenerated. The old one no longer works."

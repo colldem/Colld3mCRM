@@ -584,7 +584,16 @@ horizontui (pvz. 12 mėn.). Materializavimas paprastesnis „redaguoti šį vien
 bet reikia foninio pratęsimo. Spręsti pradedant G3.
 </details>
 
-### G4. Kalendoriaus prenumerata (.ics) — ❌
+### G4. Kalendoriaus prenumerata (.ics) — ✅ padaryta (`0.44.0`)
+`/calendar/feed/<token>.ics` — `UserProfile.calendar_token` (numatyta generuojama,
+atnaujinama profilyje „Sukurti naują nuorodą"). `contacts/ical.py` — rankinis ICS
+(be bibliotekos): VEVENT su `DTSTART/DTEND` (UTC `Z`), `SUMMARY`, `DESCRIPTION`=įrašas,
+`LOCATION`=kontakto adresas, `URL`=`CRM_BASE_URL`+įrašo nuoroda; langas −90…+400 d.;
+turinys = naudotojo `mine_q` priminimai. Autentifikacija = token'as (be prisijungimo),
+todėl ilgas ir atšaukiamas. **Prod:** kad `URL:` nuorodos laiškuose ir .ics būtų
+teisingos, `.env` reikia `CRM_BASE_URL=https://crm.tailb8493f.ts.net`.
+
+<details><summary>Originalus planas</summary>
 `/calendar/feed/<token>.ics` — token `UserProfile.calendar_token` (generuojamas,
 atšaukiamas iš Nustatymų).
 - VEVENT: `DTSTART`/`DTEND`, `SUMMARY` = tekstas, `DESCRIPTION`, **`LOCATION` = adresas
@@ -595,6 +604,7 @@ atšaukiamas iš Nustatymų).
 - Autentifikacija = pats token'as, todėl jis ilgas ir atšaukiamas
 - Vienpusė (CRM → kalendorius). Dvipusė per Graph / Google API — atskiras, daug
   didesnis darbas; vertinti tik jei vienpusės nepakaks.
+</details>
 
 ### G5. Prisijungimas per Microsoft Entra ID — ❌
 `mozilla-django-oidc`. Entra: App registration, redirect URI

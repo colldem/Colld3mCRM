@@ -137,7 +137,12 @@ class UserProfile(models.Model):
     notify_lead = models.PositiveSmallIntegerField(null=True, blank=True, choices=NOTIFY_LEAD_CHOICES)
     digest_sent_on = models.DateField(null=True, blank=True)
     unsubscribe_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
+    calendar_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def new_calendar_token(self):
+        self.calendar_token = token_urlsafe(24)
+        self.save(update_fields=["calendar_token", "updated_at"])
 
     def __str__(self):
         return str(self.user)

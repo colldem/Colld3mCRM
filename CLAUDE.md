@@ -57,7 +57,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
   `permissions.py` — rolės, teisės ir įrašų matomumas; `charts.py` — SVG grafikai;
   `notifications.py` + `management/commands/send_notifications.py` — el. pašto pranešimai;
-  `sanitizers.py` — `safe_url` / `csv_safe`.
+  `recurrence.py` + `management/commands/extend_recurrences.py` — pasikartojantys priminimai;
+  `ical.py` — .ics kalendoriaus srautas; `sanitizers.py` — `safe_url` / `csv_safe`.
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
 - `docs/DEPLOYMENT-UGREEN.md` — diegimo procedūra; prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.

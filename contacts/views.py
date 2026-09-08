@@ -580,6 +580,11 @@ def saved_filter_update(request, pk):
 def settings_page(request):
     if request.method == "POST" and request.POST.get("kind") in {"tag", "category"}:
         return settings_taxonomy(request, request.POST["kind"])
+    if request.method == "POST" and request.POST.get("action") == "new_calendar_token":
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile.new_calendar_token()
+        messages.success(request, tr("Kalendoriaus nuoroda atnaujinta. Senoji nebeveikia."))
+        return redirect("contacts:settings")
     form = UserProfileForm(request.POST or None, request.FILES or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         changed = list(form.changed_data)
@@ -591,9 +596,11 @@ def settings_page(request):
         response = redirect("contacts:settings")
         response.set_cookie(settings.LANGUAGE_COOKIE_NAME, profile.language, max_age=365 * 24 * 60 * 60, samesite="Lax")
         return response
+    feed_token = UserProfile.objects.get_or_create(user=request.user)[0].calendar_token
     return render(request, "settings/profile.html", {
         "form": form,
         "password_form": PasswordChangeForm(request.user),
+        "calendar_feed_url": request.build_absolute_uri("/calendar/feed/%s.ics" % feed_token),
         "settings_section": "profile",
     })
 
@@ -1102,6 +1109,17 @@ def notifications_unsubscribe(request, token):
         profile.digest_enabled = False
         profile.save(update_fields=["digest_enabled", "updated_at"])
     return render(request, "notifications/unsubscribed.html", {"ok": profile is not None})
+
+
+def calendar_feed(request, token):
+    profile = UserProfile.objects.filter(calendar_token=token).select_related("user").first()
+    if profile is None or not profile.user.is_active:
+        raise Http404
+    from .ical import feed_for
+
+    response = HttpResponse(feed_for(profile.user), content_type="text/calendar; charset=utf-8")
+    response["Content-Disposition"] = 'inline; filename="crm.ics"'
+    return response
 
 
 @login_required
