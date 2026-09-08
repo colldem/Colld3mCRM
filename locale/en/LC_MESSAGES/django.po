@@ -1818,3 +1818,18 @@ msgstr ""
 
 msgid "Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai."
 msgstr "No dynamic fields. Create them in Settings → Dynamic fields."
+
+msgid "Failas"
+msgstr "File"
+
+msgid "Pastaba (nebūtina)"
+msgstr "Note (optional)"
+
+msgid "pvz. Pasirašyta sutartis"
+msgstr "e.g. Signed contract"
+
+msgid "Įkelti"
+msgstr "Upload"
+
+msgid "Įkeltas failas"
+msgstr "Uploaded file"

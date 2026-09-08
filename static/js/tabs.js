@@ -14,6 +14,18 @@
     });
   };
   tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.tab)));
+  // Deep links from the list row menu / quick actions.
+  const fromHash = () => {
+    const h = location.hash;
+    if (h === '#tab-comments' || h === '#composer') show('comments');
+    else if (h === '#tab-reminders' || h === '#reminder-add') {
+      show('reminders');
+      const add = document.getElementById('reminder-add');
+      if (add) add.open = true;
+    }
+  };
+  fromHash();
+  window.addEventListener('hashchange', fromHash);
   document.querySelectorAll('[data-open-tab]').forEach(el => el.addEventListener('click', event => {
     event.preventDefault();
     show(el.dataset.openTab);

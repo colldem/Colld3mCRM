@@ -52,23 +52,20 @@
 
     <section class="detail-card detail-tabs" data-tabs>
       <div class="tab-strip" role="tablist">
-        <button type="button" role="tab" class="tab is-active" data-tab="log">{% translate 'Veiklos' %}</button>
+        <button type="button" role="tab" class="tab is-active" data-tab="comments" id="tab-comments">{% translate 'Komentarai' %}</button>
         <button type="button" role="tab" class="tab" data-tab="reminders" id="tab-reminders">{% translate 'Priminimai' %}</button>
-        <button type="button" role="tab" class="tab" data-tab="comments">{% translate 'Komentarai' %}</button>
         <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %}</button>
-        <button type="button" role="tab" class="tab" data-tab="related">{% translate 'Susiję įrašai' %}</button>
       </div>
 
-      <div class="tab-panel is-active" data-panel="log">
-        <form id="composer" method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
-          <input type="hidden" name="submission_token" value="{{ activity_token }}">
-          <label>{% translate 'Įrašo tipas' %}{{ activity_form.activity_type }}</label>
-          <label>{% translate 'Tekstas' %}{{ activity_form.text }}</label>
-          <label>{% translate 'Failai ir nuotraukos' %}<input name="attachments" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"><small>{% translate 'Iki 10 MB vienam failui.' %}</small></label>
-          <div><button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button></div>
+      <div class="tab-panel is-active" data-panel="comments">
+        <form method="post" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
+          <input type="hidden" name="activity_type" value="note">
+          <input type="hidden" name="submission_token" value="{{ comment_token }}">
+          <label>{% translate 'Komentaras' %}<textarea name="text" rows="3" required placeholder="{% translate 'Įrašykite komentarą...' %}"></textarea></label>
+          <div><button class="btn primary" type="submit">{% translate 'Pridėti komentarą' %}</button></div>
         </form>
         <div class="timeline">
-          {% for activity in log_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Įrašų dar nėra.' %}</p>{% endfor %}
+          {% for activity in comment_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Komentarų dar nėra.' %}</p>{% endfor %}
         </div>
       </div>
 
@@ -88,28 +85,17 @@
         </div>
       </div>
 
-      <div class="tab-panel" data-panel="comments" hidden>
-        <form method="post" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
-          <input type="hidden" name="activity_type" value="note">
-          <input type="hidden" name="submission_token" value="{{ comment_token }}">
-          <label>{% translate 'Komentaras' %}<textarea name="text" rows="3" required placeholder="{% translate 'Įrašykite komentarą...' %}"></textarea></label>
-          <div><button class="btn primary" type="submit">{% translate 'Pridėti komentarą' %}</button></div>
-        </form>
-        <div class="timeline">
-          {% for activity in comment_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Komentarų dar nėra.' %}</p>{% endfor %}
-        </div>
-      </div>
-
       <div class="tab-panel" data-panel="files" hidden>
+        <form method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="stack-form">{% csrf_token %}
+          <input type="hidden" name="activity_type" value="note">
+          <input type="hidden" name="submission_token" value="{{ file_token }}">
+          <label>{% translate 'Failas' %}<input name="attachments" type="file" multiple required accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"><small>{% translate 'Iki 10 MB vienam failui.' %}</small></label>
+          <label>{% translate 'Pastaba (nebūtina)' %}<input name="text" maxlength="200" placeholder="{% translate 'pvz. Pasirašyta sutartis' %}"></label>
+          <div><button class="btn primary" type="submit">{% translate 'Įkelti' %}</button></div>
+        </form>
         <ul class="file-list">
           {% for attachment in attachment_entries %}<li><a href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a><small>{{ attachment.created_at|date:"Y-m-d H:i" }}</small></li>{% empty %}<li class="muted">{% translate 'Failų nėra.' %}</li>{% endfor %}
         </ul>
-      </div>
-
-      <div class="tab-panel" data-panel="related" hidden>
-        {% if related_companies %}<h3>{% translate 'Įmonės' %}</h3><ul class="related-list">{% for c in related_companies %}<li><a href="{{ c.get_absolute_url }}">{{ c.name }}</a></li>{% endfor %}</ul>{% endif %}
-        {% if related_people %}<h3>{% if is_company %}{% translate 'Kontaktiniai asmenys' %}{% else %}{% translate 'Kolegos' %}{% endif %}</h3><ul class="related-list">{% for p in related_people %}<li><a href="{{ p.get_absolute_url }}">{{ p }}</a>{% if p.job_title %} <small>{{ p.job_title }}</small>{% endif %}</li>{% endfor %}</ul>{% endif %}
-        {% if not related_companies and not related_people %}<p class="muted">{% translate 'Susijusių įrašų nėra.' %}</p>{% endif %}
       </div>
     </section>
   </div>
@@ -119,6 +105,15 @@
     <section class="aside-card">
       <h3>{% translate 'Organizacija' %}</h3>
       {% with item=companies_field %}{% include "contacts/detail_field.html" %}{% endwith %}
+    </section>
+    {% endif %}
+
+    {% if is_company %}
+    <section class="aside-card">
+      <h3>{% translate 'Kontaktiniai asmenys' %}</h3>
+      <ul class="related-list">
+        {% for link in company.person_links.all %}<li><a href="{{ link.person.get_absolute_url }}">{{ link.person }}</a>{% if link.role or link.person.job_title %} <small>{{ link.role|default:link.person.job_title }}</small>{% endif %}</li>{% empty %}<li class="muted">{% translate 'Susietų asmenų nėra.' %}</li>{% endfor %}
+      </ul>
     </section>
     {% endif %}
 

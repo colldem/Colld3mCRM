@@ -686,7 +686,7 @@ class ContactViewTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:list"))
         detail = reverse("contacts:detail", args=[self.person.pk])
-        self.assertContains(response, f'href="{detail}#composer"')
+        self.assertContains(response, f'href="{detail}#tab-comments"')
         self.assertContains(response, f'href="{detail}#reminder-add"')
         self.assertContains(response, 'class="copy-email" data-email="ruta@example.lt"')
 
@@ -699,10 +699,10 @@ class ContactViewTests(TestCase):
     def test_record_detail_pages_expose_quick_action_anchors(self):
         self.client.force_login(self.user)
         person_page = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
-        self.assertContains(person_page, 'id="composer"')
+        self.assertContains(person_page, 'id="tab-comments"')
         self.assertContains(person_page, 'id="reminder-add"')
         company_page = self.client.get(reverse("contacts:company-detail", args=[self.company.pk]))
-        self.assertContains(company_page, 'id="composer"')
+        self.assertContains(company_page, 'id="tab-comments"')
 
     def test_company_row_menu_has_note_and_copy_email_actions(self):
         self.client.force_login(self.user)
@@ -710,7 +710,7 @@ class ContactViewTests(TestCase):
         self.company.save(update_fields=["email"])
         response = self.client.get(reverse("contacts:company-list"))
         detail = reverse("contacts:company-detail", args=[self.company.pk])
-        self.assertContains(response, f'href="{detail}#composer"')
+        self.assertContains(response, f'href="{detail}#tab-comments"')
         self.assertContains(response, 'data-email="info@aukstaitija.lt"')
 
     def test_password_change_updates_password_and_keeps_session(self):
@@ -1864,36 +1864,33 @@ class ContactViewTests(TestCase):
             self.assertContains(page, "Kontaktinė informacija")
             self.assertContains(page, "Papildomi laukai")
             self.assertContains(page, "Papildoma informacija")
-            self.assertContains(page, 'data-tab="log"')
             self.assertContains(page, 'data-tab="comments"')
+            self.assertContains(page, 'data-tab="reminders"')
             self.assertContains(page, 'data-tab="files"')
-            self.assertContains(page, 'data-tab="related"')
+            self.assertNotContains(page, 'data-tab="log"')
+            self.assertNotContains(page, 'data-tab="related"')
 
-    def test_comments_tab_shows_note_activities_and_log_tab_shows_the_rest(self):
+    def test_comments_tab_shows_every_activity(self):
         self.client.force_login(self.user)
         Activity.objects.create(person=self.person, activity_type="note", text="Vidinis komentaras", created_by=self.user)
         Activity.objects.create(person=self.person, activity_type="call", text="Skambučio įrašas", created_by=self.user)
         page = self.client.get(self.person.get_absolute_url())
-        self.assertEqual([a.text for a in page.context["comment_entries"]], ["Vidinis komentaras"])
-        self.assertEqual([a.text for a in page.context["log_entries"]], ["Skambučio įrašas"])
+        self.assertEqual(sorted(a.text for a in page.context["comment_entries"]), ["Skambučio įrašas", "Vidinis komentaras"])
 
-    def test_files_tab_lists_every_attachment(self):
+    def test_files_tab_lists_attachments_and_accepts_an_upload(self):
         from contacts.models import Attachment
+        from django.core.files.uploadedfile import SimpleUploadedFile
         self.client.force_login(self.user)
         activity = Activity.objects.create(person=self.person, activity_type="note", text="su failu", created_by=self.user)
         Attachment.objects.create(activity=activity, original_name="sutartis.pdf", size=10)
         page = self.client.get(self.person.get_absolute_url())
         self.assertContains(page, "sutartis.pdf")
         self.assertEqual(len(page.context["attachment_entries"]), 1)
-
-    def test_related_tab_lists_the_linked_company_and_a_coworker(self):
-        self.client.force_login(self.user)
-        coworker = Person.objects.create(first_name="Kolega", last_name="Petras")
-        PersonCompanyLink.objects.create(person=coworker, company=self.company)
-        page = self.client.get(self.person.get_absolute_url())
-        self.assertIn(self.company, page.context["related_companies"])
-        self.assertIn(coworker, page.context["related_people"])
-        self.assertContains(page, "Kolega Petras")
+        self.client.post(reverse("contacts:activity-create", args=[self.person.pk]), {
+            "activity_type": "note", "text": "",
+            "attachments": SimpleUploadedFile("naujas.pdf", b"%PDF-1.4", content_type="application/pdf"),
+        })
+        self.assertTrue(Attachment.objects.filter(original_name="naujas.pdf").exists())
 
     def test_company_priority_field_is_inline_editable(self):
         self.client.force_login(self.user)

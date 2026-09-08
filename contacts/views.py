@@ -1057,30 +1057,24 @@ def contact_detail(request, pk):
     person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
-    activities = [a for a in person.activities.all() if a.deleted_at is None]
-    linked_companies = [link.company for link in person.company_links.all()]
-    coworkers = (Person.objects.filter(company_links__company__in=[c.pk for c in linked_companies], deleted_at__isnull=True)
-                 .exclude(pk=person.pk).distinct().order_by("last_name", "first_name")[:50]) if linked_companies else []
+    activities = sorted((a for a in person.activities.all() if a.deleted_at is None),
+                        key=lambda a: a.created_at, reverse=True)
     return render(request, "contacts/detail.html", {
         "person": person,
         "detail_fields": detail_fields(person),
         **grouped_detail_fields(person),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
-        "activity_form": ActivityForm(),
         "reminder_form": ReminderForm(),
-        "activity_token": uuid.uuid4().hex,
         "comment_token": uuid.uuid4().hex,
+        "file_token": uuid.uuid4().hex,
         "reminder_token": uuid.uuid4().hex,
         "active_reminders": open_reminders,
         "next_reminder": open_reminders.filter(due_at__gt=now).order_by("due_at").first(),
         "overdue_reminder_count": open_reminders.filter(due_at__lte=now).count(),
-        "log_entries": [a for a in activities if a.activity_type != Activity.NOTE],
-        "comment_entries": [a for a in activities if a.activity_type == Activity.NOTE],
+        "comment_entries": activities,
         "attachment_entries": [att for a in activities for att in a.attachments.all()],
-        "related_companies": linked_companies,
-        "related_people": list(coworkers),
         **_authorship_context(person, "person"),
-        **_last_activity_context(next((a for a in sorted(activities, key=lambda x: x.created_at, reverse=True)), None)),
+        **_last_activity_context(activities[0] if activities else None),
     })
 
 
@@ -1162,7 +1156,8 @@ def _report_rejected_attachments(request, rejected):
 def activity_create(request, pk):
     person = get_object_or_404(visible_people(request.user), pk=pk, deleted_at__isnull=True)
     form = ActivityForm(request.POST)
-    if form.is_valid():
+    has_files = bool(request.FILES.getlist("attachments"))
+    if form.is_valid() and (form.cleaned_data.get("text") or has_files):
         token = request.POST.get("submission_token", "")
         if token and person.activities.filter(submission_token=token).exists():
             return redirect(person)
@@ -1170,6 +1165,7 @@ def activity_create(request, pk):
         activity.person = person
         activity.created_by = request.user
         activity.submission_token = token or None
+        activity.text = activity.text or str(tr("Įkeltas failas"))
         activity.save()
         audit_log(AuditLog.CREATE, request=request, target=person,
                   field=str(tr("Veikla")) + ": " + str(activity.get_activity_type_display()), new=activity.text[:200])
@@ -1376,17 +1372,15 @@ def company_detail(request, pk):
         "company": company, "detail_fields": company_detail_fields(company),
         **grouped_detail_fields(company),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
-        "history": history, "activity_form": ActivityForm(), "activity_token": uuid.uuid4().hex,
+        "history": history,
         "comment_token": uuid.uuid4().hex,
+        "file_token": uuid.uuid4().hex,
         "active_reminders": linked_reminders.select_related("person").order_by("due_at"),
         "next_reminder": next_reminder,
         "next_reminder_person": next_reminder.person if next_reminder else None,
         "overdue_reminder_count": linked_reminders.filter(due_at__lte=now).count(),
-        "log_entries": [a for a in history if a.activity_type != Activity.NOTE],
-        "comment_entries": [a for a in history if a.activity_type == Activity.NOTE],
+        "comment_entries": history,
         "attachment_entries": [att for a in history for att in a.attachments.all()],
-        "related_people": [link.person for link in company.person_links.all()],
-        "related_companies": [],
         **_authorship_context(company, "company"),
         **_last_activity_context(history[0] if history else None),
     })
@@ -1411,7 +1405,8 @@ def company_activity_edit(request, company_pk, pk):
 def company_activity_create(request, pk):
     company = get_object_or_404(visible_companies(request.user), pk=pk, deleted_at__isnull=True)
     form = ActivityForm(request.POST)
-    if form.is_valid():
+    has_files = bool(request.FILES.getlist("attachments"))
+    if form.is_valid() and (form.cleaned_data.get("text") or has_files):
         token = request.POST.get("submission_token", "")
         if token and company.activities.filter(submission_token=token).exists():
             return redirect(company)
@@ -1419,6 +1414,7 @@ def company_activity_create(request, pk):
         activity.company = company
         activity.created_by = request.user
         activity.submission_token = token or None
+        activity.text = activity.text or str(tr("Įkeltas failas"))
         activity.save()
         audit_log(AuditLog.CREATE, request=request, target=company,
                   field=str(tr("Veikla")) + ": " + str(activity.get_activity_type_display()), new=activity.text[:200])

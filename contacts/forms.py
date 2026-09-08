@@ -130,8 +130,12 @@ class ActivityForm(forms.ModelForm):
         labels = {"activity_type": tr("Įrašo tipas"), "text": tr("Tekstas")}
         widgets = {"text": forms.Textarea(attrs={"rows": 4, "placeholder": tr("Įrašykite pastabą...")})}
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["text"].required = False
+
     def clean_text(self):
-        return self.cleaned_data["text"].strip()
+        return (self.cleaned_data.get("text") or "").strip()
 
 
 class ReminderForm(forms.ModelForm):
