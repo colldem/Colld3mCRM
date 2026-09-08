@@ -318,6 +318,35 @@ def detail_fields(person):
     return [field_context(person, field) for field in order] + detail_context(person)
 
 
+_CONTACT_INFO_KEYS = {
+    True: {"email", "phone", "address", "url", "company_code", "vat_code"},
+    False: {"emails", "phones", "addresses", "web_links"},
+}
+_CARD_HIDDEN_KEYS = {"first_name", "last_name", "name", "responsibles"}
+
+
+def grouped_detail_fields(record):
+    """Split card fields into (contact_info, grid, description) for the prototype layout."""
+    is_company = isinstance(record, Company)
+    fields = company_detail_fields(record) if is_company else detail_fields(record)
+    contact_keys = _CONTACT_INFO_KEYS[is_company]
+    contact_info, grid, description, responsibles = [], [], None, None
+    for item in fields:
+        key = item.get("field", "")
+        if key in contact_keys:
+            contact_info.append(item)
+        elif key == "description":
+            description = item
+        elif key == "responsibles":
+            responsibles = item
+        elif key in _CARD_HIDDEN_KEYS:
+            continue
+        else:
+            grid.append(item)
+    return {"contact_info_fields": contact_info, "grid_fields": grid,
+            "description_field": description, "responsibles_field": responsibles}
+
+
 @login_required
 @require_POST
 @transaction.atomic

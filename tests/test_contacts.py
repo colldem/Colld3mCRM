@@ -90,13 +90,13 @@ class ContactViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.cookies['django_language'].value, 'en')
         response = self.client.get(self.person.get_absolute_url())
-        self.assertContains(response, 'Contact details')
+        self.assertContains(response, 'Contact information')
         self.assertContains(response, 'Sign out')
         self.assertContains(response, name)
         self.assertContains(response, 'lang="en"')
-        self.assertContains(self.client.get(self.company.get_absolute_url()), 'Company details')
+        self.assertContains(self.client.get(self.company.get_absolute_url()), 'Contact information')
         self.client.post(reverse('set_language'), {'language':'lt', 'next': self.person.get_absolute_url()})
-        self.assertContains(self.client.get(self.person.get_absolute_url()), 'Kontaktiniai duomenys')
+        self.assertContains(self.client.get(self.person.get_absolute_url()), 'Kontaktinė informacija')
 
     def test_company_note_edit_scope_and_person_history_isolation(self):
         self.client.force_login(self.user)
@@ -403,9 +403,9 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "Eksportuoti kontaktus")
         self.assertContains(response, "Eksportuoti įmones")
         response = self.client.get(self.person.get_absolute_url())
-        self.assertContains(response, 'class="page-actions"')
+        self.assertContains(response, 'class="record-detail-actions"')
         response = self.client.get(self.company.get_absolute_url())
-        self.assertContains(response, 'class="page-actions"')
+        self.assertContains(response, 'class="record-detail-actions"')
         response = self.client.get(reverse("contacts:person-create"))
         self.assertContains(response, 'class="form-actions"')
 
@@ -825,11 +825,10 @@ class ContactViewTests(TestCase):
         Reminder.objects.create(person=self.person, text="Perskambinti", due_at=timezone.now() + timedelta(days=3), created_by=self.user)
         Reminder.objects.create(person=self.person, text="Uždelsta", due_at=timezone.now() - timedelta(days=1), created_by=self.user)
         response = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
-        self.assertContains(response, "record-summary")
-        self.assertContains(response, "Paskutinis bendravimas")
-        self.assertContains(response, "Kitas veiksmas")
+        self.assertContains(response, "Paskutinis kontaktas")
+        self.assertContains(response, "Sekantis kontaktas")
         self.assertContains(response, "Perskambinti")
-        self.assertContains(response, "Vėluojantys priminimai")
+        self.assertContains(response, "record-detail-warn")
         self.assertEqual(response.context["overdue_reminder_count"], 1)
 
     def test_company_detail_summary_uses_linked_contact_activity_and_reminders(self):
@@ -837,15 +836,14 @@ class ContactViewTests(TestCase):
         Activity.objects.create(company=self.company, activity_type="meeting", text="Susitikta", created_by=self.user)
         Reminder.objects.create(person=self.person, text="Įmonės skambutis", due_at=timezone.now() + timedelta(days=2), created_by=self.user)
         response = self.client.get(reverse("contacts:company-detail", args=[self.company.pk]))
-        self.assertContains(response, "record-summary")
         self.assertContains(response, "Įmonės skambutis")
         self.assertEqual(response.context["next_reminder_person"], self.person)
 
-    def test_record_summary_is_omitted_when_there_is_nothing_to_show(self):
+    def test_record_detail_warn_is_omitted_when_nothing_is_overdue(self):
         other = Person.objects.create(first_name="Tuščias", last_name="Kontaktas")
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:detail", args=[other.pk]))
-        self.assertNotContains(response, "record-summary")
+        self.assertNotContains(response, "record-detail-warn")
 
     def test_data_export_zip_has_data_and_readme_for_staff(self):
         import io
@@ -1012,8 +1010,8 @@ class ContactViewTests(TestCase):
             "timezone": "Europe/Vilnius",
         })
 
-        self.assertContains(self.client.get(self.person.get_absolute_url()), "- Rasa Jonaitė")
-        self.assertContains(self.client.get(self.company.get_absolute_url()), "- Rasa Jonaitė")
+        self.assertContains(self.client.get(self.person.get_absolute_url()), "· Rasa Jonaitė")
+        self.assertContains(self.client.get(self.company.get_absolute_url()), "· Rasa Jonaitė")
 
     def test_profile_save_action_is_aligned_to_the_right(self):
         self.client.force_login(self.user)
@@ -1857,6 +1855,44 @@ class ContactViewTests(TestCase):
         page = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
         self.assertContains(page, "prio-high")
 
+    def test_detail_page_uses_the_new_card_layout(self):
+        self.client.force_login(self.user)
+        for url in (self.person.get_absolute_url(), self.company.get_absolute_url()):
+            page = self.client.get(url)
+            self.assertContains(page, "Kontaktinė informacija")
+            self.assertContains(page, "Papildomi laukai")
+            self.assertContains(page, "Papildoma informacija")
+            self.assertContains(page, 'data-tab="log"')
+            self.assertContains(page, 'data-tab="comments"')
+            self.assertContains(page, 'data-tab="files"')
+            self.assertContains(page, 'data-tab="related"')
+
+    def test_comments_tab_shows_note_activities_and_log_tab_shows_the_rest(self):
+        self.client.force_login(self.user)
+        Activity.objects.create(person=self.person, activity_type="note", text="Vidinis komentaras", created_by=self.user)
+        Activity.objects.create(person=self.person, activity_type="call", text="Skambučio įrašas", created_by=self.user)
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertEqual([a.text for a in page.context["comment_entries"]], ["Vidinis komentaras"])
+        self.assertEqual([a.text for a in page.context["log_entries"]], ["Skambučio įrašas"])
+
+    def test_files_tab_lists_every_attachment(self):
+        from contacts.models import Attachment
+        self.client.force_login(self.user)
+        activity = Activity.objects.create(person=self.person, activity_type="note", text="su failu", created_by=self.user)
+        Attachment.objects.create(activity=activity, original_name="sutartis.pdf", size=10)
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertContains(page, "sutartis.pdf")
+        self.assertEqual(len(page.context["attachment_entries"]), 1)
+
+    def test_related_tab_lists_the_linked_company_and_a_coworker(self):
+        self.client.force_login(self.user)
+        coworker = Person.objects.create(first_name="Kolega", last_name="Petras")
+        PersonCompanyLink.objects.create(person=coworker, company=self.company)
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertIn(self.company, page.context["related_companies"])
+        self.assertIn(coworker, page.context["related_people"])
+        self.assertContains(page, "Kolega Petras")
+
     def test_company_priority_field_is_inline_editable(self):
         self.client.force_login(self.user)
         self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]),
@@ -2282,7 +2318,6 @@ class ContactViewTests(TestCase):
         Activity.objects.create(company=self.company, text="Įmonės pastaba", created_by=self.user)
         Activity.objects.create(person=self.person, text="Kontakto pastaba", created_by=self.user)
         response = self.client.get(self.company.get_absolute_url())
-        self.assertContains(response, "Įmonės ir kontaktų įrašų istorija")
         self.assertContains(response, "Įmonės pastaba")
         self.assertContains(response, "Kontakto pastaba")
 

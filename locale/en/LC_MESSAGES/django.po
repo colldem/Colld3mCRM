@@ -1726,3 +1726,84 @@ msgstr "Medium"
 
 msgid "Aukštas"
 msgstr "High"
+
+msgid "Kontaktinė informacija"
+msgstr "Contact information"
+
+msgid "Papildomi laukai"
+msgstr "Additional fields"
+
+msgid "Organizacija"
+msgstr "Organisation"
+
+msgid "Papildoma informacija"
+msgstr "Additional information"
+
+msgid "Komentarai"
+msgstr "Comments"
+
+msgid "Failai"
+msgstr "Files"
+
+msgid "Susiję įrašai"
+msgstr "Related records"
+
+msgid "Grįžti į kontaktų sąrašą"
+msgstr "Back to the contact list"
+
+msgid "Grįžti į įmonių sąrašą"
+msgstr "Back to the company list"
+
+msgid "Naujas priminimas"
+msgstr "New reminder"
+
+msgid "Pridėti komentarą"
+msgstr "Add a comment"
+
+msgid "Paskutinis kontaktas"
+msgstr "Last contact"
+
+msgid "Sekantis kontaktas"
+msgstr "Next contact"
+
+msgid "Sukūrė"
+msgstr "Created by"
+
+msgid "Atnaujino"
+msgstr "Updated by"
+
+msgid "Kopijuoti nuorodą"
+msgstr "Copy link"
+
+msgid "Nukopijuota"
+msgstr "Copied"
+
+msgid "Daugiau veiksmų"
+msgstr "More actions"
+
+msgid "Įrašykite komentarą..."
+msgstr "Write a comment..."
+
+msgid "Komentarų dar nėra."
+msgstr "No comments yet."
+
+msgid "Failų nėra."
+msgstr "No files."
+
+msgid "Susijusių įrašų nėra."
+msgstr "No related records."
+
+msgid "Kolegos"
+msgstr "Colleagues"
+
+msgid "Nėra duomenų."
+msgstr "No data."
+
+msgid "Sukūrimo data"
+msgstr "Created on"
+
+msgid "Paskutinį kartą atnaujinta"
+msgstr "Last updated"
+
+msgid "Dukart spustelėkite reikšmę, kad redaguotumėte vietoje."
+msgstr "Double-click a value to edit it in place."

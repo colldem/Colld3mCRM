@@ -47,6 +47,17 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
   visada naujas), klaidingos eilutės nenutraukia importo ir atsisiunčiamos
   klaidų CSV ataskaita.
 - ✅ **VERSION → 0.7.0**, `image: crm-web:0.7.0`
+- ✅ **C6–C10** naudotojai/rolės/atsakingi/komandos/matomumas/teisės (žr. C6, C10) →
+  VERSION 0.8.0–0.12.0
+- ✅ **Kortelės perdarymas pagal prototipą** (2 diegimai):
+  - 1 dalis (`0.13.0`): nauji laukai `priority` (spalvotas ženkliukas), `contact_type`,
+    `cooperation_start` (data), `description`, `internal_note`, `created_by` prie
+    Person ir Company; visi inline redaguojami (select / date / textarea).
+  - 2 dalis (`0.14.0`): naujas detalus puslapio išdėstymas `contacts/_detail_layout.html`
+    (antraštė su „← Grįžti", žvaigždute, „Redaguoti/…/+Naujas priminimas"; kairė kolona:
+    „Kontaktinė informacija" su kopijavimu, „Papildomi laukai" tinklelis, „Aprašymas",
+    skirtukai Veiklos/Priminimai/Komentarai/Failai/Susiję įrašai; dešinė kolona:
+    Organizacija/Atsakingi/Žymos/Papildoma informacija). `record_summary.html` nebenaudojamas.
 
 ---
 

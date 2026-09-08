@@ -105,6 +105,65 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .prio-badge.prio-low{background:#d1fae5;color:#065f46}
 .prio-badge.prio-medium{background:#fef3c7;color:#92400e}
 .prio-badge.prio-high{background:#fee2e2;color:#991b1b}
+
+/* --- New contact/company detail card layout --- */
+.record-detail-head{margin-bottom:20px}
+.back-link{display:inline-block;margin-bottom:14px;color:var(--navy-950);font-weight:600;font-size:13px;text-decoration:none}
+.record-detail-titlebar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.record-detail-identity h1{font-size:26px;line-height:1.15;margin:0}
+.record-subtitle{margin:4px 0 0;color:var(--muted)}
+.record-detail-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.record-more{position:relative}
+.record-more>summary{list-style:none}.record-more>summary::-webkit-details-marker{display:none}
+.record-more-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:1050;display:grid;min-width:190px;padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 12px 30px rgba(6,43,99,.16)}
+.record-more-menu button,.record-more-menu form{margin:0}
+.record-more-menu button{display:block;width:100%;padding:9px 10px;border:0;background:transparent;color:var(--ink);font:inherit;text-align:left;border-radius:6px;cursor:pointer}
+.record-more-menu button:hover{background:var(--soft)}
+.record-more-menu button.danger{color:var(--danger)}
+.record-detail-warn{margin:12px 0 0;color:var(--danger);font-weight:600}
+
+.record-detail{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}
+.detail-main{display:grid;gap:20px;min-width:0}
+.detail-card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:20px}
+.detail-card>h2,.detail-card>summary h2{font-size:16px;margin:0 0 14px}
+.detail-card.collapsible>summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none}
+.detail-card.collapsible>summary::-webkit-details-marker{display:none}
+.detail-card.collapsible>summary h2{margin:0}
+.detail-card.collapsible[open]>summary .chev{transform:rotate(180deg)}
+.detail-card.collapsible>summary .chev{transition:transform .15s;color:var(--muted)}
+.detail-fields-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px 20px}
+.detail-fields-grid .detail-field{margin:0}
+.detail-field.readonly .field-display{cursor:default}
+.contact-info-row{display:flex;align-items:flex-start;gap:8px}
+.contact-info-row .detail-field{flex:1;min-width:0}
+.icon-btn{min-height:0;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer;flex-shrink:0}
+
+.detail-tabs .tab-strip{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:-4px -4px 16px}
+.detail-tabs .tab{min-height:0;padding:9px 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:inherit;font-weight:600;cursor:pointer}
+.detail-tabs .tab.is-active{color:var(--navy-950);border-bottom-color:var(--navy-950)}
+.detail-tabs .tab-panel{display:none}
+.detail-tabs .tab-panel.is-active{display:block}
+.timeline-entry{padding:12px 0;border-bottom:1px solid var(--line)}
+.timeline-entry:last-child{border-bottom:0}
+.timeline-entry small{display:block;color:var(--muted);margin:2px 0 6px}
+.comment-form textarea,.comment-form{display:block;width:100%}
+.comment-form{margin-bottom:16px}
+.comment-form textarea{margin-bottom:8px}
+.file-list,.related-list,.reminder-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.file-list li,.related-list li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.file-list li small{color:var(--muted)}
+.muted{color:var(--muted)}
+
+.detail-aside{display:grid;gap:16px;align-content:start}
+.aside-card{border:1px solid var(--line);border-radius:12px;background:#fff;padding:16px}
+.aside-card h3{font-size:13px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:0 0 10px}
+.aside-card h3+h3{margin-top:14px}
+.aside-link{display:block;font-weight:600;color:var(--navy-950);text-decoration:none}
+.aside-sub{display:block;margin-top:4px;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.aside-meta{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0;font-size:13px}
+.aside-meta dt{color:var(--muted)}
+.aside-meta dd{margin:0;text-align:right}
+@media(max-width:900px){.record-detail{grid-template-columns:1fr}}
 .settings-list .user-row{display:grid;gap:10px}
 .user-row-info small{display:block;color:var(--muted);font-weight:400}
 .user-row-actions,.user-row-reset{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0}

@@ -1053,23 +1053,34 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 
 @login_required
 def contact_detail(request, pk):
-    from .detail_editing import detail_fields
+    from .detail_editing import detail_fields, grouped_detail_fields
     person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
+    activities = [a for a in person.activities.all() if a.deleted_at is None]
+    linked_companies = [link.company for link in person.company_links.all()]
+    coworkers = (Person.objects.filter(company_links__company__in=[c.pk for c in linked_companies], deleted_at__isnull=True)
+                 .exclude(pk=person.pk).distinct().order_by("last_name", "first_name")[:50]) if linked_companies else []
     return render(request, "contacts/detail.html", {
         "person": person,
         "detail_fields": detail_fields(person),
+        **grouped_detail_fields(person),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "activity_form": ActivityForm(),
         "reminder_form": ReminderForm(),
         "activity_token": uuid.uuid4().hex,
+        "comment_token": uuid.uuid4().hex,
         "reminder_token": uuid.uuid4().hex,
         "active_reminders": open_reminders,
         "next_reminder": open_reminders.filter(due_at__gt=now).order_by("due_at").first(),
         "overdue_reminder_count": open_reminders.filter(due_at__lte=now).count(),
+        "log_entries": [a for a in activities if a.activity_type != Activity.NOTE],
+        "comment_entries": [a for a in activities if a.activity_type == Activity.NOTE],
+        "attachment_entries": [att for a in activities for att in a.attachments.all()],
+        "related_companies": linked_companies,
+        "related_people": list(coworkers),
         **_authorship_context(person, "person"),
-        **_last_activity_context(person.activities.filter(deleted_at__isnull=True).order_by("-created_at").first()),
+        **_last_activity_context(next((a for a in sorted(activities, key=lambda x: x.created_at, reverse=True)), None)),
     })
 
 
@@ -1350,11 +1361,11 @@ def company_list(request):
 
 @login_required
 def company_detail(request, pk):
-    from .detail_editing import company_detail_fields
+    from .detail_editing import company_detail_fields, grouped_detail_fields
     company = get_object_or_404(visible_companies(request.user, Company.objects.select_related("owner", "created_by").prefetch_related("person_links__person", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
-    history = Activity.objects.filter(deleted_at__isnull=True).filter(
+    history = list(Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__company_links__company=company)
-    ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at")
+    ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at"))
     now = timezone.now()
     linked_reminders = Reminder.objects.filter(
         person__company_links__company=company, person__deleted_at__isnull=True,
@@ -1363,13 +1374,21 @@ def company_detail(request, pk):
     next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
     return render(request, "companies/detail.html", {
         "company": company, "detail_fields": company_detail_fields(company),
+        **grouped_detail_fields(company),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "history": history, "activity_form": ActivityForm(), "activity_token": uuid.uuid4().hex,
+        "comment_token": uuid.uuid4().hex,
+        "active_reminders": linked_reminders.select_related("person").order_by("due_at"),
         "next_reminder": next_reminder,
         "next_reminder_person": next_reminder.person if next_reminder else None,
         "overdue_reminder_count": linked_reminders.filter(due_at__lte=now).count(),
+        "log_entries": [a for a in history if a.activity_type != Activity.NOTE],
+        "comment_entries": [a for a in history if a.activity_type == Activity.NOTE],
+        "attachment_entries": [att for a in history for att in a.attachments.all()],
+        "related_people": [link.person for link in company.person_links.all()],
+        "related_companies": [],
         **_authorship_context(company, "company"),
-        **_last_activity_context(history.first()),
+        **_last_activity_context(history[0] if history else None),
     })
 
 

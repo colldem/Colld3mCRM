@@ -1,0 +1,150 @@
+{% load i18n crm_format %}
+{% if is_company %}{% url 'contacts:company-activity-create' company.pk as activity_action %}{% url 'contacts:company-list' as back_url %}{% else %}{% url 'contacts:activity-create' person.pk as activity_action %}{% url 'contacts:list' as back_url %}{% endif %}
+
+<div class="record-detail-head">
+  <a class="back-link" href="{{ back_url }}">← {% if is_company %}{% translate 'Grįžti į įmonių sąrašą' %}{% else %}{% translate 'Grįžti į kontaktų sąrašą' %}{% endif %}</a>
+  <div class="record-detail-titlebar">
+    <div class="record-detail-identity">
+      {% include "contacts/detail_title.html" %}
+      <p class="record-subtitle">{% if is_company %}{{ company.company_code }}{% else %}{{ person.job_title }}{% if person.primary_company %} · <a href="{{ person.primary_company.get_absolute_url }}">{{ person.primary_company.name }}</a>{% endif %}{% endif %}</p>
+    </div>
+    <div class="record-detail-actions">
+      <a class="btn" href="{% if is_company %}{% url 'contacts:company-edit' company.pk %}{% else %}{% url 'contacts:edit' person.pk %}{% endif %}">✎ {% translate 'Redaguoti' %}</a>
+      <details class="record-more"><summary class="btn" aria-label="{% translate 'Daugiau veiksmų' %}">…</summary>
+        <div class="record-more-menu">
+          <button type="button" class="copy-link" data-link="{{ request.scheme }}://{{ request.get_host }}{{ record.get_absolute_url }}">{% translate 'Kopijuoti nuorodą' %}</button>
+          {% if crm_caps.can_delete %}<form method="post" action="{% if is_company %}{% url 'contacts:company-archive' company.pk %}{% else %}{% url 'contacts:archive' person.pk %}{% endif %}">{% csrf_token %}<button class="danger" type="submit">{% translate 'Archyvuoti' %}</button></form>{% endif %}
+        </div>
+      </details>
+      <a class="btn primary" href="#tab-reminders" data-open-tab="reminders">+ {% translate 'Naujas priminimas' %}</a>
+    </div>
+  </div>
+  {% if overdue_reminder_count %}<p class="record-detail-warn">⚠ {% translate 'Vėluojantys priminimai' %}: {{ overdue_reminder_count }}</p>{% endif %}
+  <p id="field-save-status" class="edit-hint" role="status" aria-live="polite"></p>
+</div>
+
+<div class="record-detail">
+  <div class="detail-main">
+    <section class="detail-card">
+      <h2>{% translate 'Kontaktinė informacija' %}</h2>
+      <p class="edit-hint">{% translate 'Dukart spustelėkite reikšmę, kad redaguotumėte vietoje.' %}</p>
+      <div class="detail-fields-grid">
+        {% for item in contact_info_fields %}
+          <div class="contact-info-row">{% include "contacts/detail_field.html" %}{% with copyable=item.entries.0.text %}{% if copyable %}<button type="button" class="copy-email icon-btn" data-email="{{ copyable }}" aria-label="{% translate 'Kopijuoti' %}">⧉</button>{% endif %}{% endwith %}</div>
+        {% empty %}<p class="muted">{% translate 'Nėra duomenų.' %}</p>{% endfor %}
+      </div>
+    </section>
+
+    <details class="detail-card collapsible" open>
+      <summary><h2>{% translate 'Papildomi laukai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
+      <div class="detail-fields-grid">
+        {% for item in grid_fields %}{% include "contacts/detail_field.html" %}{% endfor %}
+        <div class="detail-field readonly">
+          <div class="field-display"><strong>{% translate 'Paskutinis kontaktas' %}</strong><div class="field-values"><div>{% if last_activity %}{{ last_activity.created_at|date:"Y-m-d" }} · {{ last_activity.get_activity_type_display }}{% else %}–{% endif %}</div></div></div>
+        </div>
+        <div class="detail-field readonly">
+          <div class="field-display"><strong>{% translate 'Sekantis kontaktas' %}</strong><div class="field-values"><div>{% if next_reminder %}{{ next_reminder.due_at|date:"Y-m-d H:i" }}{% else %}–{% endif %}</div></div></div>
+        </div>
+      </div>
+    </details>
+
+    <section class="detail-card">
+      <h2>{% translate 'Aprašymas' %}</h2>
+      {% if description_field %}{% with item=description_field %}{% include "contacts/detail_field.html" %}{% endwith %}{% endif %}
+    </section>
+
+    <section class="detail-card detail-tabs" data-tabs>
+      <div class="tab-strip" role="tablist">
+        <button type="button" role="tab" class="tab is-active" data-tab="log">{% translate 'Veiklos' %}</button>
+        <button type="button" role="tab" class="tab" data-tab="reminders" id="tab-reminders">{% translate 'Priminimai' %}</button>
+        <button type="button" role="tab" class="tab" data-tab="comments">{% translate 'Komentarai' %}</button>
+        <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %}</button>
+        <button type="button" role="tab" class="tab" data-tab="related">{% translate 'Susiję įrašai' %}</button>
+      </div>
+
+      <div class="tab-panel is-active" data-panel="log">
+        <form id="composer" method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="composer">{% csrf_token %}
+          <input type="hidden" name="submission_token" value="{{ activity_token }}">
+          {{ activity_form.as_p }}
+          <p><label for="attachments">{% translate 'Failai ir nuotraukos' %}</label><input id="attachments" name="attachments" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"><small>{% translate 'Iki 10 MB vienam failui.' %}</small></p>
+          <button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button>
+        </form>
+        <div class="timeline">
+          {% for activity in log_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Įrašų dar nėra.' %}</p>{% endfor %}
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="reminders" hidden>
+        {% if not is_company %}
+        <details id="reminder-add"><summary>{% translate 'Pridėti priminimą' %}</summary>
+          <form method="post" action="{% url 'contacts:reminder-create' person.pk %}">{% csrf_token %}
+            <input type="hidden" name="submission_token" value="{{ reminder_token }}">{{ reminder_form.as_p }}
+            <button class="btn primary" type="submit">{% translate 'Pridėti' %}</button>
+          </form>
+        </details>
+        {% endif %}
+        <div class="reminder-list">
+          {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:"Y-m-d H:i" }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span><form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form></div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="comments" hidden>
+        <form method="post" action="{{ activity_action }}" class="comment-form">{% csrf_token %}
+          <input type="hidden" name="activity_type" value="note">
+          <input type="hidden" name="submission_token" value="{{ comment_token }}">
+          <textarea name="text" rows="3" required placeholder="{% translate 'Įrašykite komentarą...' %}"></textarea>
+          <button class="btn primary" type="submit">{% translate 'Pridėti komentarą' %}</button>
+        </form>
+        <div class="timeline">
+          {% for activity in comment_entries %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Komentarų dar nėra.' %}</p>{% endfor %}
+        </div>
+      </div>
+
+      <div class="tab-panel" data-panel="files" hidden>
+        <ul class="file-list">
+          {% for attachment in attachment_entries %}<li><a href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a><small>{{ attachment.created_at|date:"Y-m-d H:i" }}</small></li>{% empty %}<li class="muted">{% translate 'Failų nėra.' %}</li>{% endfor %}
+        </ul>
+      </div>
+
+      <div class="tab-panel" data-panel="related" hidden>
+        {% if related_companies %}<h3>{% translate 'Įmonės' %}</h3><ul class="related-list">{% for c in related_companies %}<li><a href="{{ c.get_absolute_url }}">{{ c.name }}</a></li>{% endfor %}</ul>{% endif %}
+        {% if related_people %}<h3>{% if is_company %}{% translate 'Kontaktiniai asmenys' %}{% else %}{% translate 'Kolegos' %}{% endif %}</h3><ul class="related-list">{% for p in related_people %}<li><a href="{{ p.get_absolute_url }}">{{ p }}</a>{% if p.job_title %} <small>{{ p.job_title }}</small>{% endif %}</li>{% endfor %}</ul>{% endif %}
+        {% if not related_companies and not related_people %}<p class="muted">{% translate 'Susijusių įrašų nėra.' %}</p>{% endif %}
+      </div>
+    </section>
+  </div>
+
+  <aside class="detail-aside">
+    {% if not is_company and person.primary_company %}
+    <section class="aside-card">
+      <h3>{% translate 'Organizacija' %}</h3>
+      <a class="aside-link" href="{{ person.primary_company.get_absolute_url }}">{{ person.primary_company.name }} <span aria-hidden="true">›</span></a>
+      {% if person.primary_company.url %}<a class="aside-sub" href="{{ person.primary_company.url }}" target="_blank" rel="noopener noreferrer">{{ person.primary_company.url }}</a>{% endif %}
+    </section>
+    {% endif %}
+
+    {% if responsibles_field %}
+    <section class="aside-card">
+      <h3>{% translate 'Atsakingi' %}</h3>
+      {% with item=responsibles_field %}{% include "contacts/detail_field.html" %}{% endwith %}
+    </section>
+    {% endif %}
+
+    <section class="aside-card">
+      <h3>{% translate 'Žymos' %}</h3>
+      {% include "inline_choices.html" with kind=inline_kind record=record field="tags" selected=record.tags.all choices=tags title="Žymos" %}
+      <h3>{% translate 'Kategorijos' %}</h3>
+      {% include "inline_choices.html" with kind=inline_kind record=record field="categories" selected=record.categories.all choices=categories title="Kategorijos" %}
+    </section>
+
+    <section class="aside-card">
+      <h3>{% translate 'Papildoma informacija' %}</h3>
+      <dl class="aside-meta">
+        <dt>{% translate 'Sukūrimo data' %}</dt><dd>{{ record.created_at|date:"Y-m-d" }}</dd>
+        <dt>{% translate 'Paskutinį kartą atnaujinta' %}</dt><dd>{{ record.updated_at|date:"Y-m-d" }}</dd>
+        <dt>{% translate 'Sukūrė' %}</dt><dd>{{ created_by_label|default:"–" }}</dd>
+        <dt>{% translate 'Atnaujino' %}</dt><dd>{{ updated_by_label|default:"–" }}</dd>
+      </dl>
+    </section>
+  </aside>
+</div>
