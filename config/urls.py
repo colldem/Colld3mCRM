@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
@@ -19,3 +20,6 @@ urlpatterns = [
     path("sw.js", views.pwa_service_worker, name="pwa-service-worker"),
     path("", include("contacts.urls")),
 ]
+
+if settings.OIDC_ENABLED:
+    urlpatterns.insert(4, path("oidc/", include("mozilla_django_oidc.urls")))

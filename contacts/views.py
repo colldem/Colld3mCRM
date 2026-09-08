@@ -1111,6 +1111,52 @@ def notifications_unsubscribe(request, token):
     return render(request, "notifications/unsubscribed.html", {"ok": profile is not None})
 
 
+@login_required
+def settings_incoming_mail(request):
+    from .models import IncomingMail
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    if request.method == "POST":
+        mail = IncomingMail.objects.filter(pk=request.POST.get("mail_id"), resolved_at__isnull=True).first()
+        if mail and request.POST.get("action") == "ignore":
+            mail.resolved_at = timezone.now()
+            mail.save(update_fields=["resolved_at"])
+            messages.success(request, tr("Laiškas paslėptas."))
+        elif mail and request.POST.get("action") == "assign":
+            raw = (request.POST.get("contact") or "").strip()
+            person = None
+            if raw.isdigit():
+                person = Person.objects.filter(pk=raw, deleted_at__isnull=True).first()
+            if person is None and "@" in raw:
+                person = Person.objects.filter(emails__email__iexact=raw, deleted_at__isnull=True).first()
+            if person is None and raw:
+                parts = raw.split()
+                person = Person.objects.filter(first_name__icontains=parts[0],
+                                               last_name__icontains=parts[-1], deleted_at__isnull=True).first()
+            if person is None:
+                messages.error(request, tr("Kontaktas nerastas. Įrašykite ID, el. paštą arba vardą ir pavardę."))
+            else:
+                author = get_user_model().objects.filter(is_active=True, email__iexact=mail.from_addr).first() or request.user
+                activity = Activity.objects.create(
+                    person=person, activity_type=Activity.EMAIL, created_by=author, message_id=mail.message_id,
+                    text=((mail.subject + "\n\n" + mail.body).strip() or "(be teksto)")[:9000])
+                mail.resolved_at = timezone.now()
+                mail.resolved_activity = activity
+                mail.save(update_fields=["resolved_at", "resolved_activity"])
+                audit_log(AuditLog.CREATE, request=request, target=person, field=str(tr("El. laiškas")),
+                          new=mail.subject[:150])
+                messages.success(request, tr("Laiškas priskirtas kontaktui."))
+        return redirect("contacts:settings-incoming-mail")
+    return render(request, "settings/incoming_mail.html", {
+        "settings_section": "incoming-mail",
+        "mails": IncomingMail.objects.filter(resolved_at__isnull=True),
+        "imap_configured": bool(settings.IMAP_HOST),
+        "imap_host": settings.IMAP_HOST,
+    })
+
+
 def calendar_feed(request, token):
     profile = UserProfile.objects.filter(calendar_token=token).select_related("user").first()
     if profile is None or not profile.user.is_active:

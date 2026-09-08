@@ -333,6 +333,8 @@ class Activity(TimestampedModel):
     text = models.TextField(max_length=10000)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="crm_activities")
     submission_token = models.CharField(max_length=64, blank=True, unique=True, null=True)
+    # Set for entries created from an incoming email (G6) — dedup key.
+    message_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -571,3 +573,23 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.created_at:%Y-%m-%d %H:%M} {self.actor_label} {self.action} {self.target_label}".strip()
+
+
+class IncomingMail(models.Model):
+    """An email pulled from the CRM dropbox that could not be matched to a
+    contact automatically. An admin assigns it from Settings -> Gauti laiškai."""
+    message_id = models.CharField(max_length=255, unique=True)
+    from_addr = models.CharField(max_length=320)
+    to_addrs = models.CharField(max_length=1000, blank=True)
+    subject = models.CharField(max_length=500, blank=True)
+    body = models.TextField(blank=True)
+    received_at = models.DateTimeField()
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_activity = models.ForeignKey("Activity", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-received_at"]
+
+    def __str__(self):
+        return f"{self.from_addr}: {self.subject}"

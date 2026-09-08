@@ -1,4 +1,38 @@
 name: crm
+
+x-crm-env: &crm-env
+  DB_HOST: crm-db
+  DB_NAME: crm
+  DB_USER: crm
+  DB_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Nustatykite DJANGO_SECRET_KEY}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-crm,localhost,127.0.0.1}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+  DJANGO_DEBUG: "false"
+  DJANGO_FORCE_HTTPS: ${DJANGO_FORCE_HTTPS:-false}
+  DJANGO_SESSION_IDLE_MINUTES: ${DJANGO_SESSION_IDLE_MINUTES:-480}
+  CRM_BASE_URL: ${CRM_BASE_URL:-}
+  # Email notifications (G7)
+  EMAIL_HOST: ${EMAIL_HOST:-}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+  EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+  EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
+  EMAIL_USE_SSL: ${EMAIL_USE_SSL:-false}
+  DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
+  # Incoming mail (G6)
+  IMAP_HOST: ${IMAP_HOST:-}
+  IMAP_PORT: ${IMAP_PORT:-993}
+  IMAP_USER: ${IMAP_USER:-}
+  IMAP_PASSWORD: ${IMAP_PASSWORD:-}
+  IMAP_FOLDER: ${IMAP_FOLDER:-INBOX}
+  # Microsoft Entra ID login (G5)
+  OIDC_ENABLED: ${OIDC_ENABLED:-false}
+  OIDC_RP_CLIENT_ID: ${OIDC_RP_CLIENT_ID:-}
+  OIDC_RP_CLIENT_SECRET: ${OIDC_RP_CLIENT_SECRET:-}
+  OIDC_TENANT_ID: ${OIDC_TENANT_ID:-}
+  OIDC_CREATE_USERS: ${OIDC_CREATE_USERS:-false}
+
 services:
   crm-db:
     image: postgres:17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
@@ -50,20 +84,11 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-web:
-    image: crm-web:0.44.0
+    image: crm-web:0.45.0
     build: .
     environment:
-      DB_HOST: crm-db
-      DB_NAME: crm
-      DB_USER: crm
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Nustatykite DJANGO_SECRET_KEY}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-crm,localhost,127.0.0.1}
-      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      <<: *crm-env
       CRM_SETUP_TOKEN: ${CRM_SETUP_TOKEN:-}
-      DJANGO_DEBUG: "false"
-      DJANGO_FORCE_HTTPS: ${DJANGO_FORCE_HTTPS:-false}
-      DJANGO_SESSION_IDLE_MINUTES: ${DJANGO_SESSION_IDLE_MINUTES:-480}
     volumes:
       - ./runtime/media:/app/runtime/media
     network_mode: service:crm-tailscale
@@ -75,5 +100,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  crm-worker:
+    image: crm-web:0.45.0
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "while true; do python manage.py extend_recurrences || true; python manage.py send_notifications || true; python manage.py fetch_mail || true; sleep ${WORKER_INTERVAL_SECONDS:-300}; done"
+    environment:
+      <<: *crm-env
+    volumes:
+      - ./runtime/media:/app/runtime/media
+    depends_on:
+      crm-db: {condition: service_healthy}
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]

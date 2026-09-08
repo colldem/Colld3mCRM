@@ -160,3 +160,30 @@ else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # Absolute base for links inside emails (no request object in the cron command).
 CRM_BASE_URL = os.environ.get("CRM_BASE_URL", "https://%s" % (ALLOWED_HOSTS[0] if ALLOWED_HOSTS else "localhost"))
+
+# Incoming mail dropbox (G6). Empty IMAP_HOST disables fetching.
+IMAP_HOST = os.environ.get("IMAP_HOST", "")
+IMAP_PORT = int(os.environ.get("IMAP_PORT", "993"))
+IMAP_USER = os.environ.get("IMAP_USER", "")
+IMAP_PASSWORD = os.environ.get("IMAP_PASSWORD", "")
+IMAP_FOLDER = os.environ.get("IMAP_FOLDER", "INBOX")
+
+# Microsoft Entra ID / OpenID Connect login (G5). Off unless OIDC_ENABLED=true.
+OIDC_ENABLED = os.environ.get("OIDC_ENABLED", "false").lower() == "true" and bool(os.environ.get("OIDC_RP_CLIENT_ID"))
+OIDC_RP_CLIENT_ID = os.environ.get("OIDC_RP_CLIENT_ID", "")
+OIDC_RP_CLIENT_SECRET = os.environ.get("OIDC_RP_CLIENT_SECRET", "")
+OIDC_TENANT_ID = os.environ.get("OIDC_TENANT_ID", "")
+OIDC_CREATE_USERS = os.environ.get("OIDC_CREATE_USERS", "false").lower() == "true"
+if OIDC_ENABLED:
+    INSTALLED_APPS.append("mozilla_django_oidc")
+    AUTHENTICATION_BACKENDS.insert(1, "contacts.oidc.EntraOIDCBackend")
+    _authority = "https://login.microsoftonline.com/%s/v2.0" % (OIDC_TENANT_ID or "common")
+    OIDC_OP_AUTHORIZATION_ENDPOINT = _authority + "/authorize"
+    OIDC_OP_TOKEN_ENDPOINT = _authority + "/token"
+    OIDC_OP_USER_ENDPOINT = _authority.replace("/v2.0", "") + "/openid/userinfo"
+    OIDC_OP_JWKS_ENDPOINT = _authority + "/keys"
+    OIDC_RP_SIGN_ALGO = "RS256"
+    OIDC_RP_SCOPES = "openid email profile"
+    OIDC_USERNAME_ALGO = "contacts.oidc.username_from_claims"
+    LOGIN_REDIRECT_URL = "contacts:list"
+    LOGOUT_REDIRECT_URL = "login"

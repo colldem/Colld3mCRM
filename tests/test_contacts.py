@@ -3175,3 +3175,85 @@ class CalendarFeedTests(TestCase):
         self.profile.refresh_from_db()
         self.assertNotEqual(self.profile.calendar_token, old)
         self.assertEqual(self.client.get(self._url(old)).status_code, 404)
+
+
+class IncomingMailTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user("adm", password="very-secure-password",
+                                                          email="adm@imone.lt", is_superuser=True, is_staff=True)
+        self.staffer = get_user_model().objects.create_user("darb", password="very-secure-password",
+                                                            email="darbuotojas@imone.lt")
+        self.person = Person.objects.create(first_name="Klientas", last_name="Klientaitis")
+        EmailAddress.objects.create(person=self.person, email="klientas@example.lt")
+
+    def _raw(self, **kw):
+        from email.message import EmailMessage
+        m = EmailMessage()
+        m["Message-ID"] = kw.get("mid", "<a@b>")
+        m["From"] = kw.get("frm", "darbuotojas@imone.lt")
+        m["To"] = kw.get("to", "klientas@example.lt")
+        m["Subject"] = kw.get("subject", "Dėl sutarties")
+        m["Date"] = "Mon, 08 Sep 2026 10:00:00 +0000"
+        m.set_content(kw.get("body", "Sveiki, siunčiu sutartį."))
+        return m.as_bytes()
+
+    def test_matched_mail_becomes_an_email_activity_by_the_sender(self):
+        from contacts.mailfetch import process_message
+        self.assertEqual(process_message(self._raw()), "activity")
+        a = Activity.objects.get(message_id="<a@b>")
+        self.assertEqual((a.person_id, a.activity_type, a.created_by_id),
+                         (self.person.pk, "email", self.staffer.pk))
+        self.assertIn("Dėl sutarties", a.text)
+
+    def test_the_same_message_id_is_only_filed_once(self):
+        from contacts.mailfetch import process_message
+        process_message(self._raw())
+        self.assertEqual(process_message(self._raw()), "duplicate")
+        self.assertEqual(Activity.objects.filter(message_id="<a@b>").count(), 1)
+
+    def test_unmatched_mail_is_held_and_an_admin_can_assign_it(self):
+        from contacts.mailfetch import process_message
+        from contacts.models import IncomingMail
+        self.assertEqual(process_message(self._raw(to="nezinomas@x.lt", mid="<c@d>")), "unmatched")
+        mail = IncomingMail.objects.get(resolved_at__isnull=True)
+        self.client.force_login(self.admin)
+        self.client.post(reverse("contacts:settings-incoming-mail"),
+                         {"action": "assign", "mail_id": mail.pk, "contact": str(self.person.pk)})
+        mail.refresh_from_db()
+        self.assertIsNotNone(mail.resolved_at)
+        self.assertTrue(Activity.objects.filter(person=self.person, message_id="<c@d>").exists())
+
+    def test_incoming_mail_page_is_admin_only(self):
+        self.client.force_login(self.staffer)
+        self.assertEqual(self.client.get(reverse("contacts:settings-incoming-mail")).status_code, 404)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse("contacts:settings-incoming-mail")).status_code, 200)
+
+    def test_fetch_does_nothing_without_imap_host(self):
+        from contacts.mailfetch import fetch
+        self.assertEqual(fetch(), {})
+
+
+class EntraLoginTests(TestCase):
+    def test_username_helper_prefers_upn_then_email(self):
+        from contacts.oidc import username_from_claims
+        self.assertEqual(username_from_claims({"preferred_username": "A@B.LT"}), "a@b.lt")
+        self.assertEqual(username_from_claims({"email": "c@d.lt"}), "c@d.lt")
+        self.assertEqual(username_from_claims({}), "")
+
+    def test_login_page_hides_the_microsoft_button_when_oidc_is_off(self):
+        response = self.client.get(reverse("login"))
+        self.assertNotContains(response, "Prisijungti su Microsoft")
+        self.assertNotContains(response, "oidc")
+
+    @override_settings(
+        OIDC_RP_CLIENT_ID="x", OIDC_RP_CLIENT_SECRET="y", OIDC_RP_SIGN_ALGO="RS256",
+        OIDC_OP_AUTHORIZATION_ENDPOINT="https://e/a", OIDC_OP_TOKEN_ENDPOINT="https://e/t",
+        OIDC_OP_USER_ENDPOINT="https://e/u", OIDC_OP_JWKS_ENDPOINT="https://e/k",
+        OIDC_CREATE_USERS=False)
+    def test_backend_links_by_email_and_never_auto_creates_by_default(self):
+        from contacts.oidc import EntraOIDCBackend
+        user = get_user_model().objects.create_user("esamas", email="esamas@imone.lt", password="very-secure-password")
+        backend = EntraOIDCBackend()
+        self.assertEqual(list(backend.filter_users_by_claims({"email": "ESAMAS@imone.lt"})), [user])
+        self.assertIsNone(backend.create_user({"email": "naujas@imone.lt"}))

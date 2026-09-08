@@ -32,6 +32,8 @@ Sąmoningi apribojimai: **nėra CI/CD**, nėra automatinių atsarginių kopijų 
 | DB draiveris | `psycopg` 3 (binary) | — |
 | Slaptažodžiai | Argon2 (`argon2-cffi`), min. 12 simbolių, 4 validatoriai | `PASSWORD_HASHERS` |
 | Prisijungimų ribojimas | `django-axes` 8 | 5 klaidos → 30 min blokada pagal (username, ip), HTTP 429 |
+| SSO (neprivalomas) | `mozilla-django-oidc` | Microsoft Entra ID prisijungimas, kai `OIDC_ENABLED=true` |
+| El. paštas | Django SMTP backend (`EMAIL_*`) + `imaplib` (gauti laiškai) | be `.env` — laiškai į žurnalą, IMAP išjungtas |
 | Importas | `openpyxl` | XLSX skaitymas; CSV — standartinė biblioteka |
 | Sąsaja | AdminLTE 4 + Bootstrap 5, **įdiegti vietoje** `static/vendor/adminlte/` | uždaras tinklas — jokių CDN |
 | Grafikai | rankomis generuojamas inline SVG (`contacts/charts.py`) | jokios chart bibliotekos |
@@ -50,7 +52,7 @@ config/            Django projektas
   urls.py          šakninis URL žemėlapis (admin, auth, setup, health, PWA)
   wsgi.py
 contacts/          vienintelė programa (app)
-  models.py        visi 23 modeliai
+  models.py        visi modeliai
   views.py         pagrindiniai puslapiai ir CRUD
   analytics_views.py   darbastalis + analitikos puslapiai
   calendar_views.py    kalendorius ir įvykių API
@@ -65,11 +67,18 @@ contacts/          vienintelė programa (app)
   signals.py       m2m limitas (≤3), prisijungimo/atsijungimo audit
   context_processors.py  priminimų skaičius, profilis, teisės, sistemos nustatymai
   reminder_live.py / reminder_queries.py  priminimų snapshot ir užklausos
-  migrations/      24 migracijos
+  notifications.py  el. pašto pranešimų kūrimas ir siuntimas
+  recurrence.py     pasikartojančių priminimų materializavimas
+  ical.py           .ics kalendoriaus srautas (be bibliotekos)
+  mailfetch.py      IMAP gautų laiškų parsisiuntimas ir priskyrimas
+  oidc.py           Microsoft Entra ID (OIDC) prisijungimo backend'as
+  sanitizers.py     safe_url / csv_safe
+  management/commands/  send_notifications, extend_recurrences, fetch_mail, ensure_admin
+  migrations/      migracijos
 templates/         serverio pusėje renderinami šablonai (be JS karkaso)
 static/            css/ (app.css, theme.css), js/ (progresyvus enhancement), vendor/adminlte
 locale/en/         .po / .mo (šaltinis — lietuviški msgid)
-tests/             test_contacts.py (~207), test_theme.py (~10)
+tests/             test_contacts.py, test_theme.py (~250 iš viso)
 scripts/           entrypoint.sh, backup.sh, release-check.sh
 deploy/tailscale/  serve.json
 docs/              ši byla, DEPLOYMENT-UGREEN.md, REMAINING-WORK.md
@@ -194,6 +203,9 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
   nė vieno naudotojo ir su `CRM_SETUP_TOKEN`.
 - Argon2, min. 12 simbolių, panašumo/dažnumo/skaitmenų validatoriai.
 - `django-axes`: 5 klaidos → 30 min blokada (username+IP), 429.
+- Neprivalomas Microsoft Entra ID (OIDC) prisijungimas (`OIDC_ENABLED=true`):
+  `contacts.oidc.EntraOIDCBackend` susieja pagal el. paštą su esama aktyvia
+  paskyra; naujų nekuria be `OIDC_CREATE_USERS=true`. Vietinis prisijungimas lieka.
 - CSRF įjungta; `HttpOnly` + `SameSite=Lax` sesijos slapukai; idle timeout
   (`SESSION_COOKIE_AGE`, numatyta 480 min, `SESSION_SAVE_EVERY_REQUEST`).
 - `DJANGO_FORCE_HTTPS=true` (prod): saugūs slapukai, `SECURE_SSL_REDIRECT`, HSTS.
@@ -211,15 +223,21 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 | `crm-backup` | `postgres:17` | periodinis `pg_dump` (`scripts/backup.sh`) | `runtime/backups` |
 | `crm-tailscale` | `tailscale/tailscale` | TLS/tinklas, Tailscale Serve | `runtime/tailscale-state` |
 | `crm-web` | `crm-web:X.Y.Z` (vietinis build) | Django + Gunicorn | `runtime/media` |
+| `crm-worker` | `crm-web:X.Y.Z` (tas pats image) | foninis ciklas: `extend_recurrences`, `send_notifications`, `fetch_mail` | `runtime/media` |
 
 - `crm-web` naudoja `network_mode: service:crm-tailscale` — dalijasi Tailscale
   konteinerio tinklu, todėl klausosi `:8080` už Tailscale Serve.
+- `crm-worker` sukasi `while true; do … ; sleep ${WORKER_INTERVAL_SECONDS:-300}; done`;
+  komandos nekenksmingai nieko nedaro, kol `.env` integracijos nesukonfigūruotos.
+- Bendri env kintamieji laikomi `compose.yaml` YAML anchor'e `x-crm-env` ir
+  įtraukiami į `crm-web` bei `crm-worker`.
 - `entrypoint.sh`: `migrate --noinput` → `collectstatic --noinput` → gunicorn.
 - Healthcheck: `crm-web` — `GET /health/ready`; `crm-db` — `pg_isready`.
 - Funkcinis pakeitimas → `VERSION` + `compose.yaml` `image:` tag'as bumpinami kartu.
 - `.env` (negitinamas) laiko `POSTGRES_PASSWORD`, `DJANGO_SECRET_KEY`,
   `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_FORCE_HTTPS`,
-  `TS_AUTHKEY`, `CRM_SETUP_TOKEN` ir kt.
+  `TS_AUTHKEY`, `CRM_SETUP_TOKEN`, taip pat neprivalomus `EMAIL_*`, `IMAP_*`,
+  `OIDC_*`, `CRM_BASE_URL` (žr. `.env.example`) ir kt.
 
 ---
 
@@ -237,7 +255,7 @@ Nėra vieno perkeliamo failo. Pilna kopija = PostgreSQL `pg_dump -Fc` +
 
 - `scripts/release-check.sh`: `makemigrations --check --dry-run` → visi testai →
   `check --deploy` (su prod-panašiais env) → `serve.json` JSON patikra.
-- ~217 testų `tests/`. `test_theme.py` sergsti dizaino žetonų skalę ir CSS
+- ~250 testų `tests/`. `test_theme.py` sergsti dizaino žetonų skalę ir CSS
   taisyklių korektiškumą.
 - Kiekvienam pakeitimui: minimalus diff, žalias `release-check`, patikra
   naršyklėje (LT/EN, desktop/mobile), tada diegimas, tik po jo — `git push`.
@@ -247,6 +265,9 @@ Nėra vieno perkeliamo failo. Pilna kopija = PostgreSQL `pg_dump -Fc` +
 
 ## 13. Ką dar planuojama
 
-Žr. `docs/REMAINING-WORK.md` (skyrius „G"): užduočių priskyrimas kolegoms,
-el. pašto pranešimai (rytinė santrauka), pasikartojantys įvykiai, `.ics`
-prenumerata, Microsoft Entra ID prisijungimas, el. laiškų prisegimas per BCC.
+„G" skyriaus darbai (`docs/REMAINING-WORK.md`) įgyvendinti: analitika, užduočių
+priskyrimas kolegoms, el. pašto pranešimai, pasikartojantys įvykiai, `.ics`
+prenumerata, Microsoft Entra ID prisijungimas, gautų el. laiškų prisegimas.
+Trys pastarosios (SMTP, IMAP, Entra) kode baigtos ir įsijungia užpildžius `.env`.
+Sąmoningai atmesta: sandoriai/piltuvėlis, dvipusė kalendoriaus sinchronizacija,
+grafinis ryšių medis.

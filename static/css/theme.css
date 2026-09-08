@@ -235,6 +235,7 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .login-page{background:#f4f6f9}
 .login-panel{border-radius:8px;box-shadow:0 4px 20px #10243e0d}
 .login-panel h1{font-size:28px}
+.login-or{margin:16px 0 12px;text-align:center;color:var(--muted);font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.06em}
 @media(min-width:992px) and (max-width:1350px){.record-toolbar{flex-wrap:wrap}.record-toolbar .list-actions{margin-left:auto}}
 @media(max-width:991.98px){
  .sidebar-toggle{display:inline-flex}

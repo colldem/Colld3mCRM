@@ -50,7 +50,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
-  SystemSettings.
+  SystemSettings, IncomingMail.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
   darbastalis ir analitika; `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
@@ -58,7 +58,11 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `permissions.py` — rolės, teisės ir įrašų matomumas; `charts.py` — SVG grafikai;
   `notifications.py` + `management/commands/send_notifications.py` — el. pašto pranešimai;
   `recurrence.py` + `management/commands/extend_recurrences.py` — pasikartojantys priminimai;
-  `ical.py` — .ics kalendoriaus srautas; `sanitizers.py` — `safe_url` / `csv_safe`.
+  `ical.py` — .ics kalendoriaus srautas; `sanitizers.py` — `safe_url` / `csv_safe`;
+  `mailfetch.py` + `management/commands/fetch_mail.py` — IMAP gautų laiškų prisegimas;
+  `oidc.py` — Microsoft Entra ID (OIDC) prisijungimo backend'as.
+- Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`) vykdo
+  `crm-worker` paslauga `compose.yaml` (ciklas kas `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
 - `docs/DEPLOYMENT-UGREEN.md` — diegimo procedūra; prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.

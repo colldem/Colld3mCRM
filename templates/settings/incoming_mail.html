@@ -1,0 +1,27 @@
+{% extends "settings/layout.html" %}{% load i18n crm_format %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div><h2>{% translate 'Gauti laiškai' %}</h2><p>{% translate 'Laiškai iš CRM dėžutės, kurių nepavyko automatiškai susieti su kontaktu.' %}</p></div>
+</div>
+
+<div class="setting-toggle" style="margin-bottom:20px">
+  <span><strong>{% translate 'IMAP būsena' %}</strong>
+  <small>{% if imap_configured %}{% translate 'Sukonfigūruota:' %} {{ imap_host }}{% else %}{% translate 'Nesukonfigūruota. Nustatykite IMAP_HOST, IMAP_USER, IMAP_PASSWORD faile .env, kad CRM tikrintų dėžutę.' %}{% endif %}</small></span>
+</div>
+
+{% for mail in mails %}
+<section class="panel" style="margin-bottom:10px">
+  <div class="panel-head"><h2>{{ mail.subject|default:'(be temos)' }}</h2><span>{{ mail.received_at|date:datetime_format }}</span></div>
+  <p class="muted" style="margin:0 0 8px">{% translate 'Nuo' %}: {{ mail.from_addr }} · {% translate 'Kam' %}: {{ mail.to_addrs }}</p>
+  <p style="white-space:pre-wrap;max-height:120px;overflow:auto;margin:0 0 10px">{{ mail.body|truncatechars:600 }}</p>
+  <form method="post" class="filter-row">{% csrf_token %}
+    <input type="hidden" name="mail_id" value="{{ mail.pk }}">
+    <input type="text" name="contact" placeholder="{% translate 'Kontakto ID, el. paštas arba vardas pavardė' %}" style="max-width:320px">
+    <button class="btn primary" type="submit" name="action" value="assign">{% translate 'Priskirti kontaktui' %}</button>
+    <button class="btn" type="submit" name="action" value="ignore">{% translate 'Paslėpti' %}</button>
+  </form>
+</section>
+{% empty %}
+<p class="muted">{% translate 'Nepriskirtų laiškų nėra.' %}</p>
+{% endfor %}
+{% endblock %}

@@ -2376,3 +2376,228 @@ msgstr "A one-way link to the events assigned to you. Paste it when subscribing 
 
 msgid "Kalendoriaus nuoroda atnaujinta. Senoji nebeveikia."
 msgstr "Calendar link regenerated. The old one no longer works."
+
+msgid "Gauti laiškai"
+msgstr "Incoming mail"
+
+msgid "Laiškai iš CRM dėžutės, kurių nepavyko automatiškai susieti su kontaktu."
+msgstr "Emails from the CRM mailbox that could not be matched to a contact automatically."
+
+msgid "IMAP būsena"
+msgstr "IMAP status"
+
+msgid "Sukonfigūruota:"
+msgstr "Configured:"
+
+msgid "Nesukonfigūruota. Nustatykite IMAP_HOST, IMAP_USER, IMAP_PASSWORD faile .env, kad CRM tikrintų dėžutę."
+msgstr "Not configured. Set IMAP_HOST, IMAP_USER, IMAP_PASSWORD in .env so the CRM checks the mailbox."
+
+msgid "Kam"
+msgstr "To"
+
+msgid "Kontakto ID, el. paštas arba vardas pavardė"
+msgstr "Contact ID, email or full name"
+
+msgid "Priskirti kontaktui"
+msgstr "Assign to a contact"
+
+msgid "Paslėpti"
+msgstr "Hide"
+
+msgid "Nepriskirtų laiškų nėra."
+msgstr "There are no unassigned emails."
+
+msgid "Dokumentacija"
+msgstr "Documentation"
+
+msgid "Techninė informacija, diegimo procedūros ir kasdienio darbo instrukcijos vienoje vietoje."
+msgstr "Technical details, deployment procedures and day-to-day instructions in one place."
+
+msgid "Dokumentacijos temos"
+msgstr "Documentation topics"
+
+msgid "Apžvalga"
+msgstr "Overview"
+
+msgid "CRM dokumentacija"
+msgstr "CRM documentation"
+
+msgid "Pasirinkite temą pagal tai, ką norite atlikti. Kiekviena tema turi atskirą nuorodą."
+msgstr "Pick a topic based on what you want to do. Each topic has its own link."
+
+msgid "Įdiegti CRM"
+msgstr "Install the CRM"
+
+msgid "Reikalavimai, aplinkos kintamieji, Docker paleidimas ir pirmas administratorius."
+msgstr "Requirements, environment variables, starting Docker and the first administrator."
+
+msgid "Suprasti langus"
+msgstr "Understand the screens"
+
+msgid "Ką daro kiekvienas pagrindinis langas, mygtukas ir kokius duomenis jis naudoja."
+msgstr "What each main screen and button does and which data it uses."
+
+msgid "Dirbti su CRM"
+msgstr "Work with the CRM"
+
+msgid "Kontaktai, įmonės, istorija, priminimai, filtrai ir importas."
+msgstr "Contacts, companies, history, reminders, filters and import."
+
+msgid "Administruoti"
+msgstr "Administer"
+
+msgid "Naudotojai, slaptažodžiai, blokavimo nuėmimas ir atnaujinimas."
+msgstr "Users, passwords, clearing lockouts and updates."
+
+msgid "Įvertinti duomenis ir saugą"
+msgstr "Review data and security"
+
+msgid "Duomenų vietos, prieigos modelis, ribos ir saugumo nustatymai."
+msgstr "Data locations, the access model, limits and security settings."
+
+msgid "Kurti ir tikrinti kopijas"
+msgstr "Create and verify backups"
+
+msgid "PostgreSQL, failų kopijos, atkūrimo procedūra ir patikra."
+msgstr "PostgreSQL, file backups, the restore procedure and verification."
+
+msgid "Sistemos paskirtis"
+msgstr "What the system is for"
+
+msgid "Technologijos"
+msgstr "Technology"
+
+msgid "Svarbu"
+msgstr "Important"
+
+msgid "Išoriniam diegėjui"
+msgstr "For an external installer"
+
+msgid "Diegimas naujame įrenginyje"
+msgstr "Installing on a new machine"
+
+msgid "Funkcijų žinynas"
+msgstr "Feature guide"
+
+msgid "Langai, mygtukai ir duomenys"
+msgstr "Screens, buttons and data"
+
+msgid "Bendri elementai"
+msgstr "Shared elements"
+
+msgid "Kontaktų sąrašas"
+msgstr "Contact list"
+
+msgid "Kontakto kortelė"
+msgstr "Contact card"
+
+msgid "Įmonių sąrašas ir kortelė"
+msgstr "Company list and card"
+
+msgid "Kiti langai"
+msgstr "Other screens"
+
+msgid "Kasdienis darbas"
+msgstr "Daily work"
+
+msgid "Naudotojo instrukcija"
+msgstr "User guide"
+
+msgid "Sukurti kontaktą"
+msgstr "Create a contact"
+
+msgid "Užregistruoti bendravimą"
+msgstr "Log a communication"
+
+msgid "Sukurti ir užbaigti priminimą"
+msgstr "Create and complete a reminder"
+
+msgid "Rasti ir grupuoti įrašus"
+msgstr "Find and group records"
+
+msgid "Sistemos priežiūra"
+msgstr "System maintenance"
+
+msgid "Administratoriaus instrukcija"
+msgstr "Administrator guide"
+
+msgid "Naudotojų valdymas"
+msgstr "Managing users"
+
+msgid "Nuimti prisijungimo blokavimą"
+msgstr "Clear a login lockout"
+
+msgid "Žymos, kategorijos ir dublikatai"
+msgstr "Tags, categories and duplicates"
+
+msgid "Prisijungti su Microsoft"
+msgstr "Sign in with Microsoft"
+
+msgid "Atnaujinti programą"
+msgstr "Update the application"
+
+msgid "Techninė sandara"
+msgstr "Technical architecture"
+
+msgid "Duomenys, sauga ir ribos"
+msgstr "Data, security and limits"
+
+msgid "Nuolatiniai duomenys"
+msgstr "Persistent data"
+
+msgid "Pagrindiniai duomenų objektai"
+msgstr "Core data objects"
+
+msgid "Įjungtos apsaugos"
+msgstr "Enabled protections"
+
+msgid "Žinomos ribos"
+msgstr "Known limits"
+
+msgid "Eksploatavimas"
+msgstr "Operations"
+
+msgid "Atsarginės kopijos ir atkūrimas"
+msgstr "Backups and restore"
+
+msgid "Sukurti kopiją"
+msgstr "Create a backup"
+
+msgid "Patikrinti kopiją prieš saugojimą"
+msgstr "Verify a backup before relying on it"
+
+msgid "Atkurti duomenų bazę"
+msgstr "Restore the database"
+
+msgid "Atkūrimo patikra"
+msgstr "Restore verification"
+
+msgid "Tvarkykite profilį, klasifikatorius ir CRM informaciją."
+msgstr "Manage your profile, classifiers and CRM information."
+
+msgid "arba"
+msgstr "or"
+
+msgid "Nesukonfigūruota — laiškai tik rašomi į konteinerio žurnalą. Nustatykite EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD faile .env."
+msgstr "Not configured - emails are only written to the container log. Set EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD in .env."
+
+msgid "Naudotojo laiko zona. Naudotojas gali pakeisti savo profilyje."
+msgstr "The user's time zone. The user can change it in their profile."
+
+msgid "Prieš kiek laiko iki įvykio išsiųsti priminimą."
+msgstr "How long before an event to send the reminder."
+
+msgid "Išsiunčia santraukos formato laišką jūsų profilio el. paštu."
+msgstr "Sends a digest-format email to your profile address."
+
+msgid "Nuoroda nebegalioja"
+msgstr "This link is no longer valid"
+
+msgid "Prisijunkite ir pakeiskite nustatymus profilyje."
+msgstr "Sign in and change the settings in your profile."
+
+msgid "Kopijuoti"
+msgstr "Copy"
+
+msgid "Komentaras"
+msgstr "Comment"

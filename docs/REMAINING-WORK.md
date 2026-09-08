@@ -507,7 +507,7 @@ koordinates rašo kaip `637,09`, o tai netinkamas SVG ir grafikai lieka tušti.
   `assignable_users_for`, tad neteisingas ID atmetamas formos validacijoje.
 - `_mine_q` perkeltas į `reminder_queries.mine_q` (bendras kalendoriui ir sąrašui).
 
-### G7. Pranešimai el. paštu — 🟡 SMTP-ready (`0.42.0`)
+### G7. Pranešimai el. paštu — 🟡 SMTP-ready (`0.42.0`, periodinis konteineris `0.45.0`)
 **Padaryta:** modelio laukai (`Reminder.upcoming_notified_at` / `assigned_notified_to`;
 `UserProfile.digest_enabled` / `digest_time` / `notify_lead` / `digest_sent_on` /
 `unsubscribe_token`; `SystemSettings.notifications_enabled` / `digest_default_time` /
@@ -519,8 +519,13 @@ profilio laukai, `/notifications/unsubscribe/<token>/`. `EMAIL_*` iš `.env`
 Priskyrimo laiškas siunčiamas iš karto redaguojant priminimą; `send_notifications`
 pakartoja nepavykusius.
 
-**Liko:** kai bus SMTP dėžutė — įrašyti `EMAIL_*` į `.env` ir pridėti periodinį
-`send_notifications` konteinerį `compose.yaml` (kaip `crm-backup`, ciklas ~5 min.).
+**Padaryta `0.45.0`:** `crm-worker` paslauga `compose.yaml` — ciklas kas
+`WORKER_INTERVAL_SECONDS` (300 s) vykdo `extend_recurrences`, `send_notifications`
+ir `fetch_mail`. Kol `notifications_enabled` išjungtas arba `EMAIL_HOST` tuščias,
+komandos nieko nesiunčia.
+
+**Liko:** kai bus SMTP dėžutė — įrašyti `EMAIL_*` ir `CRM_BASE_URL` į prod `.env`,
+įjungti jungiklį Nustatymai → Pranešimai.
 
 <details><summary>Originalus planas</summary>
 
@@ -606,25 +611,29 @@ atšaukiamas iš Nustatymų).
   didesnis darbas; vertinti tik jei vienpusės nepakaks.
 </details>
 
-### G5. Prisijungimas per Microsoft Entra ID — ❌
-`mozilla-django-oidc`. Entra: App registration, redirect URI
-`https://crm.tailb8493f.ts.net/oidc/callback/`, client id/secret į `.env`.
-- Naudotojų susiejimas pagal el. paštą / UPN
-- **Atviras sprendimas:** ar kurti naujus naudotojus automatiškai (su kokia numatyta
-  role ir matomumu), ar leisti tik susieti jau esamus
-- Vietinis prisijungimas lieka kaip atsarginis kelias administratoriui
-- `django-axes` lieka vietiniam prisijungimui; 2FA ateina iš Entra pusės
+### G5. Prisijungimas per Microsoft Entra ID — 🟡 credentials-ready (`0.45.0`)
+`contacts/oidc.py` — `EntraOIDCBackend` (`mozilla-django-oidc`): susiejimas pagal
+el. paštą su jau esančia aktyvia paskyra, `verify_claims`, `create_user` tik kai
+`OIDC_CREATE_USERS=true` (kitaip `None` → prisijungimas atmetamas). `settings.py`
+gate: `OIDC_ENABLED=true` ir `OIDC_RP_CLIENT_ID` → įsijungia `mozilla_django_oidc`
+app, backend, Entra v2.0 endpoint'ai iš `OIDC_TENANT_ID`, `config/urls.py` prideda
+`oidc/`. Prisijungimo puslapyje — „Prisijungti su Microsoft" (kai `oidc_enabled`).
+Vietinis prisijungimas + `django-axes` lieka. Testai — `EntraLoginTests`.
 
-### G6. Išsiųsto el. laiško prisegimas (BCC dropbox) — ❌
-CRM turi savo dėžutę; rašydamas laišką naudotojas įrašo ją į **BCC**.
-- Periodinis IMAP tikrinimas — `manage.py fetch_mail`, paleidžiamas konteineryje
-  kaip `crm-backup` (ciklas su `sleep`)
-- Apdorojimas: kontaktas ieškomas pagal `To`/`Cc` adresus, siuntėjas iš `From` →
-  `created_by`; sukuriama `Activity(activity_type="email")` su tema, tekstu ir priedais
-- **Dedup pagal `Message-ID`** — naujas `Activity.message_id` (unique)
-- Nepriskirti laiškai (adresas nerastas) — atskiras sąrašas rankiniam priskyrimui
-- IMAP prisijungimo duomenys **`.env`, ne DB**; Nustatymai → El. paštas rodo tik
-  būseną ir paskutinio tikrinimo laiką
+**Liko:** Entra App registration (redirect URI `https://crm.tailb8493f.ts.net/oidc/callback/`),
+client id/secret/tenant į prod `.env`, `OIDC_ENABLED=true`.
+
+### G6. Gauto el. laiško prisegimas (dropbox) — 🟡 credentials-ready (`0.45.0`)
+`contacts/mailfetch.py` — `fetch()` (no-op be `IMAP_HOST`): `imaplib.IMAP4_SSL`,
+`UNSEEN`, `process_message` → kontaktas pagal `To`/`Cc` (be `IMAP_USER`), autorius
+pagal `From` arba seniausias superuser; `Activity(activity_type=EMAIL, message_id=…)`
+su priedais (10 MB, saugūs plėtiniai) arba `IncomingMail` eilutė. Dedup pagal
+`Message-ID` (tikrina ir `Activity`, ir `IncomingMail`). `IMAP_*` iš `.env`, ne DB.
+Nustatymai → Gauti laiškai (adminui): IMAP būsena + nesusietų laiškų sąrašas su
+„Priskirti kontaktui" / „Paslėpti". `manage.py fetch_mail` sukamas `crm-worker`.
+Testai — `IncomingMailTests`.
+
+**Liko:** CRM dėžutės `IMAP_*` į prod `.env`.
 
 ---
 
