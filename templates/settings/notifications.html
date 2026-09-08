@@ -1,0 +1,27 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div><h2>{% translate 'Pranešimai' %}</h2><p>{% translate 'El. pašto pranešimai apie priminimus ir priskirtas užduotis.' %}</p></div>
+</div>
+
+<div class="setting-toggle" style="margin-bottom:20px">
+  <span>
+    <strong>{% translate 'SMTP būsena' %}</strong>
+    <small>{% if smtp_configured %}{% translate 'Sukonfigūruota:' %} {{ smtp_host }}{% else %}{% translate 'Nesukonfigūruota — laiškai tik rašomi į konteinerio žurnalą. Nustatykite EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD faile .env.' %}{% endif %}</small>
+  </span>
+</div>
+
+<form method="post" class="profile-form">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <label class="setting-toggle">{{ form.notifications_enabled }}<span><strong>{{ form.notifications_enabled.label }}</strong><small>{% translate 'Bendras jungiklis. Išjungus, jokie pranešimai nesiunčiami.' %}</small></span></label>
+  <label class="duplicate-level-field"><strong>{{ form.digest_default_time.label }}</strong>{{ form.digest_default_time.errors }}{{ form.digest_default_time }}<small>{% translate 'Naudotojo laiko zona. Naudotojas gali pakeisti savo profilyje.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.notify_default_lead.label }}</strong>{{ form.notify_default_lead.errors }}{{ form.notify_default_lead }}<small>{% translate 'Prieš kiek laiko iki įvykio išsiųsti priminimą.' %}</small></label>
+  <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
+</form>
+
+<div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% translate 'Bandomasis laiškas' %}</h2><p>{% translate 'Išsiunčia santraukos formato laišką jūsų profilio el. paštu.' %}</p></div></div>
+  <form method="post"><input type="hidden" name="action" value="test">{% csrf_token %}<button class="btn" type="submit">{% translate 'Siųsti bandomąjį laišką' %}</button></form>
+</div>
+{% endblock %}

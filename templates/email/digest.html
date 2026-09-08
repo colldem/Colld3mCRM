@@ -1,0 +1,16 @@
+{% extends "email/base.html" %}{% load i18n crm_format %}
+{% block body %}
+<h1 style="margin:0 0 4px;font-size:20px;color:#062b63;">{% translate 'Rytinė santrauka' %}</h1>
+<p style="margin:0 0 18px;color:#667085;">{% now "Y-m-d" %}</p>
+
+{% if overdue %}
+<h2 style="margin:0 0 8px;font-size:15px;color:#c92a2a;text-transform:uppercase;letter-spacing:.03em;">{% translate 'Vėluoja' %}</h2>
+{% for reminder in overdue %}{% include "email/_row.html" with border="#f0c2c2" accent="#c92a2a" %}{% endfor %}
+{% endif %}
+
+<h2 style="margin:{% if overdue %}18px{% else %}0{% endif %} 0 8px;font-size:15px;color:#062b63;text-transform:uppercase;letter-spacing:.03em;">{% translate 'Šiandienos darbotvarkė' %}</h2>
+{% for reminder in today %}{% include "email/_row.html" %}{% empty %}<p style="color:#667085;">{% translate 'Šiandien įvykių nėra.' %}</p>{% endfor %}
+
+<p style="margin:20px 0 0;"><a href="{{ calendar_link }}" style="display:inline-block;background:#062b63;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:700;">{% translate 'Atverti kalendorių' %}</a></p>
+{% endblock %}
+{% block footer %}{% translate 'Šiuos laiškus galite išjungti' %}: <a href="{{ unsubscribe }}" style="color:#667085;">{% translate 'atsisakyti' %}</a> · <a href="{{ base_url }}/settings/" style="color:#667085;">{% translate 'Nustatymai' %}</a>{% endblock %}

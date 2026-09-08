@@ -1,0 +1,6 @@
+{% load i18n crm_format %}{% translate 'ARTĖJA ĮVYKIS' %}
+
+{{ reminder.due_at|date:datetime_format }} — {{ reminder.text }}
+{% if reminder.record %}{{ reminder.record }}{% if reminder.contact_phone %} · {{ reminder.contact_phone }}{% endif %}{% if reminder.contact_address %} · {{ reminder.contact_address }}{% endif %}
+{% endif %}
+{{ link }}

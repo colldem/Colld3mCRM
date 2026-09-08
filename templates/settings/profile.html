@@ -12,6 +12,14 @@
     <label class="wide">{{ form.avatar.label }}{{ form.avatar }}<small>{% translate 'PNG, JPG, WEBP arba GIF. Iki 5 MB.' %}</small>{{ form.avatar.errors }}</label>
     {% if crm_user_profile.avatar %}<label class="remove-avatar">{{ form.remove_avatar }} {{ form.remove_avatar.label }}</label>{% endif %}
   </div>
+  <fieldset class="profile-notify">
+    <legend>{% translate 'Pranešimai el. paštu' %}</legend>
+    <label class="setting-toggle">{{ form.digest_enabled }}<span><strong>{{ form.digest_enabled.label }}</strong></span></label>
+    <div class="profile-fields">
+      <label>{{ form.digest_time.label }}{{ form.digest_time }}<small>{% translate 'Tuščia = sistemos laikas.' %}</small></label>
+      <label>{{ form.notify_lead.label }}{{ form.notify_lead }}</label>
+    </div>
+  </fieldset>
   <div class="form-actions profile-form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
 </form>
 

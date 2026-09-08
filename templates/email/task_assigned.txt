@@ -1,0 +1,9 @@
+{% load i18n crm_format %}{% translate 'JUMS PRISKIRTA UŽDUOTIS' %}
+
+{{ reminder.text }}
+{% translate 'Terminas' %}: {{ reminder.due_at|date:datetime_format }}
+{% translate 'Prioritetas' %}: {{ reminder.get_priority_display }}
+{% if reminder.record %}{% translate 'Įrašas' %}: {{ reminder.record }}
+{% endif %}{% translate 'Priskyrė' %}: {{ assigned_by.get_full_name|default:assigned_by.username }}
+
+{{ link }}

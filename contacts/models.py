@@ -1,8 +1,15 @@
+from datetime import time
+from secrets import token_urlsafe
+
 from django.utils.translation import gettext_lazy as tr
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
+
+
+# Email-notification lead time, shared by SystemSettings and UserProfile (G7).
+NOTIFY_LEAD_CHOICES = ((0, tr("Išjungta")), (15, tr("15 min.")), (60, tr("1 val.")), (1440, tr("1 diena")))
 
 
 class RecordDetailsModel(models.Model):
@@ -124,6 +131,12 @@ class UserProfile(models.Model):
     language = models.CharField(max_length=5, choices=(("lt", "Lietuvių"), ("en", "English")), default="lt")
     timezone = models.CharField(max_length=64, default="Europe/Vilnius")
     avatar = models.FileField(upload_to="avatars/%Y/%m/", blank=True)
+    # Email notifications (G7). Effective defaults come from SystemSettings.
+    digest_enabled = models.BooleanField(default=True)
+    digest_time = models.TimeField(null=True, blank=True)
+    notify_lead = models.PositiveSmallIntegerField(null=True, blank=True, choices=NOTIFY_LEAD_CHOICES)
+    digest_sent_on = models.DateField(null=True, blank=True)
+    unsubscribe_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -202,6 +215,9 @@ class SystemSettings(models.Model):
     date_format = models.CharField(max_length=12, default="Y-m-d", choices=DATE_FORMAT_CHOICES)
     import_delimiter = models.CharField(max_length=8, default="auto", choices=IMPORT_DELIMITER_CHOICES)
     import_encoding = models.CharField(max_length=16, default="auto", choices=IMPORT_ENCODING_CHOICES)
+    notifications_enabled = models.BooleanField(default=False)
+    digest_default_time = models.TimeField(default=time(7, 30))
+    notify_default_lead = models.PositiveSmallIntegerField(default=60, choices=NOTIFY_LEAD_CHOICES)
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
@@ -358,6 +374,9 @@ class Reminder(TimestampedModel):
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="crm_assigned_reminders")
     priority = models.CharField(max_length=8, choices=PRIORITY_CHOICES, default=PRIORITY_NORMAL)
     submission_token = models.CharField(max_length=64, blank=True, unique=True, null=True)
+    # Email-notification bookkeeping (G7).
+    upcoming_notified_at = models.DateTimeField(null=True, blank=True)
+    assigned_notified_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
 
     DEFAULT_MINUTES = 30
 

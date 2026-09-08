@@ -507,7 +507,23 @@ koordinates rašo kaip `637,09`, o tai netinkamas SVG ir grafikai lieka tušti.
   `assignable_users_for`, tad neteisingas ID atmetamas formos validacijoje.
 - `_mine_q` perkeltas į `reminder_queries.mine_q` (bendras kalendoriui ir sąrašui).
 
-### G7. Pranešimai el. paštu — ❌
+### G7. Pranešimai el. paštu — 🟡 SMTP-ready (`0.42.0`)
+**Padaryta:** modelio laukai (`Reminder.upcoming_notified_at` / `assigned_notified_to`;
+`UserProfile.digest_enabled` / `digest_time` / `notify_lead` / `digest_sent_on` /
+`unsubscribe_token`; `SystemSettings.notifications_enabled` / `digest_default_time` /
+`notify_default_lead`), `contacts/notifications.py` (3 laiškų tipai, `multipart/alternative`,
+LT/EN, klaidos → `AuditLog`), `templates/email/*`, `manage.py send_notifications`
+(idempotentiška), Nustatymai → Pranešimai (adminui, su „bandomuoju laišku"),
+profilio laukai, `/notifications/unsubscribe/<token>/`. `EMAIL_*` iš `.env`
+(be `EMAIL_HOST` — laiškai tik į konteinerio žurnalą; testai — `locmem`).
+Priskyrimo laiškas siunčiamas iš karto redaguojant priminimą; `send_notifications`
+pakartoja nepavykusius.
+
+**Liko:** kai bus SMTP dėžutė — įrašyti `EMAIL_*` į `.env` ir pridėti periodinį
+`send_notifications` konteinerį `compose.yaml` (kaip `crm-backup`, ciklas ~5 min.).
+
+<details><summary>Originalus planas</summary>
+
 Grąžina anksčiau atidėtą B3 „Pranešimų" skiltį. **Rekomenduojama daryti iškart po G2** —
 priskirta užduotis be laiško praktiškai neveikia (kolega tiesiog nesužino).
 Naudoja tą pačią dėžutę ir tą patį periodinio konteinerio šabloną kaip G6.
@@ -546,6 +562,7 @@ Naudoja tą pačią dėžutę ir tą patį periodinio konteinerio šabloną kaip
   laikas, santraukos laikas, **„Siųsti bandomąjį laišką"**
 - Profilyje: mano išankstinis laikas · santrauka įjungta/išjungta
 - Siuntimo klaida nelaužo ciklo — fiksuojama `AuditLog`
+</details>
 
 ### G3. Pasikartojantys įvykiai — ❌
 `recurrence_rule` (RRULE-lite: `FREQ` DAILY/WEEKLY/MONTHLY/YEARLY, `INTERVAL`,

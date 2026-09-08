@@ -49,12 +49,15 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
-  RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings.
+  RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
+  SystemSettings.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
   darbastalis ir analitika; `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
   `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
-  `permissions.py` — rolės, teisės ir įrašų matomumas; `charts.py` — SVG grafikai.
+  `permissions.py` — rolės, teisės ir įrašų matomumas; `charts.py` — SVG grafikai;
+  `notifications.py` + `management/commands/send_notifications.py` — el. pašto pranešimai;
+  `sanitizers.py` — `safe_url` / `csv_safe`.
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
 - `docs/DEPLOYMENT-UGREEN.md` — diegimo procedūra; prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.

@@ -1,0 +1,13 @@
+{% load i18n crm_format %}{% translate 'RYTINĖ SANTRAUKA' %} — {% now "Y-m-d" %}
+{% if overdue %}
+{% translate 'VĖLUOJA' %}:
+{% for r in overdue %}- {{ r.due_at|date:datetime_format }} {{ r.text }}{% if r.record %} ({{ r.record }}{% if r.contact_phone %}, {{ r.contact_phone }}{% endif %}){% endif %}
+  {{ base_url }}{{ r.record_url|default:'/calendar/' }}
+{% endfor %}{% endif %}
+{% translate 'ŠIANDIENOS DARBOTVARKĖ' %}:
+{% for r in today %}- {{ r.due_at|date:datetime_format }} {{ r.text }}{% if r.record %} ({{ r.record }}{% if r.contact_phone %}, {{ r.contact_phone }}{% endif %}){% endif %}
+  {{ base_url }}{{ r.record_url|default:'/calendar/' }}
+{% empty %}{% translate 'Šiandien įvykių nėra.' %}
+{% endfor %}
+{% translate 'Kalendorius' %}: {{ calendar_link }}
+{% translate 'Atsisakyti šių laiškų' %}: {{ unsubscribe }}

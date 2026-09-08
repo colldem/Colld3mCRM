@@ -141,3 +141,22 @@ SECURE_REDIRECT_EXEMPT = [r"^health/"]
 SECURE_HSTS_SECONDS = 0 if DEBUG else int(os.environ.get("DJANGO_HSTS_SECONDS", "86400"))
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
+
+# Email notifications (G7). Real delivery needs EMAIL_HOST in the environment;
+# without it mail is only printed to the container log.
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "false").lower() == "true"
+EMAIL_TIMEOUT = 20
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "crm@localhost")
+if RUNNING_TESTS:
+    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+elif EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Absolute base for links inside emails (no request object in the cron command).
+CRM_BASE_URL = os.environ.get("CRM_BASE_URL", "https://%s" % (ALLOWED_HOSTS[0] if ALLOWED_HOSTS else "localhost"))

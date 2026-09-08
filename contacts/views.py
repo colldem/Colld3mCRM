@@ -1063,6 +1063,48 @@ def settings_system(request):
 
 
 @login_required
+def settings_notifications(request):
+    from .forms import NotificationSettingsForm
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    system = SystemSettings.load()
+    form = NotificationSettingsForm(request.POST or None, instance=system)
+    if request.method == "POST" and request.POST.get("action") == "test":
+        from .notifications import send_digest
+        ok = send_digest(request.user, [], [])
+        if not request.user.email:
+            messages.error(request, tr("Jūsų profilyje nenurodytas el. paštas."))
+        elif ok:
+            messages.success(request, tr("Bandomasis laiškas išsiųstas (arba įrašytas į žurnalą, jei SMTP nesukonfigūruotas)."))
+        else:
+            messages.error(request, tr("Nepavyko išsiųsti. Patikrinkite SMTP nustatymus ir žurnalą."))
+        return redirect("contacts:settings-notifications")
+    if request.method == "POST" and form.is_valid():
+        changed = list(form.changed_data)
+        form.save()
+        if changed:
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=str(tr("Pranešimai")), new=", ".join(changed))
+        messages.success(request, tr("Pranešimų nustatymai išsaugoti."))
+        return redirect("contacts:settings-notifications")
+    return render(request, "settings/notifications.html", {
+        "form": form, "settings_section": "notifications",
+        "smtp_configured": bool(settings.EMAIL_HOST),
+        "smtp_host": settings.EMAIL_HOST,
+    })
+
+
+def notifications_unsubscribe(request, token):
+    profile = UserProfile.objects.filter(unsubscribe_token=token).first()
+    if profile and profile.digest_enabled:
+        profile.digest_enabled = False
+        profile.save(update_fields=["digest_enabled", "updated_at"])
+    return render(request, "notifications/unsubscribed.html", {"ok": profile is not None})
+
+
+@login_required
 def settings_import(request):
     from .forms import ImportSettingsForm
     from .permissions import is_admin
@@ -1413,6 +1455,7 @@ def reminder_edit(request, pk):
             audit_log(AuditLog.UPDATE, request=request, target=reminder.record, target_type="" if reminder.record else "reminder",
                       target_label="" if reminder.record else reminder.text[:80], field=str(tr("Priskirta")),
                       new=user_label(reminder.assigned_to))
+            _maybe_email_assignment(reminder, request.user)
         audit_log(AuditLog.UPDATE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                   old=f"{timezone.localtime(original_due_at):%Y-%m-%d %H:%M}",
                   new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
@@ -1434,6 +1477,17 @@ def reminder_delete(request, pk):
 
 
 REMINDER_SCOPES = ("assigned", "created", "all")
+
+
+def _maybe_email_assignment(reminder, assigned_by):
+    """Fire the 'task assigned to you' email now if notifications are on; the
+    send_notifications command retries any that failed here."""
+    if not SystemSettings.load().notifications_enabled:
+        return
+    from .notifications import send_task_assigned
+
+    if send_task_assigned(reminder, assigned_by):
+        Reminder.objects.filter(pk=reminder.pk).update(assigned_notified_to=reminder.assigned_to)
 
 
 @login_required

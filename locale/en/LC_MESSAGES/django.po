@@ -2220,3 +2220,105 @@ msgstr "assigned to:"
 
 msgid "Aukštas prioritetas"
 msgstr "High priority"
+
+msgid "Pranešimai"
+msgstr "Notifications"
+
+msgid "Pranešimai el. paštu"
+msgstr "Email notifications"
+
+msgid "Gauti rytinę santrauką el. paštu"
+msgstr "Get the morning digest by email"
+
+msgid "Santraukos laikas"
+msgstr "Digest time"
+
+msgid "Priminti apie įvykį prieš"
+msgstr "Remind before an event"
+
+msgid "Kaip nustatyta sistemoje"
+msgstr "System default"
+
+msgid "Išjungta"
+msgstr "Off"
+
+msgid "15 min."
+msgstr "15 min"
+
+msgid "1 val."
+msgstr "1 hour"
+
+msgid "1 diena"
+msgstr "1 day"
+
+msgid "Siųsti pranešimus el. paštu"
+msgstr "Send email notifications"
+
+msgid "Numatytas rytinės santraukos laikas"
+msgstr "Default morning digest time"
+
+msgid "Numatyta įspėti apie įvykį prieš"
+msgstr "Default reminder lead time"
+
+msgid "SMTP būsena"
+msgstr "SMTP status"
+
+msgid "Bandomasis laiškas"
+msgstr "Test email"
+
+msgid "Siųsti bandomąjį laišką"
+msgstr "Send a test email"
+
+msgid "Rytinė santrauka"
+msgstr "Morning digest"
+
+msgid "CRM rytinė santrauka"
+msgstr "CRM morning digest"
+
+msgid "Artėja įvykis"
+msgstr "Upcoming event"
+
+msgid "Jums priskirta užduotis"
+msgstr "A task was assigned to you"
+
+msgid "Terminas"
+msgstr "Due"
+
+msgid "Priskyrė"
+msgstr "Assigned by"
+
+msgid "Įrašas"
+msgstr "Record"
+
+msgid "Atverti kalendorių"
+msgstr "Open the calendar"
+
+msgid "Šiandienos darbotvarkė"
+msgstr "Today's agenda"
+
+msgid "atsisakyti"
+msgstr "unsubscribe"
+
+msgid "Prenumerata atšaukta"
+msgstr "Unsubscribed"
+
+msgid "Rytinės santraukos išjungtos"
+msgstr "Morning digests turned off"
+
+msgid "El. pašto pranešimai apie priminimus ir priskirtas užduotis."
+msgstr "Email notifications for reminders and assigned tasks."
+
+msgid "Bendras jungiklis. Išjungus, jokie pranešimai nesiunčiami."
+msgstr "Master switch. When off, nothing is sent."
+
+msgid "Kaip norite gauti priminimus el. paštu."
+msgstr "How you want reminders by email."
+
+msgid "Tuščia = sistemos laikas."
+msgstr "Empty = system time."
+
+msgid "Jas galite vėl įjungti CRM nustatymuose → Profilis."
+msgstr "You can re-enable them in CRM Settings → Profile."
+
+msgid "El. pašto pranešimai"
+msgstr "Email notifications"

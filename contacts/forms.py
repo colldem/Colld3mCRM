@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
 from . import permissions
-from .models import Activity, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
+from .models import Activity, Category, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
 
 
 class UserProfileForm(forms.Form):
@@ -16,11 +16,18 @@ class UserProfileForm(forms.Form):
     timezone = forms.ChoiceField(choices=(("Europe/Vilnius", "Europe/Vilnius"), ("Europe/London", "Europe/London"), ("Europe/Berlin", "Europe/Berlin"), ("UTC", "UTC"), ("America/New_York", "America/New_York")), label=tr("Laiko zona"))
     avatar = forms.FileField(required=False, label=tr("Profilio nuotrauka"), widget=forms.FileInput(attrs={"accept": "image/png,image/jpeg,image/webp,image/gif"}))
     remove_avatar = forms.BooleanField(required=False, label=tr("Pašalinti profilio nuotrauką"))
+    digest_enabled = forms.BooleanField(required=False, label=tr("Gauti rytinę santrauką el. paštu"))
+    digest_time = forms.TimeField(required=False, label=tr("Santraukos laikas"), widget=forms.TimeInput(attrs={"type": "time"}))
+    notify_lead = forms.TypedChoiceField(required=False, coerce=int, empty_value=None, label=tr("Priminti apie įvykį prieš"),
+                                         choices=[("", tr("Kaip nustatyta sistemoje"))] + list(NOTIFY_LEAD_CHOICES))
 
     def __init__(self, *args, user, **kwargs):
         self.user = user
         self.profile, _ = UserProfile.objects.get_or_create(user=user)
-        kwargs.setdefault("initial", {"first_name": user.first_name, "last_name": user.last_name, "email": user.email, "language": self.profile.language, "timezone": self.profile.timezone})
+        kwargs.setdefault("initial", {"first_name": user.first_name, "last_name": user.last_name, "email": user.email,
+                                      "language": self.profile.language, "timezone": self.profile.timezone,
+                                      "digest_enabled": self.profile.digest_enabled, "digest_time": self.profile.digest_time,
+                                      "notify_lead": "" if self.profile.notify_lead is None else self.profile.notify_lead})
         super().__init__(*args, **kwargs)
 
     def clean_avatar(self):
@@ -41,6 +48,9 @@ class UserProfileForm(forms.Form):
         self.user.save(update_fields=["first_name", "last_name", "email"])
         self.profile.language = self.cleaned_data["language"]
         self.profile.timezone = self.cleaned_data["timezone"]
+        self.profile.digest_enabled = self.cleaned_data["digest_enabled"]
+        self.profile.digest_time = self.cleaned_data.get("digest_time")
+        self.profile.notify_lead = self.cleaned_data.get("notify_lead")
         if self.cleaned_data["remove_avatar"] and self.profile.avatar:
             self.profile.avatar.delete(save=False)
             self.profile.avatar = ""
@@ -73,6 +83,18 @@ class SystemSettingsForm(forms.ModelForm):
             "default_page_size": tr("Numatytas eilučių skaičius sąrašuose"),
             "date_format": tr("Datos formatas"),
         }
+
+
+class NotificationSettingsForm(forms.ModelForm):
+    class Meta:
+        model = SystemSettings
+        fields = ["notifications_enabled", "digest_default_time", "notify_default_lead"]
+        labels = {
+            "notifications_enabled": tr("Siųsti pranešimus el. paštu"),
+            "digest_default_time": tr("Numatytas rytinės santraukos laikas"),
+            "notify_default_lead": tr("Numatyta įspėti apie įvykį prieš"),
+        }
+        widgets = {"digest_default_time": forms.TimeInput(attrs={"type": "time"})}
 
 
 class ImportSettingsForm(forms.ModelForm):

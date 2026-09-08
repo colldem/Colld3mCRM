@@ -2969,3 +2969,99 @@ class SecurityHardeningTests(TestCase):
         created = Person.objects.filter(first_name="A", last_name="B").first()
         if created:
             self.assertNotIn(hidden.pk, created.companies.values_list("pk", flat=True))
+
+
+class NotificationTests(TestCase):
+    def setUp(self):
+        from contacts.models import SystemSettings, UserProfile
+        self.admin = get_user_model().objects.create_user("boss", password="very-secure-password",
+                                                          email="boss@example.lt", is_superuser=True, is_staff=True)
+        self.mate = get_user_model().objects.create_user("kolega", password="very-secure-password", email="kolega@example.lt")
+        UserProfile.objects.create(user=self.admin, timezone="Europe/Vilnius")
+        UserProfile.objects.create(user=self.mate, timezone="Europe/Vilnius")
+        self.person = Person.objects.create(first_name="Ruslan", last_name="Gorin")
+        self.sys = SystemSettings.load()
+        self.sys.notifications_enabled = True
+        self.sys.save()
+
+    def _run(self):
+        from django.core.management import call_command
+        call_command("send_notifications")
+
+    def test_command_is_a_no_op_while_notifications_are_off(self):
+        from django.core import mail
+        self.sys.notifications_enabled = False
+        self.sys.save()
+        Reminder.objects.create(person=self.person, text="X", created_by=self.admin, assigned_to=self.admin,
+                                due_at=timezone.now() + timedelta(minutes=10))
+        self._run()
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_upcoming_reminder_is_emailed_once_within_the_lead_window(self):
+        from django.core import mail
+        r = Reminder.objects.create(person=self.person, text="Skambutis", created_by=self.admin, assigned_to=self.admin,
+                                    due_at=timezone.now() + timedelta(minutes=20))
+        self._run()
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Skambutis", mail.outbox[0].subject)
+        self.assertEqual(mail.outbox[0].to, ["boss@example.lt"])
+        r.refresh_from_db()
+        self.assertIsNotNone(r.upcoming_notified_at)
+        self._run()  # not sent twice
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_far_off_reminder_is_not_emailed_yet(self):
+        from django.core import mail
+        Reminder.objects.create(person=self.person, text="Vėliau", created_by=self.admin, assigned_to=self.admin,
+                                due_at=timezone.now() + timedelta(days=3))
+        self._run()
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_assigning_a_task_emails_the_new_owner(self):
+        from django.core import mail
+        from contacts.models import Team
+        team = Team.objects.create(name="T")
+        team.members.add(self.admin, self.mate)
+        r = Reminder.objects.create(person=self.person, text="Perduota", created_by=self.admin, assigned_to=self.admin,
+                                    due_at=timezone.now() + timedelta(days=5))
+        self.client.force_login(self.admin)
+        self.client.post(reverse("contacts:reminder-edit", args=[r.pk]),
+                         {"text": "Perduota", "due_at": r.due_at.strftime("%Y-%m-%dT%H:%M"),
+                          "assigned_to": self.mate.pk, "priority": "high"})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["kolega@example.lt"])
+        self.assertIn("Perduota", mail.outbox[0].subject)
+        r.refresh_from_db()
+        self.assertEqual(r.assigned_notified_to, self.mate)
+        mail.outbox.clear()
+        self._run()  # command does not re-send
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_morning_digest_sends_once_a_day_and_can_be_switched_off(self):
+        from django.core import mail
+        from contacts.models import UserProfile
+        UserProfile.objects.filter(user=self.admin).update(digest_time="00:00")
+        Reminder.objects.create(person=self.person, text="Vėluoja", created_by=self.admin, assigned_to=self.admin,
+                                due_at=timezone.now() - timedelta(hours=2))
+        self._run()
+        digests = [m for m in mail.outbox if "santrauka" in m.subject.lower()]
+        self.assertEqual(len(digests), 1)
+        self.assertIn("Vėluoja", digests[0].body)
+        prof = UserProfile.objects.get(user=self.admin)
+        self.assertEqual(prof.digest_sent_on, timezone.localdate())
+        mail.outbox.clear()
+        self._run()
+        self.assertEqual(len([m for m in mail.outbox if "santrauka" in m.subject.lower()]), 0)
+
+    def test_unsubscribe_link_turns_the_digest_off(self):
+        from contacts.models import UserProfile
+        token = UserProfile.objects.get(user=self.mate).unsubscribe_token
+        resp = self.client.get(reverse("contacts:notifications-unsubscribe", args=[token]))
+        self.assertContains(resp, "išjungtos")
+        self.assertFalse(UserProfile.objects.get(user=self.mate).digest_enabled)
+
+    def test_notification_settings_page_is_admin_only(self):
+        self.client.force_login(self.mate)
+        self.assertEqual(self.client.get(reverse("contacts:settings-notifications")).status_code, 404)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse("contacts:settings-notifications")).status_code, 200)

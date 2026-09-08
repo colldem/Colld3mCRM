@@ -1,0 +1,6 @@
+{% extends "email/base.html" %}{% load i18n crm_format %}
+{% block body %}
+<h1 style="margin:0 0 12px;font-size:20px;color:#062b63;">{% translate 'Artėja įvykis' %}</h1>
+{% include "email/_row.html" %}
+<p style="margin:16px 0 0;"><a href="{{ link }}" style="display:inline-block;background:#062b63;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:700;">{% translate 'Atidaryti' %}</a></p>
+{% endblock %}
