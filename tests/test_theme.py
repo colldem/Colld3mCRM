@@ -75,6 +75,18 @@ class ThemeTests(TestCase):
         for token in ("--fs-2xs:11px", "--fs-xs:12px", "--fs-sm:13px", "--fs-base:14px",
                       "--fs-md:16px", "--fs-lg:20px", "--fs-xl:24px", "--fs-2xl:28px"):
             self.assertIn(token, app_css)
+
+    def test_radius_and_control_heights_use_one_scale(self):
+        app_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
+        for token in ("--radius:6px", "--radius-sm:4px", "--radius-lg:8px", "--radius-pill:999px",
+                      "--control-h:40px", "--control-h-sm:32px", "--control-h-lg:48px"):
+            self.assertIn(token, app_css)
+        import re
+        # Corner radii collapse to 4 / 6 / 8 / pill; interactive controls to 32 / 40 / 48.
+        for sheet in (app_css, theme_css):
+            self.assertEqual(set(re.findall(r"border-radius:(5|7|10|11|12|16|18|20)px", sheet)), set())
+            self.assertEqual(set(re.findall(r"min-height:(26|28|30|34|36|38|42|46)px", sheet)), set())
         # No text sits between the scale steps any more (icon glyphs at 18/19/25px stay).
         import re
         offenders = set()
