@@ -1898,6 +1898,45 @@ class ContactViewTests(TestCase):
         target.refresh_from_db()
         self.assertTrue(target.check_password("fresh-secure-pass-2026"))
 
+    # --- C10 part 2: teams ---
+
+    def test_teams_page_is_admin_only(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("contacts:settings-teams")).status_code, 404)
+        self.user.is_superuser = True
+        self.user.save()
+        self.assertEqual(self.client.get(reverse("contacts:settings-teams")).status_code, 200)
+
+    def test_admin_creates_renames_and_populates_a_team(self):
+        from contacts.models import Team
+        self.user.is_superuser = True
+        self.user.save()
+        self.client.force_login(self.user)
+        a = get_user_model().objects.create_user("teamer", password="very-secure-password")
+        self.client.post(reverse("contacts:settings-teams"), {"action": "create", "name": "Pardavimai"})
+        team = Team.objects.get(name="Pardavimai")
+        self.assertEqual(team.visibility, Team.VISIBILITY_ALL)
+        self.client.post(reverse("contacts:settings-teams"), {
+            "action": "update", "team_id": team.pk, "name": "Pardavimų skyrius",
+            "visibility": Team.VISIBILITY_TEAM, "members": [a.pk],
+        })
+        team.refresh_from_db()
+        self.assertEqual(team.name, "Pardavimų skyrius")
+        self.assertEqual(team.visibility, Team.VISIBILITY_TEAM)
+        self.assertEqual(set(team.members.all()), {a})
+        self.client.post(reverse("contacts:settings-teams"), {"action": "delete", "team_id": team.pk})
+        self.assertFalse(Team.objects.filter(pk=team.pk).exists())
+
+    def test_duplicate_team_name_is_rejected(self):
+        from contacts.models import Team
+        Team.objects.create(name="Rinkodara")
+        self.user.is_superuser = True
+        self.user.save()
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:settings-teams"), {"action": "create", "name": "rinkodara"}, follow=True)
+        self.assertEqual(Team.objects.filter(name__iexact="rinkodara").count(), 1)
+        self.assertContains(response, "jau yra")
+
     # --- C6 part 3: owner-based visibility for the restricted role ---
 
     def _restricted_user(self, username="ribotas"):

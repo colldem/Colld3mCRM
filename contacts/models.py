@@ -111,6 +111,27 @@ class UserProfile(models.Model):
         return str(self.user)
 
 
+class Team(models.Model):
+    """A department/group. Members share record visibility per `visibility`."""
+    VISIBILITY_ALL = "all"
+    VISIBILITY_TEAM = "team"
+    VISIBILITY_CHOICES = (
+        (VISIBILITY_ALL, tr("Visi įrašai")),
+        (VISIBILITY_TEAM, tr("Tik komandos įrašai")),
+    )
+
+    name = models.CharField(max_length=80, unique=True)
+    visibility = models.CharField(max_length=8, choices=VISIBILITY_CHOICES, default=VISIBILITY_ALL)
+    members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="crm_teams")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class DuplicateSettings(models.Model):
     LEVEL_CHOICES = (("strict", tr("Griežtas")), ("standard", tr("Standartinis")), ("loose", tr("Laisvas")))
 

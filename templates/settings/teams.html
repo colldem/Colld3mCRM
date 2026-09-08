@@ -1,0 +1,36 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Komandos' %}</h2><p>{% translate 'Skyriai / grupės. Nariai gali dalytis įrašų matomumu (žr. „Tik komandos įrašai“).' %}</p></div></div>
+
+<form method="post" class="custom-field-create">{% csrf_token %}<input type="hidden" name="action" value="create">
+  <div class="profile-fields">
+    <label>{% translate 'Komandos pavadinimas' %}<input name="name" maxlength="80" required></label>
+  </div>
+  <button class="btn primary" type="submit">{% translate 'Sukurti komandą' %}</button>
+</form>
+
+<ul class="settings-list custom-field-list">
+  {% for row in rows %}
+    <li>
+      <form method="post" class="team-row">{% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="team_id" value="{{ row.team.pk }}">
+        <div class="team-row-head">
+          <label>{% translate 'Pavadinimas' %}<input name="name" value="{{ row.team.name }}" maxlength="80"></label>
+          <label>{% translate 'Matomumas' %}<select name="visibility">{% for value, label in visibility_choices %}<option value="{{ value }}"{% if value == row.team.visibility %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        </div>
+        <fieldset class="team-members">
+          <legend>{% translate 'Nariai' %}</legend>
+          <div class="team-members-grid">
+            {% for user in users %}<label><input type="checkbox" name="members" value="{{ user.pk }}"{% if user.pk in row.member_ids %} checked{% endif %}> {{ user.get_full_name|default:user.username }}</label>{% empty %}<small>{% translate 'Naudotojų dar nėra.' %}</small>{% endfor %}
+          </div>
+        </fieldset>
+        <div class="team-row-actions">
+          <button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button>
+          <button class="btn danger" type="submit" name="action" value="delete" formnovalidate>{% translate 'Pašalinti komandą' %}</button>
+        </div>
+      </form>
+    </li>
+  {% empty %}
+    <li><small>{% translate 'Komandų dar nėra.' %}</small></li>
+  {% endfor %}
+</ul>
+{% endblock %}

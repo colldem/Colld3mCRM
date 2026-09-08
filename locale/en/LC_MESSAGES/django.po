@@ -1582,3 +1582,48 @@ msgstr "Owner (primary)"
 
 msgid "Atsakingi (papildomi)"
 msgstr "Responsible (additional)"
+
+msgid "Komandos"
+msgstr "Teams"
+
+msgid "Skyriai / grupės. Nariai gali dalytis įrašų matomumu (žr. „Tik komandos įrašai“)."
+msgstr "Departments / groups. Members can share record visibility (see “Team records only”)."
+
+msgid "Komandos pavadinimas"
+msgstr "Team name"
+
+msgid "Sukurti komandą"
+msgstr "Create team"
+
+msgid "Matomumas"
+msgstr "Visibility"
+
+msgid "Nariai"
+msgstr "Members"
+
+msgid "Pašalinti komandą"
+msgstr "Delete team"
+
+msgid "Komandų dar nėra."
+msgstr "No teams yet."
+
+msgid "Įveskite komandos pavadinimą."
+msgstr "Enter a team name."
+
+msgid "Tokia komanda jau yra."
+msgstr "That team already exists."
+
+msgid "Komanda sukurta."
+msgstr "Team created."
+
+msgid "Komanda pašalinta."
+msgstr "Team deleted."
+
+msgid "Komanda atnaujinta."
+msgstr "Team updated."
+
+msgid "Visi įrašai"
+msgstr "All records"
+
+msgid "Tik komandos įrašai"
+msgstr "Team records only"

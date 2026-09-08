@@ -31,7 +31,7 @@ from .filters import (
     filter_chips,
     saved_filter_payload,
 )
-from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, UserProfile, WebLink
+from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, Team, UserProfile, WebLink
 from .permissions import visible_companies, visible_people, visible_reminders
 from .audit import log as audit_log
 
@@ -658,6 +658,64 @@ def settings_users(request):
     } for user in User.objects.select_related("crm_profile").order_by("username")]
     return render(request, "settings/users.html", {
         "settings_section": "users", "rows": rows, "role_choices": UserProfile.ROLE_CHOICES,
+    })
+
+
+@login_required
+def settings_teams(request):
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    User = get_user_model()
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "create":
+            name = request.POST.get("name", "").strip()[:80]
+            if not name:
+                messages.error(request, tr("Įveskite komandos pavadinimą."))
+            elif Team.objects.filter(name__iexact=name).exists():
+                messages.error(request, tr("Tokia komanda jau yra."))
+            else:
+                team = Team.objects.create(name=name)
+                audit_log(AuditLog.CREATE, request=request, target=team, target_type="team")
+                messages.success(request, tr("Komanda sukurta."))
+        else:
+            team = Team.objects.filter(pk=request.POST.get("team_id")).first()
+            if not team:
+                pass
+            elif action == "delete":
+                audit_log(AuditLog.DELETE, request=request, target_type="team", target_id=team.pk, target_label=team.name)
+                team.delete()
+                messages.success(request, tr("Komanda pašalinta."))
+            elif action == "update":
+                name = request.POST.get("name", "").strip()[:80]
+                visibility = request.POST.get("visibility") if request.POST.get("visibility") in dict(Team.VISIBILITY_CHOICES) else team.visibility
+                member_ids = [int(v) for v in request.POST.getlist("members") if v.isdigit()]
+                new_members = list(User.objects.filter(pk__in=member_ids, is_active=True))
+                old = {"name": team.name, "visibility": team.visibility, "members": sorted(team.members.values_list("username", flat=True))}
+                if name and name.lower() != team.name.lower() and Team.objects.filter(name__iexact=name).exclude(pk=team.pk).exists():
+                    messages.error(request, tr("Tokia komanda jau yra."))
+                    return redirect("contacts:settings-teams")
+                if name:
+                    team.name = name
+                team.visibility = visibility
+                team.save(update_fields=["name", "visibility"])
+                team.members.set(new_members)
+                new = {"name": team.name, "visibility": team.visibility, "members": sorted(m.username for m in new_members)}
+                for key in ("name", "visibility", "members"):
+                    if old[key] != new[key]:
+                        audit_log(AuditLog.UPDATE, request=request, target=team, target_type="team", field=key,
+                                  old=", ".join(old[key]) if isinstance(old[key], list) else old[key],
+                                  new=", ".join(new[key]) if isinstance(new[key], list) else new[key])
+                messages.success(request, tr("Komanda atnaujinta."))
+        return redirect("contacts:settings-teams")
+    users = list(User.objects.filter(is_active=True).order_by("first_name", "last_name", "username"))
+    teams = Team.objects.prefetch_related("members").all()
+    rows = [{"team": team, "member_ids": set(team.members.values_list("id", flat=True))} for team in teams]
+    return render(request, "settings/teams.html", {
+        "settings_section": "teams", "rows": rows, "users": users,
+        "visibility_choices": Team.VISIBILITY_CHOICES,
     })
 
 

@@ -244,12 +244,17 @@ ir įmonėms, 3 riba, praleistų ataskaita). Trūksta: žymos šalinimo, masinio
 Nustatymai → Duomenų eksportas (tik administratoriui): ZIP su `data.json`
 (`dumpdata` — kontaktai, naudotojai, nustatymai), `media/` ir `README.txt`.
 
-### C10. Komandos, matomumo modelis ir detalios teisės — 🟡 dalis 1 padaryta (spec 2026-09-08)
+### C10. Komandos, matomumo modelis ir detalios teisės — 🟡 dalys 1–2 padarytos (spec 2026-09-08)
 **Padaryta (1 dalis):** `Person.responsibles` / `Company.responsibles` M2M; kortelės
 laukas **„Atsakingi"** (double-click: pažymėti kelis, vienam radio „pagrindinis"
 arba „be pagrindinio" → `owner`); „savo įrašai" visur = `owner=user OR responsibles=user`
 (sąrašai, kortelė, paieška, priminimai, priedai); dublikatų sujungimas perkelia
 atsakingus; CSV eksporte/importe stulpelis „Atsakingi" (`;`-atskirti vardai).
+
+**Padaryta (2 dalis):** `Team` modelis (`name`, `visibility` = `all` / `team`,
+`members` M2M). Nustatymai → **Komandos** (tik administratoriui): kurti, pervadinti,
+keisti matomumą, valdyti narius, šalinti. Veiksmai žurnaluojami. `visibility` laukas
+paruoštas 3 daliai, dar netaikomas matomumui.
 
 C6 išplėtimas. Konkurentų praktika: HubSpot „Teams" + „users & teams" matomumas,
 Pipedrive „visibility groups", Salesforce „role hierarchy + sharing rules".
