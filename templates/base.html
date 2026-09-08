@@ -6,6 +6,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}CRM{% endblock %}</title>
+  <link rel="manifest" href="{% url 'pwa-manifest' %}">
+  <meta name="theme-color" content="#062b63">
+  <link rel="icon" href="{% static 'icons/crm-icon.svg' %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static 'icons/crm-icon.svg' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="CRM">
   <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260908c">
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260908y">
@@ -60,5 +66,6 @@
 <script src="{% static 'js/reminders.js' %}" defer></script>
 <script src="{% static 'js/search.js' %}?v=20260908a" defer></script>
 <script src="{% static 'js/forms.js' %}?v=20260908a" defer></script>
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>
 </html>

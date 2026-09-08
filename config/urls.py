@@ -15,5 +15,7 @@ urlpatterns = [
     path("setup/", views.setup_admin, name="setup"),
     path("health/live", views.health_live, name="health-live"),
     path("health/ready", views.health_ready, name="health-ready"),
+    path("manifest.webmanifest", views.pwa_manifest, name="pwa-manifest"),
+    path("sw.js", views.pwa_service_worker, name="pwa-service-worker"),
     path("", include("contacts.urls")),
 ]

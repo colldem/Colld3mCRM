@@ -51,6 +51,27 @@ class LoginSecurityTests(TestCase):
         self.assertEqual(response.status_code, settings.AXES_HTTP_RESPONSE_CODE)
 
 
+class PWATests(TestCase):
+    def test_manifest_and_service_worker_are_served_without_auth(self):
+        import json
+
+        manifest = self.client.get("/manifest.webmanifest")
+        self.assertEqual(manifest.status_code, 200)
+        self.assertEqual(manifest["Content-Type"], "application/manifest+json")
+        data = json.loads(manifest.content)
+        self.assertEqual(data["display"], "standalone")
+        self.assertEqual(data["start_url"], "/contacts/")
+        self.assertTrue(data["icons"])
+
+        worker = self.client.get("/sw.js")
+        self.assertEqual(worker.status_code, 200)
+        self.assertEqual(worker["Service-Worker-Allowed"], "/")
+
+        page = self.client.get(reverse("login"))
+        self.assertContains(page, 'rel="manifest"')
+        self.assertContains(page, 'name="theme-color"')
+
+
 class ContactModelTests(TestCase):
     def test_person_can_link_multiple_companies(self):
         person = Person.objects.create(first_name="Rūta", last_name="Žukaitė")

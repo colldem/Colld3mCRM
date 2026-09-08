@@ -1908,3 +1908,6 @@ msgstr "Duplicate pairs merged: %(n)s."
 
 msgid "Sujungiamų dublikatų nerasta."
 msgstr "No duplicates to merge."
+
+msgid "Kontaktų, įmonių ir priminimų valdymas."
+msgstr "Manage contacts, companies and reminders."

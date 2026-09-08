@@ -213,6 +213,17 @@ def health_live(request):
     return JsonResponse({"status": "live"})
 
 
+def pwa_manifest(request):
+    return render(request, "manifest.webmanifest", content_type="application/manifest+json")
+
+
+def pwa_service_worker(request):
+    response = render(request, "sw.js", content_type="application/javascript")
+    response["Service-Worker-Allowed"] = "/"
+    response["Cache-Control"] = "no-cache"
+    return response
+
+
 def health_ready(request):
     try:
         with connection.cursor() as cursor:

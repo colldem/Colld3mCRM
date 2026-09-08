@@ -1,0 +1,16 @@
+{% load static i18n %}{% get_current_language as LANGUAGE_CODE %}{
+  "name": "Colld3m CRM",
+  "short_name": "CRM",
+  "description": "{% translate 'Kontaktų, įmonių ir priminimų valdymas.' %}",
+  "lang": "{{ LANGUAGE_CODE|default:'lt' }}",
+  "start_url": "/contacts/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#062b63",
+  "icons": [
+    { "src": "{% static 'icons/crm-icon.svg' %}", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "{% static 'icons/crm-maskable.svg' %}", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
