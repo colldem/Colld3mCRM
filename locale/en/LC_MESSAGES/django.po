@@ -1807,3 +1807,11 @@ msgstr "Last updated"
 
 msgid "Dukart spustelėkite reikšmę, kad redaguotumėte vietoje."
 msgstr "Double-click a value to edit it in place."
+
+msgid ""
+"Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, "
+"Adresai, URL, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius "
+"priskirsite kitame žingsnyje."
+msgstr ""
+"Recognised columns: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, "
+"URL, Tagai, Kategorijos, Atsakingas. You can map the rest in the next step."

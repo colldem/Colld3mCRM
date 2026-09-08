@@ -248,7 +248,7 @@ def contact_list(request):
     page_size = 100 if request.GET.get("page_size") == "100" else 50
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
-    sort_map = {"id": ["id"], "name": ["last_name", "first_name"], "company": ["sort_company"], "phone": ["sort_phone"], "email": ["sort_email"], "category": ["sort_category"], "tags": ["sort_tag"], "status": ["status"], "owner": ["owner__first_name", "owner__last_name", "owner__username"], "last_contact": ["last_contact_at"], "created": ["created_at"], "updated": ["updated_at"]}
+    sort_map = {"id": ["id"], "name": ["last_name", "first_name"], "company": ["sort_company"], "phone": ["sort_phone"], "email": ["sort_email"], "category": ["sort_category"], "tags": ["sort_tag"], "owner": ["owner__first_name", "owner__last_name", "owner__username"], "last_contact": ["last_contact_at"], "created": ["created_at"], "updated": ["updated_at"]}
     sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
     order = [f"{order_prefix}{field}" for field in sort_map.get(sort_key, sort_map["name"])]
@@ -265,7 +265,7 @@ def contact_list(request):
         sort_tag=Min("tags__name"),
     )
     custom_fields = list(CustomField.objects.filter(entity=CustomField.PERSON))
-    allowed_columns = ["company", "phone", "email", "category", "tags", "status", "owner", "last_contact", "updated"] + [field.key for field in custom_fields]
+    allowed_columns = ["company", "phone", "email", "category", "tags", "owner", "last_contact", "updated"] + [field.key for field in custom_fields]
     default_columns = ["company", "phone", "email", "category", "tags", "updated"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
@@ -1482,7 +1482,7 @@ def contacts_export(request):
     response["Content-Disposition"] = 'attachment; filename="crm-kontaktai.csv"'
     response.write("\ufeff")
     writer = csv.writer(response)
-    writer.writerow(["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Būsena", "Tagai", "Kategorijos", "Atsakingas", "Atsakingi"])
+    writer.writerow(["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Tagai", "Kategorijos", "Atsakingas", "Atsakingi"])
     people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     if request.method == "POST":
         people = people.filter(pk__in=request.POST.getlist("selected"))
@@ -1490,7 +1490,7 @@ def contacts_export(request):
     from .permissions import user_label
     rows = 0
     for person in people:
-        writer.writerow([person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), person.status, "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner), "; ".join(u.get_username() for u in person.responsibles.all())])
+        writer.writerow([person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner), "; ".join(u.get_username() for u in person.responsibles.all())])
         rows += 1
     audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Kontaktai (CSV)")), new=str(rows))
     return response
@@ -1543,7 +1543,6 @@ IMPORT_COLUMNS = [
     ("El. paštai", tr("El. paštai"), ("El. paštai", "El. paštas", "email", "Email")),
     ("Adresai", tr("Adresai"), ("Adresai", "Adresas", "address", "Address")),
     ("URL", tr("Nuorodos"), ("URL", "url", "Website")),
-    ("Būsena", tr("Būsena"), ("Būsena", "status", "Status")),
     ("Tagai", tr("Žymos"), ("Tagai", "Žymos", "Tags", "tags")),
     ("Kategorijos", tr("Kategorijos"), ("Kategorijos", "Categories", "categories")),
     ("Atsakingas", tr("Atsakingas (pagrindinis)"), ("Atsakingas", "owner", "Owner")),
@@ -1600,7 +1599,7 @@ def _import_one_row(row, owner, mode, owner_cache):
     category_names = _import_relation_names(row, "Kategorijos", "Categories", "categories")
     if len(tag_names) > 3 or len(category_names) > 3:
         raise ValueError(str(tr("Viršytas leistinas žymų arba kategorijų skaičius (daugiausia 3)")))
-    values = {"first_name": first_name, "last_name": last_name, "job_title": _value(row, "Pareigos", "job_title"), "status": _value(row, "Būsena", "status") or "Aktyvus"}
+    values = {"first_name": first_name, "last_name": last_name, "job_title": _value(row, "Pareigos", "job_title")}
     row_owner = _resolve_import_owner(_value(row, "Atsakingas", "owner", "Owner"), owner_cache)
     if person:
         for field, value in values.items():

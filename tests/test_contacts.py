@@ -446,15 +446,15 @@ class ContactViewTests(TestCase):
         first_category = Category.objects.create(name="A kategorija")
         second_category = Category.objects.create(name="B kategorija")
         self.person.categories.add(first_category, second_category)
-        columns = ["company", "phone", "email", "category", "tags", "status", "updated"]
+        columns = ["company", "phone", "email", "category", "tags", "updated"]
 
         response = self.client.get(reverse("contacts:list"), {"columns": columns, "sort": "id", "direction": "desc"})
 
         self.assertEqual(response.context["sort"], "id")
         self.assertEqual(list(response.context["page"])[0], other)
         self.assertEqual(response.context["page"].paginator.count, Person.objects.filter(deleted_at__isnull=True).count())
-        self.assertContains(response, 'class="sort-control"', count=8)
-        for key in ("name", "company", "phone", "email", "category", "tags", "status", "updated", "id"):
+        self.assertContains(response, 'class="sort-control"', count=7)
+        for key in ("name", "company", "phone", "email", "category", "tags", "updated", "id"):
             with self.subTest(key=key):
                 self.assertContains(response, f"sort={key}&amp;direction=asc")
                 self.assertContains(response, f"sort={key}&amp;direction=desc")
@@ -494,14 +494,14 @@ class ContactViewTests(TestCase):
         self.person.categories.add(category)
         response = self.client.get(reverse("contacts:list"), {
             "category": category.pk,
-            "columns": ["phone", "status"],
+            "columns": ["phone", "owner"],
             "page_size": "100",
             "sort": "name",
             "direction": "asc",
         })
         self.assertEqual(response.context["page_size"], 100)
-        self.assertEqual(response.context["columns"], ["phone", "status"])
-        self.assertContains(response, f"category={category.pk}&amp;columns=phone&amp;columns=status&amp;page_size=100&amp;sort=name")
+        self.assertEqual(response.context["columns"], ["phone", "owner"])
+        self.assertContains(response, f"category={category.pk}&amp;columns=phone&amp;columns=owner&amp;page_size=100&amp;sort=name")
 
     def test_contacts_can_be_filtered_and_archived_in_bulk(self):
         self.client.force_login(self.user)

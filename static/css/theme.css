@@ -134,9 +134,24 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .detail-fields-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px 20px}
 .detail-fields-grid .detail-field{margin:0}
 .detail-field.readonly .field-display{cursor:default}
-.contact-info-row{display:flex;align-items:flex-start;gap:8px}
-.contact-info-row .detail-field{flex:1;min-width:0}
-.icon-btn{min-height:0;padding:4px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer;flex-shrink:0}
+
+/* Contact-information card (icon | label+value | copy) */
+.contact-card-body{display:flex;gap:20px;align-items:flex-start}
+.contact-lines{flex:1;min-width:0;display:grid;gap:10px}
+.contact-line{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:12px}
+.contact-line .ci-icon{width:20px;height:20px;fill:none;stroke:var(--muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.contact-line-field{min-width:0}
+.contact-line-field .detail-field{margin:0}
+.contact-card .field-display{display:grid;gap:4px;cursor:pointer}
+.contact-card .field-display strong{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.contact-card .field-values{border:1px solid var(--line);border-radius:8px;padding:8px 11px;background:#fff;font-size:14px;min-height:38px;overflow-wrap:anywhere}
+.contact-card .field-values a{color:var(--navy-950)}
+.contact-line-copy{flex-shrink:0;display:grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--muted);cursor:pointer}
+.contact-line-copy svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.contact-line-copy:hover{background:var(--soft)}
+.contact-card-avatar{flex-shrink:0}
+.avatar-xl{display:grid;place-items:center;width:92px;height:92px;border-radius:50%;background:#e6effb;color:var(--navy-950);font-size:28px;font-weight:750}
+@media(max-width:560px){.contact-card-body{flex-direction:column-reverse;align-items:stretch}.contact-card-avatar{align-self:flex-start}}
 
 .detail-tabs .tab-strip{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:-4px -4px 16px}
 .detail-tabs .tab{min-height:0;padding:9px 14px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:inherit;font-weight:600;cursor:pointer}

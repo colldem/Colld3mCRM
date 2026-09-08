@@ -73,8 +73,8 @@ class PersonForm(forms.ModelForm):
 
     class Meta:
         model = Person
-        fields = ["first_name", "last_name", "job_title", "status", "priority", "contact_type", "cooperation_start", "description", "internal_note", "companies", "tags", "categories"]
-        labels = {"first_name": tr("Vardas"), "last_name": tr("Pavardė"), "job_title": tr("Pareigos"), "status": tr("Būsena"), "priority": tr("Prioritetas"), "contact_type": tr("Kontakto tipas"), "cooperation_start": tr("Bendradarbiavimo pradžia"), "description": tr("Aprašymas"), "internal_note": tr("Vidinė pastaba"), "tags": tr("Tagai"), "categories": tr("Kategorijos")}
+        fields = ["first_name", "last_name", "job_title", "priority", "contact_type", "cooperation_start", "description", "internal_note", "companies", "tags", "categories"]
+        labels = {"first_name": tr("Vardas"), "last_name": tr("Pavardė"), "job_title": tr("Pareigos"), "priority": tr("Prioritetas"), "contact_type": tr("Kontakto tipas"), "cooperation_start": tr("Bendradarbiavimo pradžia"), "description": tr("Aprašymas"), "internal_note": tr("Vidinė pastaba"), "tags": tr("Tagai"), "categories": tr("Kategorijos")}
         widgets = {"tags": forms.CheckboxSelectMultiple, "categories": forms.CheckboxSelectMultiple, "cooperation_start": forms.DateInput(attrs={"type": "date"}), "description": forms.Textarea(attrs={"rows": 4}), "internal_note": forms.Textarea(attrs={"rows": 3})}
 
     def clean_tags(self):

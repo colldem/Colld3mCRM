@@ -37,7 +37,7 @@
           <div class="import-card-actions"><button class="btn primary" type="submit">{% translate 'Patvirtinti importą' %}</button><a class="btn" href="{% url 'contacts:import-export' %}">{% translate 'Atšaukti' %}</a></div>
         </form>
       {% else %}
-        <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Būsena, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius priskirsite kitame žingsnyje.' %}</p>
+        <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius priskirsite kitame žingsnyje.' %}</p>
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
           <input type="file" name="file" accept=".csv,.xlsx" required>
