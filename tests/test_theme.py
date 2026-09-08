@@ -76,6 +76,14 @@ class ThemeTests(TestCase):
                       "--fs-md:16px", "--fs-lg:20px", "--fs-xl:24px", "--fs-2xl:28px"):
             self.assertIn(token, app_css)
 
+    def test_stylesheets_have_no_malformed_declarations(self):
+        # Guards against bulk find/replace eating a ";" (e.g. "transparent padding:4px").
+        import re
+        for name in ("app.css", "theme.css"):
+            css = (settings.BASE_DIR / "static" / "css" / name).read_text()
+            self.assertEqual(css.count("{"), css.count("}"), name)
+            self.assertNotRegex(css, r"[a-z0-9%)]\s+(padding|margin|gap|border-radius|min-height|width|height):")
+
     def test_radius_and_control_heights_use_one_scale(self):
         app_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
         theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
