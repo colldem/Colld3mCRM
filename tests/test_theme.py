@@ -67,3 +67,18 @@ class ThemeTests(TestCase):
         self.assertIn("background-image:url(\"data:image/svg+xml", css)
         # Checkboxes/radios follow the CRM navy instead of each browser's system accent.
         self.assertIn("accent-color:var(--navy-950)", css)
+
+    def test_font_sizes_follow_one_type_scale(self):
+        app_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
+        # The 8-step scale is declared once as tokens.
+        for token in ("--fs-2xs:11px", "--fs-xs:12px", "--fs-sm:13px", "--fs-base:14px",
+                      "--fs-md:16px", "--fs-lg:20px", "--fs-xl:24px", "--fs-2xl:28px"):
+            self.assertIn(token, app_css)
+        # No text sits between the scale steps any more (icon glyphs at 18/19/25px stay).
+        import re
+        offenders = set()
+        for sheet in (app_css, theme_css):
+            offenders |= set(re.findall(r"font-size:(10|15|17|21|23|27|30|32)px", sheet))
+            offenders |= set(re.findall(r"font-size:[0-9.]+em", sheet))
+        self.assertEqual(offenders, set())
