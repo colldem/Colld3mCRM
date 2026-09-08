@@ -74,6 +74,16 @@ class SystemSettingsForm(forms.ModelForm):
         }
 
 
+class ImportSettingsForm(forms.ModelForm):
+    class Meta:
+        model = SystemSettings
+        fields = ["import_delimiter", "import_encoding"]
+        labels = {
+            "import_delimiter": tr("CSV skyriklis"),
+            "import_encoding": tr("CSV koduotė"),
+        }
+
+
 class PersonForm(forms.ModelForm):
     companies = forms.ModelMultipleChoiceField(queryset=Company.objects.filter(deleted_at__isnull=True), required=False, label=tr("Priskirtos įmonės"), help_text=tr("Galite pasirinkti vieną ar kelias įmones."), widget=forms.CheckboxSelectMultiple)
     phone = forms.CharField(required=False, label=tr("Telefonai"), widget=forms.Textarea(attrs={"rows": 3, "placeholder": tr("Vienas numeris eilutėje")}))

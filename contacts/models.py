@@ -186,9 +186,22 @@ class SystemSettings(models.Model):
         ("d.m.Y", "31.12.2026"),
         ("m/d/Y", "12/31/2026"),
     )
+    IMPORT_DELIMITER_CHOICES = (
+        ("auto", tr("Automatiškai")),
+        (",", tr("Kablelis ( , )")),
+        (";", tr("Kabliataškis ( ; )")),
+        ("tab", tr("Tabuliacija")),
+    )
+    IMPORT_ENCODING_CHOICES = (
+        ("auto", tr("Automatiškai")),
+        ("utf-8-sig", "UTF-8"),
+        ("cp1257", tr("Windows-1257 (Baltijos)")),
+    )
 
     default_page_size = models.PositiveSmallIntegerField(default=50, choices=PAGE_SIZE_CHOICES)
     date_format = models.CharField(max_length=12, default="Y-m-d", choices=DATE_FORMAT_CHOICES)
+    import_delimiter = models.CharField(max_length=8, default="auto", choices=IMPORT_DELIMITER_CHOICES)
+    import_encoding = models.CharField(max_length=16, default="auto", choices=IMPORT_ENCODING_CHOICES)
     updated_at = models.DateTimeField(auto_now=True)
 
     @property

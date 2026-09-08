@@ -4,7 +4,7 @@ import os
 import secrets
 import uuid
 import csv
-from io import TextIOWrapper
+import io
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, update_session_auth_hash
@@ -1031,6 +1031,25 @@ def settings_system(request):
 
 
 @login_required
+def settings_import(request):
+    from .forms import ImportSettingsForm
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    form = ImportSettingsForm(request.POST or None, instance=SystemSettings.load())
+    if request.method == "POST" and form.is_valid():
+        changed = list(form.changed_data)
+        form.save()
+        if changed:
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=str(tr("Importo nustatymai")), new=", ".join(changed))
+        messages.success(request, tr("Importo nustatymai išsaugoti."))
+        return redirect("contacts:settings-import")
+    return render(request, "settings/import_settings.html", {"form": form, "settings_section": "import"})
+
+
+@login_required
 def documentation_page(request):
     topics = (
         ("overview", tr("Pradžia")),
@@ -1735,10 +1754,37 @@ def _import_contact_rows(rows, owner=None, *, mode="update", collect_errors=Fals
 IMPORT_PREVIEW_LIMIT = 5000
 
 
+def _decode_csv(data, setting):
+    """Decode CSV bytes using the configured encoding, or try common ones."""
+    candidates = ["utf-8-sig", "cp1257"] if setting == "auto" else [setting]
+    for encoding in candidates:
+        try:
+            return data.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
+def _csv_delimiter(text, setting):
+    """Return the configured CSV delimiter, or sniff one from the header line."""
+    if setting == "tab":
+        return "\t"
+    if setting in (",", ";"):
+        return setting
+    sample = text[:4096]
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
+    except csv.Error:
+        return ";" if sample.count(";") > sample.count(",") else ","
+
+
 def _read_import_rows(upload):
     name = upload.name.lower()
     if name.endswith(".csv"):
-        raw = list(csv.DictReader(TextIOWrapper(upload.file, encoding="utf-8-sig")))
+        system = SystemSettings.load()
+        text = _decode_csv(upload.file.read(), system.import_encoding)
+        delimiter = _csv_delimiter(text, system.import_delimiter)
+        raw = list(csv.DictReader(io.StringIO(text), delimiter=delimiter))
     elif name.endswith(".xlsx"):
         from openpyxl import load_workbook
 

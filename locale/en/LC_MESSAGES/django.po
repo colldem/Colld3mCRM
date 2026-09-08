@@ -1857,3 +1857,42 @@ msgstr "How dates are shown across the interface."
 
 msgid "25 eilutės"
 msgstr "25 rows"
+
+msgid "Importo nustatymai"
+msgstr "Import settings"
+
+msgid "Importo nustatymai išsaugoti."
+msgstr "Import settings saved."
+
+msgid "Kaip skaitomi įkeliami CSV failai. XLSX failams šie nustatymai netaikomi."
+msgstr "How uploaded CSV files are read. These settings do not apply to XLSX files."
+
+msgid "CSV skyriklis"
+msgstr "CSV delimiter"
+
+msgid "CSV koduotė"
+msgstr "CSV encoding"
+
+msgid "Automatiškai"
+msgstr "Automatic"
+
+msgid "Kablelis ( , )"
+msgstr "Comma ( , )"
+
+msgid "Kabliataškis ( ; )"
+msgstr "Semicolon ( ; )"
+
+msgid "Tabuliacija"
+msgstr "Tab"
+
+msgid "Windows-1257 (Baltijos)"
+msgstr "Windows-1257 (Baltic)"
+
+msgid "„Automatiškai“ atspėja skyriklį pagal failo antraštę."
+msgstr "\"Automatic\" guesses the delimiter from the file header."
+
+msgid "Lietuviškas „Excel“ dažnai eksportuoja Windows-1257 koduote su kabliataškiais."
+msgstr "Lithuanian Excel often exports as Windows-1257 with semicolons."
+
+msgid "Atidaryti importą"
+msgstr "Open import"

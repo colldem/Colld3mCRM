@@ -1,0 +1,13 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div><h2>{% translate 'Importas' %}</h2><p>{% translate 'Kaip skaitomi įkeliami CSV failai. XLSX failams šie nustatymai netaikomi.' %}</p></div>
+</div>
+<form method="post" class="profile-form">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <label class="duplicate-level-field"><strong>{{ form.import_delimiter.label }}</strong>{{ form.import_delimiter.errors }}{{ form.import_delimiter }}<small>{% translate '„Automatiškai“ atspėja skyriklį pagal failo antraštę.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.import_encoding.label }}</strong>{{ form.import_encoding.errors }}{{ form.import_encoding }}<small>{% translate 'Lietuviškas „Excel“ dažnai eksportuoja Windows-1257 koduote su kabliataškiais.' %}</small></label>
+  <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button><a class="btn" href="{% url 'contacts:import-export' %}">{% translate 'Atidaryti importą' %}</a></div>
+</form>
+{% endblock %}

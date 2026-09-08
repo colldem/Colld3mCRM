@@ -1450,6 +1450,22 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "Atnaujinti: 1")
         self.assertEqual(Person.objects.filter(first_name="Rūta", last_name="Žukaitė").count(), 1)
 
+    def test_import_settings_handle_semicolon_and_windows_1257_csv(self):
+        from contacts.models import SystemSettings
+
+        self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
+        self.assertEqual(self.client.get(reverse("contacts:settings-import")).status_code, 200)
+        self.client.post(reverse("contacts:settings-import"),
+                         {"import_delimiter": "auto", "import_encoding": "auto"})
+        system = SystemSettings.load()
+        self.assertEqual((system.import_delimiter, system.import_encoding), ("auto", "auto"))
+        content = "Vardas;Pavardė;Pareigos\nJonas;Kęstutaitis;Vadovas\n".encode("cp1257")
+        self._import_file(SimpleUploadedFile("kontaktai.csv", content, content_type="text/csv"))
+        person = Person.objects.get(first_name="Jonas", last_name="Kęstutaitis")
+        self.assertEqual(person.job_title, "Vadovas")
+
     def test_import_uses_selected_duplicate_level_and_reports_real_phone_duplicate(self):
         self.client.force_login(self.user)
         content = "Vardas,Pavardė,Telefonai\nKitas,Asmuo,+370 645 21 987\n".encode()
