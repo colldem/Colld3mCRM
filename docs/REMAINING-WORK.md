@@ -244,7 +244,7 @@ ir įmonėms, 3 riba, praleistų ataskaita). Trūksta: žymos šalinimo, masinio
 Nustatymai → Duomenų eksportas (tik administratoriui): ZIP su `data.json`
 (`dumpdata` — kontaktai, naudotojai, nustatymai), `media/` ir `README.txt`.
 
-### C10. Komandos, matomumo modelis ir detalios teisės — 🟡 dalys 1–3 padarytos (spec 2026-09-08)
+### C10. Komandos, matomumo modelis ir detalios teisės — 🟡 dalys 1–4 padarytos (spec 2026-09-08)
 **Padaryta (1 dalis):** `Person.responsibles` / `Company.responsibles` M2M; kortelės
 laukas **„Atsakingi"** (double-click: pažymėti kelis, vienam radio „pagrindinis"
 arba „be pagrindinio" → `owner`); „savo įrašai" visur = `owner=user OR responsibles=user`
@@ -265,6 +265,14 @@ komandų narys (+ nepriskirti); `own` kaip anksčiau. Nustatymai → Naudotojai:
 „Matomumas" stulpelis, rodomas ir faktinis matomumas jei komanda griežtesnė.
 Kortelės „Atsakingi" laukas — **multiselect dropdown** (naudotojų sąrašas) +
 atskiras „Pagrindinis" dropdown.
+
+**Padaryta (4 dalis):** „Atsakingas" filtras kontaktų/įmonių sąrašuose praplėstas:
+greitas mygtukas **„Mano kontaktai" / „Mano įmonės"** (`?owner=me` = owner ARBA
+responsible = aš), dropdown reikšmės **„Mano įrašai"**, **„Be atsakingo"** (nei
+owner, nei responsibles) ir bet kuris naudotojas (`owner_id` ARBA responsible).
+Jei filtruojama pagal naudotoją, kurio įrašų dabartinis naudotojas nemato
+(matomumo ribos) — virš sąrašo rodomas paaiškinimas. Masinis „Priskirti
+atsakingą" jau buvo (4 dalis, C6): priskiria/keičia `owner` pažymėtiems.
 
 C6 išplėtimas. Konkurentų praktika: HubSpot „Teams" + „users & teams" matomumas,
 Pipedrive „visibility groups", Salesforce „role hierarchy + sharing rules".

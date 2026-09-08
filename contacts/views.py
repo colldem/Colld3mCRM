@@ -59,7 +59,8 @@ def _owner_label_map(users):
     from .permissions import user_label
 
     mapping = {str(user.pk): user_label(user) for user in users}
-    mapping["none"] = str(tr("Nepriskirta"))
+    mapping["none"] = str(tr("Be atsakingo"))
+    mapping["me"] = str(tr("Mano įrašai"))
     return mapping
 
 
@@ -67,6 +68,22 @@ def _can_assign_owner(user):
     from .permissions import sees_all_records
 
     return sees_all_records(user)
+
+
+def _owner_filter_hint(user, owner_value):
+    """Explain an empty result when the user filtered by someone they cannot see."""
+    from .permissions import record_visibility, sees_all_records, teammate_ids
+    from .models import UserProfile
+
+    if not owner_value or not str(owner_value).isdigit() or sees_all_records(user):
+        return ""
+    target = int(owner_value)
+    vis = record_visibility(user)
+    if vis == UserProfile.VISIBILITY_OWN and target != user.pk:
+        return str(tr("Jūs matote tik savo įrašus, todėl kito naudotojo įrašai nerodomi."))
+    if vis == UserProfile.VISIBILITY_TEAM and target not in teammate_ids(user):
+        return str(tr("Jūs matote tik savo komandos įrašus, todėl šio naudotojo įrašai nerodomi."))
+    return ""
 
 
 def _attach_custom_cells(records, custom_columns):
@@ -99,11 +116,11 @@ def _search_results(query, per_group, user=None):
 
     people = apply_contact_filters(
         visible_people(user, Person.objects.filter(deleted_at__isnull=True)).prefetch_related("emails", "company_links__company"),
-        contact_filter_values(data),
+        contact_filter_values(data), user,
     ).order_by("last_name", "first_name")
     companies = apply_company_filters(
         visible_companies(user, Company.objects.filter(deleted_at__isnull=True)).prefetch_related("people"),
-        company_filter_values(data),
+        company_filter_values(data), user,
     ).order_by("name")
     activities = (
         Activity.objects.filter(deleted_at__isnull=True).filter(text_match)
@@ -222,7 +239,7 @@ def contact_list(request):
         "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
     )
     people = people.annotate(last_contact_at=Max("activities__created_at", filter=Q(activities__deleted_at__isnull=True)))
-    people = apply_contact_filters(people, filter_values)
+    people = apply_contact_filters(people, filter_values, request.user)
     people = people.annotate(
         sort_company=Min("company_links__company__name"),
         sort_phone=Min("phones__number"),
@@ -264,6 +281,7 @@ def contact_list(request):
         "tags": tags, "filter_values": filter_values,
         "custom_fields": custom_fields, "custom_columns": custom_columns,
         "owner_users": owner_users, "can_assign_owner": _can_assign_owner(request.user),
+        "owner_filter_hint": _owner_filter_hint(request.user, filter_values["owner"]),
         "active_filter_count": active_filter_count(filter_values),
         "filter_chips": filter_chips(request.GET, filter_values, label_maps, request.path),
         "saved_filters": SavedFilter.objects.filter(user=request.user, scope="contacts"),
@@ -1210,7 +1228,7 @@ def company_list(request):
     page_size = 100 if request.GET.get("page_size") == "100" else 50
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
-    companies = apply_company_filters(companies, filter_values)
+    companies = apply_company_filters(companies, filter_values, request.user)
     sort_map = {
         "id": "id",
         "name": "name",
@@ -1263,6 +1281,7 @@ def company_list(request):
         "page": page, "query": query, "page_size": page_size, "sort": sort_key, "direction": direction, "filter_values": filter_values, "columns": columns,
         "custom_fields": custom_fields, "custom_columns": custom_columns,
         "owner_users": owner_users, "can_assign_owner": _can_assign_owner(request.user),
+        "owner_filter_hint": _owner_filter_hint(request.user, filter_values["owner"]),
         "page_numbers": _elided_page_numbers(page),
         "list_query": list_query.urlencode(),
         "active_filter_count": active_filter_count(filter_values),

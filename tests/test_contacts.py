@@ -1963,6 +1963,40 @@ class ContactViewTests(TestCase):
         self.assertEqual(self.client.get(reverse("contacts:detail", args=[theirs.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("contacts:detail", args=[mates.pk])).status_code, 200)
 
+    def test_owner_filter_me_matches_owned_or_responsible(self):
+        self.client.force_login(self.user)
+        mate = get_user_model().objects.create_user("mate", password="very-secure-password")
+        owned = Person.objects.create(first_name="Mano", last_name="Nuosava", owner=self.user)
+        helping = Person.objects.create(first_name="Padedu", last_name="Kolegai", owner=mate)
+        helping.responsibles.add(self.user)
+        other = Person.objects.create(first_name="Svetimas", last_name="X", owner=mate)
+        ids = [p.pk for p in self.client.get(reverse("contacts:list"), {"owner": "me"}).context["page"]]
+        self.assertIn(owned.pk, ids)
+        self.assertIn(helping.pk, ids)
+        self.assertNotIn(other.pk, ids)
+
+    def test_owner_filter_none_finds_records_without_any_responsible(self):
+        self.client.force_login(self.user)
+        mate = get_user_model().objects.create_user("mate2", password="very-secure-password")
+        no_one = Person.objects.create(first_name="Niekieno", last_name="Y")
+        has_extra = Person.objects.create(first_name="Turi", last_name="Papildoma")
+        has_extra.responsibles.add(mate)
+        ids = [p.pk for p in self.client.get(reverse("contacts:list"), {"owner": "none"}).context["page"]]
+        self.assertIn(no_one.pk, ids)
+        self.assertIn(self.person.pk, ids)  # unassigned in setUp
+        self.assertNotIn(has_extra.pk, ids)
+
+    def test_owner_filter_hint_when_target_user_not_visible(self):
+        from contacts.models import UserProfile
+        restricted = get_user_model().objects.create_user("ribotukas", password="very-secure-password")
+        UserProfile.objects.create(user=restricted, role=UserProfile.ROLE_RESTRICTED)
+        other = get_user_model().objects.create_user("kt3", password="very-secure-password")
+        Person.objects.create(first_name="Kito", last_name="Klientas", owner=other)
+        self.client.force_login(restricted)
+        response = self.client.get(reverse("contacts:list"), {"owner": str(other.pk)})
+        self.assertEqual(len(response.context["page"]), 0)
+        self.assertContains(response, "matote tik savo įrašus")
+
     def test_team_visibility_setting_clamps_a_member_who_would_see_all(self):
         from contacts.models import Team
         me = self._member("visimato", visibility="all")

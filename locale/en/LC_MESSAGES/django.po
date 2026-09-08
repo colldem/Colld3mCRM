@@ -1642,3 +1642,21 @@ msgstr "Teams:"
 
 msgid "faktinis matomumas:"
 msgstr "effective visibility:"
+
+msgid "Mano įrašai"
+msgstr "My records"
+
+msgid "Be atsakingo"
+msgstr "No owner"
+
+msgid "Mano kontaktai"
+msgstr "My contacts"
+
+msgid "Mano įmonės"
+msgstr "My companies"
+
+msgid "Jūs matote tik savo įrašus, todėl kito naudotojo įrašai nerodomi."
+msgstr "You can see only your own records, so another user's records are not shown."
+
+msgid "Jūs matote tik savo komandos įrašus, todėl šio naudotojo įrašai nerodomi."
+msgstr "You can see only your team's records, so this user's records are not shown."

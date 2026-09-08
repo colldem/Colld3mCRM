@@ -39,16 +39,30 @@ COMPANY_FILTER_KEYS = (
 
 
 def _owner(data):
-    """Owner filter: a user id, or "none" for records with no owner."""
+    """Responsible filter: a user id, "me", or "none" (no owner and no responsibles)."""
     value = data.get("owner", "").strip()
-    return value if value == "none" or value.isdigit() else ""
+    return value if value in ("none", "me") or value.isdigit() else ""
 
 
-def _apply_owner_filter(queryset, value):
+def _apply_owner_filter(queryset, value, user=None, entity="person"):
+    """Filter by the responsible people: `me` / a user id (owner OR responsible),
+    or `none` (records with neither an owner nor a responsible)."""
+    if not value:
+        return queryset
+    from .models import Company, Person
+
+    through = Person.responsibles.through if entity == "person" else Company.responsibles.through
+    fk = "person_id" if entity == "person" else "company_id"
     if value == "none":
-        return queryset.filter(owner__isnull=True)
-    if value:
-        return queryset.filter(owner_id=value)
+        assigned = through.objects.values_list(fk, flat=True)
+        return queryset.filter(owner__isnull=True).exclude(pk__in=assigned)
+    if value == "me":
+        if user is None:
+            return queryset
+        value = str(user.pk)
+    if value.isdigit():
+        responsible_for = through.objects.filter(user_id=value).values_list(fk, flat=True)
+        return queryset.filter(Q(owner_id=value) | Q(pk__in=responsible_for))
     return queryset
 
 
@@ -98,7 +112,7 @@ def _apply_custom_filters(queryset, values):
     return queryset
 
 
-def apply_contact_filters(people, values):
+def apply_contact_filters(people, values, user=None):
     for term in values["q"].split():
         people = people.filter(
             Q(first_name__icontains=term)
@@ -122,7 +136,7 @@ def apply_contact_filters(people, values):
         people = people.filter(emails__email__icontains=values["email"])
     if values["favourite"]:
         people = people.filter(favourite=True)
-    people = _apply_owner_filter(people, values.get("owner", ""))
+    people = _apply_owner_filter(people, values.get("owner", ""), user, "person")
     # last_contact_at is annotated by the contact_list view before filtering.
     if values["last_contact_from"]:
         people = people.filter(last_contact_at__date__gte=values["last_contact_from"])
@@ -132,7 +146,7 @@ def apply_contact_filters(people, values):
     return people.distinct()
 
 
-def apply_company_filters(companies, values):
+def apply_company_filters(companies, values, user=None):
     for term in values["q"].split():
         companies = companies.filter(
             Q(name__icontains=term)
@@ -155,7 +169,7 @@ def apply_company_filters(companies, values):
         companies = companies.filter(tags__pk__in=values["tags"])
     if values["city"]:
         companies = companies.filter(address__icontains=values["city"])
-    companies = _apply_owner_filter(companies, values.get("owner", ""))
+    companies = _apply_owner_filter(companies, values.get("owner", ""), user, "company")
     if values["last_contact_from"] or values["last_contact_to"]:
         companies = companies.annotate(
             own_last_contact_at=Max(

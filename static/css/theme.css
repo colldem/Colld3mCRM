@@ -97,6 +97,7 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .responsible-editor legend{font-weight:600;padding:0 4px}
 .responsible-editor small{color:var(--muted)}
 .responsible-editor select[multiple]{min-height:120px}
+.list-hint{margin:0 0 10px;padding:8px 12px;border-radius:8px;background:var(--surface-2,#f1f5f9);color:var(--muted);font-size:13px}
 .settings-list .user-row{display:grid;gap:10px}
 .user-row-info small{display:block;color:var(--muted);font-weight:400}
 .user-row-actions,.user-row-reset{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0}
