@@ -25,6 +25,8 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **C9** — Nustatymai → Duomenų eksportas: pilnas ZIP (data.json + media + README)
 - ✅ **C7** — importo peržiūra: įkėlus failą rodoma, kas bus sukurta/atnaujinta/praleista + pavyzdys, tik tada „Patvirtinti importą"
 - ✅ **C8** — masinis žymos ir kategorijos priskyrimas pažymėtiems kontaktams/įmonėms (3 riba)
+- ✅ **C3** — universali paieška: gyvas grupuotas išskleidimas (kontaktai/įmonės/veiklos/
+  priminimai) nuo 2 simbolių + atskiras `/search/` rezultatų puslapis
 
 ---
 
@@ -112,9 +114,10 @@ per „Stulpeliai".
 bendravimas (data · tipas · prieš N d.), kitas veiksmas, vėluojančių priminimų
 skaičius. Sąraše paskutinio bendravimo data yra kaip C1 stulpelis.
 
-### C3. Universali paieška su grupėmis — ❌
-Dabar `?q=` tik nukreipia į kontaktų sąrašą. Reikalauta: rezultatai grupėmis
-(Asmenys / Įmonės / Veiklos / Priminimai / Failai), gyvas išskleidimas nuo 2–3 simbolių.
+### C3. Universali paieška su grupėmis — ✅ padaryta
+Viršutinės juostos paieška: gyvas išskleidžiamas sąrašas (`/search/suggest/` JSON,
+`static/js/search.js`) su grupėmis Kontaktai / Įmonės / Veiklos / Priminimai nuo
+2 simbolių, ir pilnas `/search/` puslapis. Failų grupė — vėliau, jei prireiks.
 
 ### C4. Individualūs (custom) laukai — ❌
 Reikalauta (Teamgate + planas p.8). Nėra `CustomField` modelio. Tipai:

@@ -66,6 +66,23 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .import-preview th,.import-preview td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left}
 .import-preview th{background:#f7f9fc;font-weight:650}
 .import-confirm{display:flex;gap:8px;align-items:center;margin-top:8px}
+.global-search{position:relative}
+.search-suggest{position:absolute;z-index:1200;left:0;right:0;top:calc(100% + 6px);max-height:70vh;overflow-y:auto;padding:6px;border:1px solid var(--line);border-radius:8px;background:#fff;box-shadow:0 12px 32px rgba(6,43,99,.18)}
+.search-suggest-head{padding:7px 10px 4px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#5d6776}
+.search-suggest-item{display:flex;flex-direction:column;gap:1px;padding:8px 10px;border-radius:6px;color:var(--ink);text-decoration:none}
+.search-suggest-item:hover,.search-suggest-item:focus-visible{background:var(--soft)}
+.search-suggest-item small{color:var(--muted)}
+.search-suggest-all{display:block;margin-top:3px;padding:9px 10px;border-top:1px solid var(--line);color:var(--navy-950);font-weight:650;text-decoration:none}
+.search-suggest-empty{padding:12px;color:var(--muted)}
+.search-group{margin-bottom:26px}
+.search-group h2{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:16px}
+.search-group h2 span{padding:1px 8px;border-radius:12px;background:var(--soft);color:#5d6776;font-size:12px}
+.search-list{display:grid;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.search-list a{padding:12px 14px;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}
+.search-list a:last-child{border-bottom:0}
+.search-list a:hover{background:var(--soft)}
+.search-list small{display:block;margin-top:3px;color:var(--muted)}
+.search-more{display:inline-block;margin-top:8px;color:var(--navy-950);font-weight:650}
 .reminder-popover{z-index:1045;max-width:calc(100vw - 24px)}
 .crm-label{border:1px solid transparent;font-size:12px;font-weight:600;line-height:1.3}
 .tag-color-0{background:#dbeafe;color:#1e40af;border-color:#bfdbfe}

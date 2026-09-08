@@ -1204,3 +1204,21 @@ msgstr "The import preview expired. Upload the file again."
 
 msgid "Nepavyko importuoti. Patikrinkite žymų ir kategorijų skaičių bei stulpelius."
 msgstr "Import failed. Check the number of tags and categories and the columns."
+
+msgid "Veiklos"
+msgstr "Activities"
+
+msgid "Užklausa:"
+msgstr "Query:"
+
+msgid "Įveskite bent 2 simbolius."
+msgstr "Enter at least 2 characters."
+
+msgid "Nieko nerasta."
+msgstr "Nothing found."
+
+msgid "Visi kontaktai sąraše"
+msgstr "All contacts in the list"
+
+msgid "Visos įmonės sąraše"
+msgstr "All companies in the list"

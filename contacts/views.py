@@ -14,8 +14,9 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.db.models import Count, Max, Min, Prefetch, Q
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from .forms import ActivityForm, CompanyForm, DuplicateSettingsForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
@@ -43,6 +44,81 @@ def _last_activity_context(last_activity):
     if last_activity:
         days = (timezone.localdate() - timezone.localtime(last_activity.created_at).date()).days
     return {"last_activity": last_activity, "last_activity_days": days}
+
+
+def _search_results(query, per_group):
+    """Grouped global-search results. `per_group` caps each list; counts are full."""
+    data = QueryDict(mutable=True)
+    data["q"] = query
+    terms = query.split()
+    text_match = Q()
+    for term in terms:
+        text_match &= Q(text__icontains=term)
+
+    people = apply_contact_filters(
+        Person.objects.filter(deleted_at__isnull=True).prefetch_related("emails", "company_links__company"),
+        contact_filter_values(data),
+    ).order_by("last_name", "first_name")
+    companies = apply_company_filters(
+        Company.objects.filter(deleted_at__isnull=True).prefetch_related("people"),
+        company_filter_values(data),
+    ).order_by("name")
+    activities = (
+        Activity.objects.filter(deleted_at__isnull=True).filter(text_match)
+        .exclude(person__isnull=False, person__deleted_at__isnull=False)
+        .exclude(company__isnull=False, company__deleted_at__isnull=False)
+        .select_related("person", "company").order_by("-created_at")
+    )
+    reminders = (
+        Reminder.objects.filter(deleted_at__isnull=True, person__deleted_at__isnull=True).filter(text_match)
+        .select_related("person").order_by("due_at")
+    )
+    return {
+        "q": query,
+        "people": people[:per_group], "people_count": people.count(),
+        "companies": companies[:per_group], "companies_count": companies.count(),
+        "activities": activities[:per_group], "activities_count": activities.count(),
+        "reminders": reminders[:per_group], "reminders_count": reminders.count(),
+    }
+
+
+@login_required
+def global_search(request):
+    query = request.GET.get("q", "").strip()
+    results = _search_results(query, 50) if len(query) >= 2 else None
+    return render(request, "search.html", {"query": query, "results": results})
+
+
+@login_required
+def search_suggest(request):
+    query = request.GET.get("q", "").strip()
+    if len(query) < 2:
+        return JsonResponse({"q": query, "groups": []})
+    results = _search_results(query, 5)
+    search_url = f"{reverse('contacts:search')}?q={query}"
+    groups = []
+    if results["people_count"]:
+        groups.append({"label": str(tr("Kontaktai")), "count": results["people_count"], "url": search_url, "items": [
+            {"label": str(person), "sublabel": person.primary_company.name if person.primary_company else "", "url": person.get_absolute_url()}
+            for person in results["people"]
+        ]})
+    if results["companies_count"]:
+        groups.append({"label": str(tr("Įmonės")), "count": results["companies_count"], "url": search_url, "items": [
+            {"label": company.name, "sublabel": "", "url": company.get_absolute_url()}
+            for company in results["companies"]
+        ]})
+    if results["activities_count"]:
+        groups.append({"label": str(tr("Veiklos")), "count": results["activities_count"], "url": search_url, "items": [
+            {"label": activity.text[:70], "sublabel": str(activity.person or activity.company or ""),
+             "url": (activity.person or activity.company).get_absolute_url() if (activity.person or activity.company) else search_url}
+            for activity in results["activities"]
+        ]})
+    if results["reminders_count"]:
+        groups.append({"label": str(tr("Priminimai")), "count": results["reminders_count"], "url": search_url, "items": [
+            {"label": reminder.text[:70], "sublabel": str(reminder.person), "url": reminder.person.get_absolute_url()}
+            for reminder in results["reminders"]
+        ]})
+    return JsonResponse({"q": query, "groups": groups, "url": search_url})
 
 
 def health_live(request):

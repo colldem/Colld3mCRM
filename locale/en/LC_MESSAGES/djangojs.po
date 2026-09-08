@@ -36,3 +36,9 @@ msgstr "Open reminders (%s unread)"
 
 msgid "Nukopijuota"
 msgstr "Copied"
+
+msgid "Nieko nerasta."
+msgstr "Nothing found."
+
+msgid "Rodyti visus rezultatus"
+msgstr "Show all results"

@@ -1636,6 +1636,42 @@ class ContactViewTests(TestCase):
         self.client.post(reverse("contacts:company-bulk-action"), {"action": "add_tag", "tag": tag.pk, "selected": [self.company.pk]})
         self.assertIn(tag, self.company.tags.all())
 
+    def test_global_search_groups_people_companies_activities_and_reminders(self):
+        self.client.force_login(self.user)
+        Company.objects.create(name="Vilniaus partneriai")
+        Activity.objects.create(person=self.person, activity_type="note", text="Vilniaus susitikimas", created_by=self.user)
+        Reminder.objects.create(person=self.person, text="Vilniaus skambutis", due_at=timezone.now() + timedelta(days=1), created_by=self.user)
+        response = self.client.get(reverse("contacts:search"), {"q": "Vilni"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Vilniaus partneriai")
+        self.assertContains(response, "Vilniaus susitikimas")
+        self.assertContains(response, "Vilniaus skambutis")
+        self.assertEqual(response.context["results"]["companies_count"], 1)
+        self.assertEqual(response.context["results"]["activities_count"], 1)
+
+    def test_global_search_short_query_asks_for_more_characters(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:search"), {"q": "a"})
+        self.assertIsNone(response.context["results"])
+        self.assertContains(response, "bent 2 simbolius")
+
+    def test_global_search_excludes_archived_records(self):
+        self.client.force_login(self.user)
+        Person.objects.create(first_name="Slaptas", last_name="Archyvas", deleted_at=timezone.now())
+        response = self.client.get(reverse("contacts:search"), {"q": "Slaptas"})
+        self.assertEqual(response.context["results"]["people_count"], 0)
+
+    def test_search_suggest_returns_grouped_json(self):
+        self.client.force_login(self.user)
+        Person.objects.create(first_name="Vilius", last_name="Vilkas")
+        data = self.client.get(reverse("contacts:search-suggest"), {"q": "Vilk"}).json()
+        self.assertTrue(data["groups"])
+        self.assertTrue(any("Vilius" in item["label"] for group in data["groups"] for item in group["items"]))
+
+    def test_search_suggest_ignores_one_character_queries(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("contacts:search-suggest"), {"q": "v"}).json()["groups"], [])
+
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)
         response = self.client.get(self.company.get_absolute_url())

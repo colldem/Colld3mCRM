@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Paieška' %} - CRM{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{% translate 'Paieška' %}</h1>{% if query %}<p>{% translate 'Užklausa:' %} „{{ query }}"</p>{% endif %}</div></div>
+
+{% if not results %}
+  <p class="empty">{% translate 'Įveskite bent 2 simbolius.' %}</p>
+{% else %}
+  {% if not results.people_count and not results.companies_count and not results.activities_count and not results.reminders_count %}
+    <p class="empty">{% translate 'Nieko nerasta.' %}</p>
+  {% endif %}
+
+  {% if results.people_count %}
+  <section class="search-group">
+    <h2>{% translate 'Kontaktai' %} <span>{{ results.people_count }}</span></h2>
+    <div class="search-list">{% for person in results.people %}<a href="{{ person.get_absolute_url }}"><strong>{{ person }}</strong>{% if person.job_title %} <small>{{ person.job_title }}</small>{% endif %}{% with company=person.primary_company %}{% if company %} <small>· {{ company.name }}</small>{% endif %}{% endwith %}</a>{% endfor %}</div>
+    {% if results.people_count > results.people|length %}<a class="search-more" href="{% url 'contacts:list' %}?q={{ query|urlencode }}">{% translate 'Visi kontaktai sąraše' %} →</a>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if results.companies_count %}
+  <section class="search-group">
+    <h2>{% translate 'Įmonės' %} <span>{{ results.companies_count }}</span></h2>
+    <div class="search-list">{% for company in results.companies %}<a href="{{ company.get_absolute_url }}"><strong>{{ company.name }}</strong>{% if company.company_code %} <small>· {{ company.company_code }}</small>{% endif %}</a>{% endfor %}</div>
+    {% if results.companies_count > results.companies|length %}<a class="search-more" href="{% url 'contacts:company-list' %}?q={{ query|urlencode }}">{% translate 'Visos įmonės sąraše' %} →</a>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if results.activities_count %}
+  <section class="search-group">
+    <h2>{% translate 'Veiklos' %} <span>{{ results.activities_count }}</span></h2>
+    <div class="search-list">{% for activity in results.activities %}<a href="{% if activity.person %}{{ activity.person.get_absolute_url }}{% elif activity.company %}{{ activity.company.get_absolute_url }}{% else %}#{% endif %}"><strong>{{ activity.get_activity_type_display }}</strong> {{ activity.text|truncatechars:100 }}<small>{{ activity.created_at|date:"Y-m-d" }} · {{ activity.person|default:activity.company }}</small></a>{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  {% if results.reminders_count %}
+  <section class="search-group">
+    <h2>{% translate 'Priminimai' %} <span>{{ results.reminders_count }}</span></h2>
+    <div class="search-list">{% for reminder in results.reminders %}<a href="{{ reminder.person.get_absolute_url }}"><strong>{{ reminder.text|truncatechars:100 }}</strong><small>{{ reminder.due_at|date:"Y-m-d H:i" }} · {{ reminder.person }}</small></a>{% endfor %}</div>
+  </section>
+  {% endif %}
+{% endif %}
+{% endblock %}

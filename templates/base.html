@@ -8,7 +8,7 @@
   <title>{% block title %}CRM{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260907b">
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260908f">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260908h">
 </head>
 <body class="sidebar-expand-lg fixed-header">
 <div class="app-wrapper">
@@ -26,9 +26,10 @@
   </aside>
   <header class="app-header crm-topbar">
     <button class="btn sidebar-toggle" type="button" data-lte-toggle="sidebar" aria-label="{% translate 'Meniu' %}" aria-controls="crm-sidebar">☰</button>
-    <form action="{% url 'contacts:list' %}" method="get" class="global-search">
+    <form action="{% url 'contacts:search' %}" method="get" class="global-search" role="search" data-suggest-url="{% url 'contacts:search-suggest' %}" autocomplete="off">
       <label class="sr-only" for="global-search">{% translate 'Ieškoti' %}</label>
-      <input id="global-search" name="q" value="{{ request.GET.q }}" placeholder="{% translate 'Ieškoti visuose laukuose...' %}">
+      <input id="global-search" name="q" value="{{ request.GET.q }}" placeholder="{% translate 'Ieškoti visuose laukuose...' %}" aria-expanded="false" aria-controls="search-suggest">
+      <div id="search-suggest" class="search-suggest" hidden></div>
     </form>
     <div class="top-actions">
       {% include "language_switch.html" %}
@@ -56,5 +57,6 @@
 <script src="{% static 'js/list-editing.js' %}?v=20260908b" defer></script>
 <script src="{% static 'js/detail-editing.js' %}?v=20260908c" defer></script>
 <script src="{% static 'js/reminders.js' %}" defer></script>
+<script src="{% static 'js/search.js' %}?v=20260908a" defer></script>
 </body>
 </html>
