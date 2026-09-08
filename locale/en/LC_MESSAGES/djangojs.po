@@ -42,3 +42,9 @@ msgstr "Nothing found."
 
 msgid "Rodyti visus rezultatus"
 msgstr "Show all results"
+
+msgid "Naujas įvykis"
+msgstr "New event"
+
+msgid "Redaguoti įvykį"
+msgstr "Edit event"

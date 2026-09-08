@@ -1,0 +1,36 @@
+{% load i18n %}
+<div class="cal-month">
+  <div class="cal-month-head">
+    {% for day in weeks.0 %}<div>{{ day.date|date:"D" }}</div>{% endfor %}
+  </div>
+  {% for week in weeks %}
+    <div class="cal-month-row">
+      {% for day in week %}
+        <div class="cal-month-cell{% if day.is_today %} is-today{% endif %}{% if day.is_other_month %} is-muted{% endif %}"
+             data-date="{{ day.date|date:'Y-m-d' }}" data-cal-month-cell>
+          <a class="cal-month-date" href="?view=day&amp;date={{ day.date|date:'Y-m-d' }}">{{ day.date|date:"j" }}</a>
+          {% for item in day.events|slice:":4" %}
+            <button type="button" class="cal-chip{% if item.is_past %} is-past{% endif %}{% if item.done %} is-done{% endif %}"
+                    data-cal-event
+                    data-id="{{ item.reminder.pk }}"
+                    data-text="{{ item.reminder.text }}"
+                    data-start="{{ item.reminder.due_at|date:'Y-m-d\TH:i' }}"
+                    data-end="{{ item.reminder.finish_at|date:'Y-m-d\TH:i' }}"
+                    data-record-kind="{% if item.reminder.person_id %}person{% elif item.reminder.company_id %}company{% endif %}"
+                    data-record-id="{{ item.reminder.person_id|default:item.reminder.company_id|default:'' }}"
+                    data-record-label="{{ item.reminder.record|default:'' }}"
+                    data-record-url="{{ item.reminder.record_url }}"
+                    data-phone="{{ item.reminder.contact_phone }}"
+                    data-address="{{ item.reminder.contact_address }}">
+              <b>{{ item.label }}</b> {{ item.reminder.text }}
+            </button>
+          {% endfor %}
+          {% if day.events|length > 4 %}
+            <a class="cal-more" href="?view=day&amp;date={{ day.date|date:'Y-m-d' }}">+{{ day.events|length|add:"-4" }}</a>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>
+<p class="cal-hint">{% translate 'Spustelėkite dienos langelį, kad suplanuotumėte įvykį. Praėję įvykiai rodomi blankiau.' %}</p>

@@ -36,7 +36,7 @@
   {% if results.reminders_count %}
   <section class="search-group">
     <h2>{% translate 'Priminimai' %} <span>{{ results.reminders_count }}</span></h2>
-    <div class="search-list">{% for reminder in results.reminders %}<a href="{{ reminder.person.get_absolute_url }}"><strong>{{ reminder.text|truncatechars:100 }}</strong><small>{{ reminder.due_at|date:datetime_format }} · {{ reminder.person }}</small></a>{% endfor %}</div>
+    <div class="search-list">{% for reminder in results.reminders %}<a href="{{ reminder.record_url|default:'/calendar/' }}"><strong>{{ reminder.text|truncatechars:100 }}</strong><small>{{ reminder.due_at|date:datetime_format }}{% if reminder.record %} · {{ reminder.record }}{% endif %}</small></a>{% endfor %}</div>
   </section>
   {% endif %}
 {% endif %}

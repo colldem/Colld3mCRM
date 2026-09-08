@@ -1,0 +1,77 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Kalendorius' %} - CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate 'Kalendorius' %}</h1><p>{% translate 'Tik jūsų suplanuoti priminimai.' %}</p></div>
+</div>
+
+<div class="cal-toolbar">
+  <div class="cal-nav">
+    <a class="btn" href="?view={{ calendar_view }}&amp;date={{ prev_date|date:'Y-m-d' }}" aria-label="{% translate 'Ankstesnis' %}">‹</a>
+    <a class="btn" href="?view={{ calendar_view }}&amp;date={{ today|date:'Y-m-d' }}">{% translate 'Šiandien' %}</a>
+    <a class="btn" href="?view={{ calendar_view }}&amp;date={{ next_date|date:'Y-m-d' }}" aria-label="{% translate 'Kitas' %}">›</a>
+    <strong class="cal-range">
+      {% if calendar_view == 'month' %}{{ anchor|date:"Y F" }}
+      {% elif calendar_view == 'day' %}{{ anchor|date:date_format }}
+      {% else %}{{ range_start|date:date_format }} – {{ range_end|date:date_format }}{% endif %}
+    </strong>
+  </div>
+  <div class="cal-views">
+    <a class="btn{% if calendar_view == 'day' %} primary{% endif %}" href="?view=day&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Diena' %}</a>
+    <a class="btn{% if calendar_view == 'week' %} primary{% endif %}" href="?view=week&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Savaitė' %}</a>
+    <a class="btn{% if calendar_view == 'month' %} primary{% endif %}" href="?view=month&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Mėnuo' %}</a>
+    <button class="btn primary" type="button" data-cal-new>{% translate '+ Naujas įvykis' %}</button>
+  </div>
+</div>
+
+{% if calendar_view == 'month' %}
+  {% include "calendar/_month.html" %}
+{% else %}
+  {% include "calendar/_timegrid.html" %}
+{% endif %}
+
+<dialog class="cal-dialog" id="cal-dialog">
+  <form method="post" id="cal-form" action="{% url 'contacts:calendar-event-create' %}">
+    {% csrf_token %}
+    <input type="hidden" name="view" value="{{ calendar_view }}">
+    <input type="hidden" name="date" value="{{ anchor|date:'Y-m-d' }}">
+    <input type="hidden" name="record_kind" id="cal-record-kind" value="">
+    <input type="hidden" name="record_id" id="cal-record-id" value="">
+    <h2 id="cal-dialog-title">{% translate 'Naujas įvykis' %}</h2>
+
+    <label for="cal-text">{% translate 'Pastaba' %}
+      <input id="cal-text" name="text" maxlength="500" required placeholder="{% translate 'pvz. Perskambinti dėl sutarties' %}">
+    </label>
+
+    <div class="cal-times">
+      <label for="cal-start">{% translate 'Pradžia' %}<input id="cal-start" name="due_at" type="datetime-local" required></label>
+      <label for="cal-end">{% translate 'Pabaiga' %}<input id="cal-end" name="end_at" type="datetime-local"></label>
+    </div>
+
+    <label for="cal-record">{% translate 'Kontaktas arba įmonė' %}
+      <input id="cal-record" type="text" autocomplete="off" role="combobox" aria-expanded="false"
+             aria-controls="cal-record-list" placeholder="{% translate 'Įveskite bent 2 simbolius…' %}"
+             data-records-url="{% url 'contacts:calendar-records' %}">
+      <small>{% translate 'Neprivaloma — įvykis gali būti ir be įrašo.' %}</small>
+    </label>
+    <div class="cal-record-list" id="cal-record-list" hidden></div>
+    <dl class="cal-record-info" id="cal-record-info" hidden>
+      <dt>{% translate 'Telefonas' %}</dt><dd id="cal-record-phone">–</dd>
+      <dt>{% translate 'Adresas' %}</dt><dd id="cal-record-address">–</dd>
+    </dl>
+
+    <div class="cal-dialog-actions">
+      <button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button>
+      <button class="btn" type="button" data-cal-close>{% translate 'Atšaukti' %}</button>
+      <a class="btn cal-open-record" id="cal-open-record" href="#" hidden>{% translate 'Atidaryti įrašą' %}</a>
+      <button class="btn danger" type="submit" id="cal-delete" formaction="" formnovalidate hidden
+              onclick="return confirm('{% translate 'Pašalinti šį įvykį?' %}')">{% translate 'Pašalinti' %}</button>
+    </div>
+  </form>
+</dialog>
+
+<script id="cal-config" type="application/json">{"snap": {{ snap_minutes }}, "defaultMinutes": {{ default_minutes }},
+  "createUrl": "{% url 'contacts:calendar-event-create' %}",
+  "updateUrl": "{% url 'contacts:calendar-event-update' 0 %}",
+  "deleteUrl": "{% url 'contacts:calendar-event-delete' 0 %}"}</script>
+{% endblock %}

@@ -72,6 +72,110 @@ class PWATests(TestCase):
         self.assertContains(page, 'name="theme-color"')
 
 
+class CalendarTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("agenda", password="very-secure-password")
+        self.mate = get_user_model().objects.create_user("kolega", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Ruslan", last_name="Gorin", job_title="IT")
+        PhoneNumber.objects.create(person=self.person, number="+370 600 11111")
+        PostalAddress.objects.create(person=self.person, address="Vilnius, Lietuva")
+        self.company = Company.objects.create(name="AB Regitra", phone="+370 37 000", address="Kaunas")
+        self.start = timezone.localtime().replace(hour=10, minute=0, second=0, microsecond=0)
+        self.client.force_login(self.user)
+
+    def _event(self, **kwargs):
+        defaults = {"text": "Skambutis", "due_at": self.start, "end_at": self.start + timedelta(hours=1),
+                    "person": self.person, "created_by": self.user}
+        return Reminder.objects.create(**{**defaults, **kwargs})
+
+    def test_each_view_renders_only_the_signed_in_users_events(self):
+        self._event(text="Mano įvykis")
+        self._event(text="Kolegos įvykis", created_by=self.mate)
+        for view in ("day", "week", "month"):
+            with self.subTest(view=view):
+                response = self.client.get(reverse("contacts:calendar"),
+                                           {"view": view, "date": self.start.date().isoformat()})
+                self.assertEqual(response.status_code, 200)
+                scheduled = {item["reminder"].text
+                             for day in response.context["days"] for item in day["events"]}
+                self.assertEqual(scheduled, {"Mano įvykis"})
+                self.assertContains(response, 'data-text="Mano įvykis"')
+
+    def test_click_or_drag_creates_an_event_bound_to_a_contact(self):
+        response = self.client.post(reverse("contacts:calendar-event-create"), {
+            "text": "Susitikimas", "due_at": "2026-10-01T10:00", "end_at": "2026-10-01T11:30",
+            "record_kind": "person", "record_id": self.person.pk, "view": "week", "date": "2026-10-01",
+        })
+        self.assertEqual(response.status_code, 302)
+        event = Reminder.objects.get(text="Susitikimas")
+        self.assertEqual((event.person, event.company, event.created_by), (self.person, None, self.user))
+        self.assertEqual(timezone.localtime(event.due_at).strftime("%H:%M"), "10:00")
+        self.assertEqual(timezone.localtime(event.end_at).strftime("%H:%M"), "11:30")
+
+    def test_event_without_an_end_gets_the_default_slot_and_may_have_no_record(self):
+        self.client.post(reverse("contacts:calendar-event-create"),
+                         {"text": "Asmeninis", "due_at": "2026-10-02T09:00"})
+        event = Reminder.objects.get(text="Asmeninis")
+        self.assertIsNone(event.record)
+        self.assertEqual((event.end_at - event.due_at).total_seconds() / 60, Reminder.DEFAULT_MINUTES)
+
+    def test_event_can_be_attached_to_a_company(self):
+        self.client.post(reverse("contacts:calendar-event-create"), {
+            "text": "Įmonės susitikimas", "due_at": "2026-10-03T14:00",
+            "record_kind": "company", "record_id": self.company.pk,
+        })
+        event = Reminder.objects.get(text="Įmonės susitikimas")
+        self.assertEqual(event.record, self.company)
+        self.assertEqual((event.contact_phone, event.contact_address), ("+370 37 000", "Kaunas"))
+
+    def test_update_and_delete_only_touch_the_owners_own_events(self):
+        mine = self._event(text="Mano")
+        theirs = self._event(text="Svetimas", created_by=self.mate)
+        self.client.post(reverse("contacts:calendar-event-update", args=[mine.pk]),
+                         {"text": "Perkeltas", "due_at": "2026-10-05T08:00", "end_at": "2026-10-05T08:45"})
+        mine.refresh_from_db()
+        self.assertEqual(mine.text, "Perkeltas")
+
+        self.client.post(reverse("contacts:calendar-event-update", args=[theirs.pk]), {"text": "Bandymas"})
+        theirs.refresh_from_db()
+        self.assertEqual(theirs.text, "Svetimas")
+
+        self.client.post(reverse("contacts:calendar-event-delete", args=[theirs.pk]))
+        theirs.refresh_from_db()
+        self.assertIsNone(theirs.deleted_at)
+
+        self.client.post(reverse("contacts:calendar-event-delete", args=[mine.pk]))
+        mine.refresh_from_db()
+        self.assertIsNotNone(mine.deleted_at)
+
+    def test_past_events_are_flagged_so_the_grid_can_dim_them(self):
+        past = self._event(text="Praeitis", due_at=timezone.now() - timedelta(hours=3),
+                           end_at=timezone.now() - timedelta(hours=2))
+        future = self._event(text="Ateitis", due_at=timezone.now() + timedelta(hours=2),
+                             end_at=timezone.now() + timedelta(hours=3))
+        self.assertTrue(past.is_past)
+        self.assertFalse(future.is_past)
+        response = self.client.get(reverse("contacts:calendar"), {"view": "day"})
+        self.assertContains(response, "cal-event is-past")
+
+    def test_record_picker_returns_phone_and_address_and_respects_visibility(self):
+        from contacts.models import UserProfile
+
+        response = self.client.get(reverse("contacts:calendar-records"), {"q": "Gorin"})
+        result = response.json()["results"][0]
+        self.assertEqual(result["kind"], "person")
+        self.assertEqual((result["phone"], result["address"]), ("+370 600 11111", "Vilnius, Lietuva"))
+        self.assertEqual(result["url"], self.person.get_absolute_url())
+        self.assertEqual(self.client.get(reverse("contacts:calendar-records"), {"q": "G"}).json()["results"], [])
+
+        self.person.owner = self.mate
+        self.person.save(update_fields=["owner"])
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_MEMBER,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        hidden = self.client.get(reverse("contacts:calendar-records"), {"q": "Gorin"}).json()["results"]
+        self.assertEqual(hidden, [])
+
+
 class ContactModelTests(TestCase):
     def test_person_can_link_multiple_companies(self):
         person = Person.objects.create(first_name="Rūta", last_name="Žukaitė")

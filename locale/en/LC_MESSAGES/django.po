@@ -1926,3 +1926,60 @@ msgstr "Invalid merge request."
 
 msgid "Pasirinkti įrašai pagal dabartines taisykles nėra dublikatai."
 msgstr "The selected records are not duplicates under the current rules."
+
+msgid "Kalendorius"
+msgstr "Calendar"
+
+msgid "Tik jūsų suplanuoti priminimai."
+msgstr "Only the reminders you scheduled."
+
+msgid "Šiandien"
+msgstr "Today"
+
+msgid "Diena"
+msgstr "Day"
+
+msgid "Savaitė"
+msgstr "Week"
+
+msgid "Mėnuo"
+msgstr "Month"
+
+msgid "+ Naujas įvykis"
+msgstr "+ New event"
+
+msgid "Naujas įvykis"
+msgstr "New event"
+
+msgid "Redaguoti įvykį"
+msgstr "Edit event"
+
+msgid "pvz. Perskambinti dėl sutarties"
+msgstr "e.g. Call back about the contract"
+
+msgid "Pradžia"
+msgstr "Start"
+
+msgid "Pabaiga"
+msgstr "End"
+
+msgid "Kontaktas arba įmonė"
+msgstr "Contact or company"
+
+msgid "Įveskite bent 2 simbolius…"
+msgstr "Type at least 2 characters…"
+
+msgid "Neprivaloma — įvykis gali būti ir be įrašo."
+msgstr "Optional — an event can stand on its own."
+
+msgid "Atidaryti įrašą"
+msgstr "Open record"
+
+msgid "Pašalinti šį įvykį?"
+msgstr "Delete this event?"
+
+msgid "Spustelėkite arba patempkite laisvą laiką, kad suplanuotumėte įvykį. Praėję įvykiai rodomi blankiau."
+msgstr "Click or drag a free slot to schedule an event. Past events are dimmed."
+
+msgid "Spustelėkite dienos langelį, kad suplanuotumėte įvykį. Praėję įvykiai rodomi blankiau."
+msgstr "Click a day cell to schedule an event. Past events are dimmed."

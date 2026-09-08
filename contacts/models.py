@@ -333,13 +333,21 @@ class Attachment(TimestampedModel):
 
 
 class Reminder(TimestampedModel):
-    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="reminders")
+    """A scheduled item. Shown on the record card, in the bell and on the calendar.
+
+    It can hang off a contact, a company, or neither (a plain calendar entry).
+    """
+    person = models.ForeignKey(Person, null=True, blank=True, on_delete=models.CASCADE, related_name="reminders")
+    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="reminders")
     text = models.CharField(max_length=500)
     due_at = models.DateTimeField(db_index=True)
+    end_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="crm_reminders")
     submission_token = models.CharField(max_length=64, blank=True, unique=True, null=True)
+
+    DEFAULT_MINUTES = 30
 
     class Meta:
         ordering = ["due_at"]
@@ -349,6 +357,45 @@ class Reminder(TimestampedModel):
         from django.utils import timezone
 
         return self.completed_at is None and self.due_at <= timezone.now()
+
+    @property
+    def record(self):
+        """The contact or company this reminder is about, if any."""
+        return self.person or self.company
+
+    @property
+    def record_url(self):
+        record = self.record
+        return record.get_absolute_url() if record else ""
+
+    @property
+    def finish_at(self):
+        """End of the slot the reminder occupies (defaults to DEFAULT_MINUTES)."""
+        from datetime import timedelta
+
+        return self.end_at or self.due_at + timedelta(minutes=self.DEFAULT_MINUTES)
+
+    @property
+    def is_past(self):
+        from django.utils import timezone
+
+        return self.finish_at < timezone.now()
+
+    @property
+    def contact_phone(self):
+        record = self.record
+        if isinstance(record, Person):
+            phone = record.phones.first()
+            return phone.number if phone else ""
+        return record.phone if record else ""
+
+    @property
+    def contact_address(self):
+        record = self.record
+        if isinstance(record, Person):
+            address = record.addresses.first()
+            return address.address if address else ""
+        return record.address if record else ""
 
 
 def validate_relation_limit(instance, relation_name):

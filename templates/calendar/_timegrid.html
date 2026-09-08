@@ -1,0 +1,44 @@
+{% load i18n %}
+<div class="cal-grid{% if calendar_view == 'day' %} cal-grid-day{% endif %}" data-cal-grid>
+  <div class="cal-head">
+    <div class="cal-gutter"></div>
+    {% for day in days %}
+      <div class="cal-head-day{% if day.is_today %} is-today{% endif %}">
+        <span>{{ day.date|date:"D" }}</span><b>{{ day.date|date:"j" }}</b>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="cal-body" data-cal-scroll>
+    <div class="cal-hours">
+      {% for hour in hours %}<div class="cal-hour"><span>{{ hour }}</span></div>{% endfor %}
+    </div>
+    <div class="cal-days">
+      {% for day in days %}
+        <div class="cal-day{% if day.is_today %} is-today{% endif %}" data-date="{{ day.date|date:'Y-m-d' }}">
+          {% for hour in hours %}<div class="cal-slot"></div>{% endfor %}
+          {% if day.is_today %}<div class="cal-now" style="top:{{ now_pct }}%" aria-hidden="true"></div>{% endif %}
+          {% for item in day.events %}
+            <button type="button" class="cal-event{% if item.is_past %} is-past{% endif %}{% if item.done %} is-done{% endif %}"
+                    style="top:{{ item.top_pct }}%;height:{{ item.height_pct }}%;left:{{ item.left_pct }}%;width:{{ item.width_pct }}%"
+                    data-cal-event
+                    data-id="{{ item.reminder.pk }}"
+                    data-text="{{ item.reminder.text }}"
+                    data-start="{{ item.reminder.due_at|date:'Y-m-d\TH:i' }}"
+                    data-end="{{ item.reminder.finish_at|date:'Y-m-d\TH:i' }}"
+                    data-record-kind="{% if item.reminder.person_id %}person{% elif item.reminder.company_id %}company{% endif %}"
+                    data-record-id="{{ item.reminder.person_id|default:item.reminder.company_id|default:'' }}"
+                    data-record-label="{{ item.reminder.record|default:'' }}"
+                    data-record-url="{{ item.reminder.record_url }}"
+                    data-phone="{{ item.reminder.contact_phone }}"
+                    data-address="{{ item.reminder.contact_address }}">
+              <b>{{ item.label }}</b>
+              <span>{{ item.reminder.text }}</span>
+              {% if item.reminder.record %}<small>{{ item.reminder.record }}</small>{% endif %}
+            </button>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<p class="cal-hint">{% translate 'Spustelėkite arba patempkite laisvą laiką, kad suplanuotumėte įvykį. Praėję įvykiai rodomi blankiau.' %}</p>

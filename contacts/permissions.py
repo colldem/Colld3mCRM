@@ -176,7 +176,11 @@ def visible_companies(user, queryset=None):
 
 
 def visible_reminders(user, queryset=None):
-    """Restrict a Reminder queryset to reminders on people `user` may see."""
+    """Restrict a Reminder queryset to the records `user` may see.
+
+    A reminder follows its contact, else its company; one attached to neither is
+    a private calendar entry visible only to whoever created it.
+    """
     from django.db.models import Q
     from .models import Reminder
 
@@ -184,11 +188,14 @@ def visible_reminders(user, queryset=None):
         queryset = Reminder.objects.all()
     if user is None:
         return queryset
-    clause = _person_visibility_q(user)
-    if clause is None:
+    if _person_visibility_q(user) is None and _company_visibility_q(user) is None:
         return queryset
-    visible_ids = visible_people(user, None).values_list("pk", flat=True)
-    return queryset.filter(person__pk__in=visible_ids)
+    return queryset.filter(
+        Q(person__isnull=False, person__pk__in=visible_people(user, None).values_list("pk", flat=True))
+        | Q(person__isnull=True, company__isnull=False,
+            company__pk__in=visible_companies(user, None).values_list("pk", flat=True))
+        | Q(person__isnull=True, company__isnull=True, created_by=user)
+    )
 
 
 def visible_person_ids(user):

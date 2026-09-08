@@ -151,8 +151,9 @@ def _search_results(query, per_group, user=None):
         .select_related("person", "company").order_by("-created_at")
     )
     reminders = (
-        visible_reminders(user, Reminder.objects.filter(deleted_at__isnull=True, person__deleted_at__isnull=True)).filter(text_match)
-        .select_related("person").order_by("due_at")
+        visible_reminders(user, Reminder.objects.filter(deleted_at__isnull=True).filter(
+            Q(person__isnull=True) | Q(person__deleted_at__isnull=True))).filter(text_match)
+        .select_related("person", "company").order_by("due_at")
     )
     if user is not None:
         from .permissions import sees_all_records, visible_company_ids, visible_person_ids
@@ -203,7 +204,8 @@ def search_suggest(request):
         ]})
     if results["reminders_count"]:
         groups.append({"label": str(tr("Priminimai")), "count": results["reminders_count"], "url": search_url, "items": [
-            {"label": reminder.text[:70], "sublabel": str(reminder.person), "url": reminder.person.get_absolute_url()}
+            {"label": reminder.text[:70], "sublabel": str(reminder.record or ""),
+             "url": reminder.record_url or reverse("contacts:calendar")}
             for reminder in results["reminders"]
         ]})
     return JsonResponse({"q": query, "groups": groups, "url": search_url})
@@ -1351,9 +1353,9 @@ def reminder_complete(request, pk):
             completed_at=now, updated_at=now,
         )
         if updated:
-            audit_log(AuditLog.UPDATE, request=request, target=reminder.person, field=str(tr("Priminimas")),
+            audit_log(AuditLog.UPDATE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                       old=reminder.text[:150], new=str(tr("atliktas")))
-    return redirect(reminder.person)
+    return redirect(reminder.record or reverse("contacts:reminder-list"))
 
 
 @login_required
@@ -1365,7 +1367,7 @@ def reminder_edit(request, pk):
         if form.cleaned_data["due_at"] != original_due_at:
             form.instance.read_at = None
         form.save()
-        audit_log(AuditLog.UPDATE, request=request, target=reminder.person, field=str(tr("Priminimas")),
+        audit_log(AuditLog.UPDATE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                   old=f"{timezone.localtime(original_due_at):%Y-%m-%d %H:%M}",
                   new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
         messages.success(request, tr("Priminimas atnaujintas."))
@@ -1379,7 +1381,7 @@ def reminder_delete(request, pk):
     if request.method == "POST":
         reminder.deleted_at = timezone.now()
         reminder.save(update_fields=["deleted_at", "updated_at"])
-        audit_log(AuditLog.DELETE, request=request, target=reminder.person, field=str(tr("Priminimas")),
+        audit_log(AuditLog.DELETE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                   old=reminder.text[:150])
         messages.success(request, tr("Priminimas pašalintas."))
     return redirect("contacts:reminder-list")

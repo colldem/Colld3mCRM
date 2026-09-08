@@ -1,7 +1,7 @@
 from django.shortcuts import redirect
 from django.urls import path
 
-from . import views
+from . import calendar_views, views
 from .inline_views import update_inline
 from .detail_editing import edit_contact_field, edit_company_field
 from .reminder_live import reminder_snapshot
@@ -65,6 +65,11 @@ urlpatterns = [
     path("settings/custom-fields/<int:pk>/delete/", views.custom_field_delete, name="custom-field-delete"),
     path("settings/audit/", views.settings_audit, name="settings-audit"),
     path("settings/documentation/", views.documentation_page, name="settings-documentation"),
+    path("calendar/", calendar_views.calendar_page, name="calendar"),
+    path("calendar/records/", calendar_views.calendar_records, name="calendar-records"),
+    path("calendar/event/new/", calendar_views.calendar_event_save, name="calendar-event-create"),
+    path("calendar/event/<int:pk>/", calendar_views.calendar_event_save, name="calendar-event-update"),
+    path("calendar/event/<int:pk>/delete/", calendar_views.calendar_event_delete, name="calendar-event-delete"),
     path("duplicates/", views.duplicate_list, name="duplicate-list"),
     path("duplicates/merge-all/", views.duplicate_merge_all, name="duplicate-merge-all"),
     path("duplicates/<str:kind>/<int:source_pk>/merge-into/<int:target_pk>/", views.duplicate_merge, name="duplicate-merge"),
