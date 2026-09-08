@@ -53,6 +53,7 @@ TEMPLATES = [{
         "django.contrib.messages.context_processors.messages",
         "contacts.context_processors.reminder_count",
         "contacts.context_processors.user_profile",
+        "contacts.context_processors.crm_permissions",
     ]},
 }]
 WSGI_APPLICATION = "config.wsgi.application"

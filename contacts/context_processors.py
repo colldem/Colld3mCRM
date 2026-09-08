@@ -18,3 +18,9 @@ def user_profile(request):
     if not request.user.is_authenticated:
         return {"crm_user_profile": None}
     return {"crm_user_profile": UserProfile.objects.filter(user=request.user).first()}
+
+
+def crm_permissions(request):
+    from .permissions import is_admin
+
+    return {"is_crm_admin": is_admin(request.user) if request.user.is_authenticated else False}

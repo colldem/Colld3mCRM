@@ -1781,6 +1781,52 @@ class ContactViewTests(TestCase):
         self._import_file(SimpleUploadedFile("k.csv", content, content_type="text/csv"))
         self.assertEqual(Person.objects.get(first_name="Importuota").owner, self.user)
 
+    def test_users_settings_page_is_admin_only(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("contacts:settings-users")).status_code, 404)
+        self.user.is_superuser = True
+        self.user.save()
+        self.assertEqual(self.client.get(reverse("contacts:settings-users")).status_code, 200)
+
+    def test_admin_creates_a_user_with_a_role(self):
+        self.user.is_superuser = True
+        self.user.save()
+        self.client.force_login(self.user)
+        self.client.post(reverse("contacts:settings-users"), {
+            "action": "create", "username": "naujas", "role": "restricted", "password": "brand-new-pass-2026",
+        })
+        created = get_user_model().objects.get(username="naujas")
+        self.assertEqual(created.crm_profile.role, "restricted")
+        self.assertFalse(created.is_staff)
+        self.client.post(reverse("contacts:settings-users"), {
+            "action": "create", "username": "adminas", "role": "admin", "password": "brand-new-pass-2026",
+        })
+        self.assertTrue(get_user_model().objects.get(username="adminas").is_staff)
+
+    def test_the_last_active_admin_cannot_be_demoted(self):
+        from contacts.models import UserProfile
+        admin = get_user_model().objects.create_user("solo", password="very-secure-password", is_staff=True)
+        UserProfile.objects.create(user=admin, role="admin")
+        self.client.force_login(admin)
+        response = self.client.post(reverse("contacts:settings-users"), {
+            "action": "update", "user_id": admin.pk, "role": "member", "active": "1",
+        }, follow=True)
+        admin.refresh_from_db()
+        admin.crm_profile.refresh_from_db()
+        self.assertEqual(admin.crm_profile.role, "admin")
+        self.assertContains(response, "bent vienas aktyvus administratorius")
+
+    def test_admin_resets_another_users_password(self):
+        self.user.is_superuser = True
+        self.user.save()
+        self.client.force_login(self.user)
+        target = get_user_model().objects.create_user("kolega", password="old-secure-pass-1")
+        self.client.post(reverse("contacts:settings-users"), {
+            "action": "reset", "user_id": target.pk, "password": "fresh-secure-pass-2026",
+        })
+        target.refresh_from_db()
+        self.assertTrue(target.check_password("fresh-secure-pass-2026"))
+
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)
         response = self.client.get(self.company.get_absolute_url())

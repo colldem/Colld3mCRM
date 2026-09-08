@@ -1,0 +1,35 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Naudotojai' %}</h2><p>{% translate 'Pridėkite naudotojus, priskirkite roles, išjunkite arba atstatykite slaptažodį. Naudotojai netrinami, kad išliktų autorystė ir istorija.' %}</p></div></div>
+
+<form method="post" class="custom-field-create">{% csrf_token %}<input type="hidden" name="action" value="create">
+  <div class="profile-fields">
+    <label>{% translate 'Naudotojo vardas' %}<input name="username" maxlength="150" required></label>
+    <label>{% translate 'El. paštas' %}<input type="email" name="email"></label>
+    <label>{% translate 'Vardas' %}<input name="first_name" maxlength="150"></label>
+    <label>{% translate 'Pavardė' %}<input name="last_name" maxlength="150"></label>
+    <label>{% translate 'Rolė' %}<select name="role">{% for value, label in role_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+    <label>{% translate 'Pradinis slaptažodis' %}<input type="text" name="password" required><small>{% translate 'Bent 12 simbolių. Naudotojas galės jį pasikeisti.' %}</small></label>
+  </div>
+  <button class="btn primary" type="submit">{% translate 'Pridėti naudotoją' %}</button>
+</form>
+
+<ul class="settings-list custom-field-list">
+  {% for row in rows %}
+    <li>
+      <div class="user-row">
+        <div class="user-row-info"><strong>{{ row.name }}</strong> <small>{{ row.user.username }}{% if row.user.email %} · {{ row.user.email }}{% endif %}</small><small>{% if row.user.last_login %}{% translate 'Paskutinis prisijungimas:' %} {{ row.user.last_login|date:"Y-m-d H:i" }}{% else %}{% translate 'Dar neprisijungė' %}{% endif %}{% if not row.user.is_active %} · <b>{% translate 'Išjungtas' %}</b>{% endif %}</small></div>
+        <form method="post" class="user-row-actions">{% csrf_token %}<input type="hidden" name="action" value="update"><input type="hidden" name="user_id" value="{{ row.user.pk }}">
+          <select name="role"{% if row.protected %} disabled{% endif %}>{% for value, label in role_choices %}<option value="{{ value }}"{% if value == row.role %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+          <label class="cf-check"><input type="checkbox" name="active" value="1"{% if row.user.is_active %} checked{% endif %}{% if row.protected %} disabled{% endif %}> {% translate 'Aktyvus' %}</label>
+          {% if not row.protected %}<button class="btn" type="submit">{% translate 'Išsaugoti' %}</button>{% endif %}
+        </form>
+        <form method="post" class="user-row-reset">{% csrf_token %}<input type="hidden" name="action" value="reset"><input type="hidden" name="user_id" value="{{ row.user.pk }}">
+          <input type="text" name="password" placeholder="{% translate 'Naujas slaptažodis' %}" required>
+          <button class="btn" type="submit">{% translate 'Atstatyti slaptažodį' %}</button>
+        </form>
+      </div>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

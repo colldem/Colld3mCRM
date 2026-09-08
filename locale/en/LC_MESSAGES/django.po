@@ -1297,3 +1297,69 @@ msgstr "No"
 
 msgid "Atsakingas"
 msgstr "Owner"
+
+msgid "Naudotojai"
+msgstr "Users"
+
+msgid "Pridėkite naudotojus, priskirkite roles, išjunkite arba atstatykite slaptažodį. Naudotojai netrinami, kad išliktų autorystė ir istorija."
+msgstr "Add users, assign roles, disable or reset a password. Users are not deleted so authorship and history stay intact."
+
+msgid "Naudotojo vardas"
+msgstr "Username"
+
+msgid "Rolė"
+msgstr "Role"
+
+msgid "Pradinis slaptažodis"
+msgstr "Initial password"
+
+msgid "Bent 12 simbolių. Naudotojas galės jį pasikeisti."
+msgstr "At least 12 characters. The user can change it later."
+
+msgid "Pridėti naudotoją"
+msgstr "Add user"
+
+msgid "Paskutinis prisijungimas:"
+msgstr "Last login:"
+
+msgid "Dar neprisijungė"
+msgstr "Has not signed in yet"
+
+msgid "Išjungtas"
+msgstr "Disabled"
+
+msgid "Aktyvus"
+msgstr "Active"
+
+msgid "Naujas slaptažodis"
+msgstr "New password"
+
+msgid "Atstatyti slaptažodį"
+msgstr "Reset password"
+
+msgid "Administratorius"
+msgstr "Administrator"
+
+msgid "Naudotojas (visi įrašai)"
+msgstr "User (all records)"
+
+msgid "Naudotojas (tik savi įrašai)"
+msgstr "User (own records only)"
+
+msgid "Toks naudotojo vardas jau naudojamas."
+msgstr "That username is already taken."
+
+msgid "Naudotojas sukurtas."
+msgstr "User created."
+
+msgid "Turi likti bent vienas aktyvus administratorius."
+msgstr "At least one active administrator must remain."
+
+msgid "Pagrindinio administratoriaus keisti negalima."
+msgstr "The primary administrator cannot be changed."
+
+msgid "Naudotojas atnaujintas."
+msgstr "User updated."
+
+msgid "Slaptažodis atstatytas."
+msgstr "Password reset."

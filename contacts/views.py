@@ -166,6 +166,7 @@ def setup_admin(request):
                 user.is_staff = True
                 user.is_superuser = True
                 user.save()
+                UserProfile.objects.update_or_create(user=user, defaults={"role": UserProfile.ROLE_ADMIN})
             return redirect("login")
     return render(request, "registration/setup.html", {"form": form})
 
@@ -465,6 +466,100 @@ def custom_field_delete(request, pk):
         field.delete()
         messages.success(request, tr("Laukas pašalintas."))
     return redirect("contacts:settings-custom-fields")
+
+
+def _create_crm_user(request):
+    from django.contrib.auth.password_validation import validate_password
+
+    User = get_user_model()
+    username = request.POST.get("username", "").strip()
+    role = request.POST.get("role", UserProfile.ROLE_MEMBER)
+    password = request.POST.get("password", "")
+    if not username or User.objects.filter(username__iexact=username).exists():
+        messages.error(request, tr("Toks naudotojo vardas jau naudojamas."))
+        return
+    if role not in dict(UserProfile.ROLE_CHOICES):
+        role = UserProfile.ROLE_MEMBER
+    try:
+        validate_password(password)
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+        return
+    user = User.objects.create_user(
+        username=username, email=request.POST.get("email", "").strip(), password=password,
+        first_name=request.POST.get("first_name", "").strip(), last_name=request.POST.get("last_name", "").strip(),
+        is_staff=role == UserProfile.ROLE_ADMIN,
+    )
+    UserProfile.objects.update_or_create(user=user, defaults={"role": role})
+    messages.success(request, tr("Naudotojas sukurtas."))
+
+
+def _update_crm_user(request, target):
+    from .permissions import active_admin_ids, is_admin
+
+    role = request.POST.get("role", UserProfile.ROLE_MEMBER)
+    if role not in dict(UserProfile.ROLE_CHOICES):
+        role = UserProfile.ROLE_MEMBER
+    active = request.POST.get("active") == "1"
+    admins = active_admin_ids()
+    losing_admin = is_admin(target) and (role != UserProfile.ROLE_ADMIN or not active)
+    if losing_admin and admins <= {target.pk}:
+        messages.error(request, tr("Turi likti bent vienas aktyvus administratorius."))
+        return
+    if target.is_superuser and (role != UserProfile.ROLE_ADMIN or not active):
+        messages.error(request, tr("Pagrindinio administratoriaus keisti negalima."))
+        return
+    target.is_active = active
+    target.is_staff = role == UserProfile.ROLE_ADMIN
+    target.save(update_fields=["is_active", "is_staff"])
+    UserProfile.objects.update_or_create(user=target, defaults={"role": role})
+    messages.success(request, tr("Naudotojas atnaujintas."))
+
+
+def _reset_crm_user_password(request, target):
+    from django.contrib.auth.password_validation import validate_password
+
+    password = request.POST.get("password", "")
+    try:
+        validate_password(password, user=target)
+    except ValidationError as error:
+        messages.error(request, " ".join(error.messages))
+        return
+    target.set_password(password)
+    target.save(update_fields=["password"])
+    if target.pk == request.user.pk:
+        update_session_auth_hash(request, target)
+    messages.success(request, tr("Slaptažodis atstatytas."))
+
+
+@login_required
+def settings_users(request):
+    from .permissions import is_admin, role_of
+
+    if not is_admin(request.user):
+        raise Http404
+    User = get_user_model()
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "create":
+            _create_crm_user(request)
+        elif action in ("update", "reset"):
+            target = User.objects.filter(pk=request.POST.get("user_id")).first()
+            if target and action == "update":
+                _update_crm_user(request, target)
+            elif target:
+                _reset_crm_user_password(request, target)
+        return redirect("contacts:settings-users")
+    rows = [{
+        "user": user,
+        "name": user.get_full_name().strip() or user.get_username(),
+        "role": role_of(user),
+        "is_self": user.pk == request.user.pk,
+        "protected": user.is_superuser,
+    } for user in User.objects.select_related("crm_profile").order_by("username")]
+    return render(request, "settings/users.html", {
+        "settings_section": "users", "rows": rows, "role_choices": UserProfile.ROLE_CHOICES,
+    })
 
 
 @login_required

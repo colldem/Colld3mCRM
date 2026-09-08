@@ -90,7 +90,17 @@ class SavedFilter(models.Model):
 
 
 class UserProfile(models.Model):
+    ROLE_ADMIN = "admin"
+    ROLE_MEMBER = "member"
+    ROLE_RESTRICTED = "restricted"
+    ROLE_CHOICES = (
+        (ROLE_ADMIN, tr("Administratorius")),
+        (ROLE_MEMBER, tr("Naudotojas (visi įrašai)")),
+        (ROLE_RESTRICTED, tr("Naudotojas (tik savi įrašai)")),
+    )
+
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="crm_profile")
+    role = models.CharField(max_length=12, choices=ROLE_CHOICES, default=ROLE_MEMBER)
     language = models.CharField(max_length=5, choices=(("lt", "Lietuvių"), ("en", "English")), default="lt")
     timezone = models.CharField(max_length=64, default="Europe/Vilnius")
     avatar = models.FileField(upload_to="avatars/%Y/%m/", blank=True)
