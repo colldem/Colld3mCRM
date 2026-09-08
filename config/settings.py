@@ -88,7 +88,11 @@ AUTHENTICATION_BACKENDS = [
 ]
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=30)
-AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+# Lock the exact (username, ip) pair, and also any single IP that keeps failing
+# — the latter stops username-cycling password spraying from one host. A bare
+# per-username lock is intentionally left out: on the shared tailnet it would let
+# one user lock another out.
+AXES_LOCKOUT_PARAMETERS = [["ip_address"], ["username", "ip_address"]]
 AXES_RESET_ON_SUCCESS = True
 AXES_HTTP_RESPONSE_CODE = 429
 AXES_VERBOSE = False
@@ -114,6 +118,9 @@ STORAGES = {
     }
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# Cap a single multipart request: file count and total non-file payload.
+DATA_UPLOAD_MAX_NUMBER_FILES = 25
+DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "contacts:list"
 LOGOUT_REDIRECT_URL = "login"

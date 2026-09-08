@@ -13,6 +13,7 @@ from django.views.decorators.http import require_POST
 from .models import AuditLog, Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
 from .forms import CompanyForm
 from .permissions import has_capability, user_label as _user_label, visible_companies, visible_people
+from .sanitizers import safe_url
 from .duplicates import find_company_duplicates, find_person_duplicates
 from .audit import log as audit_log
 
@@ -94,7 +95,7 @@ def company_field_context(company, field):
         return _scalar_context(company, field, EXTRA_FIELDS[field])
     value = getattr(company, field)
     href = {"phone": "tel:", "email": "mailto:"}.get(field, "")
-    href = (href + value) if href and value else value if field == "url" else ""
+    href = (href + value) if href and value else safe_url(value) if field == "url" else ""
     return {"company": company, "field": field, "label": CompanyForm.Meta.labels[field],
             "value": value, "entries": [{"text": value, "href": href}]}
 
@@ -213,7 +214,7 @@ def edit_company_field(request, pk):
     changed = getattr(company, field) != value
     duplicate_settings = DuplicateSettings.load()
     if changed and field in {"name", "company_code", "vat_code", "email", "phone", "url"} and duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-        matches = find_company_duplicates(company_duplicate_data(company, field=field, value=value), exclude_pk=company.pk, level=duplicate_settings.level)
+        matches = find_company_duplicates(company_duplicate_data(company, field=field, value=value), exclude_pk=company.pk, level=duplicate_settings.level, viewer=request.user)
         if matches:
             return duplicate_conflict(matches)
     if changed:
@@ -265,7 +266,7 @@ MULTIPLE = {
 }
 
 
-def field_context(person, field):
+def field_context(person, field, viewer=None):
     if field == "owner":
         return owner_field_context(person)
     if field == "responsibles":
@@ -283,12 +284,15 @@ def field_context(person, field):
         entries = []
         for item in getattr(person, field).all():
             value = getattr(item, column)
-            entries.append({"text": value, "href": value if prefix is None else prefix + value if prefix else ""})
+            entries.append({"text": value, "href": safe_url(value) if prefix is None else prefix + value if prefix else ""})
         value = "\n".join(item["text"] for item in entries)
     else:
         label = _("Įmonės")
         selected = set(person.company_links.values_list("company_id", flat=True))
-        companies = list(Company.objects.filter(deleted_at__isnull=True).order_by("name", "pk"))
+        pool = Company.objects.filter(deleted_at__isnull=True)
+        if viewer is not None:
+            pool = (visible_companies(viewer, pool) | Company.objects.filter(pk__in=selected)).distinct()
+        companies = list(pool.order_by("name", "pk"))
         # Assigned companies are always at the top of the editor, never collapsed to primary only.
         companies.sort(key=lambda company: company.pk not in selected)
         entries = [{"text": link.company.name, "href": link.company.get_absolute_url()} for link in person.company_links.select_related("company")]
@@ -297,12 +301,12 @@ def field_context(person, field):
     return {"person": person, "field": field, "label": label, "value": value, "entries": entries, "multiple": field in MULTIPLE}
 
 
-def detail_fields(person):
+def detail_fields(person, viewer=None):
     from .custom_fields import detail_context
 
     order = ["companies", "responsibles", "first_name", "last_name", "job_title",
              *MULTIPLE, "description"]
-    return [field_context(person, field) for field in order] + detail_context(person)
+    return [field_context(person, field, viewer=viewer) for field in order] + detail_context(person)
 
 
 _CONTACT_INFO_KEYS = {
@@ -311,11 +315,11 @@ _CONTACT_INFO_KEYS = {
 }
 
 
-def grouped_detail_fields(record):
+def grouped_detail_fields(record, viewer=None):
     """Bucket the card fields for the prototype layout. The 'additional fields'
     card only shows dynamic (custom) fields the admin defined in settings."""
     is_company = isinstance(record, Company)
-    fields = company_detail_fields(record) if is_company else detail_fields(record)
+    fields = company_detail_fields(record) if is_company else detail_fields(record, viewer=viewer)
     contact_keys = _CONTACT_INFO_KEYS[is_company]
     out = {"contact_info_fields": [], "custom_fields": [], "description_field": None,
            "responsibles_field": None, "companies_field": None, "job_title_field": None}
@@ -355,7 +359,7 @@ def edit_contact_field(request, pk):
             if changed:
                 duplicate_settings = DuplicateSettings.load()
                 if duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, level=duplicate_settings.level)
+                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user)
                     if matches:
                         return duplicate_conflict(matches)
                 person.first_name = first_name
@@ -367,7 +371,7 @@ def edit_contact_field(request, pk):
             if changed and field in {"first_name", "last_name"}:
                 duplicate_settings = DuplicateSettings.load()
                 if duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=value), exclude_pk=person.pk, level=duplicate_settings.level)
+                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=value), exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user)
                     if matches:
                         return duplicate_conflict(matches)
             if changed:
@@ -382,7 +386,7 @@ def edit_contact_field(request, pk):
             if changed and field in {"phones", "emails"}:
                 duplicate_settings = DuplicateSettings.load()
                 if duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, level=duplicate_settings.level)
+                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user)
                     if matches:
                         return duplicate_conflict(matches)
             if changed:
@@ -398,8 +402,9 @@ def edit_contact_field(request, pk):
                     first.save(update_fields=["is_primary"])
                 person.save(update_fields=["updated_at"])
         elif field == "companies":
+            linkable = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)) | Company.objects.filter(pk__in=person.company_links.values("company_id"))
             selected = list(forms.ModelMultipleChoiceField(
-                queryset=Company.objects.filter(deleted_at__isnull=True), required=False,
+                queryset=linkable.distinct(), required=False,
             ).clean(request.POST.getlist("companies")))
             name = forms.CharField(required=False, max_length=200).clean(request.POST.get("new_name", ""))
             existing_company = Company.objects.filter(name__iexact=name, deleted_at__isnull=True).first() if name else None
@@ -408,7 +413,7 @@ def edit_contact_field(request, pk):
             changed = set(person.company_links.values_list("company_id", flat=True)) != {company.pk for company in selected} or bool(name and existing_company is None)
             duplicate_settings = DuplicateSettings.load()
             if changed and duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-                matches = find_person_duplicates(person_duplicate_data(person, field=field, value=selected), exclude_pk=person.pk, level=duplicate_settings.level)
+                matches = find_person_duplicates(person_duplicate_data(person, field=field, value=selected), exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user)
                 if matches:
                     return duplicate_conflict(matches)
             if changed:
@@ -445,6 +450,6 @@ def edit_contact_field(request, pk):
         return JsonResponse({"error": " ".join(error.messages)}, status=400)
     _audit_field_changes(request, person, before)
     html = title_html(person, request) if field == "full_name" else render_to_string(
-        "contacts/detail_field.html", {"item": field_context(person, field)}, request=request
+        "contacts/detail_field.html", {"item": field_context(person, field, viewer=request.user)}, request=request
     )
     return JsonResponse({"ok": True, "name": str(person), "job_title": person.job_title, "html": html})

@@ -1472,7 +1472,12 @@ class ContactViewTests(TestCase):
         self.assertEqual(Person.objects.count(), before + 1)
 
     def test_duplicate_settings_and_review_page(self):
+        # Non-admins cannot touch the global duplicate policy.
         self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("contacts:settings-duplicates")).status_code, 404)
+        self.assertEqual(self.client.post(reverse("contacts:settings-duplicates"), {"level": "strict"}).status_code, 404)
+        self.user.is_superuser = True
+        self.user.save(update_fields=["is_superuser"])
         settings_response = self.client.get(reverse("contacts:settings-duplicates"))
         self.assertContains(settings_response, '<select name="level" class="duplicate-level-select"')
         self.assertNotContains(settings_response, 'type="radio"')
@@ -2804,3 +2809,101 @@ class ContactViewTests(TestCase):
         self.assertRedirects(response, self.company.get_absolute_url())
         self.company.refresh_from_db()
         self.assertEqual(self.company.name, "Atnaujinta įmonė")
+
+
+class SecurityHardeningTests(TestCase):
+    """Regression cover for the 2026-09 security review findings."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user("saugumas", password="very-secure-password", is_superuser=True, is_staff=True)
+        self.member = User.objects.create_user("narys", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Rūta", last_name="Žukaitė")
+
+    def test_unsafe_url_is_rejected_on_the_contact_form_and_import(self):
+        from contacts.sanitizers import safe_url
+        self.assertEqual(safe_url("javascript:alert(1)"), "")
+        self.assertEqual(safe_url("data:text/html;base64,x"), "")
+        self.assertEqual(safe_url("  vbscript:msgbox(1)"), "")
+        self.assertEqual(safe_url("//evil.example"), "")
+        self.assertEqual(safe_url("regitra.lt"), "https://regitra.lt")
+        self.assertEqual(safe_url("https://regitra.lt/x"), "https://regitra.lt/x")
+
+        self.client.force_login(self.admin)
+        self.client.post(reverse("contacts:edit", args=[self.person.pk]), {
+            "first_name": "Rūta", "last_name": "Žukaitė",
+            "url": "javascript:alert(document.cookie)\nhttps://ok.example",
+        })
+        urls = list(WebLink.objects.filter(person=self.person).values_list("url", flat=True))
+        self.assertEqual(urls, ["https://ok.example"])
+
+    def test_crm_admin_cannot_reset_the_superuser_password(self):
+        boss = get_user_model().objects.create_user("bosas", password="very-secure-password", is_superuser=True, is_staff=True)
+        crm_admin = get_user_model().objects.create_user("krmadmin", password="very-secure-password", is_staff=True)
+        from contacts.models import UserProfile
+        UserProfile.objects.create(user=crm_admin, role=UserProfile.ROLE_ADMIN)
+        self.client.force_login(crm_admin)
+        self.client.post(reverse("contacts:settings-users"), {
+            "action": "reset", "user_id": boss.pk, "password": "brand-new-password-123",
+        })
+        boss.refresh_from_db()
+        self.assertTrue(boss.check_password("very-secure-password"))
+
+    def test_duplicate_settings_are_admin_only(self):
+        self.client.force_login(self.member)
+        self.assertEqual(self.client.get(reverse("contacts:settings-duplicates")).status_code, 404)
+        self.assertEqual(
+            self.client.post(reverse("contacts:settings-duplicates"), {"level": "loose"}).status_code, 404)
+
+    def test_csv_export_neutralises_formula_injection(self):
+        from contacts.sanitizers import csv_safe
+        self.assertEqual(csv_safe("=1+1"), "'=1+1")
+        self.assertEqual(csv_safe("+37060000000"), "'+37060000000")
+        self.assertEqual(csv_safe("Rūta"), "Rūta")
+        self.person.first_name = "=HYPERLINK(1)"
+        self.person.save(update_fields=["first_name"])
+        self.client.force_login(self.admin)
+        body = self.client.get(reverse("contacts:contacts-export")).content.decode("utf-8-sig")
+        self.assertIn("'=HYPERLINK(1)", body)
+        self.assertNotIn("\n=HYPERLINK(1)", body)
+
+    def test_reminder_list_does_not_clear_unread_on_a_cross_site_get(self):
+        self.client.force_login(self.member)
+        Reminder.objects.create(person=self.person, text="Priminimas", created_by=self.member, assigned_to=self.member,
+                                due_at=timezone.now() - timedelta(hours=1))
+        self.client.get(reverse("contacts:reminder-list"), HTTP_SEC_FETCH_SITE="cross-site")
+        self.assertTrue(Reminder.objects.filter(read_at__isnull=True).exists())
+        self.client.get(reverse("contacts:reminder-list"), HTTP_SEC_FETCH_SITE="same-origin")
+        self.assertFalse(Reminder.objects.filter(read_at__isnull=True).exists())
+
+    def test_duplicate_check_does_not_surface_records_the_viewer_cannot_see(self):
+        from contacts.models import UserProfile
+        owner = get_user_model().objects.create_user("kitas-narys", password="very-secure-password")
+        hidden = Person.objects.create(first_name="Slapta", last_name="Pavardė", owner=owner)
+        EmailAddress.objects.create(person=hidden, email="slapta@example.lt")
+        UserProfile.objects.create(user=self.member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        data = {"first_name": "X", "last_name": "Y", "email": "slapta@example.lt", "phone": "", "companies": []}
+        self.assertEqual(find_person_duplicates(data, viewer=self.member), [])
+        self.assertTrue(find_person_duplicates(data))  # still a real global collision
+
+    def test_contact_form_only_offers_companies_the_user_can_see(self):
+        from contacts.models import UserProfile
+        from contacts.forms import PersonForm
+        boss = get_user_model().objects.create_user("bosas-uab", password="very-secure-password")
+        mine = Company.objects.create(name="Mano UAB", owner=self.member)
+        hidden = Company.objects.create(name="Slapta UAB", owner=boss)
+        UserProfile.objects.create(user=self.member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        form = PersonForm(user=self.member)
+        offered = set(form.fields["companies"].queryset.values_list("name", flat=True))
+        self.assertIn("Mano UAB", offered)
+        self.assertNotIn("Slapta UAB", offered)
+        # Posting a hidden company id is rejected by the field.
+        self.client.force_login(self.member)
+        self.client.post(reverse("contacts:person-create"), {
+            "first_name": "A", "last_name": "B", "companies": [hidden.pk],
+        })
+        created = Person.objects.filter(first_name="A", last_name="B").first()
+        if created:
+            self.assertNotIn(hidden.pk, created.companies.values_list("pk", flat=True))

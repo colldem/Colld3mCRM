@@ -7,7 +7,7 @@
     <a class="{% if settings_section == 'profile' %}active{% endif %}" href="{% url 'contacts:settings' %}">{% translate 'Profilis' %}</a>
     {% if crm_caps.can_manage_taxonomy %}<a class="{% if settings_section == 'tags' %}active{% endif %}" href="{% url 'contacts:settings-tags' %}">{% translate 'Žymos' %}</a>
     <a class="{% if settings_section == 'categories' %}active{% endif %}" href="{% url 'contacts:settings-categories' %}">{% translate 'Kategorijos' %}</a>{% endif %}
-    <a class="{% if settings_section == 'duplicates' %}active{% endif %}" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Dublikatų tikrinimas' %}</a>
+    {% if is_crm_admin %}<a class="{% if settings_section == 'duplicates' %}active{% endif %}" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Dublikatų tikrinimas' %}</a>{% endif %}
     {% if crm_caps.can_manage_custom_fields %}<a class="{% if settings_section == 'custom-fields' %}active{% endif %}" href="{% url 'contacts:settings-custom-fields' %}">{% translate 'Dinaminiai laukai' %}</a>{% endif %}
     {% if is_crm_admin %}<a class="{% if settings_section == 'users' %}active{% endif %}" href="{% url 'contacts:settings-users' %}">{% translate 'Naudotojai' %}</a>{% endif %}
     {% if is_crm_admin %}<a class="{% if settings_section == 'teams' %}active{% endif %}" href="{% url 'contacts:settings-teams' %}">{% translate 'Komandos' %}</a>{% endif %}

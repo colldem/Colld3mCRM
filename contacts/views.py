@@ -33,6 +33,7 @@ from .filters import (
 )
 from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, SystemSettings, Tag, Team, UserProfile, WebLink
 from .permissions import visible_companies, visible_people, visible_reminders
+from .sanitizers import csv_safe, safe_url
 from .audit import log as audit_log
 
 
@@ -721,6 +722,9 @@ def _update_crm_user(request, target):
 def _reset_crm_user_password(request, target):
     from django.contrib.auth.password_validation import validate_password
 
+    if target.is_superuser and not request.user.is_superuser:
+        messages.error(request, tr("Pagrindinio administratoriaus slaptažodžio keisti negalima."))
+        return
     password = request.POST.get("password", "")
     try:
         validate_password(password, user=target)
@@ -1021,6 +1025,10 @@ def settings_taxonomy(request, kind):
 
 @login_required
 def settings_duplicates(request):
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
     duplicate_settings = DuplicateSettings.load()
     form = DuplicateSettingsForm(request.POST or None, instance=duplicate_settings)
     if request.method == "POST" and form.is_valid():
@@ -1211,7 +1219,7 @@ def contact_detail(request, pk):
                         key=lambda a: a.created_at, reverse=True)
     return render(request, "contacts/detail.html", {
         "person": person,
-        **grouped_detail_fields(person),
+        **grouped_detail_fields(person, viewer=request.user),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "reminder_form": ReminderForm(user=request.user),
         "comment_token": uuid.uuid4().hex,
@@ -1234,10 +1242,10 @@ def contact_type_choice(request):
 
 @login_required
 def contact_create(request):
-    form = PersonForm(request.POST or None)
+    form = PersonForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
-        duplicates = find_person_duplicates(form.cleaned_data, level=duplicate_settings.level) if duplicate_settings.enabled else []
+        duplicates = find_person_duplicates(form.cleaned_data, level=duplicate_settings.level, viewer=request.user) if duplicate_settings.enabled else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį"), "duplicate_candidates": duplicates})
         person = form.save()
@@ -1258,10 +1266,10 @@ def contact_edit(request, pk):
         "address": "\n".join(person.addresses.values_list("address", flat=True)),
         "url": "\n".join(person.web_links.values_list("url", flat=True)),
     }
-    form = PersonForm(request.POST or None, instance=person, initial=initial)
+    form = PersonForm(request.POST or None, instance=person, initial=initial, user=request.user)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
-        duplicates = find_person_duplicates(form.cleaned_data, exclude_pk=person.pk, level=duplicate_settings.level) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
+        duplicates = find_person_duplicates(form.cleaned_data, exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person, "duplicate_candidates": duplicates})
         person = form.save()
@@ -1272,6 +1280,9 @@ def contact_edit(request, pk):
 
 
 ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+ATTACHMENT_MAX_FILES = 20            # per upload request
+ATTACHMENT_MAX_TOTAL_BYTES = 40 * 1024 * 1024  # per upload request
+ATTACHMENT_MAX_PER_RECORD = 200     # across an activity's whole lifetime
 ATTACHMENT_ALLOWED_EXTENSIONS = {
     ".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".txt",
     ".doc", ".docx", ".xls", ".xlsx",
@@ -1279,18 +1290,25 @@ ATTACHMENT_ALLOWED_EXTENSIONS = {
 
 
 def _save_attachments(request, activity):
-    """Store the uploaded files that pass the size and extension limits.
+    """Store the uploaded files that pass the size, type and quota limits.
     Returns the names of any rejected files."""
     rejected = []
-    for upload in request.FILES.getlist("attachments"):
+    uploads = request.FILES.getlist("attachments")[:ATTACHMENT_MAX_FILES]
+    rejected += [u.name for u in request.FILES.getlist("attachments")[ATTACHMENT_MAX_FILES:]]
+    total = 0
+    existing = Attachment.objects.filter(activity=activity, deleted_at__isnull=True).count()
+    for upload in uploads:
         extension = os.path.splitext(upload.name)[1].lower()
-        if upload.size > ATTACHMENT_MAX_BYTES or extension not in ATTACHMENT_ALLOWED_EXTENSIONS:
+        total += upload.size
+        if (upload.size > ATTACHMENT_MAX_BYTES or extension not in ATTACHMENT_ALLOWED_EXTENSIONS
+                or total > ATTACHMENT_MAX_TOTAL_BYTES or existing >= ATTACHMENT_MAX_PER_RECORD):
             rejected.append(upload.name)
             continue
         Attachment.objects.create(
             activity=activity, file=upload, original_name=upload.name[:255],
             content_type=getattr(upload, "content_type", "") or "", size=upload.size,
         )
+        existing += 1
         audit_log(AuditLog.UPDATE, request=request, target=(activity.person or activity.company),
                   field=tr("Priedas"), new=upload.name[:255])
     return rejected
@@ -1407,7 +1425,10 @@ def reminder_list(request):
     now = timezone.now()
     active = pending_reminders(request.user).filter(due_at__lte=now)
     scheduled = pending_reminders(request.user).filter(due_at__gt=now)
-    active.filter(read_at__isnull=True).update(read_at=now)
+    # Opening the list clears the "unread" badge, but only for a genuine same-site
+    # visit — a cross-site link or <img> must not silently reset it.
+    if request.headers.get("Sec-Fetch-Site", "same-origin") in ("same-origin", "same-site", "none"):
+        active.filter(read_at__isnull=True).update(read_at=now)
     return render(request, "reminders/list.html", {"active_reminders": active, "scheduled_reminders": scheduled})
 
 
@@ -1534,7 +1555,7 @@ def company_detail(request, pk):
     next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
     return render(request, "companies/detail.html", {
         "company": company,
-        **grouped_detail_fields(company),
+        **grouped_detail_fields(company, viewer=request.user),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "comment_token": uuid.uuid4().hex,
         "file_token": uuid.uuid4().hex,
@@ -1590,7 +1611,7 @@ def company_create(request):
     form = CompanyForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
-        duplicates = find_company_duplicates(form.cleaned_data, level=duplicate_settings.level) if duplicate_settings.enabled else []
+        duplicates = find_company_duplicates(form.cleaned_data, level=duplicate_settings.level, viewer=request.user) if duplicate_settings.enabled else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/", "duplicate_candidates": duplicates})
         company = form.save()
@@ -1607,7 +1628,7 @@ def company_edit(request, pk):
     form = CompanyForm(request.POST or None, instance=company)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
-        duplicates = find_company_duplicates(form.cleaned_data, exclude_pk=company.pk, level=duplicate_settings.level) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
+        duplicates = find_company_duplicates(form.cleaned_data, exclude_pk=company.pk, level=duplicate_settings.level, viewer=request.user) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti įmonę"), "company": company, "cancel_url": company.get_absolute_url(), "duplicate_candidates": duplicates})
         company = form.save()
@@ -1649,7 +1670,7 @@ def contacts_export(request):
     from .permissions import user_label
     rows = 0
     for person in people:
-        writer.writerow([person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner), "; ".join(u.get_username() for u in person.responsibles.all())])
+        writer.writerow([csv_safe(v) for v in [person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner), "; ".join(u.get_username() for u in person.responsibles.all())]])
         rows += 1
     audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Kontaktai (CSV)")), new=str(rows))
     return response
@@ -1667,7 +1688,7 @@ def companies_export(request):
     from .permissions import user_label
     rows = 0
     for company in companies:
-        writer.writerow([company.name, company.company_code, company.vat_code, company.address, company.phone, company.email, user_label(company.owner), "; ".join(u.get_username() for u in company.responsibles.all())])
+        writer.writerow([csv_safe(v) for v in [company.name, company.company_code, company.vat_code, company.address, company.phone, company.email, user_label(company.owner), "; ".join(u.get_username() for u in company.responsibles.all())]])
         rows += 1
     audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Įmonės (CSV)")), new=str(rows))
     return response
@@ -1789,7 +1810,7 @@ def _import_one_row(row, owner, mode, owner_cache, can_reassign=True):
         PhoneNumber.objects.get_or_create(person=person, number=number, defaults={"is_primary": not person.phones.exists()})
     for address in filter(None, (item.strip() for item in _value(row, "Adresai", "Adresas", "address", "Address").split(";"))):
         PostalAddress.objects.get_or_create(person=person, address=address)
-    for url in filter(None, (item.strip() for item in _value(row, "URL", "url", "Website").split(";"))):
+    for url in filter(None, (safe_url(item.strip()) for item in _value(row, "URL", "url", "Website").split(";"))):
         WebLink.objects.get_or_create(person=person, url=url)
     for address in email_values:
         EmailAddress.objects.get_or_create(person=person, email=address, defaults={"is_primary": not person.emails.exists()})
@@ -1987,5 +2008,5 @@ def contacts_import_errors(request):
     writer = csv.writer(response)
     writer.writerow([str(tr("Eilutė")), str(tr("Klaida"))] + field_names)
     for entry in errors:
-        writer.writerow([entry["row"], entry["error"]] + [entry["data"].get(name, "") for name in field_names])
+        writer.writerow([entry["row"], csv_safe(entry["error"])] + [csv_safe(entry["data"].get(name, "")) for name in field_names])
     return response

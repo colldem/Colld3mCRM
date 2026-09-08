@@ -13,13 +13,17 @@ def _phones(value):
     return {re.sub(r"\D", "", item) for item in (value or "").splitlines() if len(re.sub(r"\D", "", item)) >= 6}
 
 
-def find_person_duplicates(data, *, exclude_pk=None, level="standard"):
+def find_person_duplicates(data, *, exclude_pk=None, level="standard", viewer=None):
     emails = _lines(data.get("email", ""))
     phones = _phones(data.get("phone", ""))
     first_name = (data.get("first_name") or "").strip().casefold()
     last_name = (data.get("last_name") or "").strip().casefold()
     company_ids = {item.pk for item in data.get("companies", [])}
     people = Person.objects.filter(deleted_at__isnull=True).prefetch_related("emails", "phones", "companies")
+    if viewer is not None:
+        from .permissions import visible_people
+
+        people = visible_people(viewer, people)
     if exclude_pk:
         people = people.exclude(pk=exclude_pk)
     matches = []
@@ -96,8 +100,12 @@ def _company_signals(data, company):
     }
 
 
-def find_company_duplicates(data, *, exclude_pk=None, level="standard"):
+def find_company_duplicates(data, *, exclude_pk=None, level="standard", viewer=None):
     companies = Company.objects.filter(deleted_at__isnull=True)
+    if viewer is not None:
+        from .permissions import visible_companies
+
+        companies = visible_companies(viewer, companies)
     if exclude_pk:
         companies = companies.exclude(pk=exclude_pk)
     matches = []

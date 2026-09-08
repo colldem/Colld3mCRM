@@ -87,6 +87,16 @@ class ImportSettingsForm(forms.ModelForm):
 
 class PersonForm(forms.ModelForm):
     companies = forms.ModelMultipleChoiceField(queryset=Company.objects.filter(deleted_at__isnull=True), required=False, label=tr("Priskirtos įmonės"), help_text=tr("Galite pasirinkti vieną ar kelias įmones."), widget=forms.CheckboxSelectMultiple)
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            # A restricted user must not see or link companies outside their scope;
+            # companies already linked to this contact stay selectable.
+            visible = permissions.visible_companies(user, Company.objects.filter(deleted_at__isnull=True))
+            if self.instance.pk:
+                visible = visible | Company.objects.filter(pk__in=self.instance.companies.values("pk"))
+            self.fields["companies"].queryset = visible.distinct()
     phone = forms.CharField(required=False, label=tr("Telefonai"), widget=forms.Textarea(attrs={"rows": 3, "placeholder": tr("Vienas numeris eilutėje")}))
     email = forms.CharField(required=False, label=tr("El. paštai"), widget=forms.Textarea(attrs={"rows": 3, "placeholder": tr("Vienas adresas eilutėje")}))
     address = forms.CharField(required=False, label=tr("Adresai"), widget=forms.Textarea(attrs={"rows": 3, "placeholder": tr("Vienas adresas eilutėje")}))
@@ -126,8 +136,12 @@ class PersonForm(forms.ModelForm):
         return person
 
     def _replace_multiple(self, model, relation_name, value_field, value, has_primary=True):
+        from .sanitizers import safe_url
+
         relation = getattr(self.instance, relation_name)
         values = [line.strip() for line in (value or "").splitlines() if line.strip()]
+        if value_field == "url":
+            values = [safe for safe in (safe_url(item) for item in values) if safe]
         relation.all().delete()
         for index, item in enumerate(values):
             attrs = {value_field: item}
