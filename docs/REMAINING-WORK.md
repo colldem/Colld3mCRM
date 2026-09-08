@@ -447,6 +447,103 @@ Pereita per visą sąsają naršyklėje (lokalus serveris, LT + EN, desktop + mo
 
 ---
 
+## G. Kitas etapas (planas 2026-09-08)
+
+**Kryptis:** sandorių / pardavimų piltuvėlio **nedarome** — pardavimai neaktualūs.
+Dėmesys: kontaktai, priminimai, komunikacija.
+
+**Sprendimai priimti planuojant:** AD = **Microsoft Entra ID** (debesis, OIDC);
+kalendoriaus sinchronizacija = **.ics prenumerata** (vienpusė); užduotys =
+**praplėstas `Reminder`**, ne atskiras modelis; el. laiškams **bus atskira CRM dėžutė**.
+
+Vykdymo tvarka: G1 → G2 → G3 → G4 → G5 → G6. G4 mažas ir nepriklausomas —
+jei prireiks anksčiau, galima kelti į priekį.
+
+### G1. Analitikos modulis — ❌
+Viskas skaičiuojama iš **jau esamų** duomenų (`Activity`, `Reminder`, `Person`,
+`Company`, `AuditLog`, žymos/kategorijos/dinaminiai laukai) — naujų laukų nereikia.
+
+**1. Darbastalis** (tampa `/` vietoj peradresavimo į kontaktų sąrašą)
+šiandienos ir rytojaus įvykiai · vėluojantys priminimai · mano paskutiniai liesti
+įrašai · nauji kontaktai per 30 d. · mano veiklos šią savaitę pagal tipą.
+
+**2. Ryšių priežiūra** (vertingiausia dalis kontaktų CRM)
+- **Nutilę kontaktai** — nėra veiklos >30/60/90 d., nuo seniausio, su „suplanuoti
+  priminimą" mygtuku tiesiai sąraše (`Person.last_contact_at` iš `Activity`)
+- **Niekada nebendrauta** — kontaktai be nė vienos veiklos
+- **Be atsakingo** (nei `owner`, nei `responsibles`) · **be telefono ir el. pašto**
+
+**3. Komunikacijos statistika**
+- Veiklų kiekis laike (savaitėmis / mėnesiais) pagal tipą — skambučiai, laiškai,
+  susitikimai, pastabos, užduotys
+- Aktyviausi kontaktai ir įmonės per laikotarpį (top 10)
+- Pagal naudotoją · vidutinis bendravimo dažnis (dienų tarp veiklų)
+
+**4. Priminimų vykdymas** — suplanuota / atlikta / vėluoja · atlikimo procentas ·
+vidutinis vėlavimas dienomis (`completed_at` vs `due_at`) · pagal naudotoją.
+
+**5. Bazės augimas ir sudėtis** — kontaktų/įmonių kreivė iš `created_at` ·
+pasiskirstymas pagal kategoriją, žymą, „Šaltinį" (dinaminis laukas), atsakingą ·
+duomenų kokybė (% su el. paštu / telefonu / įmone / atsakingu).
+
+**6. Sistemos naudojimas** (tik administratoriui, iš `AuditLog`) — prisijungimai ir
+nesėkmingi bandymai · importai/eksportai · aktyviausi naudotojai.
+
+Technika: `contacts/analytics_views.py`, `templates/analytics/*`.
+**Grafikai — inline SVG, be išorinių bibliotekų** (NAS uždarame tinkle, CDN nepasiektų).
+Visi skaičiavimai per `visible_people` / `visible_companies` — ribotas naudotojas
+mato tik savo skaičius. Laikotarpio filtras + CSV eksportas kiekvienai lentelei.
+
+### G2. Užduočių priskyrimas kolegai — ❌
+`Reminder` praplečiamas: `assigned_to` (FK User, numatyta = `created_by`),
+`priority`, ir būsena (`completed_at` = atlikta; ar reikia „vykdoma" — spręsti
+įgyvendinant).
+- Kalendorius pereina nuo `created_by = aš` prie **`assigned_to = aš`**
+- Priminimų sąrašas gauna filtrus: man priskirtos / mano sukurtos / visos
+- Varpelyje pranešimas, kai kažkas priskiria užduotį tau
+- Priskirti galima tik naudotojams, kuriuos matai (matomumo ribose)
+
+### G3. Pasikartojantys įvykiai — ❌
+`recurrence_rule` (RRULE-lite: `FREQ` DAILY/WEEKLY/MONTHLY/YEARLY, `INTERVAL`,
+`UNTIL` arba `COUNT`) + `recurrence_parent`.
+**Atviras sprendimas:** virtualus išskleidimas skaitant vs. materializavimas ribotam
+horizontui (pvz. 12 mėn.). Materializavimas paprastesnis „redaguoti šį vieną" atvejui,
+bet reikia foninio pratęsimo. Spręsti pradedant G3.
+
+### G4. Kalendoriaus prenumerata (.ics) — ❌
+`/calendar/feed/<token>.ics` — token `UserProfile.calendar_token` (generuojamas,
+atšaukiamas iš Nustatymų).
+- VEVENT: `DTSTART`/`DTEND`, `SUMMARY` = tekstas, `DESCRIPTION`, **`LOCATION` = adresas
+  iš kontakto kortelės**, `URL` = nuoroda į įrašą
+- Turinys = to naudotojo `assigned_to` įvykiai (po G2)
+- Veikia Google (From URL), Outlook (Subscribe from web), Apple (Subscribe to Calendar)
+- URL turi būti pasiekiamas iš interneto — **Funnel jau įjungtas**
+- Autentifikacija = pats token'as, todėl jis ilgas ir atšaukiamas
+- Vienpusė (CRM → kalendorius). Dvipusė per Graph / Google API — atskiras, daug
+  didesnis darbas; vertinti tik jei vienpusės nepakaks.
+
+### G5. Prisijungimas per Microsoft Entra ID — ❌
+`mozilla-django-oidc`. Entra: App registration, redirect URI
+`https://crm.tailb8493f.ts.net/oidc/callback/`, client id/secret į `.env`.
+- Naudotojų susiejimas pagal el. paštą / UPN
+- **Atviras sprendimas:** ar kurti naujus naudotojus automatiškai (su kokia numatyta
+  role ir matomumu), ar leisti tik susieti jau esamus
+- Vietinis prisijungimas lieka kaip atsarginis kelias administratoriui
+- `django-axes` lieka vietiniam prisijungimui; 2FA ateina iš Entra pusės
+
+### G6. Išsiųsto el. laiško prisegimas (BCC dropbox) — ❌
+CRM turi savo dėžutę; rašydamas laišką naudotojas įrašo ją į **BCC**.
+- Periodinis IMAP tikrinimas — `manage.py fetch_mail`, paleidžiamas konteineryje
+  kaip `crm-backup` (ciklas su `sleep`)
+- Apdorojimas: kontaktas ieškomas pagal `To`/`Cc` adresus, siuntėjas iš `From` →
+  `created_by`; sukuriama `Activity(activity_type="email")` su tema, tekstu ir priedais
+- **Dedup pagal `Message-ID`** — naujas `Activity.message_id` (unique)
+- Nepriskirti laiškai (adresas nerastas) — atskiras sąrašas rankiniam priskyrimui
+- IMAP prisijungimo duomenys **`.env`, ne DB**; Nustatymai → El. paštas rodo tik
+  būseną ir paskutinio tikrinimo laiką
+
+---
+
 ## F. Kalendorius — ✅ padaryta (`0.28.0`)
 
 Asmeninė darbotvarkė: kiekvienas naudotojas mato **tik savo sukurtus** priminimus.
@@ -461,11 +558,12 @@ Asmeninė darbotvarkė: kiekvienas naudotojas mato **tik savo sukurtus** primini
   iš kortelės. Įvykį galima redaguoti ir pašalinti.
 - Kodas: `contacts/calendar_views.py`, `templates/calendar/*`, `static/js/calendar.js`.
 
-## Būsena 2026-09-08 (`0.27.0`)
+## Būsena 2026-09-08 (`0.28.0`)
 
-Visi A–E ir D punktai įgyvendinti. Lieka tik sąmoningai atidėti / atmesti dalykai:
-el. pašto priminimai (SMTP), kortelės greiti „Skambinti / Rašyti" veiksmai,
-žymų/kategorijų būsenos, grafinis ryšių medis. Naujų darbų nėra.
+A–F punktai įgyvendinti. Toliau — **G skiltis** (analitika, užduotys kolegai,
+pasikartojantys įvykiai, .ics prenumerata, Entra ID, el. laiškų prisegimas).
+Sąmoningai atmesta: sandoriai/piltuvėlis, kortelės greiti „Skambinti / Rašyti"
+veiksmai, žymų/kategorijų būsenos, grafinis ryšių medis.
 
 ## Siūloma vykdymo tvarka (istorinė — visa atlikta)
 
