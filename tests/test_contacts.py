@@ -1884,6 +1884,68 @@ class ContactViewTests(TestCase):
         self.client.force_login(member)
         self.assertEqual(self.client.get(reverse("contacts:detail", args=[theirs.pk])).status_code, 200)
 
+    # --- C6 part 4: owner column, filter, bulk assign, CSV ---
+
+    def test_owner_column_and_filter_on_contact_list(self):
+        self.client.force_login(self.user)
+        kolege = get_user_model().objects.create_user("kolege", password="very-secure-password", first_name="Aistė")
+        self.person.owner = kolege
+        self.person.save(update_fields=["owner"])
+        mine = Person.objects.create(first_name="Mano", last_name="Kontaktas", owner=self.user)
+        listed = self.client.get(reverse("contacts:list"), {"columns": ["owner"]})
+        self.assertIn("owner", listed.context["columns"])
+        self.assertContains(listed, "Aistė")
+        filtered = self.client.get(reverse("contacts:list"), {"owner": str(kolege.pk)})
+        ids = [p.pk for p in filtered.context["page"]]
+        self.assertEqual(ids, [self.person.pk])
+        self.assertTrue(filtered.context["active_filter_count"])
+        unassigned = self.client.get(reverse("contacts:list"), {"owner": "none"})
+        self.assertNotIn(self.person.pk, [p.pk for p in unassigned.context["page"]])
+        self.assertNotIn(mine.pk, [p.pk for p in unassigned.context["page"]])
+
+    def test_bulk_assign_owner_for_contacts_and_companies(self):
+        self.client.force_login(self.user)
+        kolege = get_user_model().objects.create_user("kolege", password="very-secure-password")
+        self.client.post(reverse("contacts:bulk-action"), {
+            "action": "assign_owner", "selected": [self.person.pk], "owner": str(kolege.pk),
+        })
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.owner, kolege)
+        self.client.post(reverse("contacts:company-bulk-action"), {
+            "action": "assign_owner", "selected": [self.company.pk], "owner": str(kolege.pk),
+        })
+        self.company.refresh_from_db()
+        self.assertEqual(self.company.owner, kolege)
+        # empty owner value clears it
+        self.client.post(reverse("contacts:bulk-action"), {
+            "action": "assign_owner", "selected": [self.person.pk], "owner": "",
+        })
+        self.person.refresh_from_db()
+        self.assertIsNone(self.person.owner)
+
+    def test_restricted_user_cannot_bulk_assign_owner(self):
+        restricted = self._restricted_user()
+        mine = Person.objects.create(first_name="Mano", last_name="Kontaktas", owner=restricted)
+        kolege = get_user_model().objects.create_user("kolege", password="very-secure-password")
+        self.client.force_login(restricted)
+        self.client.post(reverse("contacts:bulk-action"), {
+            "action": "assign_owner", "selected": [mine.pk], "owner": str(kolege.pk),
+        })
+        mine.refresh_from_db()
+        self.assertEqual(mine.owner, restricted)
+
+    def test_owner_column_in_csv_export_and_import(self):
+        self.client.force_login(self.user)
+        kolege = get_user_model().objects.create_user("kolege", password="very-secure-password", first_name="Aistė", last_name="Kolegė")
+        self.person.owner = kolege
+        self.person.save(update_fields=["owner"])
+        export = self.client.get(reverse("contacts:contacts-export")).content.decode("utf-8")
+        self.assertIn("Atsakingas", export.splitlines()[0])
+        self.assertIn("Aistė Kolegė", export)
+        content = "Vardas,Pavardė,Atsakingas\nImportuota,Savininkė,kolege\n".encode()
+        self._import_file(SimpleUploadedFile("k.csv", content, content_type="text/csv"))
+        self.assertEqual(Person.objects.get(first_name="Importuota").owner, kolege)
+
     def test_company_detail_lists_linked_person(self):
         self.client.force_login(self.user)
         response = self.client.get(self.company.get_absolute_url())

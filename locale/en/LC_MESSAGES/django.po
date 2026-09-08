@@ -1363,3 +1363,24 @@ msgstr "User updated."
 
 msgid "Slaptažodis atstatytas."
 msgstr "Password reset."
+
+msgid "Bet kuris"
+msgstr "Anyone"
+
+msgid "Atsakingas: pašalinti"
+msgstr "Owner: remove"
+
+msgid "Atsakingas…"
+msgstr "Owner…"
+
+msgid "Neturite teisės keisti atsakingo naudotojo."
+msgstr "You do not have permission to change the owner."
+
+msgid "Pasirinktas naudotojas nerastas."
+msgstr "The selected user was not found."
+
+msgid "Atsakingas priskirtas įrašams: %(n)s."
+msgstr "Owner assigned to records: %(n)s."
+
+msgid "Atsakingas pašalintas nuo įrašų: %(n)s."
+msgstr "Owner removed from records: %(n)s."

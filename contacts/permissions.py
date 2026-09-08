@@ -64,6 +64,20 @@ def visible_reminders(user, queryset=None):
     return queryset.filter(Q(person__owner=user) | Q(person__owner__isnull=True))
 
 
+def user_label(user):
+    """Human-readable name for a CRM user: full name if set, else the username."""
+    if not user:
+        return ""
+    return user.get_full_name().strip() or user.get_username()
+
+
+def assignable_users():
+    """Active users that a record can be assigned to, ordered by name."""
+    from django.contrib.auth import get_user_model
+
+    return list(get_user_model().objects.filter(is_active=True).order_by("first_name", "last_name", "username"))
+
+
 def can_see_person(user, person):
     return sees_all_records(user) or person.owner_id in (None, user.pk)
 

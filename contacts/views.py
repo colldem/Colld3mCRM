@@ -47,6 +47,26 @@ def _last_activity_context(last_activity):
     return {"last_activity": last_activity, "last_activity_days": days}
 
 
+def _owner_choices():
+    from .permissions import assignable_users
+
+    return assignable_users()
+
+
+def _owner_label_map(users):
+    from .permissions import user_label
+
+    mapping = {str(user.pk): user_label(user) for user in users}
+    mapping["none"] = str(tr("Nepriskirta"))
+    return mapping
+
+
+def _can_assign_owner(user):
+    from .permissions import sees_all_records
+
+    return sees_all_records(user)
+
+
 def _attach_custom_cells(records, custom_columns):
     """Give each record a `.custom_cells` list aligned to `custom_columns` (one query)."""
     for record in records:
@@ -193,11 +213,11 @@ def contact_list(request):
     page_size = 100 if request.GET.get("page_size") == "100" else 50
     sort_key = request.GET.get("sort", "name")
     direction = "desc" if request.GET.get("direction") == "desc" else "asc"
-    sort_map = {"id": ["id"], "name": ["last_name", "first_name"], "company": ["sort_company"], "phone": ["sort_phone"], "email": ["sort_email"], "category": ["sort_category"], "tags": ["sort_tag"], "status": ["status"], "last_contact": ["last_contact_at"], "created": ["created_at"], "updated": ["updated_at"]}
+    sort_map = {"id": ["id"], "name": ["last_name", "first_name"], "company": ["sort_company"], "phone": ["sort_phone"], "email": ["sort_email"], "category": ["sort_category"], "tags": ["sort_tag"], "status": ["status"], "owner": ["owner__first_name", "owner__last_name", "owner__username"], "last_contact": ["last_contact_at"], "created": ["created_at"], "updated": ["updated_at"]}
     sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
     order = [f"{order_prefix}{field}" for field in sort_map.get(sort_key, sort_map["name"])]
-    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True)).prefetch_related(
+    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True)).select_related("owner").prefetch_related(
         "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
     )
     people = people.annotate(last_contact_at=Max("activities__created_at", filter=Q(activities__deleted_at__isnull=True)))
@@ -210,7 +230,7 @@ def contact_list(request):
         sort_tag=Min("tags__name"),
     )
     custom_fields = list(CustomField.objects.filter(entity=CustomField.PERSON))
-    allowed_columns = ["company", "phone", "email", "category", "tags", "status", "last_contact", "updated"] + [field.key for field in custom_fields]
+    allowed_columns = ["company", "phone", "email", "category", "tags", "status", "owner", "last_contact", "updated"] + [field.key for field in custom_fields]
     default_columns = ["company", "phone", "email", "category", "tags", "updated"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
@@ -229,9 +249,11 @@ def contact_list(request):
         list_query.pop(key, None)
     categories = Category.objects.all()
     tags = Tag.objects.all()
+    owner_users = _owner_choices()
     label_maps = {
         "categories": {item.pk: item.name for item in categories},
         "tags": {item.pk: item.name for item in tags},
+        "owner": _owner_label_map(owner_users),
         "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma"), **{field.key: field.name for field in custom_fields}},
     }
     return render(request, "contacts/list.html", {
@@ -240,6 +262,7 @@ def contact_list(request):
         "direction": direction, "columns": columns, "categories": categories,
         "tags": tags, "filter_values": filter_values,
         "custom_fields": custom_fields, "custom_columns": custom_columns,
+        "owner_users": owner_users, "can_assign_owner": _can_assign_owner(request.user),
         "active_filter_count": active_filter_count(filter_values),
         "filter_chips": filter_chips(request.GET, filter_values, label_maps, request.path),
         "saved_filters": SavedFilter.objects.filter(user=request.user, scope="contacts"),
@@ -278,6 +301,25 @@ def _bulk_add_label(request, queryset, action):
         messages.error(request, limit_msg % {"n": skipped})
 
 
+def _bulk_assign_owner(request, queryset):
+    """Set (or clear, when value is empty) the owner for every record in queryset."""
+    if not _can_assign_owner(request.user):
+        messages.error(request, tr("Neturite teisės keisti atsakingo naudotojo."))
+        return
+    raw = request.POST.get("owner", "").strip()
+    owner = None
+    if raw:
+        owner = get_user_model().objects.filter(pk=raw, is_active=True).first()
+        if not owner:
+            messages.error(request, tr("Pasirinktas naudotojas nerastas."))
+            return
+    count = queryset.update(owner=owner, updated_at=timezone.now())
+    if owner:
+        messages.success(request, tr("Atsakingas priskirtas įrašams: %(n)s.") % {"n": count})
+    else:
+        messages.success(request, tr("Atsakingas pašalintas nuo įrašų: %(n)s.") % {"n": count})
+
+
 @login_required
 def contact_bulk_action(request):
     if request.method != "POST":
@@ -292,6 +334,8 @@ def contact_bulk_action(request):
         messages.success(request, tr("Archyvuota kontaktų: %(count)s.") % {"count": count})
     elif action in {"add_tag", "add_category"}:
         _bulk_add_label(request, people, action)
+    elif action == "assign_owner":
+        _bulk_assign_owner(request, people)
     return redirect("contacts:list")
 
 
@@ -310,6 +354,8 @@ def company_bulk_action(request):
             messages.success(request, tr("Archyvuota įmonių: %(count)s.") % {"count": count})
     elif action in {"add_tag", "add_category"}:
         _bulk_add_label(request, companies, action)
+    elif action == "assign_owner":
+        _bulk_assign_owner(request, companies)
     return redirect("contacts:company-list")
 
 
@@ -973,7 +1019,7 @@ def company_list(request):
     redirect_to = _default_filter_redirect(request, "companies")
     if redirect_to:
         return redirect(redirect_to)
-    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).prefetch_related("people", "tags", "categories")
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).select_related("owner").prefetch_related("people", "tags", "categories")
     filter_values = company_filter_values(request.GET)
     query = filter_values["q"]
     page_size = 100 if request.GET.get("page_size") == "100" else 50
@@ -991,6 +1037,7 @@ def company_list(request):
         "contacts": "contact_count",
         "category": "sort_category",
         "tags": "sort_tag",
+        "owner": "owner__first_name",
     }
     sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
@@ -1000,7 +1047,7 @@ def company_list(request):
         sort_tag=Min("tags__name"),
     ).order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
     custom_fields = list(CustomField.objects.filter(entity=CustomField.COMPANY))
-    allowed_columns = ["company_code", "vat_code", "address", "phone", "email", "contacts"] + [field.key for field in custom_fields]
+    allowed_columns = ["company_code", "vat_code", "address", "phone", "email", "contacts", "owner"] + [field.key for field in custom_fields]
     default_columns = ["company_code", "vat_code", "phone", "email", "contacts"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
@@ -1020,14 +1067,17 @@ def company_list(request):
         list_query.pop(key, None)
     categories = Category.objects.all()
     tags = Tag.objects.all()
+    owner_users = _owner_choices()
     label_maps = {
         "categories": {item.pk: item.name for item in categories},
         "tags": {item.pk: item.name for item in tags},
+        "owner": _owner_label_map(owner_users),
         "titles": {"categories": tr("Kategorija"), "tags": tr("Žyma"), **{field.key: field.name for field in custom_fields}},
     }
     return render(request, "companies/list.html", {
         "page": page, "query": query, "page_size": page_size, "sort": sort_key, "direction": direction, "filter_values": filter_values, "columns": columns,
         "custom_fields": custom_fields, "custom_columns": custom_columns,
+        "owner_users": owner_users, "can_assign_owner": _can_assign_owner(request.user),
         "page_numbers": _elided_page_numbers(page),
         "list_query": list_query.urlencode(),
         "active_filter_count": active_filter_count(filter_values),
@@ -1140,13 +1190,14 @@ def contacts_export(request):
     response["Content-Disposition"] = 'attachment; filename="crm-kontaktai.csv"'
     response.write("\ufeff")
     writer = csv.writer(response)
-    writer.writerow(["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Būsena", "Tagai", "Kategorijos"])
+    writer.writerow(["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Būsena", "Tagai", "Kategorijos", "Atsakingas"])
     people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     if request.method == "POST":
         people = people.filter(pk__in=request.POST.getlist("selected"))
-    people = people.prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "company_links__company")
+    people = people.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "company_links__company")
+    from .permissions import user_label
     for person in people:
-        writer.writerow([person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), person.status, "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all())])
+        writer.writerow([person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), person.status, "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner)])
     return response
 
 @login_required
@@ -1155,17 +1206,36 @@ def companies_export(request):
     response["Content-Disposition"] = 'attachment; filename="crm-imones.csv"'
     response.write("\ufeff")
     writer = csv.writer(response)
-    writer.writerow(["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Telefonas", "El. paštas"])
-    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
+    writer.writerow(["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Telefonas", "El. paštas", "Atsakingas"])
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).select_related("owner")
     if request.method == "POST": companies = companies.filter(pk__in=request.POST.getlist("selected"))
-    for company in companies: writer.writerow([company.name, company.company_code, company.vat_code, company.address, company.phone, company.email])
+    from .permissions import user_label
+    for company in companies: writer.writerow([company.name, company.company_code, company.vat_code, company.address, company.phone, company.email, user_label(company.owner)])
     return response
+
+
+def _resolve_import_owner(value, cache):
+    """Match an "Atsakingas" cell to an active user by username, full name or email."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    if value in cache:
+        return cache[value]
+    users = get_user_model().objects.filter(is_active=True)
+    user = (
+        users.filter(username__iexact=value).first()
+        or users.filter(email__iexact=value).first()
+        or next((u for u in users if u.get_full_name().strip().lower() == value.lower()), None)
+    )
+    cache[value] = user
+    return user
 
 
 @transaction.atomic
 def _import_contact_rows(rows, owner=None):
     created = updated = skipped = possible_duplicates = 0
     created_person_ids = set()
+    owner_cache = {}
     duplicate_settings = DuplicateSettings.load()
     report_duplicates = duplicate_settings.enabled and duplicate_settings.check_on_import
     for row in rows:
@@ -1184,14 +1254,17 @@ def _import_contact_rows(rows, owner=None):
         if not person:
             person = Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).first()
         values = {"first_name": first_name, "last_name": last_name, "job_title": _value(row, "Pareigos", "job_title"), "status": _value(row, "Būsena", "status") or "Aktyvus"}
+        row_owner = _resolve_import_owner(_value(row, "Atsakingas", "owner", "Owner"), owner_cache)
         if person:
             for field, value in values.items():
                 if value:
                     setattr(person, field, value)
+            if row_owner:
+                person.owner = row_owner
             person.save()
             updated += 1
         else:
-            person = Person.objects.create(owner=owner, **values)
+            person = Person.objects.create(owner=row_owner or owner, **values)
             created += 1
             created_person_ids.add(person.pk)
         for company_name in company_names:

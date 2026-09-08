@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from .models import Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
 from .forms import CompanyForm
-from .permissions import visible_companies, visible_people
+from .permissions import user_label as _user_label, visible_companies, visible_people
 from .duplicates import find_company_duplicates, find_person_duplicates
 
 
@@ -86,10 +86,6 @@ def company_detail_fields(company):
 def title_html(record, request):
     context = {"person": record} if isinstance(record, Person) else {"company": record}
     return render_to_string("contacts/detail_title.html", context, request=request)
-
-
-def _user_label(user):
-    return user.get_full_name().strip() or user.get_username() if user else ""
 
 
 def owner_field_context(record):

@@ -23,6 +23,7 @@ CONTACT_FILTER_KEYS = (
     "tags",
     "email",
     "favourite",
+    "owner",
     "last_contact_from",
     "last_contact_to",
 )
@@ -31,9 +32,24 @@ COMPANY_FILTER_KEYS = (
     "categories",
     "tags",
     "city",
+    "owner",
     "last_contact_from",
     "last_contact_to",
 )
+
+
+def _owner(data):
+    """Owner filter: a user id, or "none" for records with no owner."""
+    value = data.get("owner", "").strip()
+    return value if value == "none" or value.isdigit() else ""
+
+
+def _apply_owner_filter(queryset, value):
+    if value == "none":
+        return queryset.filter(owner__isnull=True)
+    if value:
+        return queryset.filter(owner_id=value)
+    return queryset
 
 
 def _ids(data, key, legacy_key=None):
@@ -55,6 +71,7 @@ def contact_filter_values(data):
         "tags": _ids(data, "tags", "tag"),
         "email": data.get("email", "").strip(),
         "favourite": "1" if data.get("favourite") == "1" else "",
+        "owner": _owner(data),
         "last_contact_from": _date(data, "last_contact_from"),
         "last_contact_to": _date(data, "last_contact_to"),
         **_custom_values(data, CustomField.PERSON),
@@ -67,6 +84,7 @@ def company_filter_values(data):
         "categories": _ids(data, "categories", "category"),
         "tags": _ids(data, "tags", "tag"),
         "city": data.get("city", "").strip(),
+        "owner": _owner(data),
         "last_contact_from": _date(data, "last_contact_from"),
         "last_contact_to": _date(data, "last_contact_to"),
         **_custom_values(data, CustomField.COMPANY),
@@ -104,6 +122,7 @@ def apply_contact_filters(people, values):
         people = people.filter(emails__email__icontains=values["email"])
     if values["favourite"]:
         people = people.filter(favourite=True)
+    people = _apply_owner_filter(people, values.get("owner", ""))
     # last_contact_at is annotated by the contact_list view before filtering.
     if values["last_contact_from"]:
         people = people.filter(last_contact_at__date__gte=values["last_contact_from"])
@@ -136,6 +155,7 @@ def apply_company_filters(companies, values):
         companies = companies.filter(tags__pk__in=values["tags"])
     if values["city"]:
         companies = companies.filter(address__icontains=values["city"])
+    companies = _apply_owner_filter(companies, values.get("owner", ""))
     if values["last_contact_from"] or values["last_contact_to"]:
         companies = companies.annotate(
             own_last_contact_at=Max(
@@ -182,6 +202,7 @@ def filter_chips(data, values, label_maps, path):
         "email": _("El. paštas"),
         "favourite": _("Tik mėgstami"),
         "city": _("Miestas arba adresas"),
+        "owner": _("Atsakingas"),
         "last_contact_from": _("Nuo"),
         "last_contact_to": _("Iki"),
     }
