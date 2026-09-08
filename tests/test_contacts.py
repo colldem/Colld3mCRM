@@ -359,14 +359,17 @@ class CalendarTests(TestCase):
         their_texts = {item["reminder"].text for day in theirs.context["days"] for item in day["events"]}
         self.assertIn("Užduotis", their_texts)
 
-    def test_past_events_are_flagged_so_the_grid_can_dim_them(self):
-        past = self._event(text="Praeitis", due_at=timezone.now() - timedelta(hours=3),
-                           end_at=timezone.now() - timedelta(hours=2))
-        future = self._event(text="Ateitis", due_at=timezone.now() + timedelta(hours=2),
-                             end_at=timezone.now() + timedelta(hours=3))
+    @patch("django.utils.timezone.now")
+    def test_past_events_are_flagged_so_the_grid_can_dim_them(self, mock_now):
+        from datetime import datetime, timezone as _tz
+        mock_now.return_value = datetime(2026, 6, 15, 12, 0, tzinfo=_tz.utc)
+        now = mock_now.return_value
+        past = self._event(text="Praeitis", due_at=now - timedelta(hours=3), end_at=now - timedelta(hours=2))
+        future = self._event(text="Ateitis", due_at=now + timedelta(hours=2), end_at=now + timedelta(hours=3))
         self.assertTrue(past.is_past)
         self.assertFalse(future.is_past)
-        response = self.client.get(reverse("contacts:calendar"), {"view": "day"})
+        response = self.client.get(reverse("contacts:calendar"),
+                                   {"view": "day", "date": timezone.localtime(now).date().isoformat()})
         self.assertContains(response, "cal-event is-past")
 
     def test_record_picker_returns_phone_and_address_and_respects_visibility(self):
@@ -1588,7 +1591,7 @@ class ContactViewTests(TestCase):
         self.assertEqual(
             self.client.get(reverse("contacts:list"), {"page_size": "100"}).context["page"].paginator.per_page, 100)
         detail = self.client.get(self.person.get_absolute_url())
-        self.assertContains(detail, self.person.created_at.strftime("%d.%m.%Y"))
+        self.assertContains(detail, timezone.localtime(self.person.created_at).strftime("%d.%m.%Y"))
 
     def test_company_duplicate_warning_and_review(self):
         self.client.force_login(self.user)
@@ -3065,3 +3068,70 @@ class NotificationTests(TestCase):
         self.assertEqual(self.client.get(reverse("contacts:settings-notifications")).status_code, 404)
         self.client.force_login(self.admin)
         self.assertEqual(self.client.get(reverse("contacts:settings-notifications")).status_code, 200)
+
+
+class RecurringReminderTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("planuoju", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Ruslan", last_name="Gorin")
+        self.client.force_login(self.user)
+
+    def _create(self, freq="weekly", **extra):
+        due = (timezone.now() + timedelta(days=1)).replace(microsecond=0)
+        self.client.post(reverse("contacts:reminder-create", args=[self.person.pk]), {
+            "text": "Savaitinis", "due_at": due.strftime("%Y-%m-%dT%H:%M"),
+            "priority": "normal", "recurrence_freq": freq, "recurrence_interval": "1", **extra,
+        })
+        return Reminder.objects.get(text="Savaitinis", recurrence_parent__isnull=True)
+
+    def test_creating_a_weekly_reminder_materialises_future_occurrences(self):
+        root = self._create(freq="weekly", recurrence_count="6")
+        occ = Reminder.objects.filter(recurrence_parent=root)
+        self.assertEqual(occ.count(), 5)  # root + 5 children = 6
+        gaps = sorted(r.due_at for r in occ)
+        self.assertEqual((gaps[0] - root.due_at).days, 7)
+
+    def test_recurrence_respects_the_until_date(self):
+        until = (timezone.now() + timedelta(days=20)).date()
+        root = self._create(freq="weekly", recurrence_until=until.isoformat())
+        last = Reminder.objects.filter(recurrence_parent=root).order_by("-due_at").first()
+        self.assertLessEqual(last.due_at.date(), until)
+        self.assertLessEqual(Reminder.objects.filter(recurrence_parent=root).count(), 3)
+
+    def test_editing_one_occurrence_leaves_the_series_alone(self):
+        root = self._create(freq="weekly", recurrence_count="4")
+        child = Reminder.objects.filter(recurrence_parent=root).order_by("due_at").first()
+        new_due = (child.due_at + timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M")
+        resp = self.client.post(reverse("contacts:reminder-edit", args=[child.pk]),
+                                {"text": "Pakeista", "due_at": new_due, "priority": "high"})
+        self.assertEqual(resp.status_code, 302)
+        child.refresh_from_db()
+        self.assertEqual((child.text, child.priority), ("Pakeista", "high"))
+        self.assertEqual(Reminder.objects.filter(recurrence_parent=root, text="Savaitinis").count(), 2)
+
+    def test_apply_to_all_future_rebuilds_the_open_tail(self):
+        root = self._create(freq="weekly", recurrence_count="5")
+        due = timezone.localtime(root.due_at).strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("contacts:reminder-edit", args=[root.pk]), {
+            "text": "Naujas tekstas", "due_at": due, "priority": "normal",
+            "recurrence_freq": "weekly", "recurrence_interval": "1", "recurrence_count": "5",
+            "apply_future": "on",
+        })
+        children = Reminder.objects.filter(recurrence_parent=root, deleted_at__isnull=True)
+        self.assertTrue(children.exists())
+        self.assertFalse(children.exclude(text="Naujas tekstas").exists())
+
+    def test_deleting_the_series_root_removes_its_open_future(self):
+        root = self._create(freq="daily", recurrence_count="10")
+        self.client.post(reverse("contacts:reminder-delete", args=[root.pk]))
+        self.assertFalse(Reminder.objects.filter(recurrence_parent=root, deleted_at__isnull=True,
+                                                 due_at__gt=timezone.now()).exists())
+
+    def test_extend_command_rolls_the_horizon_forward(self):
+        from django.core.management import call_command
+        root = self._create(freq="daily")
+        before = Reminder.objects.filter(recurrence_parent=root).count()
+        newest = list(Reminder.objects.filter(recurrence_parent=root).order_by("-due_at").values_list("pk", flat=True)[:before // 2])
+        Reminder.objects.filter(pk__in=newest).delete()
+        call_command("extend_recurrences")
+        self.assertGreaterEqual(Reminder.objects.filter(recurrence_parent=root).count(), before)

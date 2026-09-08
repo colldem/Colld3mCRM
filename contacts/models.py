@@ -361,6 +361,16 @@ class Reminder(TimestampedModel):
         (PRIORITY_NORMAL, tr("Įprastas")),
         (PRIORITY_HIGH, tr("Aukštas")),
     )
+    FREQ_CHOICES = (
+        ("", tr("Nekartoti")),
+        ("daily", tr("Kasdien")),
+        ("weekly", tr("Kas savaitę")),
+        ("monthly", tr("Kas mėnesį")),
+        ("yearly", tr("Kasmet")),
+    )
+    # How far ahead occurrences are materialised as real rows.
+    RECURRENCE_HORIZON_DAYS = 400
+    RECURRENCE_MAX_OCCURRENCES = 200
 
     person = models.ForeignKey(Person, null=True, blank=True, on_delete=models.CASCADE, related_name="reminders")
     company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="reminders")
@@ -377,6 +387,21 @@ class Reminder(TimestampedModel):
     # Email-notification bookkeeping (G7).
     upcoming_notified_at = models.DateTimeField(null=True, blank=True)
     assigned_notified_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    # Recurrence (G3). The rule lives on the series root; every occurrence is a
+    # real row, children point back at the root via recurrence_parent.
+    recurrence_freq = models.CharField(max_length=8, blank=True, default="", choices=FREQ_CHOICES)
+    recurrence_interval = models.PositiveSmallIntegerField(default=1)
+    recurrence_until = models.DateField(null=True, blank=True)
+    recurrence_count = models.PositiveSmallIntegerField(null=True, blank=True)
+    recurrence_parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="recurrence_children")
+
+    @property
+    def is_recurring(self):
+        return bool(self.recurrence_freq) and self.recurrence_parent_id is None
+
+    @property
+    def series_root_id(self):
+        return self.recurrence_parent_id or self.pk
 
     DEFAULT_MINUTES = 30
 

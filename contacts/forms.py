@@ -196,12 +196,21 @@ class ActivityForm(forms.ModelForm):
 
 
 class ReminderForm(forms.ModelForm):
+    apply_future = forms.BooleanField(required=False, label=tr("Taikyti visiems būsimiems"))
+
     class Meta:
         model = Reminder
-        fields = ["text", "due_at", "assigned_to", "priority"]
+        fields = ["text", "due_at", "assigned_to", "priority",
+                  "recurrence_freq", "recurrence_interval", "recurrence_until", "recurrence_count"]
         labels = {"text": tr("Priminimas"), "due_at": tr("Data ir laikas"),
-                  "assigned_to": tr("Priskirta"), "priority": tr("Prioritetas")}
-        widgets = {"text": forms.TextInput(attrs={"id": "id_reminder_text"}), "due_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M")}
+                  "assigned_to": tr("Priskirta"), "priority": tr("Prioritetas"),
+                  "recurrence_freq": tr("Kartojimas"), "recurrence_interval": tr("Kas kiek"),
+                  "recurrence_until": tr("Kartoti iki"), "recurrence_count": tr("Kartų skaičius")}
+        widgets = {
+            "text": forms.TextInput(attrs={"id": "id_reminder_text"}),
+            "due_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M"),
+            "recurrence_until": forms.DateInput(attrs={"type": "date"}),
+        }
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -210,6 +219,13 @@ class ReminderForm(forms.ModelForm):
         self.fields["assigned_to"].empty_label = None
         self.fields["assigned_to"].label_from_instance = permissions.user_label
         self.fields["priority"].required = False
+        for name in ("recurrence_interval", "recurrence_until", "recurrence_count"):
+            self.fields[name].required = False
+        # A single occurrence out of a series cannot carry its own rule.
+        self.editing_occurrence = bool(self.instance.pk and self.instance.recurrence_parent_id)
+        if self.editing_occurrence:
+            for name in ("recurrence_freq", "recurrence_interval", "recurrence_until", "recurrence_count", "apply_future"):
+                self.fields.pop(name)
         if user is not None:
             self.fields["assigned_to"].queryset = permissions.assignable_users_for(user)
             if not self.instance.pk and not self.initial.get("assigned_to"):
@@ -217,6 +233,9 @@ class ReminderForm(forms.ModelForm):
 
     def clean_priority(self):
         return self.cleaned_data.get("priority") or Reminder.PRIORITY_NORMAL
+
+    def clean_recurrence_interval(self):
+        return max(1, self.cleaned_data.get("recurrence_interval") or 1)
 
 
 class SetupAdminForm(UserCreationForm):

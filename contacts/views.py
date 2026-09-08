@@ -1414,6 +1414,9 @@ def reminder_create(request, pk):
         reminder.assigned_to = reminder.assigned_to or request.user
         reminder.submission_token = token or None
         reminder.save()
+        if reminder.is_recurring:
+            from .recurrence import extend
+            extend(reminder)
         audit_log(AuditLog.CREATE, request=request, target=person, field=str(tr("Priminimas")),
                   new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
     return redirect(person)
@@ -1440,6 +1443,7 @@ def reminder_edit(request, pk):
     reminder = get_object_or_404(visible_reminders(request.user), pk=pk, deleted_at__isnull=True)
     original_due_at = reminder.due_at
     original_assignee_id = reminder.assigned_to_id
+    was_recurring = reminder.is_recurring
     form = ReminderForm(request.POST or None, instance=reminder, user=request.user)
     if request.method == "POST" and form.is_valid():
         if form.cleaned_data["due_at"] != original_due_at:
@@ -1459,6 +1463,16 @@ def reminder_edit(request, pk):
         audit_log(AuditLog.UPDATE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                   old=f"{timezone.localtime(original_due_at):%Y-%m-%d %H:%M}",
                   new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
+        if not form.editing_occurrence:
+            from .recurrence import apply_to_future, extend
+            if reminder.is_recurring and (form.cleaned_data.get("apply_future") or not was_recurring
+                                          or reminder.due_at != original_due_at):
+                apply_to_future(reminder)
+            elif reminder.is_recurring:
+                extend(reminder)
+            elif was_recurring:  # recurrence switched off
+                reminder.recurrence_children.filter(
+                    due_at__gt=timezone.now(), completed_at__isnull=True, deleted_at__isnull=True).delete()
         messages.success(request, tr("Priminimas atnaujintas."))
         return redirect("contacts:reminder-list")
     return render(request, "reminders/form.html", {"form": form, "reminder": reminder})
@@ -1468,8 +1482,14 @@ def reminder_edit(request, pk):
 def reminder_delete(request, pk):
     reminder = get_object_or_404(visible_reminders(request.user), pk=pk, deleted_at__isnull=True)
     if request.method == "POST":
-        reminder.deleted_at = timezone.now()
+        now = timezone.now()
+        reminder.deleted_at = now
         reminder.save(update_fields=["deleted_at", "updated_at"])
+        if reminder.is_recurring:
+            # Removing the series takes its future, still-open occurrences with it.
+            reminder.recurrence_children.filter(
+                due_at__gt=now, completed_at__isnull=True, deleted_at__isnull=True,
+            ).update(deleted_at=now, updated_at=now)
         audit_log(AuditLog.DELETE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                   old=reminder.text[:150])
         messages.success(request, tr("Priminimas pašalintas."))

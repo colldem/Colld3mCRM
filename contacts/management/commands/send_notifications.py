@@ -20,6 +20,8 @@ class Command(BaseCommand):
     help = "Send due CRM email notifications. Run every ~5 minutes."
 
     def handle(self, *args, **options):
+        from ...recurrence import extend_all
+        extend_all()  # keep recurring reminders materialised regardless of email settings
         sys = SystemSettings.load()
         if not sys.notifications_enabled:
             self.stdout.write("notifications disabled")

@@ -254,7 +254,13 @@ def calendar_event_save(request, pk=None):
     reminder.end_at = end
     reminder.person = person
     reminder.company = company
+    if pk is None:  # recurrence is only set at creation from the calendar
+        freq = request.POST.get("recurrence_freq", "")
+        reminder.recurrence_freq = freq if freq in dict(Reminder.FREQ_CHOICES) else ""
     reminder.save()
+    if reminder.is_recurring:
+        from .recurrence import apply_to_future, extend
+        (extend if pk is None else apply_to_future)(reminder)
     audit_log(AuditLog.UPDATE if pk else AuditLog.CREATE, request=request,
               target=reminder.record, target_type="" if reminder.record else "reminder",
               target_label="" if reminder.record else reminder.text[:80], field=str(tr("Priminimas")),

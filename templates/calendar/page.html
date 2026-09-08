@@ -48,6 +48,16 @@
       <label for="cal-end">{% translate 'Pabaiga' %}<input id="cal-end" name="end_at" type="datetime-local"></label>
     </div>
 
+    <label for="cal-repeat">{% translate 'Kartojimas' %}
+      <select id="cal-repeat" name="recurrence_freq">
+        <option value="">{% translate 'Nekartoti' %}</option>
+        <option value="daily">{% translate 'Kasdien' %}</option>
+        <option value="weekly">{% translate 'Kas savaitę' %}</option>
+        <option value="monthly">{% translate 'Kas mėnesį' %}</option>
+        <option value="yearly">{% translate 'Kasmet' %}</option>
+      </select>
+    </label>
+
     <label for="cal-record">{% translate 'Kontaktas arba įmonė' %}
       <input id="cal-record" type="text" autocomplete="off" role="combobox" aria-expanded="false"
              aria-controls="cal-record-list" placeholder="{% translate 'Įveskite bent 2 simbolius…' %}"

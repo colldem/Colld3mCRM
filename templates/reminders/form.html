@@ -1,1 +1,21 @@
-{% extends "base.html" %}{% load i18n %}{% block title %}{% translate 'Redaguoti priminimą - CRM' %}{% endblock %}{% block content %}<p class="breadcrumb"><a href="{% url 'contacts:reminder-list' %}">{% translate 'Priminimai' %}</a> {% translate '/ Redaguoti' %}</p><div class="page-head"><h1>{% translate 'Redaguoti priminimą' %}</h1></div><form method="post" class="data-form">{% csrf_token %}{{ form.as_p }}<div class="form-actions"><button class="btn primary">{% translate 'Išsaugoti' %}</button><a class="btn" href="{% url 'contacts:reminder-list' %}">{% translate 'Atšaukti' %}</a></div></form>{% endblock %}
+{% extends "base.html" %}{% load i18n %}{% block title %}{% translate 'Redaguoti priminimą - CRM' %}{% endblock %}{% block content %}
+<p class="breadcrumb"><a href="{% url 'contacts:reminder-list' %}">{% translate 'Priminimai' %}</a> {% translate '/ Redaguoti' %}</p>
+<div class="page-head"><h1>{% translate 'Redaguoti priminimą' %}</h1></div>
+<form method="post" class="data-form">{% csrf_token %}
+  {{ form.non_field_errors }}
+  <p><label for="{{ form.text.id_for_label }}">{{ form.text.label }}</label>{{ form.text }}{{ form.text.errors }}</p>
+  <p><label for="{{ form.due_at.id_for_label }}">{{ form.due_at.label }}</label>{{ form.due_at }}{{ form.due_at.errors }}</p>
+  <p><label for="{{ form.assigned_to.id_for_label }}">{{ form.assigned_to.label }}</label>{{ form.assigned_to }}{{ form.assigned_to.errors }}</p>
+  <p><label for="{{ form.priority.id_for_label }}">{{ form.priority.label }}</label>{{ form.priority }}{{ form.priority.errors }}</p>
+  {% if form.recurrence_freq %}
+  <fieldset class="recurrence-fields"><legend>{% translate 'Kartojimas' %}</legend>
+    <p><label for="{{ form.recurrence_freq.id_for_label }}">{{ form.recurrence_freq.label }}</label>{{ form.recurrence_freq }}</p>
+    <p><label for="{{ form.recurrence_interval.id_for_label }}">{{ form.recurrence_interval.label }}</label>{{ form.recurrence_interval }}</p>
+    <p><label for="{{ form.recurrence_until.id_for_label }}">{{ form.recurrence_until.label }}</label>{{ form.recurrence_until }}</p>
+    <p><label for="{{ form.recurrence_count.id_for_label }}">{{ form.recurrence_count.label }}</label>{{ form.recurrence_count }}<small>{% translate 'Palikite tuščią, jei ribojate data.' %}</small></p>
+    {% if reminder.is_recurring %}<p class="recurrence-apply"><label>{{ form.apply_future }} {{ form.apply_future.label }}</label></p>{% endif %}
+  </fieldset>
+  {% else %}<p class="muted">{% translate 'Redaguojate vieną pasikartojančios serijos įvykį.' %}</p>{% endif %}
+  <div class="form-actions"><button class="btn primary">{% translate 'Išsaugoti' %}</button><a class="btn" href="{% url 'contacts:reminder-list' %}">{% translate 'Atšaukti' %}</a></div>
+</form>
+{% endblock %}

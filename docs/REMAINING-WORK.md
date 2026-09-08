@@ -564,12 +564,25 @@ Naudoja tą pačią dėžutę ir tą patį periodinio konteinerio šabloną kaip
 - Siuntimo klaida nelaužo ciklo — fiksuojama `AuditLog`
 </details>
 
-### G3. Pasikartojantys įvykiai — ❌
+### G3. Pasikartojantys įvykiai — ✅ padaryta (`0.43.0`)
+**Sprendimas:** materializavimas (ne virtualus išskleidimas) — kiekvienas įvykis =
+tikras `Reminder` įrašas, todėl kalendorius, varpelis, sąrašas ir el. laiškai
+veikia be pakeitimų. Taisyklė serijos šaknyje (`recurrence_freq` daily/weekly/
+monthly/yearly + `recurrence_interval` + `recurrence_until` arba `recurrence_count`),
+vaikai per `recurrence_parent`. `contacts/recurrence.py`: `extend` tik prideda
+naujus įvykius iki ~400 d. horizonto, tad atskirai pakeistas/užbaigtas įvykis
+nepaliečiamas; „Taikyti visiems būsimiems" ištrina neatliktą uodegą ir sukuria iš
+naujo. `manage.py extend_recurrences` (ir `send_notifications` pradžioje) stumia
+horizontą. Kartojimas pridedamas kontakto kortelėje, priminimo redagavime ir
+kalendoriaus dialoge; sąraše rodoma ↻.
+
+<details><summary>Originalus planas</summary>
 `recurrence_rule` (RRULE-lite: `FREQ` DAILY/WEEKLY/MONTHLY/YEARLY, `INTERVAL`,
 `UNTIL` arba `COUNT`) + `recurrence_parent`.
 **Atviras sprendimas:** virtualus išskleidimas skaitant vs. materializavimas ribotam
 horizontui (pvz. 12 mėn.). Materializavimas paprastesnis „redaguoti šį vieną" atvejui,
 bet reikia foninio pratęsimo. Spręsti pradedant G3.
+</details>
 
 ### G4. Kalendoriaus prenumerata (.ics) — ❌
 `/calendar/feed/<token>.ics` — token `UserProfile.calendar_token` (generuojamas,

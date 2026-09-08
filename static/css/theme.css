@@ -479,3 +479,6 @@ a.crm-info-box:hover{border-color:#9bbbe0;background:#f7faff;text-decoration:non
  .crm-info-box .info-box-number{font-size:20px}
  .crm-info-box .info-box-content{padding-left:8px}
 }
+
+.recurrence-fields{border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:8px 0 0}
+.recurrence-fields legend{padding:0 6px;font-weight:700;font-size:var(--fs-sm);color:var(--navy-950)}

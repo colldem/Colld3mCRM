@@ -2322,3 +2322,42 @@ msgstr "You can re-enable them in CRM Settings → Profile."
 
 msgid "El. pašto pranešimai"
 msgstr "Email notifications"
+
+msgid "Kartojimas"
+msgstr "Repeat"
+
+msgid "Nekartoti"
+msgstr "Does not repeat"
+
+msgid "Kasdien"
+msgstr "Daily"
+
+msgid "Kas savaitę"
+msgstr "Weekly"
+
+msgid "Kas mėnesį"
+msgstr "Monthly"
+
+msgid "Kasmet"
+msgstr "Yearly"
+
+msgid "Kas kiek"
+msgstr "Every"
+
+msgid "Kartoti iki"
+msgstr "Repeat until"
+
+msgid "Kartų skaičius"
+msgstr "Number of times"
+
+msgid "Taikyti visiems būsimiems"
+msgstr "Apply to all future occurrences"
+
+msgid "Redaguojate vieną pasikartojančios serijos įvykį."
+msgstr "You are editing a single occurrence of a recurring series."
+
+msgid "Palikite tuščią, jei ribojate data."
+msgstr "Leave empty if limiting by date."
+
+msgid "Pasikartojantis"
+msgstr "Recurring"
