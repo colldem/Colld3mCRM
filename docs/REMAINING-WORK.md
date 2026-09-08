@@ -363,16 +363,29 @@ Pipedrive „visibility groups", Salesforce „role hierarchy + sharing rules".
 
 ---
 
-## D. Žemas prioritetas / vėliau
+## D. Žemas prioritetas / vėliau (`0.27.0`)
 
 - ⏸️ El. pašto priminimai — **kol kas nedarome** (naudotojo sprendimas 2026-09-08)
 - ⏸️ Greiti veiksmai kortelėje (Skambinti / Rašyti …) — **nedarome**
 - ⏸️ Žymų/kategorijų būsenos (aktyvi/neaktyvi, paskirtis) — **nereikia**
-- ❌ PWA režimas (manifest.json, service worker, „pridėti į pradinį ekraną")
-- ❌ Neišsaugotų formos pakeitimų perspėjimas (`beforeunload`)
-- ❌ Grafinis ryšių medis (dabar tekstinis sąrašas — pakanka)
-- 🟡 Mobilus vaizdas — bazinis yra, reikia tankio ir lentelių peržiūros
-- 🟡 Retesni klaidų/tuščių būsenų ekranai, LT/EN spragos retose vietose
+- ✅ PWA — `/manifest.webmanifest` + `/sw.js` (šablonai, kad `{% static %}` hash'ai
+  veiktų prod), navy tema, SVG ikonos (+ maskable), „pridėti į pradinį ekraną".
+- ✅ Neišsaugotų formos pakeitimų perspėjimas — `static/js/forms.js` (`beforeunload`
+  ant `.data-form` / `.profile-form` / dublikatų nustatymų formos).
+- ❌ Grafinis ryšių medis — paliekamas tekstinis sąrašas (pakanka).
+- ✅ Mobilus vaizdas — `@media(max-width:640px)` tankio blokas; telefone
+  neberezervuojama paslėptos masinių veiksmų juostos vieta virš sąrašo.
+- ✅ LT/EN spragos — `sort_header` („Didėjančiai" / „Mažėjančiai"),
+  `inline_choices` antraštė per `translate`, `duplicate_merge` klaidos per `gettext`.
+
+## Saugumo pataisos (naudotojo pastebėtos, `0.27.0`)
+
+- Įmonės kortelė rodė **visus** susietus kontaktus, jų veiklas ir priminimus bei
+  „Kontaktai" skaičių neatsižvelgdama į matomumą → dabar filtruojama `visible_people`.
+- CSV importas ieškojo esamo kontakto **globaliai**: naudotojas su `can_import` galėjo
+  atnaujinti jam nematomą kontaktą ir per „Atsakingas" stulpelį jį pasisavinti. Dabar
+  atitikmuo ieškomas tik `visible_people` ribose; nematomas atitikmuo = eilutės klaida;
+  „Atsakingas" / „Atsakingi" stulpeliai ignoruojami be `can_reassign_owner` teisės.
 
 ## E. Kokybės darbai (naudotojo užsakyti 2026-09-08)
 
