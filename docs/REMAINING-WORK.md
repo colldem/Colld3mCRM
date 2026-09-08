@@ -101,14 +101,15 @@ Pridėti įrašą + Sukurti priminimą (nuoroda į kortelę su fokusuota forma p
 `#composer` / `#reminder-add`), Kopijuoti el. paštą (į iškarpinę). Įmonėms —
 be priminimo. Vėliau galima papildyti inline modalu, jei prireiks.
 
-### B3. Nustatymų puslapio skiltys — 🟡
-Yra 5 skiltys. Pagal planą trūksta:
-- ❌ Pranešimai (el. pašto priminimų įjungimas, SMTP)
-- ❌ Sistemos nustatymai (numatytas eilučių skaičius, datos formatas)
-- ❌ Importo nustatymai (koduotė, skyriklis)
-- ❌ Archyvas kaip skiltis (dabar atskiras meniu punktas — galima palikti)
-- ❌ Laukai (individualūs laukai — žr. C4)
-- ❌ Naudotojai ir teisės (žr. C6)
+### B3. Nustatymų puslapio skiltys — ✅ (kas planuota)
+- ✅ **Sistema** (`0.25.0`): numatytas sąrašo eilučių skaičius (25/50/100),
+  datos formatas (ISO / d.m.Y / m/d/Y) — `SystemSettings` singleton,
+  `date_format` / `datetime_format` per context processor'ą visuose `|date:`.
+- ✅ **Importas** (`0.26.0`): CSV skyriklis (auto/`,`/`;`/tab) ir koduotė
+  (auto → UTF-8, tada Windows-1257). LT „Excel" (cp1257 + `;`) importuojasi.
+- ⏸️ Pranešimai (el. pašto priminimai, SMTP) — atidėta (žr. D skiltį).
+- Archyvas kaip skiltis — palikta atskiru meniu punktu (veikia).
+- Laukai (C4) ir Naudotojai/teisės (C6) — jau padaryta atskirai.
 
 ### B4. Slaptažodžio keitimas iš profilio — ✅ padaryta
 Nustatymai → Slaptažodis (Django `PasswordChangeForm`, sesija išlieka).
