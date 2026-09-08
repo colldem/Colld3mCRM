@@ -1660,3 +1660,45 @@ msgstr "You can see only your own records, so another user's records are not sho
 
 msgid "Jūs matote tik savo komandos įrašus, todėl šio naudotojo įrašai nerodomi."
 msgstr "You can see only your team's records, so this user's records are not shown."
+
+msgid "Rolės ir teisės"
+msgstr "Roles and permissions"
+
+msgid "Pažymėkite, kurias sistemos galimybes gali atlikti kiekviena rolė. Administratorius visada gali viską."
+msgstr "Choose which capabilities each role has. Administrators can always do everything."
+
+msgid "Galimybė"
+msgstr "Capability"
+
+msgid "Išsaugoti teises"
+msgstr "Save permissions"
+
+msgid "Teisės išsaugotos."
+msgstr "Permissions saved."
+
+msgid "Importuoti duomenis"
+msgstr "Import data"
+
+msgid "Eksportuoti duomenis"
+msgstr "Export data"
+
+msgid "Archyvuoti ir atkurti įrašus"
+msgstr "Archive and restore records"
+
+msgid "Sujungti dublikatus"
+msgstr "Merge duplicates"
+
+msgid "Masiniai veiksmai sąrašuose"
+msgstr "Bulk actions in lists"
+
+msgid "Keisti atsakingą naudotoją"
+msgstr "Change the responsible user"
+
+msgid "Tvarkyti dinaminius laukus"
+msgstr "Manage custom fields"
+
+msgid "Tvarkyti žymas ir kategorijas"
+msgstr "Manage tags and categories"
+
+msgid "Matyti žurnalą"
+msgstr "View the audit log"

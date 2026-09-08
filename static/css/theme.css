@@ -98,6 +98,9 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .responsible-editor small{color:var(--muted)}
 .responsible-editor select[multiple]{min-height:120px}
 .list-hint{margin:0 0 10px;padding:8px 12px;border-radius:8px;background:var(--surface-2,#f1f5f9);color:var(--muted);font-size:13px}
+.permissions-table th,.permissions-table td{padding:8px 12px;border-bottom:1px solid var(--border);text-align:left}
+.permissions-table thead th:not(:first-child),.permissions-cell{text-align:center}
+.user-row-teams{display:block;color:var(--muted);font-weight:400;margin-top:4px}
 .settings-list .user-row{display:grid;gap:10px}
 .user-row-info small{display:block;color:var(--muted);font-weight:400}
 .user-row-actions,.user-row-reset{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0}

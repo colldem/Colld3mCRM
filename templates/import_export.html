@@ -3,6 +3,7 @@
 {% block content %}
 <div class="page-head"><div><h1>{% translate 'Importas / eksportas' %}</h1><p>{% translate 'CSV failams naudokite UTF-8 koduotę ir kablelius.' %}</p></div></div>
 <div class="import-grid">
+  {% if crm_caps.can_import %}
   <section class="import-card">
     <div class="import-card-body">
       <h2>{% translate 'Importuoti kontaktus' %}</h2>
@@ -57,6 +58,8 @@
       {% endif %}
     </div>
   </section>
+  {% endif %}
+  {% if crm_caps.can_export %}
   <section class="import-card">
     <div class="import-card-body"><h2>{% translate 'Eksportuoti kontaktus' %}</h2><p>{% translate 'Eksportuojami tik nearchyvuoti kontaktai CSV UTF-8 formatu.' %}</p></div>
     <div class="import-card-actions"><a class="btn primary" href="{% url 'contacts:contacts-export' %}">{% translate 'Eksportuoti kontaktus' %}</a></div>
@@ -65,5 +68,6 @@
     <div class="import-card-body"><h2>{% translate 'Eksportuoti įmones' %}</h2><p>{% translate 'Eksportuojamos tik nearchyvuotos įmonės CSV UTF-8 formatu.' %}</p></div>
     <div class="import-card-actions"><a class="btn primary" href="{% url 'contacts:companies-export' %}">{% translate 'Eksportuoti įmones' %}</a></div>
   </section>
+  {% endif %}
 </div>
 {% endblock %}

@@ -244,7 +244,7 @@ ir įmonėms, 3 riba, praleistų ataskaita). Trūksta: žymos šalinimo, masinio
 Nustatymai → Duomenų eksportas (tik administratoriui): ZIP su `data.json`
 (`dumpdata` — kontaktai, naudotojai, nustatymai), `media/` ir `README.txt`.
 
-### C10. Komandos, matomumo modelis ir detalios teisės — 🟡 dalys 1–4 padarytos (spec 2026-09-08)
+### C10. Komandos, matomumo modelis ir detalios teisės — ✅ padaryta (5 dalys, spec 2026-09-08)
 **Padaryta (1 dalis):** `Person.responsibles` / `Company.responsibles` M2M; kortelės
 laukas **„Atsakingi"** (double-click: pažymėti kelis, vienam radio „pagrindinis"
 arba „be pagrindinio" → `owner`); „savo įrašai" visur = `owner=user OR responsibles=user`
@@ -273,6 +273,19 @@ owner, nei responsibles) ir bet kuris naudotojas (`owner_id` ARBA responsible).
 Jei filtruojama pagal naudotoją, kurio įrašų dabartinis naudotojas nemato
 (matomumo ribos) — virš sąrašo rodomas paaiškinimas. Masinis „Priskirti
 atsakingą" jau buvo (4 dalis, C6): priskiria/keičia `owner` pažymėtiems.
+
+**Padaryta (5 dalis):** `RolePermissions` modelis (rolė → JSON gebėjimų žemėlapis).
+`permissions.CAPABILITIES` — `can_import`, `can_export`, `can_delete`,
+`can_merge_duplicates`, `can_bulk_edit`, `can_reassign_owner`,
+`can_manage_custom_fields`, `can_manage_taxonomy`, `can_view_audit`. `has_capability`
+(admin visada True; kitaip: išsaugota reikšmė → numatytoji pagal rolę). Numatytieji:
+`member` — importas/eksportas/archyvavimas/dublikatai/masiniai/atsakingo keitimas;
+`restricted` — tik eksportas. Nustatymai → **Rolės ir teisės** (matrica rolė ×
+gebėjimas, tik administratoriui). Tikrinama view lygyje (`_require_capability`, 404,
+inline atsakingo keitimas → 403) ir slepiama UI (nav „Importas/eksportas",
+„Dinaminiai laukai", „Žymos/Kategorijos", „Žurnalas"; masinės juostos mygtukai;
+import/eksport puslapio kortelės). Žurnalas ir taksonomija/dinaminiai laukai anksčiau
+buvo neapsaugoti — dabar apsaugoti.
 
 C6 išplėtimas. Konkurentų praktika: HubSpot „Teams" + „users & teams" matomumas,
 Pipedrive „visibility groups", Salesforce „role hierarchy + sharing rules".

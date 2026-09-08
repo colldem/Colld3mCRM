@@ -8,7 +8,7 @@ from contacts.models import Tag, Person, Company
 
 class ThemeTests(TestCase):
     def setUp(self):
-        self.client.force_login(get_user_model().objects.create_user(username="theme-qa"))
+        self.client.force_login(get_user_model().objects.create_user(username="theme-qa", is_superuser=True))
 
     def test_shared_theme_and_toolbar(self):
         for route in ["contacts:list", "contacts:company-list"]:

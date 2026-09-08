@@ -21,6 +21,11 @@ def user_profile(request):
 
 
 def crm_permissions(request):
-    from .permissions import is_admin
+    from .permissions import CAPABILITY_KEYS, has_capability, is_admin
 
-    return {"is_crm_admin": is_admin(request.user) if request.user.is_authenticated else False}
+    if not request.user.is_authenticated:
+        return {"is_crm_admin": False, "crm_caps": {}}
+    return {
+        "is_crm_admin": is_admin(request.user),
+        "crm_caps": {key: has_capability(request.user, key) for key in CAPABILITY_KEYS},
+    }

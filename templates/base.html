@@ -8,7 +8,7 @@
   <title>{% block title %}CRM{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260907b">
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260908n">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260908o">
 </head>
 <body class="sidebar-expand-lg fixed-header">
 <div class="app-wrapper">
@@ -19,7 +19,7 @@
       <a class="nav-item {% if 'company' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'contacts:company-list' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 21h18M5 21V4h10v17M15 9h4v12M8 7h4M8 11h4M8 15h4"/></svg>{% translate 'Įmonės' %}</a>
       <a class="nav-item {% if request.resolver_match.url_name == 'reminder-list' %}active{% endif %}" href="{% url 'contacts:reminder-list' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{% translate 'Priminimai' %}</a>
       <div class="sidebar-spacer"></div>
-      <a class="nav-item {% if request.resolver_match.url_name == 'import-export' %}active{% endif %}" href="{% url 'contacts:import-export' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v13M7 8l5-5 5 5M12 21V8M17 16l-5 5-5-5"/></svg>{% translate 'Importas / eksportas' %}</a>
+      {% if crm_caps.can_import or crm_caps.can_export %}<a class="nav-item {% if request.resolver_match.url_name == 'import-export' %}active{% endif %}" href="{% url 'contacts:import-export' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v13M7 8l5-5 5 5M12 21V8M17 16l-5 5-5-5"/></svg>{% translate 'Importas / eksportas' %}</a>{% endif %}
       <a class="nav-item {% if request.resolver_match.url_name == 'archive-list' %}active{% endif %}" href="{% url 'contacts:archive-list' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 7h18M9 11v6M15 11v6M5 7l1 14h12l1-14M9 7V4h6v3"/></svg>{% translate 'Archyvas' %}</a>
       <a class="nav-item {% if request.resolver_match.url_name == 'settings' or 'settings-' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'contacts:settings' %}"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56v.08h-3v-.08A1.7 1.7 0 0 0 10.68 18.7a1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7.02 15a1.7 1.7 0 0 0-1.56-1.03h-.08v-3h.08A1.7 1.7 0 0 0 7.02 9.94 1.7 1.7 0 0 0 6.68 8.06L6.62 8l2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1.03-1.56v-.08h3v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 8l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03h.08v3h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>{% translate 'Nustatymai' %}</a>
     </nav></div>

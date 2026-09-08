@@ -1,4 +1,4 @@
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext, gettext_lazy as _
 """Field-scoped contact editing. Each request owns only one field or relation."""
 from django import forms
 from django.contrib.auth import get_user_model
@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from .models import AuditLog, Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
 from .forms import CompanyForm
-from .permissions import user_label as _user_label, visible_companies, visible_people
+from .permissions import has_capability, user_label as _user_label, visible_companies, visible_people
 from .duplicates import find_company_duplicates, find_person_duplicates
 from .audit import log as audit_log
 
@@ -160,6 +160,8 @@ def edit_company_field(request, pk):
     company = get_object_or_404(visible_companies(request.user, Company.objects.select_for_update()), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field", "")
     before = _audit_snapshot(company)
+    if field in ("owner", "responsibles") and not has_capability(request.user, "can_reassign_owner"):
+        return JsonResponse({"error": gettext("Neturite teisės keisti atsakingo naudotojo.")}, status=403)
     if field == "owner":
         set_owner(company, request.POST)
         _audit_field_changes(request, company, before)
@@ -286,6 +288,8 @@ def detail_fields(person):
 def edit_contact_field(request, pk):
     person = get_object_or_404(visible_people(request.user, Person.objects.select_for_update()), pk=pk, deleted_at__isnull=True)
     field = request.POST.get("field", "")
+    if field in ("owner", "responsibles") and not has_capability(request.user, "can_reassign_owner"):
+        return JsonResponse({"error": gettext("Neturite teisės keisti atsakingo naudotojo.")}, status=403)
     before = _audit_snapshot(person)
     try:
         if field == "full_name":

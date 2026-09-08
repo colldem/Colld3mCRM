@@ -65,9 +65,16 @@ def _owner_label_map(users):
 
 
 def _can_assign_owner(user):
-    from .permissions import sees_all_records
+    from .permissions import has_capability
 
-    return sees_all_records(user)
+    return has_capability(user, "can_reassign_owner")
+
+
+def _require_capability(request, capability):
+    from .permissions import has_capability
+
+    if not has_capability(request.user, capability):
+        raise Http404
 
 
 def _owner_filter_hint(user, owner_value):
@@ -358,11 +365,13 @@ def contact_bulk_action(request):
         return redirect("contacts:list")
     people = visible_people(request.user, Person.objects.filter(pk__in=ids, deleted_at__isnull=True))
     if action == "archive":
+        _require_capability(request, "can_delete")
         for person in people:
             audit_log(AuditLog.ARCHIVE, request=request, target=person)
         count = people.update(deleted_at=timezone.now())
         messages.success(request, tr("Archyvuota kontaktų: %(count)s.") % {"count": count})
     elif action in {"add_tag", "add_category"}:
+        _require_capability(request, "can_bulk_edit")
         _bulk_add_label(request, people, action)
     elif action == "assign_owner":
         _bulk_assign_owner(request, people)
@@ -379,12 +388,14 @@ def company_bulk_action(request):
         return redirect("contacts:company-list")
     companies = visible_companies(request.user, Company.objects.filter(pk__in=ids, deleted_at__isnull=True))
     if action == "archive":
+        _require_capability(request, "can_delete")
         for company in companies:
             audit_log(AuditLog.ARCHIVE, request=request, target=company)
         count = companies.update(deleted_at=timezone.now())
         if count:
             messages.success(request, tr("Archyvuota įmonių: %(count)s.") % {"count": count})
     elif action in {"add_tag", "add_category"}:
+        _require_capability(request, "can_bulk_edit")
         _bulk_add_label(request, companies, action)
     elif action == "assign_owner":
         _bulk_assign_owner(request, companies)
@@ -393,6 +404,7 @@ def company_bulk_action(request):
 
 @login_required
 def contact_archive(request, pk):
+    _require_capability(request, "can_delete")
     person = get_object_or_404(visible_people(request.user), pk=pk)
     if request.method == "POST" and person.deleted_at is None:
         person.deleted_at = timezone.now()
@@ -404,6 +416,7 @@ def contact_archive(request, pk):
 
 @login_required
 def company_archive(request, pk):
+    _require_capability(request, "can_delete")
     company = get_object_or_404(visible_companies(request.user), pk=pk)
     if request.method == "POST" and company.deleted_at is None:
         company.deleted_at = timezone.now()
@@ -422,6 +435,7 @@ def archive_list(request):
 
 @login_required
 def contact_restore(request, pk):
+    _require_capability(request, "can_delete")
     person = get_object_or_404(visible_people(request.user), pk=pk, merged_into__isnull=True)
     if request.method == "POST" and person.deleted_at is not None:
         person.deleted_at = None
@@ -433,6 +447,7 @@ def contact_restore(request, pk):
 
 @login_required
 def company_restore(request, pk):
+    _require_capability(request, "can_delete")
     company = get_object_or_404(visible_companies(request.user), pk=pk, merged_into__isnull=True)
     if request.method == "POST" and company.deleted_at is not None:
         company.deleted_at = None
@@ -527,6 +542,7 @@ def settings_page(request):
 def settings_custom_fields(request):
     from .models import CustomField
 
+    _require_capability(request, "can_manage_custom_fields")
     if request.method == "POST":
         name = request.POST.get("name", "").strip()[:60]
         field_type = request.POST.get("field_type", CustomField.TEXT)
@@ -561,6 +577,7 @@ def settings_custom_fields(request):
 def custom_field_delete(request, pk):
     from .models import CustomField
 
+    _require_capability(request, "can_manage_custom_fields")
     field = get_object_or_404(CustomField, pk=pk)
     if request.method == "POST":
         label = f"{field.name} ({field.get_entity_display()})"
@@ -754,10 +771,36 @@ def settings_teams(request):
 
 
 @login_required
-def settings_audit(request):
-    from .permissions import is_admin
+def settings_permissions(request):
+    from .permissions import CAPABILITIES, capability_matrix, is_admin
+    from .models import RolePermissions
 
     if not is_admin(request.user):
+        raise Http404
+    editable_roles = [UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED]
+    if request.method == "POST":
+        for role in editable_roles:
+            granted = set(request.POST.getlist("cap_" + role))
+            permissions = {key: (key in granted) for key, _label in CAPABILITIES}
+            RolePermissions.objects.update_or_create(role=role, defaults={"permissions": permissions})
+        audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                  target_label=str(tr("Rolės ir teisės")), new=str(tr("atnaujinta")))
+        messages.success(request, tr("Teisės išsaugotos."))
+        return redirect("contacts:settings-permissions")
+    matrix = capability_matrix()
+    role_labels = dict(UserProfile.ROLE_CHOICES)
+    return render(request, "settings/permissions.html", {
+        "settings_section": "permissions",
+        "capabilities": CAPABILITIES,
+        "roles": [{"key": role, "label": role_labels.get(role, role), "caps": matrix[role]} for role in editable_roles],
+    })
+
+
+@login_required
+def settings_audit(request):
+    from .permissions import has_capability
+
+    if not has_capability(request.user, "can_view_audit"):
         raise Http404
     entries = AuditLog.objects.select_related("actor").all()
     actor_id = request.GET.get("actor", "").strip()
@@ -863,6 +906,7 @@ def profile_avatar(request):
 
 @login_required
 def settings_taxonomy(request, kind):
+    _require_capability(request, "can_manage_taxonomy")
     model = Tag if kind == "tag" else Category if kind == "category" else None
     if not model:
         raise Http404
@@ -957,6 +1001,7 @@ def duplicate_list(request):
 def duplicate_merge(request, kind, source_pk, target_pk):
     if request.method != "POST":
         return HttpResponse(status=405)
+    _require_capability(request, "can_merge_duplicates")
     if kind not in {"person", "company"} or source_pk == target_pk:
         return HttpResponse("Netinkami sujungimo duomenys.", status=400)
     duplicate_settings = DuplicateSettings.load()
@@ -1399,6 +1444,7 @@ def _import_relation_names(row, *names):
 
 @login_required
 def contacts_export(request):
+    _require_capability(request, "can_export")
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="crm-kontaktai.csv"'
     response.write("\ufeff")
@@ -1418,6 +1464,7 @@ def contacts_export(request):
 
 @login_required
 def companies_export(request):
+    _require_capability(request, "can_export")
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="crm-imones.csv"'
     response.write("\ufeff")
@@ -1641,6 +1688,7 @@ def _import_preview(rows, mapping):
 
 @login_required
 def contacts_import(request):
+    _require_capability(request, "can_import")
     context = {}
     if request.method == "POST" and request.POST.get("confirm") == "1":
         rows = request.session.pop("import_rows", None)
@@ -1694,6 +1742,7 @@ def contacts_import(request):
 
 @login_required
 def contacts_import_errors(request):
+    _require_capability(request, "can_import")
     errors = request.session.get("import_errors")
     if not errors:
         raise Http404

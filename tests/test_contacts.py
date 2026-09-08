@@ -889,6 +889,8 @@ class ContactViewTests(TestCase):
 
     def test_settings_adds_tags_and_categories_idempotently(self):
         self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
         response = self.client.get(reverse("contacts:settings"))
         self.assertContains(response, "Žymos")
         self.assertContains(response, "Kategorijos")
@@ -1020,6 +1022,8 @@ class ContactViewTests(TestCase):
 
     def test_profile_rejects_non_image_avatar_and_taxonomy_pages_remain_available(self):
         self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
         invalid = SimpleUploadedFile("avatar.txt", b"not an image", content_type="text/plain")
         response = self.client.post(reverse("contacts:settings"), {
             "first_name": "",
@@ -1037,6 +1041,8 @@ class ContactViewTests(TestCase):
 
     def test_taxonomy_settings_rename_tag_set_color_and_show_usage(self):
         self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
         tag = Tag.objects.create(name="Svarbus")
         self.person.tags.add(tag)
         response = self.client.post(reverse("contacts:settings-tags"), {
@@ -1054,6 +1060,8 @@ class ContactViewTests(TestCase):
 
     def test_taxonomy_settings_reject_duplicate_name_and_invalid_color(self):
         self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
         first = Tag.objects.create(name="Pirma")
         second = Tag.objects.create(name="Antra")
         response = self.client.post(reverse("contacts:settings-tags"), {
@@ -1715,6 +1723,8 @@ class ContactViewTests(TestCase):
 
     def test_custom_field_creation_for_both_entities(self):
         self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
         self.client.post(reverse("contacts:settings-custom-fields"), {
             "name": "Šaltinis", "field_type": "select", "entity": "both", "options": "Renginys\nSvetainė",
         })
@@ -1755,6 +1765,8 @@ class ContactViewTests(TestCase):
 
     def test_custom_field_can_be_deleted(self):
         self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
         field = CustomField.objects.create(entity="person", name="Laikinas", field_type="text")
         self.client.post(reverse("contacts:custom-field-delete", args=[field.pk]))
         self.assertFalse(CustomField.objects.filter(pk=field.pk).exists())
@@ -1897,6 +1909,57 @@ class ContactViewTests(TestCase):
         })
         target.refresh_from_db()
         self.assertTrue(target.check_password("fresh-secure-pass-2026"))
+
+    # --- C10 part 5: per-role capabilities ---
+
+    def _plain_member(self, username="eilinis"):
+        from contacts.models import UserProfile
+        user = get_user_model().objects.create_user(username, password="very-secure-password")
+        UserProfile.objects.create(user=user, role=UserProfile.ROLE_MEMBER)
+        return user
+
+    def test_member_defaults_allow_import_export_but_not_custom_fields(self):
+        member = self._plain_member()
+        self.client.force_login(member)
+        self.assertEqual(self.client.get(reverse("contacts:import-export")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("contacts:contacts-export")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("contacts:settings-custom-fields")).status_code, 404)
+        self.assertEqual(self.client.get(reverse("contacts:settings-tags")).status_code, 404)
+        self.assertEqual(self.client.get(reverse("contacts:settings-audit")).status_code, 404)
+
+    def test_admin_revokes_a_capability_and_it_takes_effect(self):
+        from contacts.models import RolePermissions, UserProfile
+        member = self._plain_member("busexportas")
+        admin = get_user_model().objects.create_user("adm", password="very-secure-password", is_superuser=True)
+        self.client.force_login(admin)
+        payload = {}
+        for role in ("member", "restricted"):
+            payload["cap_" + role] = ["can_export"]  # grant only export
+        self.client.post(reverse("contacts:settings-permissions"), payload)
+        row = RolePermissions.objects.get(role="member")
+        self.assertTrue(row.permissions["can_export"])
+        self.assertFalse(row.permissions["can_import"])
+        self.client.force_login(member)
+        self.assertEqual(self.client.get(reverse("contacts:import-export")).status_code, 404)
+        self.assertEqual(self.client.get(reverse("contacts:contacts-export")).status_code, 200)
+
+    def test_permissions_page_is_admin_only(self):
+        member = self._plain_member("nepatenka")
+        self.client.force_login(member)
+        self.assertEqual(self.client.get(reverse("contacts:settings-permissions")).status_code, 404)
+
+    def test_restricted_member_cannot_reassign_owner_inline(self):
+        from contacts.models import UserProfile
+        restricted = get_user_model().objects.create_user("ribotasx", password="very-secure-password")
+        UserProfile.objects.create(user=restricted, role=UserProfile.ROLE_RESTRICTED)
+        self.person.owner = restricted
+        self.person.save(update_fields=["owner"])
+        self.client.force_login(restricted)
+        response = self.client.post(reverse("contacts:field-edit", args=[self.person.pk]),
+                                    {"field": "owner", "value": ""})
+        self.assertEqual(response.status_code, 403)
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.owner, restricted)
 
     # --- C10 part 2: teams ---
 
@@ -2133,6 +2196,8 @@ class ContactViewTests(TestCase):
     def test_audit_log_records_create_update_archive_and_settings(self):
         from contacts.models import AuditLog
         self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
         self.client.post(reverse("contacts:person-create"), {"first_name": "Audituota", "last_name": "Asmuo"})
         person = Person.objects.get(first_name="Audituota")
         self.assertTrue(AuditLog.objects.filter(action=AuditLog.CREATE, target_type="person", target_id=str(person.pk)).exists())

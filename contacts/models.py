@@ -142,6 +142,15 @@ class Team(models.Model):
         return self.name
 
 
+class RolePermissions(models.Model):
+    """Per-role capability toggles. Admins always have every capability."""
+    role = models.CharField(max_length=12, unique=True)
+    permissions = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return self.role
+
+
 class DuplicateSettings(models.Model):
     LEVEL_CHOICES = (("strict", tr("Griežtas")), ("standard", tr("Standartinis")), ("loose", tr("Laisvas")))
 

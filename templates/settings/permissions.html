@@ -1,0 +1,21 @@
+{% extends "settings/layout.html" %}{% load i18n crm_format %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Rolės ir teisės' %}</h2><p>{% translate 'Pažymėkite, kurias sistemos galimybes gali atlikti kiekviena rolė. Administratorius visada gali viską.' %}</p></div></div>
+
+<form method="post">{% csrf_token %}
+  <div class="table-wrap"><table class="permissions-table">
+    <thead><tr><th>{% translate 'Galimybė' %}</th>{% for role in roles %}<th>{{ role.label }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for key, label in capabilities %}
+        <tr>
+          <td>{{ label }}</td>
+          {% for role in roles %}
+            <td class="permissions-cell"><label><input type="checkbox" name="cap_{{ role.key }}" value="{{ key }}"{% if role.caps|get_item:key %} checked{% endif %}> <span class="sr-only">{{ label }} — {{ role.label }}</span></label></td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="settings-section-head"><button class="btn primary" type="submit">{% translate 'Išsaugoti teises' %}</button></div>
+</form>
+{% endblock %}

@@ -1,5 +1,59 @@
 """Role, team and record-visibility helpers. `is_superuser` is always an admin."""
-from .models import Team, UserProfile
+from django.utils.translation import gettext_lazy as _
+
+from .models import RolePermissions, Team, UserProfile
+
+
+# (key, human label) — the capabilities an admin can grant per role.
+CAPABILITIES = [
+    ("can_import", _("Importuoti duomenis")),
+    ("can_export", _("Eksportuoti duomenis")),
+    ("can_delete", _("Archyvuoti ir atkurti įrašus")),
+    ("can_merge_duplicates", _("Sujungti dublikatus")),
+    ("can_bulk_edit", _("Masiniai veiksmai sąrašuose")),
+    ("can_reassign_owner", _("Keisti atsakingą naudotoją")),
+    ("can_manage_custom_fields", _("Tvarkyti dinaminius laukus")),
+    ("can_manage_taxonomy", _("Tvarkyti žymas ir kategorijas")),
+    ("can_view_audit", _("Matyti žurnalą")),
+]
+CAPABILITY_KEYS = [key for key, _label in CAPABILITIES]
+
+_CAPABILITY_DEFAULTS = {
+    UserProfile.ROLE_MEMBER: {
+        "can_import": True, "can_export": True, "can_delete": True,
+        "can_merge_duplicates": True, "can_bulk_edit": True, "can_reassign_owner": True,
+        "can_manage_custom_fields": False, "can_manage_taxonomy": False, "can_view_audit": False,
+    },
+    UserProfile.ROLE_RESTRICTED: {
+        "can_import": False, "can_export": True, "can_delete": True,
+        "can_merge_duplicates": False, "can_bulk_edit": False, "can_reassign_owner": False,
+        "can_manage_custom_fields": False, "can_manage_taxonomy": False, "can_view_audit": False,
+    },
+}
+
+
+def capability_matrix():
+    """{role: {capability: bool}} for the non-admin roles, stored value over default."""
+    stored = {row.role: row.permissions or {} for row in RolePermissions.objects.all()}
+    matrix = {}
+    for role in (UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED):
+        defaults = _CAPABILITY_DEFAULTS[role]
+        matrix[role] = {key: bool(stored.get(role, {}).get(key, defaults[key])) for key in CAPABILITY_KEYS}
+    return matrix
+
+
+def has_capability(user, capability):
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if is_admin(user):
+        return True
+    role = role_of(user)
+    if role not in _CAPABILITY_DEFAULTS:
+        return False
+    row = RolePermissions.objects.filter(role=role).first()
+    if row and capability in (row.permissions or {}):
+        return bool(row.permissions[capability])
+    return _CAPABILITY_DEFAULTS[role].get(capability, False)
 
 _VIS_ORDER = {UserProfile.VISIBILITY_ALL: 0, UserProfile.VISIBILITY_TEAM: 1, UserProfile.VISIBILITY_OWN: 2}
 
