@@ -1,43 +1,67 @@
 {% extends "analytics/layout.html" %}{% load i18n l10n %}
 {% block analytics_title %}{% translate 'Priminimų vykdymas' %}{% endblock %}
 {% block analytics_content %}
-<div class="stat-row">
-  <div class="stat"><b>{{ total }}</b><span>{% translate 'Suplanuota' %}</span></div>
-  <div class="stat"><b>{{ done }}</b><span>{% translate 'Atlikta' %}</span></div>
-  <div class="stat{% if overdue %} stat-warn{% endif %}"><b>{{ overdue }}</b><span>{% translate 'Vėluoja' %}</span></div>
-  <div class="stat"><b>{{ upcoming }}</b><span>{% translate 'Būsimi' %}</span></div>
+<div class="row g-3">
+  <div class="col-lg-3 col-6">
+    <div class="info-box crm-info-box">
+      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+      <div class="info-box-content"><span class="info-box-text">{% translate 'Suplanuota' %}</span><span class="info-box-number">{{ total }}</span></div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="info-box crm-info-box is-done">
+      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <div class="info-box-content"><span class="info-box-text">{% translate 'Atlikta' %}</span><span class="info-box-number">{{ done }}</span></div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="info-box crm-info-box{% if overdue %} is-warn{% endif %}">
+      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+      <div class="info-box-content"><span class="info-box-text">{% translate 'Vėluoja' %}</span><span class="info-box-number">{{ overdue }}</span></div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="info-box crm-info-box">
+      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+      <div class="info-box-content"><span class="info-box-text">{% translate 'Būsimi' %}</span><span class="info-box-number">{{ upcoming }}</span></div>
+    </div>
+  </div>
 </div>
 
-<div class="panel-grid">
-  <section class="panel">
-    <div class="panel-head"><h2>{% translate 'Atlikimo procentas' %}</h2></div>
-    {% localize off %}
-    <div class="ring-wrap">
-      <svg class="ring" viewBox="0 0 {{ ring.size }} {{ ring.size }}" role="img"
-           aria-label="{% blocktranslate with percent=ring.percent %}Atlikta {{ percent }} proc.{% endblocktranslate %}">
-        <circle cx="{{ ring.centre }}" cy="{{ ring.centre }}" r="{{ ring.radius }}" class="ring-track" stroke-width="{{ ring.stroke }}"/>
-        {% if ring.percent %}<circle cx="{{ ring.centre }}" cy="{{ ring.centre }}" r="{{ ring.radius }}" class="ring-value" stroke-width="{{ ring.stroke }}"
-                stroke-dasharray="{{ ring.dash }} {{ ring.circumference }}"
-                transform="rotate(-90 {{ ring.centre }} {{ ring.centre }})"/>{% endif %}
-      </svg>
-      <div class="ring-text"><b>{{ ring.percent }}%</b><span>{{ ring.done }} / {{ ring.total }}</span></div>
-    </div>
-    {% endlocalize %}
-    {% if average_late %}
-      <p class="panel-note">{% blocktranslate %}Vidutiniškai atliekama {{ average_late }} d. po termino.{% endblocktranslate %}</p>
-    {% endif %}
-  </section>
+<div class="row g-3">
+  <div class="col-lg-4">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Atlikimo procentas' %}</h2></div>
+      {% localize off %}
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 {{ ring.size }} {{ ring.size }}" role="img"
+             aria-label="{% blocktranslate with percent=ring.percent %}Atlikta {{ percent }} proc.{% endblocktranslate %}">
+          <circle cx="{{ ring.centre }}" cy="{{ ring.centre }}" r="{{ ring.radius }}" class="ring-track" stroke-width="{{ ring.stroke }}"/>
+          {% if ring.percent %}<circle cx="{{ ring.centre }}" cy="{{ ring.centre }}" r="{{ ring.radius }}" class="ring-value" stroke-width="{{ ring.stroke }}"
+                  stroke-dasharray="{{ ring.dash }} {{ ring.circumference }}"
+                  transform="rotate(-90 {{ ring.centre }} {{ ring.centre }})"/>{% endif %}
+        </svg>
+        <div class="ring-text"><b>{{ ring.percent }}%</b><span>{{ ring.done }} / {{ ring.total }}</span></div>
+      </div>
+      {% endlocalize %}
+      {% if average_late %}
+        <p class="panel-note">{% blocktranslate %}Vidutiniškai atliekama {{ average_late }} d. po termino.{% endblocktranslate %}</p>
+      {% endif %}
+    </section>
+  </div>
 
-  <section class="panel">
-    <div class="panel-head"><h2>{% translate 'Pagal naudotoją' %}</h2></div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>{% translate 'Naudotojas' %}</th><th>{% translate 'Suplanuota' %}</th><th>{% translate 'Atlikta' %}</th><th>%</th></tr></thead>
-      <tbody>
-        {% for row in by_user %}
-          <tr><td>{{ row.label }}</td><td>{{ row.total }}</td><td>{{ row.finished }}</td><td>{{ row.percent }}%</td></tr>
-        {% empty %}<tr><td colspan="4" class="empty">{% translate 'Duomenų nėra.' %}</td></tr>{% endfor %}
-      </tbody>
-    </table></div>
-  </section>
+  <div class="col-lg-8">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Pagal naudotoją' %}</h2></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>{% translate 'Naudotojas' %}</th><th>{% translate 'Suplanuota' %}</th><th>{% translate 'Atlikta' %}</th><th>%</th></tr></thead>
+        <tbody>
+          {% for row in by_user %}
+            <tr><td>{{ row.label }}</td><td>{{ row.total }}</td><td>{{ row.finished }}</td><td>{{ row.percent }}%</td></tr>
+          {% empty %}<tr><td colspan="4" class="empty">{% translate 'Duomenų nėra.' %}</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </section>
+  </div>
 </div>
 {% endblock %}

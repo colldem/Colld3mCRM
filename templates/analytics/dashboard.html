@@ -9,74 +9,122 @@
   </div>
 </div>
 
-<div class="stat-row">
-  <div class="stat"><b>{{ people_total }}</b><span>{% translate 'Kontaktai' %}</span><small>+{{ new_people }} {% translate 'per 30 d.' %}</small></div>
-  <div class="stat"><b>{{ companies_total }}</b><span>{% translate 'Įmonės' %}</span><small>+{{ new_companies }} {% translate 'per 30 d.' %}</small></div>
-  <div class="stat"><b>{{ week_activity_total }}</b><span>{% translate 'Mano veiklos šią savaitę' %}</span></div>
-  <div class="stat{% if overdue_total %} stat-warn{% endif %}"><b>{{ overdue_total }}</b><span>{% translate 'Vėluoja' %}</span></div>
+{% comment %}AdminLTE info-box widgets in a Bootstrap grid, toned to the CRM palette.{% endcomment %}
+<div class="row g-3">
+  <div class="col-lg-3 col-6">
+    <a class="info-box crm-info-box" href="{% url 'contacts:list' %}">
+      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="4"/><path d="M22 20v-1.5a4 4 0 0 0-3-3.87"/></svg></span>
+      <div class="info-box-content">
+        <span class="info-box-text">{% translate 'Kontaktai' %}</span>
+        <span class="info-box-number">{{ people_total }}</span>
+        <span class="progress-description">+{{ new_people }} {% translate 'per 30 d.' %}</span>
+      </div>
+    </a>
+  </div>
+  <div class="col-lg-3 col-6">
+    <a class="info-box crm-info-box" href="{% url 'contacts:company-list' %}">
+      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V4h10v17M15 9h4v12M8 7h4M8 11h4M8 15h4"/></svg></span>
+      <div class="info-box-content">
+        <span class="info-box-text">{% translate 'Įmonės' %}</span>
+        <span class="info-box-number">{{ companies_total }}</span>
+        <span class="progress-description">+{{ new_companies }} {% translate 'per 30 d.' %}</span>
+      </div>
+    </a>
+  </div>
+  <div class="col-lg-3 col-6">
+    <a class="info-box crm-info-box" href="{% url 'contacts:analytics-communication' %}">
+      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg></span>
+      <div class="info-box-content">
+        <span class="info-box-text">{% translate 'Mano veiklos šią savaitę' %}</span>
+        <span class="info-box-number">{{ week_activity_total }}</span>
+      </div>
+    </a>
+  </div>
+  <div class="col-lg-3 col-6">
+    <a class="info-box crm-info-box{% if overdue_total %} is-warn{% endif %}" href="{% url 'contacts:reminder-list' %}">
+      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+      <div class="info-box-content">
+        <span class="info-box-text">{% translate 'Vėluoja' %}</span>
+        <span class="info-box-number">{{ overdue_total }}</span>
+      </div>
+    </a>
+  </div>
 </div>
 
-<div class="panel-grid">
-  {% if overdue_events %}
-  <section class="panel is-warn">
-    <h2>{% translate 'Vėluojantys priminimai' %}</h2>
-    <ul class="dash-list">
-      {% for reminder in overdue_events %}
-        <li>
-          <span class="dash-time">{{ reminder.due_at|date:datetime_format }}</span>
-          <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
-          <form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form>
-        </li>
-      {% endfor %}
-    </ul>
-    {% if overdue_total > 10 %}<a class="dash-more" href="{% url 'contacts:reminder-list' %}">{% translate 'Visi priminimai' %} →</a>{% endif %}
-  </section>
-  {% endif %}
+<div class="row g-3">
+  <div class="col-lg-8">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>{% translate 'Darbotvarkė' %}</h2>
+        <a class="btn" href="{% url 'contacts:calendar' %}">{% translate 'Kalendorius' %}</a>
+      </div>
+      <h3 class="panel-sub">{% translate 'Šiandien' %}</h3>
+      <ul class="dash-list">
+        {% for reminder in today_events %}
+          <li>
+            <span class="dash-time">{{ reminder.due_at|date:"H:i" }}</span>
+            <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
+          </li>
+        {% empty %}<li class="muted">{% translate 'Šiandien įvykių nėra.' %}</li>{% endfor %}
+      </ul>
+      <h3 class="panel-sub">{% translate 'Rytoj' %}</h3>
+      <ul class="dash-list">
+        {% for reminder in tomorrow_events %}
+          <li>
+            <span class="dash-time">{{ reminder.due_at|date:"H:i" }}</span>
+            <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
+          </li>
+        {% empty %}<li class="muted">{% translate 'Rytoj įvykių nėra.' %}</li>{% endfor %}
+      </ul>
+    </section>
+  </div>
 
-  <section class="panel">
-    <h2>{% translate 'Šiandien' %}</h2>
-    <ul class="dash-list">
-      {% for reminder in today_events %}
-        <li>
-          <span class="dash-time">{{ reminder.due_at|date:"H:i" }}</span>
-          <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
-        </li>
-      {% empty %}<li class="muted">{% translate 'Šiandien įvykių nėra.' %}</li>{% endfor %}
-    </ul>
-  </section>
+  <div class="col-lg-4">
+    <section class="panel h-100{% if overdue_events %} is-warn{% endif %}">
+      <div class="panel-head">
+        <h2>{% translate 'Vėluojantys priminimai' %}{% if overdue_total %} <span>{{ overdue_total }}</span>{% endif %}</h2>
+      </div>
+      <ul class="dash-list">
+        {% for reminder in overdue_events %}
+          <li>
+            <span class="dash-time">{{ reminder.due_at|date:datetime_format }}</span>
+            <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
+            <form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form>
+          </li>
+        {% empty %}<li class="muted">{% translate 'Vėluojančių nėra.' %}</li>{% endfor %}
+      </ul>
+      {% if overdue_total > 10 %}<a class="dash-more" href="{% url 'contacts:reminder-list' %}">{% translate 'Visi priminimai' %} →</a>{% endif %}
+    </section>
+  </div>
+</div>
 
-  <section class="panel">
-    <h2>{% translate 'Rytoj' %}</h2>
-    <ul class="dash-list">
-      {% for reminder in tomorrow_events %}
-        <li>
-          <span class="dash-time">{{ reminder.due_at|date:"H:i" }}</span>
-          <span class="dash-main">{{ reminder.text }}{% if reminder.record %} <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
-        </li>
-      {% empty %}<li class="muted">{% translate 'Rytoj įvykių nėra.' %}</li>{% endfor %}
-    </ul>
-  </section>
-
-  <section class="panel">
-    <h2>{% translate 'Paskutiniai mano liesti įrašai' %}</h2>
-    <ul class="dash-list">
-      {% for record in recently_touched %}
-        <li><span class="dash-main"><a href="{{ record.get_absolute_url }}">{{ record }}</a></span></li>
-      {% empty %}<li class="muted">{% translate 'Dar nieko nekeitėte.' %}</li>{% endfor %}
-    </ul>
-  </section>
-
-  <section class="panel">
-    <h2>{% translate 'Mano veiklos šią savaitę' %}</h2>
-    <ul class="bar-list">
-      {% for item in week_activity %}
-        <li>
-          <span class="bar-label">{{ item.label }}</span>
-          <span class="bar-track" aria-hidden="true">{% if item.total %}<i style="width:{% widthratio item.total week_activity_total 100 %}%"></i>{% endif %}</span>
-          <b>{{ item.total }}</b>
-        </li>
-      {% endfor %}
-    </ul>
-  </section>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Mano veiklos šią savaitę' %} <span>{{ week_activity_total }}</span></h2></div>
+      <ul class="bar-list">
+        {% for item in week_activity %}
+          <li>
+            <span class="bar-label">{{ item.label }}</span>
+            <span class="bar-track" aria-hidden="true">{% if item.total %}<i style="width:{% widthratio item.total week_activity_total 100 %}%"></i>{% endif %}</span>
+            <b>{{ item.total }}</b>
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="panel h-100">
+      <div class="panel-head">
+        <h2>{% translate 'Paskutiniai mano liesti įrašai' %}</h2>
+        <a class="btn" href="{% url 'contacts:analytics-care' %}">{% translate 'Ryšių priežiūra' %}</a>
+      </div>
+      <ul class="dash-list">
+        {% for record in recently_touched %}
+          <li><span class="dash-main"><a href="{{ record.get_absolute_url }}">{{ record }}</a></span></li>
+        {% empty %}<li class="muted">{% translate 'Dar nieko nekeitėte.' %}</li>{% endfor %}
+      </ul>
+    </section>
+  </div>
 </div>
 {% endblock %}

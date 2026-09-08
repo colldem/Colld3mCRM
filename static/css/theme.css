@@ -397,19 +397,26 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .panel-head h2 span{padding:1px 8px;border-radius:12px;background:var(--soft);color:#5d6776;font-size:12px;font-weight:600}
 .panel-head .btn{flex:0 0 auto;min-height:30px;padding:3px 10px;font-size:12px}
 .panel-note{margin:9px 0 0;color:var(--muted);font-size:12px}
-.panel+.panel,.panel-grid+.panel,.panel+.panel-grid,.panel-grid+.panel-grid{margin-top:12px}
-/* Inside a grid the gap handles spacing; a margin would break the stretch. */
-.panel-grid>.panel{margin-top:0}
-/* Grid: rows stay level because the items stretch. */
-.panel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:stretch}
-.panel-grid.is-wide{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
-/* Stat tiles keep a fixed size and pack from the left, whatever the count. */
-.stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,196px));justify-content:start;gap:12px;margin-bottom:12px}
-.stat{display:grid;align-content:start;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff}
-.stat b{font-size:24px;line-height:1.15;color:var(--navy-950)}
-.stat span{font-size:12px;line-height:1.35;color:var(--muted)}
-.stat small{color:var(--muted);font-size:11px}
-.stat.stat-warn b{color:var(--danger)}
+/* Panels stack full-width (relationship care) or sit in Bootstrap columns
+   (dashboard, statistics); h-100 keeps columns level, .row handles the gap. */
+.panel+.panel{margin-top:12px}
+[class*="col-"]>.panel{margin-top:0}
+/* AdminLTE info-box, toned to the CRM palette: white card, navy number,
+   colour only on the icon and on the overdue variant. */
+.crm-info-box{min-height:74px;padding:8px;margin-bottom:0;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:none;color:var(--ink);text-decoration:none}
+a.crm-info-box:hover{border-color:#9bbbe0;background:#f7faff;text-decoration:none}
+.crm-info-box .info-box-icon{display:flex;align-items:center;justify-content:center;flex:0 0 52px;width:52px;border-radius:8px;background:var(--soft);color:var(--navy-950)}
+.crm-info-box .info-box-icon svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.crm-info-box .info-box-content{justify-content:center;padding:0 0 0 11px;line-height:1.3}
+.crm-info-box .info-box-text{font-size:12px;color:var(--muted);white-space:normal}
+.crm-info-box .info-box-number{margin-top:1px;font-size:24px;font-weight:700;line-height:1.15;color:var(--navy-950)}
+.crm-info-box .progress-description{margin-top:1px;font-size:11px;color:var(--muted)}
+.crm-info-box.is-warn .info-box-icon{background:#fdeaea;color:var(--danger)}
+.crm-info-box.is-warn .info-box-number{color:var(--danger)}
+.crm-info-box.is-done .info-box-icon{background:#e6f4ec;color:var(--success)}
+.panel-sub{margin:2px 0 7px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.panel-sub+.dash-list{margin-bottom:12px}
+.row+.row{margin-top:12px}
 /* Lists inside panels */
 .dash-list{display:grid;align-content:start;gap:7px;margin:0;padding:0;list-style:none;font-size:13px}
 .dash-list li{display:flex;align-items:baseline;gap:9px}
@@ -453,8 +460,11 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .panel .table-wrap{border:0;border-top:1px solid var(--line);border-radius:0;margin:0 -16px -14px;width:calc(100% + 32px)}
 .panel .table-wrap th,.panel .table-wrap td{padding:9px 16px;font-size:13px}
 @media(max-width:640px){
- .panel-grid,.panel-grid.is-wide{grid-template-columns:1fr}
- .stat-row{grid-template-columns:repeat(auto-fill,minmax(140px,1fr))}
  .bar-list li{grid-template-columns:minmax(70px,1fr) minmax(40px,1fr) 34px}
  .chart{min-width:640px}
+ .crm-info-box{min-height:64px;padding:7px}
+ .crm-info-box .info-box-icon{flex:0 0 40px;width:40px}
+ .crm-info-box .info-box-icon svg{width:20px;height:20px}
+ .crm-info-box .info-box-number{font-size:20px}
+ .crm-info-box .info-box-content{padding-left:8px}
 }

@@ -2,47 +2,59 @@
 {% block analytics_title %}{% translate 'Bazė ir augimas' %}{% endblock %}
 {% block period %}{% endblock %}
 {% block analytics_content %}
-<div class="stat-row">
-  <div class="stat"><b>{{ total_people }}</b><span>{% translate 'Kontaktai' %}</span></div>
-  <div class="stat"><b>{{ total_companies }}</b><span>{% translate 'Įmonės' %}</span></div>
+<div class="row g-3">
+  <div class="col-xl-8">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Kontaktų skaičius' %} <span>{{ total_people }}</span></h2></div>
+      {% if curve %}{% include "analytics/_chart.html" with chart=curve chart_label=_('Kontaktų augimas per 12 mėnesių') %}
+      {% else %}<p class="muted panel-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
+    </section>
+  </div>
+  <div class="col-xl-4">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Duomenų kokybė' %}</h2></div>
+      <ul class="bar-list">
+        {% for row in quality %}
+          <li>
+            <span class="bar-label">{{ row.label }}</span>
+            <span class="bar-track" aria-hidden="true">{% if row.percent %}<i style="width:{{ row.percent }}%"></i>{% endif %}</span>
+            <b>{{ row.percent }}%</b>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="panel-note">{% translate 'Įmonės' %}: {{ total_companies }}</p>
+    </section>
+  </div>
 </div>
 
-<section class="panel">
-  <div class="panel-head"><h2>{% translate 'Kontaktų skaičius' %}</h2></div>
-  {% if curve %}{% include "analytics/_chart.html" with chart=curve chart_label=_('Kontaktų augimas per 12 mėnesių') %}
-  {% else %}<p class="muted panel-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
-</section>
+<div class="row g-3">
+  <div class="col-xl-8">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Nauji kontaktai per mėnesį' %}</h2></div>
+      {% if new_chart %}{% include "analytics/_chart.html" with chart=new_chart chart_label=_('Nauji kontaktai per mėnesį') %}
+      {% else %}<p class="muted panel-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
+    </section>
+  </div>
+  <div class="col-xl-4">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Pagal atsakingą' %}</h2></div>
+      {% include "analytics/_barlist.html" with rows=by_owner %}
+    </section>
+  </div>
+</div>
 
-<section class="panel">
-  <div class="panel-head"><h2>{% translate 'Nauji kontaktai per mėnesį' %}</h2></div>
-  {% if new_chart %}{% include "analytics/_chart.html" with chart=new_chart chart_label=_('Nauji kontaktai per mėnesį') %}
-  {% else %}<p class="muted panel-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
-</section>
-
-<div class="panel-grid">
-  <section class="panel">
-    <div class="panel-head"><h2>{% translate 'Duomenų kokybė' %}</h2></div>
-    <ul class="bar-list">
-      {% for row in quality %}
-        <li>
-          <span class="bar-label">{{ row.label }}</span>
-          <span class="bar-track" aria-hidden="true">{% if row.percent %}<i style="width:{{ row.percent }}%"></i>{% endif %}</span>
-          <b>{{ row.percent }}%</b>
-        </li>
-      {% endfor %}
-    </ul>
-  </section>
-  <section class="panel">
-    <div class="panel-head"><h2>{% translate 'Pagal kategoriją' %}</h2></div>
-    {% include "analytics/_barlist.html" with rows=by_category %}
-  </section>
-  <section class="panel">
-    <div class="panel-head"><h2>{% translate 'Pagal žymą' %}</h2></div>
-    {% include "analytics/_barlist.html" with rows=by_tag %}
-  </section>
-  <section class="panel">
-    <div class="panel-head"><h2>{% translate 'Pagal atsakingą' %}</h2></div>
-    {% include "analytics/_barlist.html" with rows=by_owner %}
-  </section>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Pagal kategoriją' %}</h2></div>
+      {% include "analytics/_barlist.html" with rows=by_category %}
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="panel h-100">
+      <div class="panel-head"><h2>{% translate 'Pagal žymą' %}</h2></div>
+      {% include "analytics/_barlist.html" with rows=by_tag %}
+    </section>
+  </div>
 </div>
 {% endblock %}

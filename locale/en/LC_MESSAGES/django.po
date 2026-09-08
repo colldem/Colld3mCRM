@@ -2172,3 +2172,9 @@ msgstr "By action"
 
 msgid "Aktyviausi naudotojai"
 msgstr "Most active users"
+
+msgid "Darbotvarkė"
+msgstr "Agenda"
+
+msgid "Vėluojančių nėra."
+msgstr "Nothing overdue."
