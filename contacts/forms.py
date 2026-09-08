@@ -4,6 +4,7 @@ from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
+from . import permissions
 from .models import Activity, Category, Company, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
 
 
@@ -161,13 +162,25 @@ class ActivityForm(forms.ModelForm):
 class ReminderForm(forms.ModelForm):
     class Meta:
         model = Reminder
-        fields = ["text", "due_at"]
-        labels = {"text": tr("Priminimas"), "due_at": tr("Data ir laikas")}
+        fields = ["text", "due_at", "assigned_to", "priority"]
+        labels = {"text": tr("Priminimas"), "due_at": tr("Data ir laikas"),
+                  "assigned_to": tr("Priskirta"), "priority": tr("Prioritetas")}
         widgets = {"text": forms.TextInput(attrs={"id": "id_reminder_text"}), "due_at": forms.DateTimeInput(attrs={"type": "datetime-local"}, format="%Y-%m-%dT%H:%M")}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["due_at"].input_formats = ["%Y-%m-%dT%H:%M"]
+        self.fields["assigned_to"].required = False
+        self.fields["assigned_to"].empty_label = None
+        self.fields["assigned_to"].label_from_instance = permissions.user_label
+        self.fields["priority"].required = False
+        if user is not None:
+            self.fields["assigned_to"].queryset = permissions.assignable_users_for(user)
+            if not self.instance.pk and not self.initial.get("assigned_to"):
+                self.initial["assigned_to"] = user.pk
+
+    def clean_priority(self):
+        return self.cleaned_data.get("priority") or Reminder.PRIORITY_NORMAL
 
 
 class SetupAdminForm(UserCreationForm):

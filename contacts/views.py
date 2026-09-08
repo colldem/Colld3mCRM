@@ -1213,7 +1213,7 @@ def contact_detail(request, pk):
         "person": person,
         **grouped_detail_fields(person),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
-        "reminder_form": ReminderForm(),
+        "reminder_form": ReminderForm(user=request.user),
         "comment_token": uuid.uuid4().hex,
         "file_token": uuid.uuid4().hex,
         "reminder_token": uuid.uuid4().hex,
@@ -1340,7 +1340,7 @@ def activity_edit(request, person_pk, pk):
 @login_required
 def reminder_create(request, pk):
     person = get_object_or_404(visible_people(request.user), pk=pk, deleted_at__isnull=True)
-    form = ReminderForm(request.POST)
+    form = ReminderForm(request.POST, user=request.user)
     if form.is_valid():
         token = request.POST.get("submission_token", "")
         if token and person.reminders.filter(submission_token=token).exists():
@@ -1348,6 +1348,7 @@ def reminder_create(request, pk):
         reminder = form.save(commit=False)
         reminder.person = person
         reminder.created_by = request.user
+        reminder.assigned_to = reminder.assigned_to or request.user
         reminder.submission_token = token or None
         reminder.save()
         audit_log(AuditLog.CREATE, request=request, target=person, field=str(tr("Priminimas")),
@@ -1373,11 +1374,13 @@ def reminder_complete(request, pk):
 def reminder_edit(request, pk):
     reminder = get_object_or_404(visible_reminders(request.user), pk=pk, deleted_at__isnull=True)
     original_due_at = reminder.due_at
-    form = ReminderForm(request.POST or None, instance=reminder)
+    form = ReminderForm(request.POST or None, instance=reminder, user=request.user)
     if request.method == "POST" and form.is_valid():
         if form.cleaned_data["due_at"] != original_due_at:
             form.instance.read_at = None
-        form.save()
+        reminder = form.save(commit=False)
+        reminder.assigned_to = reminder.assigned_to or request.user
+        reminder.save()
         audit_log(AuditLog.UPDATE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                   old=f"{timezone.localtime(original_due_at):%Y-%m-%d %H:%M}",
                   new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")

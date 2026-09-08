@@ -12,7 +12,7 @@ CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
 - ✅ **B1** — „Mano filtrai": pervadinti, ištrinti, numatytasis
 - ✅ Varpelio ir profilio meniu užsidaro paspaudus bet kur kitur
 - ✅ **B2** — greiti veiksmai ⋮ meniu: pridėti įrašą, sukurti priminimą, kopijuoti el. paštą
-- ✅ **B4** — slaptažodžio keitimas: Nustatymai → Slaptažodis
+- ✅ **B4** — slaptažodžio keitimas: Nustatymai → Profilis (perkelta iš atskiros skilties `0.37.0`)
 - ✅ **B6** — priedų dydžio (10 MB) ir tipo (plėtinių sąrašas) tikrinimas serveryje
 - ✅ **B7** — automatinis atsijungimas po 8 val. neaktyvumo (slankusis langas)
 - ✅ **C1** — sąrašų UX: pažymėtų eilučių paryškinimas, „Atšaukti pasirinkimą",
@@ -111,7 +111,7 @@ Atidaryti, Redaguoti, Pridėti komentarą (`#tab-comments`), Sukurti priminimą
 - Laukai (C4) ir Naudotojai/teisės (C6) — jau padaryta atskirai.
 
 ### B4. Slaptažodžio keitimas iš profilio — ✅ padaryta
-Nustatymai → Slaptažodis (Django `PasswordChangeForm`, sesija išlieka).
+Nustatymai → Profilis, po profilio laukų (Django `PasswordChangeForm`, sesija išlieka; `0.37.0`).
 
 ### B5. Automatinės atsarginės kopijos — ✅ padaryta
 `crm-backup` Compose servisas (`scripts/backup.sh`): `pg_dump -Fc` + `runtime/media`
@@ -482,14 +482,24 @@ Grafikai — savos gamybos **inline SVG** (`contacts/charts.py`), be bibliotekų
 ⚠️ Pastaba ateičiai: SVG blokai naudoja `{% localize off %}` — lietuviška lokalė
 koordinates rašo kaip `637,09`, o tai netinkamas SVG ir grafikai lieka tušti.
 
-### G2. Užduočių priskyrimas kolegai — ❌
-`Reminder` praplečiamas: `assigned_to` (FK User, numatyta = `created_by`),
-`priority`, ir būsena (`completed_at` = atlikta; ar reikia „vykdoma" — spręsti
-įgyvendinant).
-- Kalendorius pereina nuo `created_by = aš` prie **`assigned_to = aš`**
+### G2. Užduočių priskyrimas kolegai — 🟡 1 dalis padaryta (`0.38.0`)
+`Reminder` praplėstas: `assigned_to` (FK User, `SET_NULL`), `priority`
+(žemas/įprastas/aukštas). „Vykdoma" būsenos neįvedžiau — `completed_at` pakanka.
+
+**1 dalis (`0.38.0`) — padaryta:**
+- `assigned_to` + `priority` laukai + migracija (esami priminimai užpildyti
+  `assigned_to = created_by`).
+- `ReminderForm` gauna „Priskirta" (tik matomi/komandos naudotojai per
+  `assignable_users_for`) ir „Prioritetas"; numatyta priskirta = kūrėjas.
+- Kontakto kortelės „Pridėti priminimą" ir priminimo redagavimas rodo abu laukus.
+- Kalendorius: `created_by = aš` → `assigned_to = aš` (arba be priskyrimo + kūrėjas);
+  `calendar_event_save/delete` leidžia ir priskirtąjį.
+- `visible_reminders` papildyta `Q(assigned_to=user)` — priskirtą užduotį matai visada.
+
+**2 dalis (liko):**
 - Priminimų sąrašas gauna filtrus: man priskirtos / mano sukurtos / visos
 - Varpelyje pranešimas, kai kažkas priskiria užduotį tau
-- Priskirti galima tik naudotojams, kuriuos matai (matomumo ribose)
+- (galutinis „priskirti tik matomiems" tikrinimas formos `clean`)
 
 ### G7. Pranešimai el. paštu — ❌
 Grąžina anksčiau atidėtą B3 „Pranešimų" skiltį. **Rekomenduojama daryti iškart po G2** —

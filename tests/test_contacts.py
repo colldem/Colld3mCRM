@@ -332,6 +332,30 @@ class CalendarTests(TestCase):
         mine.refresh_from_db()
         self.assertIsNotNone(mine.deleted_at)
 
+    def test_reminder_defaults_to_its_creator_and_can_be_handed_to_a_teammate(self):
+        due = self.start.strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("contacts:reminder-create", args=[self.person.pk]),
+                         {"text": "Užduotis", "due_at": due})
+        task = Reminder.objects.get(text="Užduotis")
+        self.assertEqual(task.assigned_to, self.user)
+
+        self.client.post(reverse("contacts:reminder-edit", args=[task.pk]),
+                         {"text": "Užduotis", "due_at": due, "assigned_to": self.mate.pk, "priority": "high"})
+        task.refresh_from_db()
+        self.assertEqual((task.assigned_to, task.priority), (self.mate, "high"))
+
+        # It has left my calendar...
+        mine = self.client.get(reverse("contacts:calendar"),
+                               {"view": "week", "date": self.start.date().isoformat()})
+        my_texts = {item["reminder"].text for day in mine.context["days"] for item in day["events"]}
+        self.assertNotIn("Užduotis", my_texts)
+        # ...and shows on the assignee's.
+        self.client.force_login(self.mate)
+        theirs = self.client.get(reverse("contacts:calendar"),
+                                 {"view": "week", "date": self.start.date().isoformat()})
+        their_texts = {item["reminder"].text for day in theirs.context["days"] for item in day["events"]}
+        self.assertIn("Užduotis", their_texts)
+
     def test_past_events_are_flagged_so_the_grid_can_dim_them(self):
         past = self._event(text="Praeitis", due_at=timezone.now() - timedelta(hours=3),
                            end_at=timezone.now() - timedelta(hours=2))

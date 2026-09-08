@@ -2184,3 +2184,18 @@ msgstr "Dashboard and analytics"
 
 msgid "Slaptažodžiai"
 msgstr "Passwords"
+
+msgid "Priskirta"
+msgstr "Assigned to"
+
+msgid "Prioritetas"
+msgstr "Priority"
+
+msgid "Žemas"
+msgstr "Low"
+
+msgid "Įprastas"
+msgstr "Normal"
+
+msgid "Aukštas"
+msgstr "High"

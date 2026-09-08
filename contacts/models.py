@@ -337,6 +337,15 @@ class Reminder(TimestampedModel):
 
     It can hang off a contact, a company, or neither (a plain calendar entry).
     """
+    PRIORITY_LOW = "low"
+    PRIORITY_NORMAL = "normal"
+    PRIORITY_HIGH = "high"
+    PRIORITY_CHOICES = (
+        (PRIORITY_LOW, tr("Žemas")),
+        (PRIORITY_NORMAL, tr("Įprastas")),
+        (PRIORITY_HIGH, tr("Aukštas")),
+    )
+
     person = models.ForeignKey(Person, null=True, blank=True, on_delete=models.CASCADE, related_name="reminders")
     company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="reminders")
     text = models.CharField(max_length=500)
@@ -345,9 +354,17 @@ class Reminder(TimestampedModel):
     completed_at = models.DateTimeField(null=True, blank=True)
     read_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="crm_reminders")
+    # Who owns the task. Null is treated as "the creator" everywhere it matters.
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="crm_assigned_reminders")
+    priority = models.CharField(max_length=8, choices=PRIORITY_CHOICES, default=PRIORITY_NORMAL)
     submission_token = models.CharField(max_length=64, blank=True, unique=True, null=True)
 
     DEFAULT_MINUTES = 30
+
+    @property
+    def owner(self):
+        """The user responsible for this task (assignee, or the creator if unset)."""
+        return self.assigned_to or self.created_by
 
     class Meta:
         ordering = ["due_at"]

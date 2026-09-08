@@ -195,6 +195,7 @@ def visible_reminders(user, queryset=None):
         | Q(person__isnull=True, company__isnull=False,
             company__pk__in=visible_companies(user, None).values_list("pk", flat=True))
         | Q(person__isnull=True, company__isnull=True, created_by=user)
+        | Q(assigned_to=user)
     )
 
 
@@ -218,6 +219,17 @@ def assignable_users():
     from django.contrib.auth import get_user_model
 
     return list(get_user_model().objects.filter(is_active=True).order_by("first_name", "last_name", "username"))
+
+
+def assignable_users_for(user):
+    """Active users `user` may hand a task to: everyone if they see all records,
+    otherwise themselves and their teammates."""
+    from django.contrib.auth import get_user_model
+
+    qs = get_user_model().objects.filter(is_active=True)
+    if not sees_all_records(user):
+        qs = qs.filter(pk__in=teammate_ids(user))
+    return qs.order_by("first_name", "last_name", "username")
 
 
 def can_see_person(user, person):

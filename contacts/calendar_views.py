@@ -1,11 +1,12 @@
 """Calendar module: a day/week/month grid over the current user's reminders.
 
-Only reminders the signed-in user created are shown — this is a personal agenda,
-not a shared team calendar.
+Shows the reminders assigned to the signed-in user (falling back to the ones
+they created while unassigned) — a personal agenda, not a shared team calendar.
 """
 from datetime import date, datetime, time, timedelta
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -15,6 +16,11 @@ from django.views.decorators.http import require_POST
 from .models import AuditLog, Company, Person, Reminder
 from .audit import log as audit_log
 from .permissions import visible_companies, visible_people
+
+
+def _mine_q(user):
+    """Reminders this user owns: assigned to them, or created by them and unassigned."""
+    return Q(assigned_to=user) | Q(assigned_to__isnull=True, created_by=user)
 
 VIEWS = ("day", "week", "month")
 MINUTES_IN_DAY = 24 * 60
@@ -57,7 +63,7 @@ def user_reminders(user, start, end):
     tz = timezone.get_current_timezone()
     begin = timezone.make_aware(datetime.combine(start, time.min), tz)
     finish = timezone.make_aware(datetime.combine(end, time.min), tz)
-    return (Reminder.objects.filter(created_by=user, deleted_at__isnull=True, due_at__lt=finish)
+    return (Reminder.objects.filter(_mine_q(user), deleted_at__isnull=True, due_at__lt=finish)
             .filter(due_at__gte=begin - timedelta(days=1))
             .select_related("person", "company")
             .prefetch_related("person__phones", "person__addresses")
@@ -234,7 +240,7 @@ def _back_to_calendar(request):
 def calendar_event_save(request, pk=None):
     reminder = None
     if pk:
-        reminder = Reminder.objects.filter(pk=pk, created_by=request.user, deleted_at__isnull=True).first()
+        reminder = Reminder.objects.filter(_mine_q(request.user), pk=pk, deleted_at__isnull=True).first()
         if reminder is None:
             return _back_to_calendar(request)
     text = request.POST.get("text", "").strip()
@@ -247,7 +253,7 @@ def calendar_event_save(request, pk=None):
     person, company = _resolve_record(request)
 
     if reminder is None:
-        reminder = Reminder(created_by=request.user)
+        reminder = Reminder(created_by=request.user, assigned_to=request.user)
     reminder.text = text[:500]
     reminder.due_at = start
     reminder.end_at = end
@@ -264,7 +270,7 @@ def calendar_event_save(request, pk=None):
 @login_required
 @require_POST
 def calendar_event_delete(request, pk):
-    reminder = Reminder.objects.filter(pk=pk, created_by=request.user, deleted_at__isnull=True).first()
+    reminder = Reminder.objects.filter(_mine_q(request.user), pk=pk, deleted_at__isnull=True).first()
     if reminder is not None:
         audit_log(AuditLog.DELETE, request=request, target=reminder.record,
                   target_type="" if reminder.record else "reminder",

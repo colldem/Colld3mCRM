@@ -76,6 +76,8 @@
             <input type="hidden" name="submission_token" value="{{ reminder_token }}">
             <label>{% translate 'Priminimas' %}{{ reminder_form.text }}</label>
             <label>{% translate 'Data ir laikas' %}{{ reminder_form.due_at }}</label>
+            <label>{% translate 'Priskirta' %}{{ reminder_form.assigned_to }}</label>
+            <label>{% translate 'Prioritetas' %}{{ reminder_form.priority }}</label>
             <div><button class="btn primary" type="submit">{% translate 'Pridėti' %}</button></div>
           </form>
         </details>
