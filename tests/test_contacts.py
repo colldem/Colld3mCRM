@@ -1852,8 +1852,10 @@ class ContactViewTests(TestCase):
         self.assertEqual(self.person.cooperation_start.isoformat(), "2026-01-15")
         self.assertEqual(self.person.description, "Bendradarbiaujame IT srityje.")
         self.assertEqual(self.person.internal_note, "Skambinti po 15 d.")
+        # description is shown on the card; it opens on double-click
         page = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
-        self.assertContains(page, "prio-high")
+        self.assertContains(page, "Bendradarbiaujame IT srityje.")
+        self.assertContains(page, 'data-field="description"')
 
     def test_detail_page_uses_the_new_card_layout(self):
         self.client.force_login(self.user)

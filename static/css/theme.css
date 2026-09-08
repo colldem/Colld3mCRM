@@ -157,12 +157,24 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .detail-fields-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px 10px}
 
 .contact-lines{min-width:0;display:grid;gap:6px}
-.contact-line{display:grid;grid-template-columns:15px minmax(0,1fr) 26px;align-items:end;gap:8px}
-.contact-line .ci-icon{width:14px;height:14px;margin-bottom:5px;fill:none;stroke:var(--muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.contact-line{display:grid;grid-template-columns:15px minmax(0,1fr) 28px;align-items:end;gap:8px}
+.contact-line .ci-icon{width:14px;height:14px;margin-bottom:8px;fill:none;stroke:var(--muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .contact-line-field{min-width:0}
-.contact-line-copy{display:grid;place-items:center;width:26px;height:26px;margin-bottom:0;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer}
-.contact-line-copy svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.contact-card .field-values{min-height:28px}
+.contact-line-copy{display:grid;place-items:center;width:28px;height:28px;align-self:end;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer}
+.contact-line-copy svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .contact-line-copy:hover{background:var(--soft)}
+.contact-line-copy.copied{background:var(--soft);border-color:var(--navy-950);color:var(--navy-950)}
+
+/* Job title under the name — inline editable, no label chrome */
+.subtitle-field .detail-field{margin:0}
+.subtitle-field .field-display{padding:0;display:block}
+.subtitle-field .field-display:hover{background:transparent;outline:0}
+.subtitle-field .field-display>strong{display:none}
+.subtitle-field .field-values{border:0;padding:0;margin:0}
+.subtitle-field .field-values>div{margin:0}
+.subtitle-field .field-editor{margin-top:6px;font-size:13px}
+.subtitle-field .field-editor input{font-size:13px;padding:5px 8px;min-height:30px}
 
 .detail-tabs .tab-strip{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0 -4px 10px}
 .detail-tabs .tab{min-height:0;padding:6px 10px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
@@ -194,7 +206,16 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .aside-meta{display:grid;grid-template-columns:1fr auto;gap:3px 10px;margin:0;font-size:12px}
 .aside-meta dt{color:var(--muted)}
 .aside-meta dd{margin:0;text-align:right}
-.detail-aside .detail-field .field-values{font-size:13px}
+.detail-aside .detail-field{margin:0}
+.detail-aside .detail-field .field-display{padding:0;cursor:pointer}
+.detail-aside .detail-field .field-display:hover{background:transparent;outline:0}
+.detail-aside .detail-field .field-display>strong{display:none}
+.detail-aside .detail-field .field-values{font-size:13px;margin:0}
+.detail-aside .detail-field .field-values>div{margin:0}
+.detail-aside .detail-field .field-values a{color:var(--navy-950)}
+.detail-aside .field-editor{margin-top:8px;font-size:13px}
+.detail-aside .field-editor .company-options,.detail-aside .field-editor select[multiple]{max-height:170px}
+.detail-aside .field-editor label{font-size:13px}
 @media(max-width:900px){.record-detail{grid-template-columns:1fr}}
 .settings-list .user-row{display:grid;gap:10px}
 .user-row-info small{display:block;color:var(--muted);font-weight:400}

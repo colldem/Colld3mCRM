@@ -23,8 +23,22 @@
       if (add) { add.open = true; add.querySelector('input:not([type=hidden])')?.focus({ preventScroll: true }); }
     }
   }));
-  document.querySelectorAll('.copy-link').forEach(btn => btn.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(btn.dataset.link); btn.textContent = gettext('Nukopijuota'); }
-    catch (e) { /* clipboard unavailable */ }
+  document.querySelectorAll('.copy-link').forEach(btn => {
+    const original = btn.textContent;
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.link);
+        btn.textContent = gettext('Nukopijuota');
+        setTimeout(() => { btn.textContent = original; }, 1200);
+      } catch (e) { /* clipboard unavailable */ }
+    });
+  });
+  // Small copy buttons next to contact-info values — copy silently, brief flash only.
+  document.querySelectorAll('.copy-value').forEach(btn => btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(btn.dataset.copy || '');
+      btn.classList.add('copied');
+      setTimeout(() => btn.classList.remove('copied'), 700);
+    } catch (e) { /* clipboard unavailable */ }
   }));
 })();

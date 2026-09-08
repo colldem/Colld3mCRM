@@ -322,29 +322,33 @@ _CONTACT_INFO_KEYS = {
     True: {"email", "phone", "address", "url", "company_code", "vat_code"},
     False: {"emails", "phones", "addresses", "web_links"},
 }
-_CARD_HIDDEN_KEYS = {"first_name", "last_name", "name", "responsibles"}
 
 
 def grouped_detail_fields(record):
-    """Split card fields into (contact_info, grid, description) for the prototype layout."""
+    """Bucket the card fields for the prototype layout. The 'additional fields'
+    card only shows dynamic (custom) fields the admin defined in settings."""
     is_company = isinstance(record, Company)
     fields = company_detail_fields(record) if is_company else detail_fields(record)
     contact_keys = _CONTACT_INFO_KEYS[is_company]
-    contact_info, grid, description, responsibles = [], [], None, None
+    out = {"contact_info_fields": [], "custom_fields": [], "description_field": None,
+           "responsibles_field": None, "companies_field": None, "job_title_field": None}
     for item in fields:
         key = item.get("field", "")
         if key in contact_keys:
-            contact_info.append(item)
+            out["contact_info_fields"].append(item)
         elif key == "description":
-            description = item
+            out["description_field"] = item
         elif key == "responsibles":
-            responsibles = item
-        elif key in _CARD_HIDDEN_KEYS:
-            continue
-        else:
-            grid.append(item)
-    return {"contact_info_fields": contact_info, "grid_fields": grid,
-            "description_field": description, "responsibles_field": responsibles}
+            out["responsibles_field"] = item
+        elif key == "companies":
+            out["companies_field"] = item
+        elif key == "job_title":
+            out["job_title_field"] = item
+        elif key.startswith("cf_"):
+            out["custom_fields"].append(item)
+        # priority / contact_type / cooperation_start / internal_note / first_name /
+        # last_name / name are intentionally not shown on the card.
+    return out
 
 
 @login_required

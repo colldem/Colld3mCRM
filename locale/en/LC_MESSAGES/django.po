@@ -1815,3 +1815,6 @@ msgid ""
 msgstr ""
 "Recognised columns: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, "
 "URL, Tagai, Kategorijos, Atsakingas. You can map the rest in the next step."
+
+msgid "Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai."
+msgstr "No dynamic fields. Create them in Settings → Dynamic fields."

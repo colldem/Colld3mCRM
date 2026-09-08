@@ -6,17 +6,15 @@
   <div class="record-detail-titlebar">
     <div class="record-detail-identity">
       {% include "contacts/detail_title.html" %}
-      <p class="record-subtitle">{% if is_company %}{{ company.company_code }}{% else %}{{ person.job_title }}{% if person.primary_company %} · <a href="{{ person.primary_company.get_absolute_url }}">{{ person.primary_company.name }}</a>{% endif %}{% endif %}</p>
+      {% if is_company %}
+        {% if company.company_code %}<p class="record-subtitle">{{ company.company_code }}</p>{% endif %}
+      {% elif job_title_field %}
+        <div class="record-subtitle subtitle-field">{% with item=job_title_field %}{% include "contacts/detail_field.html" %}{% endwith %}</div>
+      {% endif %}
     </div>
     <div class="record-detail-actions">
-      <a class="btn" href="{% if is_company %}{% url 'contacts:company-edit' company.pk %}{% else %}{% url 'contacts:edit' person.pk %}{% endif %}">✎ {% translate 'Redaguoti' %}</a>
-      <details class="record-more"><summary class="btn" aria-label="{% translate 'Daugiau veiksmų' %}">…</summary>
-        <div class="record-more-menu">
-          <button type="button" class="copy-link" data-link="{{ request.scheme }}://{{ request.get_host }}{{ record.get_absolute_url }}">{% translate 'Kopijuoti nuorodą' %}</button>
-          {% if crm_caps.can_delete %}<form method="post" action="{% if is_company %}{% url 'contacts:company-archive' company.pk %}{% else %}{% url 'contacts:archive' person.pk %}{% endif %}">{% csrf_token %}<button class="danger" type="submit">{% translate 'Archyvuoti' %}</button></form>{% endif %}
-        </div>
-      </details>
-      <a class="btn primary" href="#tab-reminders" data-open-tab="reminders">+ {% translate 'Naujas priminimas' %}</a>
+      <button type="button" class="btn copy-link" data-link="{{ request.scheme }}://{{ request.get_host }}{{ record.get_absolute_url }}">{% translate 'Kopijuoti nuorodą' %}</button>
+      {% if crm_caps.can_delete %}<form method="post" action="{% if is_company %}{% url 'contacts:company-archive' company.pk %}{% else %}{% url 'contacts:archive' person.pk %}{% endif %}">{% csrf_token %}<button class="btn danger" type="submit">{% translate 'Archyvuoti' %}</button></form>{% endif %}
     </div>
   </div>
   {% if overdue_reminder_count %}<p class="record-detail-warn">⚠ {% translate 'Vėluojantys priminimai' %}: {{ overdue_reminder_count }}</p>{% endif %}
@@ -33,7 +31,7 @@
             <div class="contact-line">
               {% include "contacts/_contact_icon.html" with field=item.field %}
               <div class="contact-line-field">{% include "contacts/detail_field.html" %}</div>
-              {% with copyable=item.entries.0.text %}{% if copyable %}<button type="button" class="contact-line-copy copy-email" data-email="{{ copyable }}" aria-label="{% translate 'Kopijuoti' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button>{% endif %}{% endwith %}
+              {% with copyable=item.entries.0.text %}{% if copyable %}<button type="button" class="contact-line-copy copy-value" data-copy="{{ copyable }}" aria-label="{% translate 'Kopijuoti' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button>{% endif %}{% endwith %}
             </div>
           {% empty %}<p class="muted">{% translate 'Nėra duomenų.' %}</p>{% endfor %}
         </div>
@@ -42,13 +40,7 @@
       <details class="detail-card boxed collapsible" open>
         <summary><h2>{% translate 'Papildomi laukai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
         <div class="detail-fields-grid">
-          {% for item in grid_fields %}{% include "contacts/detail_field.html" %}{% endfor %}
-          <div class="detail-field readonly">
-            <div class="field-display"><strong>{% translate 'Paskutinis kontaktas' %}</strong><div class="field-values"><div>{% if last_activity %}{{ last_activity.created_at|date:"Y-m-d" }} · {{ last_activity.get_activity_type_display }}{% else %}–{% endif %}</div></div></div>
-          </div>
-          <div class="detail-field readonly">
-            <div class="field-display"><strong>{% translate 'Sekantis kontaktas' %}</strong><div class="field-values"><div>{% if next_reminder %}{{ next_reminder.due_at|date:"Y-m-d H:i" }}{% else %}–{% endif %}</div></div></div>
-          </div>
+          {% for item in custom_fields %}{% include "contacts/detail_field.html" %}{% empty %}<p class="muted">{% translate 'Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai.' %}</p>{% endfor %}
         </div>
       </details>
     </div>
@@ -123,11 +115,10 @@
   </div>
 
   <aside class="detail-aside">
-    {% if not is_company and person.primary_company %}
+    {% if not is_company and companies_field %}
     <section class="aside-card">
       <h3>{% translate 'Organizacija' %}</h3>
-      <a class="aside-link" href="{{ person.primary_company.get_absolute_url }}">{{ person.primary_company.name }} <span aria-hidden="true">›</span></a>
-      {% if person.primary_company.url %}<a class="aside-sub" href="{{ person.primary_company.url }}" target="_blank" rel="noopener noreferrer">{{ person.primary_company.url }}</a>{% endif %}
+      {% with item=companies_field %}{% include "contacts/detail_field.html" %}{% endwith %}
     </section>
     {% endif %}
 
@@ -148,6 +139,8 @@
     <section class="aside-card">
       <h3>{% translate 'Papildoma informacija' %}</h3>
       <dl class="aside-meta">
+        <dt>{% translate 'Paskutinis kontaktas' %}</dt><dd>{% if last_activity %}{{ last_activity.created_at|date:"Y-m-d" }}{% else %}–{% endif %}</dd>
+        <dt>{% translate 'Sekantis kontaktas' %}</dt><dd>{% if next_reminder %}{{ next_reminder.due_at|date:"Y-m-d H:i" }}{% else %}–{% endif %}</dd>
         <dt>{% translate 'Sukūrimo data' %}</dt><dd>{{ record.created_at|date:"Y-m-d" }}</dd>
         <dt>{% translate 'Paskutinį kartą atnaujinta' %}</dt><dd>{{ record.updated_at|date:"Y-m-d" }}</dd>
         <dt>{% translate 'Sukūrė' %}</dt><dd>{{ created_by_label|default:"–" }}</dd>
