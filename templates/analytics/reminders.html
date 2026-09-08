@@ -1,0 +1,43 @@
+{% extends "analytics/layout.html" %}{% load i18n l10n %}
+{% block analytics_title %}{% translate 'Priminimų vykdymas' %}{% endblock %}
+{% block analytics_content %}
+<div class="stat-row">
+  <div class="stat"><b>{{ total }}</b><span>{% translate 'Suplanuota' %}</span></div>
+  <div class="stat"><b>{{ done }}</b><span>{% translate 'Atlikta' %}</span></div>
+  <div class="stat{% if overdue %} stat-warn{% endif %}"><b>{{ overdue }}</b><span>{% translate 'Vėluoja' %}</span></div>
+  <div class="stat"><b>{{ upcoming }}</b><span>{% translate 'Būsimi' %}</span></div>
+</div>
+
+<div class="analytics-cols">
+  <section class="care-group">
+    <div class="care-head"><h2>{% translate 'Atlikimo procentas' %}</h2></div>
+    {% localize off %}
+    <div class="ring-wrap">
+      <svg class="ring" viewBox="0 0 {{ ring.size }} {{ ring.size }}" role="img"
+           aria-label="{% blocktranslate with percent=ring.percent %}Atlikta {{ percent }} proc.{% endblocktranslate %}">
+        <circle cx="{{ ring.centre }}" cy="{{ ring.centre }}" r="{{ ring.radius }}" class="ring-track" stroke-width="{{ ring.stroke }}"/>
+        {% if ring.percent %}<circle cx="{{ ring.centre }}" cy="{{ ring.centre }}" r="{{ ring.radius }}" class="ring-value" stroke-width="{{ ring.stroke }}"
+                stroke-dasharray="{{ ring.dash }} {{ ring.circumference }}"
+                transform="rotate(-90 {{ ring.centre }} {{ ring.centre }})"/>{% endif %}
+      </svg>
+      <div class="ring-text"><b>{{ ring.percent }}%</b><span>{{ ring.done }} / {{ ring.total }}</span></div>
+    </div>
+    {% endlocalize %}
+    {% if average_late %}
+      <p class="care-note">{% blocktranslate %}Vidutiniškai atliekama {{ average_late }} d. po termino.{% endblocktranslate %}</p>
+    {% endif %}
+  </section>
+
+  <section class="care-group">
+    <div class="care-head"><h2>{% translate 'Pagal naudotoją' %}</h2></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>{% translate 'Naudotojas' %}</th><th>{% translate 'Suplanuota' %}</th><th>{% translate 'Atlikta' %}</th><th>%</th></tr></thead>
+      <tbody>
+        {% for row in by_user %}
+          <tr><td>{{ row.label }}</td><td>{{ row.total }}</td><td>{{ row.finished }}</td><td>{{ row.percent }}%</td></tr>
+        {% empty %}<tr><td colspan="4" class="empty">{% translate 'Duomenų nėra.' %}</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </section>
+</div>
+{% endblock %}

@@ -1,11 +1,7 @@
-{% extends "base.html" %}{% load i18n %}
-{% block title %}{% translate 'Ryšių priežiūra' %} - CRM{% endblock %}
-{% block content %}
-<div class="page-head">
-  <div><h1>{% translate 'Ryšių priežiūra' %}</h1><p>{% translate 'Kontaktai, kuriems reikia dėmesio.' %}</p></div>
-  <div class="page-actions"><a class="btn" href="{% url 'contacts:home' %}">{% translate 'Darbastalis' %}</a></div>
-</div>
-
+{% extends "analytics/layout.html" %}{% load i18n %}
+{% block analytics_title %}{% translate 'Ryšių priežiūra' %}{% endblock %}
+{% block period %}{% endblock %}
+{% block analytics_content %}
 <div class="care-windows">
   <span>{% translate 'Nutilusiais laikyti, kai nebendrauta ilgiau nei:' %}</span>
   {% for window in windows %}

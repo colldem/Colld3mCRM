@@ -1,0 +1,48 @@
+{% extends "analytics/layout.html" %}{% load i18n %}
+{% block analytics_title %}{% translate 'Bazė ir augimas' %}{% endblock %}
+{% block period %}{% endblock %}
+{% block analytics_content %}
+<div class="stat-row">
+  <div class="stat"><b>{{ total_people }}</b><span>{% translate 'Kontaktai' %}</span></div>
+  <div class="stat"><b>{{ total_companies }}</b><span>{% translate 'Įmonės' %}</span></div>
+</div>
+
+<section class="care-group">
+  <div class="care-head"><h2>{% translate 'Kontaktų skaičius' %}</h2></div>
+  {% if curve %}{% include "analytics/_chart.html" with chart=curve chart_label=_('Kontaktų augimas per 12 mėnesių') %}
+  {% else %}<p class="muted care-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
+</section>
+
+<section class="care-group">
+  <div class="care-head"><h2>{% translate 'Nauji kontaktai per mėnesį' %}</h2></div>
+  {% if new_chart %}{% include "analytics/_chart.html" with chart=new_chart chart_label=_('Nauji kontaktai per mėnesį') %}
+  {% else %}<p class="muted care-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
+</section>
+
+<div class="analytics-cols">
+  <section class="care-group">
+    <div class="care-head"><h2>{% translate 'Duomenų kokybė' %}</h2></div>
+    <ul class="bar-list">
+      {% for row in quality %}
+        <li>
+          <span class="bar-label">{{ row.label }}</span>
+          <span class="bar-track" aria-hidden="true">{% if row.percent %}<i style="width:{{ row.percent }}%"></i>{% endif %}</span>
+          <b>{{ row.percent }}%</b>
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  <section class="care-group">
+    <div class="care-head"><h2>{% translate 'Pagal kategoriją' %}</h2></div>
+    {% include "analytics/_barlist.html" with rows=by_category %}
+  </section>
+  <section class="care-group">
+    <div class="care-head"><h2>{% translate 'Pagal žymą' %}</h2></div>
+    {% include "analytics/_barlist.html" with rows=by_tag %}
+  </section>
+  <section class="care-group">
+    <div class="care-head"><h2>{% translate 'Pagal atsakingą' %}</h2></div>
+    {% include "analytics/_barlist.html" with rows=by_owner %}
+  </section>
+</div>
+{% endblock %}

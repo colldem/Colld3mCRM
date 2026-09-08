@@ -7,14 +7,15 @@ import csv
 from datetime import datetime, time, timedelta
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Max, Q
-from django.http import HttpResponse
+from django.db.models import Count, F, Max, Min, Q
+from django.http import Http404, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.translation import gettext as tr, gettext_lazy as tr_lazy
 
-from .models import Activity, AuditLog, Company, Person, Reminder
-from .permissions import visible_companies, visible_people
+from . import charts
+from .models import Activity, AuditLog, Category, Company, Person, Reminder, Tag
+from .permissions import visible_companies, visible_people, visible_reminders
 
 SILENT_WINDOWS = (30, 60, 90)
 LIST_LIMIT = 100
@@ -131,6 +132,7 @@ def relationship_care(request):
         return _care_csv(wanted, lists[wanted])
 
     return render(request, "analytics/care.html", {
+        "section": "care",
         "days": days,
         "windows": SILENT_WINDOWS,
         "groups": [{"key": key, "label": CARE_LABELS[key], "total": queryset.count(),
@@ -163,3 +165,203 @@ def _care_csv(key, queryset):
             timezone.localtime(last).strftime("%Y-%m-%d") if last else "",
         ])
     return response
+
+
+# --- G1 part 2: statistics pages -------------------------------------------
+
+PERIODS = (30, 90, 365)
+
+
+def _period(request):
+    try:
+        days = int(request.GET.get("days", 90))
+    except ValueError:
+        days = 90
+    return days if days in PERIODS else 90
+
+
+def _buckets(start, end, monthly):
+    """Ordered (key, label) time buckets covering [start, end]."""
+    out, cursor = [], start
+    if monthly:
+        cursor = start.replace(day=1)
+        while cursor <= end:
+            out.append(((cursor.year, cursor.month), cursor.strftime("%Y-%m")))
+            cursor = (cursor + timedelta(days=32)).replace(day=1)
+    else:
+        cursor = start - timedelta(days=start.weekday())
+        while cursor <= end:
+            out.append((cursor.isocalendar()[:2], cursor.strftime("%m-%d")))
+            cursor += timedelta(days=7)
+    return out
+
+
+def _bucket_key(moment, monthly):
+    local = timezone.localtime(moment)
+    return (local.year, local.month) if monthly else local.isocalendar()[:2]
+
+
+@login_required
+def communication(request):
+    days = _period(request)
+    monthly = days > 120
+    since = timezone.now() - timedelta(days=days)
+    today = timezone.localdate()
+
+    people_ids = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
+    company_ids = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
+    activities = Activity.objects.filter(deleted_at__isnull=True, created_at__gte=since).filter(
+        Q(person__in=people_ids) | Q(company__in=company_ids))
+
+    keys = [key for key, _label in Activity.TYPE_CHOICES]
+    slots = _buckets(since.date(), today, monthly)
+    tally = {key: {series: 0 for series in keys} for key, _label in slots}
+    for moment, kind in activities.values_list("created_at", "activity_type"):
+        slot = tally.get(_bucket_key(moment, monthly))
+        if slot is not None:
+            slot[kind] = slot.get(kind, 0) + 1
+    buckets = [{"label": label, "values": tally[key]} for key, label in slots]
+
+    legend = [{"label": label, "colour": charts.SERIES_COLOURS[index % len(charts.SERIES_COLOURS)],
+               "total": sum(bucket["values"].get(key, 0) for bucket in buckets)}
+              for index, (key, label) in enumerate(Activity.TYPE_CHOICES)]
+
+    top_people = charts.share_rows([
+        {"label": str(row), "total": row.total, "url": row.get_absolute_url()}
+        for row in people_ids.filter(activities__in=activities)
+        .annotate(total=Count("activities")).order_by("-total")[:10]])
+    top_companies = charts.share_rows([
+        {"label": row.name, "total": row.total, "url": row.get_absolute_url()}
+        for row in company_ids.filter(activities__in=activities)
+        .annotate(total=Count("activities")).order_by("-total")[:10]])
+    by_user = charts.share_rows([
+        {"label": row["created_by__username"] or str(tr("Nežinomas")), "total": row["total"]}
+        for row in activities.values("created_by__username").annotate(total=Count("id")).order_by("-total")[:10]])
+
+    spans = (people_ids.annotate(total=Count("activities", filter=Q(activities__deleted_at__isnull=True)),
+                                 first_at=Min("activities__created_at"),
+                                 last_at=Max("activities__created_at"))
+             .filter(total__gte=2))
+    gaps = [(row.last_at - row.first_at).days / (row.total - 1) for row in spans]
+    average_gap = round(sum(gaps) / len(gaps), 1) if gaps else None
+
+    return render(request, "analytics/communication.html", {
+        "section": "communication", "days": days, "periods": PERIODS,
+        "chart": charts.stacked_bars(buckets, keys), "legend": legend,
+        "total": sum(item["total"] for item in legend),
+        "top_people": top_people, "top_companies": top_companies, "by_user": by_user,
+        "average_gap": average_gap, "monthly": monthly,
+    })
+
+
+@login_required
+def reminder_stats(request):
+    days = _period(request)
+    since = timezone.now() - timedelta(days=days)
+    now = timezone.now()
+    scope = visible_reminders(request.user, Reminder.objects.filter(
+        deleted_at__isnull=True, due_at__gte=since))
+
+    done = scope.filter(completed_at__isnull=False)
+    overdue = scope.filter(completed_at__isnull=True, due_at__lt=now)
+    upcoming = scope.filter(completed_at__isnull=True, due_at__gte=now)
+    total = scope.count()
+
+    late = [(row.completed_at - row.due_at).total_seconds() / 86400
+            for row in done.filter(completed_at__gt=F("due_at")).only("completed_at", "due_at")]
+
+    rows = []
+    for entry in (scope.values("created_by__username")
+                  .annotate(total=Count("id"), finished=Count("id", filter=Q(completed_at__isnull=False)))
+                  .order_by("-total")[:10]):
+        rows.append({"label": entry["created_by__username"] or str(tr("Nežinomas")),
+                     "total": entry["total"], "finished": entry["finished"],
+                     "percent": round(entry["finished"] * 100 / entry["total"]) if entry["total"] else 0})
+
+    return render(request, "analytics/reminders.html", {
+        "section": "reminders", "days": days, "periods": PERIODS,
+        "total": total, "done": done.count(), "overdue": overdue.count(), "upcoming": upcoming.count(),
+        "ring": charts.donut(done.count(), total),
+        "average_late": round(sum(late) / len(late), 1) if late else None,
+        "by_user": rows,
+    })
+
+
+@login_required
+def growth(request):
+    today = timezone.localdate()
+    months = 12
+    start = (today.replace(day=1) - timedelta(days=31 * (months - 1))).replace(day=1)
+    slots = _buckets(start, today, monthly=True)
+
+    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
+
+    created = {key: 0 for key, _label in slots}
+    for moment in people.values_list("created_at", flat=True):
+        key = _bucket_key(moment, monthly=True)
+        if key in created:
+            created[key] += 1
+    new_per_month = [{"label": label, "values": {"people": created[key]}} for key, label in slots]
+
+    running = people.filter(created_at__lt=timezone.make_aware(
+        datetime.combine(start, time.min), timezone.get_current_timezone())).count()
+    cumulative = []
+    for key, label in slots:
+        running += created[key]
+        cumulative.append({"label": label, "value": running})
+
+    total_people = people.count()
+    quality = [
+        {"label": tr("Su el. paštu"), "total": people.filter(emails__isnull=False).distinct().count()},
+        {"label": tr("Su telefonu"), "total": people.filter(phones__isnull=False).distinct().count()},
+        {"label": tr("Su įmone"), "total": people.filter(company_links__isnull=False).distinct().count()},
+        {"label": tr("Su atsakingu"), "total": people.exclude(owner__isnull=True, responsibles__isnull=True).distinct().count()},
+    ]
+    for row in quality:
+        row["percent"] = round(row["total"] * 100 / total_people) if total_people else 0
+
+    return render(request, "analytics/growth.html", {
+        "section": "growth",
+        "curve": charts.line_series(cumulative),
+        "new_chart": charts.stacked_bars(new_per_month, ["people"]),
+        "total_people": total_people, "total_companies": companies.count(),
+        "by_category": charts.share_rows([
+            {"label": row.name, "total": row.total} for row in
+            Category.objects.filter(people__in=people).annotate(total=Count("people")).order_by("-total")[:10]]),
+        "by_tag": charts.share_rows([
+            {"label": row.name, "total": row.total} for row in
+            Tag.objects.filter(people__in=people).annotate(total=Count("people")).order_by("-total")[:10]]),
+        "by_owner": charts.share_rows([
+            {"label": row["owner__username"] or str(tr("Be atsakingo")), "total": row["total"]}
+            for row in people.values("owner__username").annotate(total=Count("id")).order_by("-total")[:10]]),
+        "quality": quality,
+    })
+
+
+@login_required
+def system_usage(request):
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    days = _period(request)
+    since = timezone.now() - timedelta(days=days)
+    entries = AuditLog.objects.filter(created_at__gte=since)
+    labels = dict(AuditLog.ACTION_CHOICES)
+
+    return render(request, "analytics/system.html", {
+        "section": "system", "days": days, "periods": PERIODS,
+        "logins": entries.filter(action=AuditLog.LOGIN).count(),
+        "failed": entries.filter(action=AuditLog.LOGIN_FAILED).count(),
+        "imports": entries.filter(action=AuditLog.IMPORT).count(),
+        "exports": entries.filter(action=AuditLog.EXPORT).count(),
+        "by_action": charts.share_rows([
+            {"label": str(labels.get(row["action"], row["action"])), "total": row["total"]}
+            for row in entries.values("action").annotate(total=Count("id")).order_by("-total")]),
+        # Group by the account, not the stored label — a renamed user is still one user.
+        "by_actor": charts.share_rows([
+            {"label": row["actor__username"] or str(tr("Nežinomas")), "total": row["total"]}
+            for row in entries.exclude(actor__isnull=True).values("actor__username")
+            .annotate(total=Count("id")).order_by("-total")[:10]]),
+    })

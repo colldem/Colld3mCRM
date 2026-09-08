@@ -1,0 +1,25 @@
+{% load l10n %}{% comment %}Inline SVG chart. `chart` is built by contacts/charts.py.
+localize off: SVG coordinates must use a dot, never the locale decimal comma.{% endcomment %}
+{% localize off %}
+<div class="chart-wrap">
+  <svg class="chart" viewBox="0 0 {{ chart.width }} {{ chart.height }}" role="img"
+       aria-label="{{ chart_label }}">
+    {% for line in chart.axis %}
+      <line x1="{{ chart.x0 }}" y1="{{ line.y }}" x2="{{ chart.x1 }}" y2="{{ line.y }}" class="chart-grid"/>
+      <text x="{{ chart.x0|add:'-6' }}" y="{{ line.y|add:'4' }}" class="chart-axis" text-anchor="end">{{ line.value }}</text>
+    {% endfor %}
+    {% if chart.area %}
+      <polygon points="{{ chart.area }}" class="chart-area"/>
+      <polyline points="{{ chart.points }}" class="chart-line"/>
+      {% for dot in chart.dots %}<circle cx="{{ dot.x }}" cy="{{ dot.y }}" r="3" class="chart-dot"><title>{{ dot.label }}</title></circle>{% endfor %}
+    {% endif %}
+    {% for bar in chart.bars %}
+      <rect x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.width }}" height="{{ bar.height }}"
+            fill="{{ bar.fill }}" rx="2"><title>{{ bar.label }}</title></rect>
+    {% endfor %}
+    {% for label in chart.labels %}
+      <text x="{{ label.x }}" y="{{ label.y }}" class="chart-axis" text-anchor="middle">{{ label.text }}</text>
+    {% endfor %}
+  </svg>
+</div>
+{% endlocalize %}

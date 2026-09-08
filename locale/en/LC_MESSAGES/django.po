@@ -2055,3 +2055,120 @@ msgstr "Nothing here — good."
 
 msgid "Rodoma %(shown)s iš %(total)s — visą sąrašą rasite CSV eksporte."
 msgstr "Showing %(shown)s of %(total)s — the full list is in the CSV export."
+
+msgid "Iš to, ką CRM jau kaupia."
+msgstr "From what the CRM already collects."
+
+msgid "Analitikos skiltys"
+msgstr "Analytics sections"
+
+msgid "Laikotarpis:"
+msgstr "Period:"
+
+msgid "Komunikacija"
+msgstr "Communication"
+
+msgid "Priminimų vykdymas"
+msgstr "Reminder follow-through"
+
+msgid "Bazė ir augimas"
+msgstr "Base and growth"
+
+msgid "Sistemos naudojimas"
+msgstr "System usage"
+
+msgid "Veiklos laike"
+msgstr "Activity over time"
+
+msgid "Veiklos pagal tipą laike"
+msgstr "Activity by type over time"
+
+msgid "Sugrupuota pagal savaites."
+msgstr "Grouped by week."
+
+msgid "Sugrupuota pagal mėnesius."
+msgstr "Grouped by month."
+
+msgid "Vidutinis tarpas tarp veiklų: %(average_gap)s d."
+msgstr "Average gap between activities: %(average_gap)s days."
+
+msgid "Aktyviausi kontaktai"
+msgstr "Most active contacts"
+
+msgid "Aktyviausios įmonės"
+msgstr "Most active companies"
+
+msgid "Pagal naudotoją"
+msgstr "By user"
+
+msgid "Duomenų nėra."
+msgstr "No data."
+
+msgid "Nežinomas"
+msgstr "Unknown"
+
+msgid "Suplanuota"
+msgstr "Scheduled"
+
+msgid "Būsimi"
+msgstr "Upcoming"
+
+msgid "Atlikimo procentas"
+msgstr "Completion rate"
+
+msgid "Atlikta %(percent)s proc."
+msgstr "%(percent)s per cent done."
+
+msgid "Vidutiniškai atliekama %(average_late)s d. po termino."
+msgstr "Completed on average %(average_late)s days after the due date."
+
+msgid "Kontaktų skaičius"
+msgstr "Number of contacts"
+
+msgid "Kontaktų augimas per 12 mėnesių"
+msgstr "Contact growth over 12 months"
+
+msgid "Nauji kontaktai per mėnesį"
+msgstr "New contacts per month"
+
+msgid "Duomenų kokybė"
+msgstr "Data quality"
+
+msgid "Su el. paštu"
+msgstr "With an email"
+
+msgid "Su telefonu"
+msgstr "With a phone"
+
+msgid "Su įmone"
+msgstr "With a company"
+
+msgid "Su atsakingu"
+msgstr "With an owner"
+
+msgid "Pagal kategoriją"
+msgstr "By category"
+
+msgid "Pagal žymą"
+msgstr "By tag"
+
+msgid "Pagal atsakingą"
+msgstr "By owner"
+
+msgid "Prisijungimai"
+msgstr "Sign-ins"
+
+msgid "Nepavykę prisijungimai"
+msgstr "Failed sign-ins"
+
+msgid "Importai"
+msgstr "Imports"
+
+msgid "Eksportai"
+msgstr "Exports"
+
+msgid "Pagal veiksmą"
+msgstr "By action"
+
+msgid "Aktyviausi naudotojai"
+msgstr "Most active users"

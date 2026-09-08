@@ -172,6 +172,70 @@ class AnalyticsTests(TestCase):
         self.assertIn("Eksportui", body)
         self.assertIn("eksportui@example.lt", body)
 
+    def test_communication_page_buckets_activity_by_type_and_ranks_contacts(self):
+        loud = self._person("Kalbus")
+        quiet = self._person("Tylus")
+        for _ in range(3):
+            Activity.objects.create(person=loud, activity_type="call", text="Skambinta", created_by=self.user)
+        Activity.objects.create(person=quiet, activity_type="note", text="Pastaba", created_by=self.user)
+        response = self.client.get(reverse("contacts:analytics-communication"), {"days": 30})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["total"], 4)
+        legend = {row["label"]: row["total"] for row in response.context["legend"]}
+        self.assertEqual((legend["Skambutis"], legend["Pastaba"]), (3, 1))
+        self.assertEqual([row["label"] for row in response.context["top_people"]][0], str(loud))
+
+    def test_charts_emit_dot_decimals_not_the_locale_comma(self):
+        # SVG coordinates are invalid with a comma, so the chart block disables l10n.
+        person = self._person("Grafikui")
+        Activity.objects.create(person=person, activity_type="call", text="x", created_by=self.user)
+        body = self.client.get(reverse("contacts:analytics-communication")).content.decode()
+        start = body.index('class="chart"')
+        chart = body[start:body.index("</svg>", start)]
+        self.assertNotRegex(chart, r'(?:x|y|width|height)="[0-9]+,[0-9]+"')
+        self.assertRegex(chart, r'(?:x|y)="[0-9]+\.[0-9]+"')
+
+    def test_reminder_stats_count_done_overdue_and_upcoming(self):
+        person = self._person("Priminimams")
+        now = timezone.now()
+        Reminder.objects.create(person=person, text="Atlikta", created_by=self.user,
+                                due_at=now - timedelta(days=2), completed_at=now - timedelta(days=1))
+        Reminder.objects.create(person=person, text="Vėluoja", created_by=self.user,
+                                due_at=now - timedelta(days=1))
+        Reminder.objects.create(person=person, text="Būsimas", created_by=self.user,
+                                due_at=now + timedelta(days=1))
+        response = self.client.get(reverse("contacts:analytics-reminders"), {"days": 30})
+        self.assertEqual((response.context["total"], response.context["done"],
+                          response.context["overdue"], response.context["upcoming"]), (3, 1, 1, 1))
+        self.assertEqual(response.context["ring"]["percent"], 33)
+
+    def test_growth_page_reports_totals_and_data_quality(self):
+        with_email = self._person("Supastu")
+        EmailAddress.objects.create(person=with_email, email="su@example.lt")
+        self._person("Bepasto")
+        response = self.client.get(reverse("contacts:analytics-growth"))
+        self.assertEqual(response.context["total_people"], 2)
+        quality = {str(row["label"]): row["percent"] for row in response.context["quality"]}
+        self.assertEqual(quality["Su el. paštu"], 50)
+        self.assertEqual(quality["Su telefonu"], 0)
+        self.assertEqual(response.context["curve"]["dots"][-1]["label"].split(": ")[1], "2")
+
+    def test_system_usage_is_admin_only_and_counts_audit_actions(self):
+        from contacts.audit import log
+        from contacts.models import AuditLog
+
+        self.assertEqual(self.client.get(reverse("contacts:analytics-system")).status_code, 404)
+        self.user.is_superuser = True
+        self.user.save()
+        before = self.client.get(reverse("contacts:analytics-system"), {"days": 30}).context
+        log(AuditLog.LOGIN, actor=self.user)
+        log(AuditLog.LOGIN_FAILED, actor=None)
+        log(AuditLog.EXPORT, actor=self.user)
+        after = self.client.get(reverse("contacts:analytics-system"), {"days": 30}).context
+        self.assertEqual(after["logins"] - before["logins"], 1)
+        self.assertEqual(after["failed"] - before["failed"], 1)
+        self.assertEqual(after["exports"] - before["exports"], 1)
+
     def test_care_group_labels_follow_the_active_language(self):
         # The labels live in a module-level dict, so they must be lazily translated.
         self.assertContains(self.client.get(reverse("contacts:analytics-care")), "Nutilę kontaktai")

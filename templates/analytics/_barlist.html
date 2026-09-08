@@ -1,0 +1,11 @@
+{% load i18n %}
+{% comment %}Horizontal CSS bars: `rows` = [{label, total, share, url?}]{% endcomment %}
+<ul class="bar-list">
+  {% for row in rows %}
+    <li>
+      <span class="bar-label">{% if row.url %}<a href="{{ row.url }}">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}</span>
+      <span class="bar-track" aria-hidden="true">{% if row.share %}<i style="width:{{ row.share }}%"></i>{% endif %}</span>
+      <b>{{ row.total }}</b>
+    </li>
+  {% empty %}<li class="muted">{% translate 'Duomenų nėra.' %}</li>{% endfor %}
+</ul>
