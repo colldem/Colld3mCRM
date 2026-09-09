@@ -35,7 +35,7 @@ programoje: **Nustatymai → Dokumentacija**.
 - Automatikos taisyklės („kai kontaktas nutilo / liko be atsakingo / priminimas
   vėluoja → pranešti / priskirti / sukurti užduotį / pridėti žymą"), vykdomos fone.
 - REST API (`/api/v1/`, „Bearer" raktai iš Nustatymų → Integracijos) kontaktams,
-  įmonėms, veikloms ir priminimams skaityti/rašyti.
+  įmonėms, veikloms ir priminimams skaityti/rašyti; webhookai su HMAC parašu.
 - Veiksmų žurnalas (audit log). LT / EN sąsaja.
 
 El. paštas, gaunami laiškai ir Entra ID prisijungimas įjungiami ir suvedami

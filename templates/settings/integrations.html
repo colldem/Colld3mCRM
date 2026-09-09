@@ -43,4 +43,42 @@
     <div class="form-actions profile-form-actions"><button class="btn primary" type="submit">{% translate 'Sukurti raktą' %}</button></div>
   </form>
 </div>
+
+<div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% translate 'Webhooks' %}</h2><p>{% translate 'CRM POST’ina JSON į jūsų adresą, kai įvyksta pasirinktas įvykis. Antraštė X-CRM-Signature: sha256=HMAC(paslaptis, kūnas).' %}</p></div></div>
+
+  {% if new_secret %}
+  <div class="message" style="border-left-color:var(--success)"><strong>{% translate 'Webhook paslaptis — nukopijuokite dabar:' %}</strong><p><code style="user-select:all">{{ new_secret }}</code></p></div>
+  {% elif not secrets_available %}
+  <p class="message">{% translate 'CRM_SECRETS_KEY nenustatytas — webhookai bus siunčiami be parašo.' %}</p>
+  {% endif %}
+
+  {% if webhooks %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>{% translate 'Adresas' %}</th><th>{% translate 'Įvykiai' %}</th><th>{% translate 'Būsena' %}</th><th>{% translate 'Paskutinis' %}</th><th></th></tr></thead>
+    <tbody>{% for hook in webhooks %}<tr>
+      <td><code>{{ hook.target_url|truncatechars:44 }}</code></td>
+      <td>{{ hook.events|join:", " }}</td>
+      <td>{% if hook.active %}<span class="crm-label tag-color-1">{% translate 'aktyvus' %}</span>{% else %}<span class="muted">{% translate 'išjungtas' %}</span>{% endif %}{% if hook.failure_streak %} · {{ hook.failure_streak }} {% translate 'klaidų iš eilės' %}{% endif %}</td>
+      <td>{{ hook.last_delivery_at|date:datetime_format|default:"–" }}<br><small>{{ hook.last_status }}</small></td>
+      <td>
+        <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="op" value="test_webhook"><input type="hidden" name="webhook_id" value="{{ hook.pk }}"><button class="btn" type="submit">{% translate 'Bandyti' %}</button></form>
+        <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="op" value="toggle_webhook"><input type="hidden" name="webhook_id" value="{{ hook.pk }}"><button class="btn" type="submit">{% if hook.active %}{% translate 'Išjungti' %}{% else %}{% translate 'Įjungti' %}{% endif %}</button></form>
+        <form method="post" style="display:inline" onsubmit="return confirm('{% translate 'Pašalinti webhook?' %}')">{% csrf_token %}<input type="hidden" name="op" value="delete_webhook"><input type="hidden" name="webhook_id" value="{{ hook.pk }}"><button class="btn danger" type="submit">{% translate 'Šalinti' %}</button></form>
+      </td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+
+  <form method="post" class="profile-form" style="margin-top:16px">{% csrf_token %}<input type="hidden" name="op" value="create_webhook">
+    <div class="profile-fields">
+      <label class="wide">{% translate 'Adresas (https://…)' %}<input type="url" name="target_url" maxlength="500" required></label>
+    </div>
+    <fieldset style="border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;margin:0 0 12px;max-width:520px">
+      <legend style="font-size:var(--fs-xs);color:var(--muted)">{% translate 'Įvykiai' %}</legend>
+      {% for event in webhook_events %}<label style="display:inline-flex;gap:6px;margin:4px 12px 4px 0;font-weight:400"><input type="checkbox" name="events" value="{{ event }}" style="width:auto"> {{ event }}</label>{% endfor %}
+    </fieldset>
+    <div class="form-actions profile-form-actions"><button class="btn primary" type="submit">{% translate 'Pridėti webhook' %}</button></div>
+  </form>
+</div>
 {% endblock %}

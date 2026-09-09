@@ -718,3 +718,42 @@ class ApiToken(models.Model):
         """Return (raw_token, sha256_hex). The raw token is shown to the user once."""
         raw = "crmk_" + token_urlsafe(30)
         return raw, hashlib.sha256(raw.encode()).hexdigest()
+
+
+class Webhook(models.Model):
+    """An outbound HTTP hook (H4). The worker POSTs a JSON payload per event with
+    an HMAC-SHA256 signature. Auto-disabled after a long failure streak."""
+    EVENTS = [
+        "contact.created", "contact.updated", "contact.archived",
+        "company.created", "company.updated", "company.archived",
+        "activity.created", "reminder.created", "reminder.completed",
+    ]
+    target_url = models.URLField(max_length=500)
+    secret = models.CharField(max_length=500, blank=True, default="")  # encrypted
+    events = models.JSONField(default=list)
+    active = models.BooleanField(default=True)
+    failure_streak = models.PositiveIntegerField(default=0)
+    last_delivery_at = models.DateTimeField(null=True, blank=True)
+    last_status = models.CharField(max_length=60, blank=True, default="")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.target_url
+
+
+class WebhookDelivery(models.Model):
+    webhook = models.ForeignKey(Webhook, on_delete=models.CASCADE, related_name="deliveries")
+    event = models.CharField(max_length=40)
+    payload = models.JSONField(default=dict)
+    attempts = models.PositiveIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(db_index=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=60, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]

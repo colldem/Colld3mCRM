@@ -3003,3 +3003,48 @@ msgstr "Enter a token name."
 
 msgid "Raktas panaikintas."
 msgstr "Token revoked."
+
+msgid "Webhooks"
+msgstr "Webhooks"
+
+msgid "CRM POST’ina JSON į jūsų adresą, kai įvyksta pasirinktas įvykis. Antraštė X-CRM-Signature: sha256=HMAC(paslaptis, kūnas)."
+msgstr "The CRM POSTs JSON to your URL when a selected event happens. Header X-CRM-Signature: sha256=HMAC(secret, body)."
+
+msgid "Webhook paslaptis — nukopijuokite dabar:"
+msgstr "Webhook secret — copy it now:"
+
+msgid "CRM_SECRETS_KEY nenustatytas — webhookai bus siunčiami be parašo."
+msgstr "CRM_SECRETS_KEY is not set — webhooks will be sent unsigned."
+
+msgid "Įvykiai"
+msgstr "Events"
+
+msgid "Paskutinis"
+msgstr "Last"
+
+msgid "klaidų iš eilės"
+msgstr "failures in a row"
+
+msgid "Bandyti"
+msgstr "Test"
+
+msgid "Išjungti"
+msgstr "Disable"
+
+msgid "Pašalinti webhook?"
+msgstr "Delete this webhook?"
+
+msgid "Adresas (https://…)"
+msgstr "URL (https://…)"
+
+msgid "Pridėti webhook"
+msgstr "Add webhook"
+
+msgid "Nurodykite http(s) adresą ir bent vieną įvykį."
+msgstr "Enter an http(s) URL and at least one event."
+
+msgid "Webhook pašalintas."
+msgstr "Webhook deleted."
+
+msgid "Bandomasis siuntimas: %(s)s"
+msgstr "Test delivery: %(s)s"

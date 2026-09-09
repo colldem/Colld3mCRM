@@ -108,3 +108,96 @@ class ApiTests(TestCase):
         response = self.client.post("/settings/integrations/", {"op": "create", "name": "Zapier", "scope": "read"})
         self.assertContains(response, "crmk_")
         self.assertTrue(ApiToken.objects.filter(name="Zapier", scope="read").exists())
+
+
+class WebhookTests(TestCase):
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(
+            "wadmin", password="very-secure-password", is_superuser=True, is_staff=True)
+        self.person = Person.objects.create(first_name="Web", last_name="Hook", owner=self.admin)
+
+    def _hook(self, events=("contact.created", "reminder.completed"), **kw):
+        from contacts.models import Webhook
+        return Webhook.objects.create(target_url="https://example.test/hook", events=list(events), **kw)
+
+    def test_emit_queues_a_delivery_only_for_subscribers(self):
+        from contacts.models import WebhookDelivery
+        self._hook(events=["contact.created"])
+        self._hook(events=["company.created"])
+        Person.objects.create(first_name="Naujas", last_name="Zmogus")
+        self.assertEqual(WebhookDelivery.objects.filter(event="contact.created").count(), 1)
+
+    def test_archive_and_complete_events_fire(self):
+        from contacts.models import WebhookDelivery
+        self._hook(events=["contact.archived", "reminder.completed"])
+        self.person.deleted_at = timezone.now()
+        self.person.save(update_fields=["deleted_at", "updated_at"])
+        reminder = Reminder.objects.create(person=self.person, text="x", due_at=timezone.now(), created_by=self.admin)
+        self.client.force_login(self.admin)
+        self.client.post("/reminders/%s/complete/" % reminder.pk)
+        events = set(WebhookDelivery.objects.values_list("event", flat=True))
+        self.assertIn("contact.archived", events)
+        self.assertIn("reminder.completed", events)
+
+    def test_delivery_succeeds_signs_and_marks_delivered(self):
+        from unittest.mock import patch
+        from contacts.crypto import encrypt
+        from contacts.models import WebhookDelivery
+        from contacts.webhooks import deliver_pending
+        hook = self._hook(secret=encrypt("s3cr3t"))
+        Person.objects.create(first_name="Sign", last_name="Me")
+        captured = {}
+
+        class FakeResp:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            captured["sig"] = req.headers.get("X-crm-signature")
+            captured["event"] = req.headers.get("X-crm-event")
+            return FakeResp()
+
+        with patch("urllib.request.urlopen", fake_urlopen):
+            self.assertEqual(deliver_pending(), 1)
+        self.assertTrue(captured["sig"].startswith("sha256="))
+        self.assertEqual(captured["event"], "contact.created")
+        self.assertIsNotNone(WebhookDelivery.objects.first().delivered_at)
+
+    def test_repeated_failure_backs_off_then_auto_disables(self):
+        from unittest.mock import patch
+        from contacts.models import Webhook, WebhookDelivery
+        from contacts.webhooks import deliver_pending, MAX_ATTEMPTS, AUTO_DISABLE_STREAK
+        hook = self._hook()
+        Person.objects.create(first_name="Fail", last_name="Case")
+        delivery = WebhookDelivery.objects.get()
+
+        def boom(req, timeout=None):
+            raise OSError("nope")
+
+        with patch("urllib.request.urlopen", boom):
+            for _ in range(MAX_ATTEMPTS):
+                WebhookDelivery.objects.filter(pk=delivery.pk).update(next_attempt_at=timezone.now())
+                deliver_pending()
+        delivery.refresh_from_db()
+        self.assertTrue(delivery.status.startswith("failed"))
+        # keep failing new deliveries until the streak auto-disables the hook
+        with patch("urllib.request.urlopen", boom):
+            for _ in range(AUTO_DISABLE_STREAK):
+                d = WebhookDelivery.objects.create(webhook=hook, event="contact.created", payload={},
+                                                   next_attempt_at=timezone.now(), attempts=MAX_ATTEMPTS - 1)
+                deliver_pending()
+        hook.refresh_from_db()
+        self.assertFalse(hook.active)
+
+    def test_integrations_page_creates_a_webhook_with_a_secret(self):
+        from contacts.models import Webhook
+        self.client.force_login(self.admin)
+        response = self.client.post("/settings/integrations/", {
+            "op": "create_webhook", "target_url": "https://hooks.example.test/x",
+            "events": ["contact.created", "activity.created"],
+        })
+        self.assertEqual(response.status_code, 200)
+        hook = Webhook.objects.get()
+        self.assertEqual(sorted(hook.events), ["activity.created", "contact.created"])
+        self.assertTrue(hook.secret.startswith("enc:v1:"))

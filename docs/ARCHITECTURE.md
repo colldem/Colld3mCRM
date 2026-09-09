@@ -80,7 +80,8 @@ contacts/          vienintelė programa (app)
   sanitizers.py     safe_url / csv_safe
   automation.py     „kai X -> daryk Y" taisyklės (H2)
   api.py / api_urls.py  rankomis rašytas JSON REST API (H3), /api/v1/
-  management/commands/  send_notifications, extend_recurrences, fetch_mail, run_automations, ensure_admin
+  webhooks.py       išeinantys webhookai (H4): emit() signaluose, worker POST’ina
+  management/commands/  send_notifications, extend_recurrences, fetch_mail, run_automations, deliver_webhooks, ensure_admin
   migrations/      migracijos
 templates/         serverio pusėje renderinami šablonai (be JS karkaso)
 static/            css/ (app.css, theme.css), js/ (progresyvus enhancement), vendor/adminlte
@@ -155,6 +156,8 @@ Naršyklė ─HTTPS─▶ Tailscale (Serve, TLS terminacija, tik tailnet arba Fu
 - `AutomationRule` + `AutomationLog` — foninės „kai X → daryk Y" taisyklės ir jų
   veiksmų žurnalas (idempotencijos raktas).
 - `ApiToken` — REST API „Bearer" raktas (saugoma tik sha256; scope read / read_write).
+- `Webhook` + `WebhookDelivery` — išeinantys HTTP hookai ir jų pristatymo eilė
+  (HMAC parašas, backoff, auto-išjungimas).
 
 ---
 
@@ -217,6 +220,9 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 - REST API (`/api/v1/`): „Bearer" token'ai (DB saugo tik `sha256`), CSRF-exempt
   (be slapukų), scope `read` / `read_write`, veikia su token kūrėjo matomumu ir
   teisėmis; panaikinami Nustatymuose. Nėra dažnio ribojimo (tailnet vidinis).
+- Webhooks: adresai admino konfigūruojami (tik `http`/`https`), paslaptis DB
+  šifruota, kūnas pasirašomas HMAC-SHA256. Payload'e gali būti bet kurio įrašo
+  duomenys — endpoint'as turi būti patikimas. SSRF apsaugos nėra (admino atsakomybė).
 - Neprivalomas Microsoft Entra ID (OIDC) prisijungimas, įjungiamas Nustatymai →
   Prisijungimas: `contacts.oidc.EntraOIDCBackend` susieja pagal el. paštą su esama
   aktyvia paskyra; naujų nekuria, kol neįjungtas atskiras jungiklis. Plumbing'as
@@ -245,7 +251,7 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 | `crm-backup` | `postgres:17` | periodinis `pg_dump` (`scripts/backup.sh`) | `runtime/backups` |
 | `crm-tailscale` | `tailscale/tailscale` | TLS/tinklas, Tailscale Serve | `runtime/tailscale-state` |
 | `crm-web` | `crm-web:X.Y.Z` (vietinis build) | Django + Gunicorn | `runtime/media` |
-| `crm-worker` | `crm-web:X.Y.Z` (tas pats image) | foninis ciklas: `extend_recurrences`, `send_notifications`, `fetch_mail`, `run_automations` | `runtime/media` |
+| `crm-worker` | `crm-web:X.Y.Z` (tas pats image) | foninis ciklas: `extend_recurrences`, `send_notifications`, `fetch_mail`, `run_automations`, `deliver_webhooks` | `runtime/media` |
 
 - `crm-web` naudoja `network_mode: service:crm-tailscale` — dalijasi Tailscale
   konteinerio tinklu, todėl klausosi `:8080` už Tailscale Serve.

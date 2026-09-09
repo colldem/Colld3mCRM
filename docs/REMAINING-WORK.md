@@ -686,10 +686,20 @@ radiniais (apeiti `?force=1`). Matomumas ir teisės = token kūrėjo. Auditas
 `detail={"via": "api", "token": pavadinimas}`. Nustatymai → Integracijos
 (adminui) — raktų sąrašas + kūrimas (rodomas vieną kartą). Testai — `tests/test_api.py` (11).
 
-### H4. Webhooks — ⏳ suplanuota
-`Webhook` + `WebhookDelivery` modeliai, `contacts/webhooks.py` `emit()`,
-`manage.py deliver_webhooks` (worker) su HMAC parašu ir backoff. Secret per
-`crypto.py`.
+### H4. Webhooks — ✅ padaryta (`0.50.0`)
+`Webhook` + `WebhookDelivery` modeliai (secret DB šifruotas per `crypto.py`).
+`contacts/webhooks.py`: `emit(event, obj)` iš `post_save` signalų (`signals.py`)
+tik įrašo `WebhookDelivery` eilutę — pigus no-op, kai niekas neprenumeruoja.
+`manage.py deliver_webhooks` (worker loop): POST JSON, `X-CRM-Signature:
+sha256=HMAC`, 10 s timeout (`urllib`), backoff `[60,300,900,3600,10800,21600]` s,
+iki 6 bandymų; po 20 klaidų iš eilės webhook `active=False`. Įvykiai:
+`contact/company.created|updated|archived`, `activity.created`,
+`reminder.created|completed`. `reminder.completed` — aiškus `emit()` iš
+`reminder_complete` (view naudoja `.update()`). Masinis archyvavimas neemitina.
+Nustatymai → Integracijos: webhookų sąrašas + „Bandyti" (siunčia `ping` iškart).
+30 d. saugojimas. Testai — `tests/test_api.py` `WebhookTests` (5).
+
+**H skiltis baigta** (H1–H4).
 
 ---
 

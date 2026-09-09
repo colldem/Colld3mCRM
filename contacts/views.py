@@ -1408,13 +1408,16 @@ def settings_automations(request):
 
 @login_required
 def settings_integrations(request):
-    from .models import ApiToken
+    from .crypto import encrypt, secrets_available
+    from .models import ApiToken, Webhook
     from .permissions import is_admin
 
     if not is_admin(request.user):
         raise Http404
-    new_token = None
-    if request.method == "POST" and request.POST.get("op") == "create":
+    op = request.POST.get("op")
+    new_token = new_secret = None
+
+    if request.method == "POST" and op == "create":
         name = (request.POST.get("name") or "").strip()[:80]
         scope = request.POST.get("scope") if request.POST.get("scope") in {ApiToken.READ, ApiToken.READ_WRITE} else ApiToken.READ
         if name:
@@ -1424,7 +1427,7 @@ def settings_integrations(request):
             new_token = raw
         else:
             messages.error(request, tr("Nurodykite rakto pavadinimą."))
-    if request.method == "POST" and request.POST.get("op") == "revoke" and request.POST.get("token_id", "").isdigit():
+    elif request.method == "POST" and op == "revoke" and request.POST.get("token_id", "").isdigit():
         token = ApiToken.objects.filter(pk=request.POST["token_id"], revoked_at__isnull=True).first()
         if token:
             token.revoked_at = timezone.now()
@@ -1432,9 +1435,38 @@ def settings_integrations(request):
             audit_log(AuditLog.SETTING, request=request, target_type="api_token", target_label=token.name, new="revoked")
             messages.success(request, tr("Raktas panaikintas."))
         return redirect("contacts:settings-integrations")
+    elif request.method == "POST" and op == "create_webhook":
+        url = (request.POST.get("target_url") or "").strip()
+        events = [event for event in request.POST.getlist("events") if event in Webhook.EVENTS]
+        if url.startswith(("http://", "https://")) and events:
+            raw_secret = secrets.token_urlsafe(24) if secrets_available() else ""
+            Webhook.objects.create(target_url=url[:500], events=events,
+                                   secret=encrypt(raw_secret) if raw_secret else "", created_by=request.user)
+            audit_log(AuditLog.SETTING, request=request, target_type="webhook", target_label=url, new="created")
+            new_secret = raw_secret or None
+        else:
+            messages.error(request, tr("Nurodykite http(s) adresą ir bent vieną įvykį."))
+    elif request.method == "POST" and op in {"toggle_webhook", "delete_webhook", "test_webhook"} and request.POST.get("webhook_id", "").isdigit():
+        hook = Webhook.objects.filter(pk=request.POST["webhook_id"]).first()
+        if hook and op == "toggle_webhook":
+            hook.active = not hook.active
+            hook.failure_streak = 0
+            hook.save(update_fields=["active", "failure_streak"])
+        elif hook and op == "delete_webhook":
+            hook.delete()
+            messages.success(request, tr("Webhook pašalintas."))
+        elif hook and op == "test_webhook":
+            from .webhooks import post_once
+            ok, status = post_once(hook, "ping", {"event": "ping", "occurred_at": timezone.now().isoformat()})
+            (messages.success if ok else messages.error)(request, tr("Bandomasis siuntimas: %(s)s") % {"s": status})
+        return redirect("contacts:settings-integrations")
+
     return render(request, "settings/integrations.html", {
-        "settings_section": "integrations", "new_token": new_token,
+        "settings_section": "integrations", "new_token": new_token, "new_secret": new_secret,
         "tokens": ApiToken.objects.select_related("created_by"),
+        "webhooks": Webhook.objects.all(),
+        "webhook_events": Webhook.EVENTS,
+        "secrets_available": secrets_available(),
         "base_url": request.build_absolute_uri("/api/v1").rstrip("/"),
     })
 
@@ -1799,6 +1831,9 @@ def reminder_complete(request, pk):
         if updated:
             audit_log(AuditLog.UPDATE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                       old=reminder.text[:150], new=str(tr("atliktas")))
+            from .webhooks import emit
+            reminder.completed_at = now
+            emit("reminder.completed", reminder)
     return redirect(reminder.record or reverse("contacts:reminder-list"))
 
 
