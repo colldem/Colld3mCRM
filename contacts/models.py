@@ -250,6 +250,9 @@ class SystemSettings(models.Model):
     oidc_client_secret = models.CharField(max_length=500, blank=True, default="")
     oidc_create_users = models.BooleanField(default=False)
 
+    # Automation rules master switch (Settings -> Automatika).
+    automations_enabled = models.BooleanField(default=False)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
@@ -620,3 +623,68 @@ class IncomingMail(models.Model):
 
     def __str__(self):
         return f"{self.from_addr}: {self.subject}"
+
+
+class AutomationRule(models.Model):
+    """An admin-configured "when X, do Y" rule, evaluated by the worker (H2)."""
+    NO_OWNER = "contact_no_owner_after"
+    SILENT = "contact_silent_days"
+    NEVER = "contact_never_contacted_after"
+    OVERDUE = "reminder_overdue_days"
+    TRIGGER_CHOICES = (
+        (NO_OWNER, tr("Kontaktas be atsakingo ilgiau nei N dienų")),
+        (SILENT, tr("Su kontaktu (turinčiu atsakingą) nebendrauta N dienų")),
+        (NEVER, tr("Su nauju kontaktu nebendrauta N dienų")),
+        (OVERDUE, tr("Priminimas vėluoja N dienų")),
+    )
+
+    NOTIFY = "notify_user"
+    ASSIGN = "assign_owner"
+    CREATE_TASK = "create_task"
+    ADD_TAG = "add_tag"
+    ACTION_CHOICES = (
+        (NOTIFY, tr("Pranešti naudotojui el. paštu")),
+        (ASSIGN, tr("Priskirti atsakingą")),
+        (CREATE_TASK, tr("Sukurti užduotį")),
+        (ADD_TAG, tr("Pridėti žymą")),
+    )
+    # Which actions each trigger allows (the target type differs).
+    TRIGGER_ACTIONS = {
+        NO_OWNER: {NOTIFY, ASSIGN, CREATE_TASK, ADD_TAG},
+        SILENT: {NOTIFY, CREATE_TASK, ADD_TAG},
+        NEVER: {NOTIFY, ASSIGN, CREATE_TASK},
+        OVERDUE: {NOTIFY, CREATE_TASK},
+    }
+
+    name = models.CharField(max_length=100)
+    trigger = models.CharField(max_length=32, choices=TRIGGER_CHOICES)
+    threshold = models.PositiveIntegerField(default=1, help_text=tr("Dienų skaičius (N)."))
+    action = models.CharField(max_length=16, choices=ACTION_CHOICES)
+    action_user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    action_tag = models.ForeignKey(Tag, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    action_text = models.CharField(max_length=200, blank=True, default="")
+    action_due_days = models.PositiveIntegerField(default=3)
+    active = models.BooleanField(default=False)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class AutomationLog(models.Model):
+    """One record of an automation rule acting (or failing) on a target."""
+    rule = models.ForeignKey(AutomationRule, on_delete=models.CASCADE, related_name="events")
+    target_type = models.CharField(max_length=16)
+    target_id = models.CharField(max_length=32, db_index=True)
+    target_label = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=8, default="ok")  # "ok" / "error"
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]

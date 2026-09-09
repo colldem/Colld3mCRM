@@ -2796,3 +2796,159 @@ msgstr "Companies restored: %(n)s."
 
 msgid "Atkurta kontaktų: %(n)s."
 msgstr "Contacts restored: %(n)s."
+
+msgid "Automatika"
+msgstr "Automation"
+
+msgid "Taisyklės „kai X → daryk Y\". Vertinamos fone kas kelias minutes."
+msgstr "Rules of the form “when X → do Y”. Evaluated in the background every few minutes."
+
+msgid "Automatika įjungta"
+msgstr "Automation on"
+
+msgid "Bendras jungiklis. Išjungus, jokia taisyklė neveikia."
+msgstr "Master switch. When off, no rule runs."
+
+msgid "Sąlyga"
+msgstr "Condition"
+
+msgid "Dabar tinka"
+msgstr "Matches now"
+
+msgid "paskutinį kartą"
+msgstr "last run"
+
+msgid "aktyvi"
+msgstr "active"
+
+msgid "sustabdyta"
+msgstr "paused"
+
+msgid "Sustabdyti"
+msgstr "Pause"
+
+msgid "Įjungti"
+msgstr "Enable"
+
+msgid "Keisti"
+msgstr "Edit"
+
+msgid "Pašalinti taisyklę?"
+msgstr "Delete this rule?"
+
+msgid "Šalinti"
+msgstr "Delete"
+
+msgid "Veiksmų žurnalas"
+msgstr "Activity log"
+
+msgid "Taisyklių dar nėra."
+msgstr "No rules yet."
+
+msgid "Keisti taisyklę"
+msgstr "Edit rule"
+
+msgid "Nauja taisyklė"
+msgstr "New rule"
+
+msgid "Naują taisyklę įjunkite sąraše. Pirmą kartą ji suveiks visiems tinkantiems įrašams."
+msgstr "Enable a new rule in the list. The first run acts on every matching record."
+
+msgid "Priskirti atsakingą ir pridėti žymą galima tik kontaktų sąlygoms. „Pranešti\" ir „Priskirti\" reikalauja naudotojo, „Pridėti žymą\" — žymos."
+msgstr "Assign owner and add tag only apply to contact conditions. “Notify” and “Assign” need a user; “Add tag” needs a tag."
+
+msgid "Automatikos žurnalas"
+msgstr "Automation log"
+
+msgid "Ką ir kada padarė taisyklės. Senesni nei 90 dienų įrašai išvalomi."
+msgstr "What the rules did and when. Entries older than 90 days are cleared."
+
+msgid "Visos taisyklės"
+msgstr "All rules"
+
+msgid "Atgal į taisykles"
+msgstr "Back to rules"
+
+msgid "Laikas"
+msgstr "Time"
+
+msgid "Taisyklė"
+msgstr "Rule"
+
+msgid "AUTOMATINĖ TAISYKLĖ"
+msgstr "AUTOMATION RULE"
+
+msgid "Tvarkyti taisykles"
+msgstr "Manage rules"
+
+msgid "Automatinė taisyklė"
+msgstr "Automation rule"
+
+msgid "Sąlyga (kada)"
+msgstr "Condition (when)"
+
+msgid "N (dienų)"
+msgstr "N (days)"
+
+msgid "Veiksmas (ką)"
+msgstr "Action (what)"
+
+msgid "Naudotojas (pranešimui / priskyrimui / vykdytojui)"
+msgstr "User (for notify / assign / assignee)"
+
+msgid "Užduoties tekstas ({vardas} pakeičiamas kontaktu)"
+msgstr "Task text ({vardas} is replaced with the contact)"
+
+msgid "Šis veiksmas netinka pasirinktai sąlygai."
+msgstr "This action does not fit the chosen condition."
+
+msgid "Nurodykite naudotoją."
+msgstr "Choose a user."
+
+msgid "Nurodykite žymą."
+msgstr "Choose a tag."
+
+msgid "Taisyklė pašalinta."
+msgstr "Rule deleted."
+
+msgid "Taisyklė išsaugota. Įjunkite ją sąraše."
+msgstr "Rule saved. Enable it in the list."
+
+msgid "Automatinė taisyklė: %s"
+msgstr "Automation rule: %s"
+
+msgid "Automatinė užduotis"
+msgstr "Automatic task"
+
+msgid "Užduoties terminas po (dienų)"
+msgstr "Task due in (days)"
+
+msgid "Kontaktas be atsakingo ilgiau nei N dienų"
+msgstr "Contact without an owner for more than N days"
+
+msgid "Su kontaktu (turinčiu atsakingą) nebendrauta N dienų"
+msgstr "No contact for N days (contact has an owner)"
+
+msgid "Su nauju kontaktu nebendrauta N dienų"
+msgstr "No contact with a new contact for N days"
+
+msgid "Priminimas vėluoja N dienų"
+msgstr "Reminder is N days overdue"
+
+msgid "Pranešti naudotojui el. paštu"
+msgstr "Notify a user by email"
+
+msgid "Priskirti atsakingą"
+msgstr "Assign an owner"
+
+msgid "Pridėti žymą"
+msgstr "Add a tag"
+
+msgid "Dienų skaičius (N)."
+msgstr "Number of days (N)."
+
+msgid "Sąlyga:"
+msgstr "Condition:"
+
+msgid "Įrašas:"
+msgstr "Record:"

@@ -50,7 +50,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
-  SystemSettings, IncomingMail.
+  SystemSettings, IncomingMail, AutomationRule, AutomationLog.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
   darbastalis ir analitika; `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
@@ -62,9 +62,11 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `mailfetch.py` + `management/commands/fetch_mail.py` — IMAP gautų laiškų prisegimas;
   `oidc.py` — Microsoft Entra ID (OIDC) prisijungimo backend'as ir view'ai;
   `integrations.py` — efektyvi SMTP/IMAP/OIDC konfigūracija (DB + `.env` fallback);
-  `crypto.py` — integracijų slaptažodžių šifravimas (`CRM_SECRETS_KEY`).
-- Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`) vykdo
-  `crm-worker` paslauga `compose.yaml` (ciklas kas `WORKER_INTERVAL_SECONDS` s).
+  `crypto.py` — integracijų slaptažodžių šifravimas (`CRM_SECRETS_KEY`);
+  `automation.py` + `management/commands/run_automations.py` — „kai X → daryk Y" taisyklės.
+- Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`,
+  `run_automations`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
+  `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
 - `docs/DEPLOYMENT-UGREEN.md` — diegimo procedūra; prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.

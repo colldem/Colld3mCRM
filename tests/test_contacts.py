@@ -3385,3 +3385,112 @@ class IntegrationConfigTests(TestCase):
         self.client.force_login(get_user_model().objects.create_user("plain", password="very-secure-password"))
         for name in ("settings-notifications", "settings-incoming-mail", "settings-login"):
             self.assertEqual(self.client.get(reverse("contacts:%s" % name)).status_code, 404)
+
+
+class AutomationTests(TestCase):
+    def setUp(self):
+        from contacts.models import SystemSettings, UserProfile
+        self.admin = get_user_model().objects.create_user(
+            "vadovas", password="very-secure-password", email="vadovas@example.lt", is_superuser=True, is_staff=True)
+        UserProfile.objects.create(user=self.admin, timezone="Europe/Vilnius")
+        self.sys = SystemSettings.load()
+        self.sys.automations_enabled = True
+        self.sys.save()
+        self.person = Person.objects.create(first_name="Senas", last_name="Kontaktas", created_by=self.admin)
+        Person.objects.filter(pk=self.person.pk).update(created_at=timezone.now() - timedelta(days=10))
+
+    def _rule(self, **kw):
+        from contacts.models import AutomationRule
+        data = dict(name="Taisyklė", trigger=AutomationRule.NO_OWNER, threshold=1,
+                    action=AutomationRule.NOTIFY, action_user=self.admin, active=True, created_by=self.admin)
+        data.update(kw)
+        return AutomationRule.objects.create(**data)
+
+    def _run(self):
+        from contacts.automation import run_all
+        return run_all()
+
+    def test_no_owner_rule_notifies_the_user_once_per_period(self):
+        from django.core import mail
+        self._rule()
+        self.assertEqual(self._run(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("vadovas@example.lt", mail.outbox[0].to)
+        self._run()
+        self.assertEqual(len(mail.outbox), 1)  # guard: not again within threshold days
+
+    def test_assign_owner_action_clears_the_condition(self):
+        from contacts.models import AutomationRule
+        mate = get_user_model().objects.create_user("kolega48", password="very-secure-password")
+        self._rule(action=AutomationRule.ASSIGN, action_user=mate)
+        self._run()
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.owner, mate)
+        from contacts.models import AuditLog
+        self.assertTrue(AuditLog.objects.filter(target_id=str(self.person.pk), field="Atsakingas",
+                                                detail__automation="Taisyklė").exists())
+
+    def test_silent_contact_rule_creates_a_task_with_the_name_substituted(self):
+        from contacts.models import AutomationRule
+        mate = get_user_model().objects.create_user("kolega48b", password="very-secure-password")
+        self.person.owner = mate
+        self.person.save()
+        Activity.objects.create(person=self.person, text="senas skambutis", created_by=self.admin)
+        Activity.objects.filter(person=self.person).update(created_at=timezone.now() - timedelta(days=40))
+        self._rule(trigger=AutomationRule.SILENT, threshold=30, action=AutomationRule.CREATE_TASK,
+                   action_user=None, action_text="Perskambinti {vardas}")
+        self._run()
+        self.assertTrue(Reminder.objects.filter(person=self.person, text="Perskambinti Senas Kontaktas",
+                                                assigned_to=mate).exists())
+
+    def test_nothing_runs_while_the_global_switch_is_off(self):
+        from django.core import mail
+        self.sys.automations_enabled = False
+        self.sys.save()
+        self._rule()
+        self.assertEqual(self._run(), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_inactive_rule_is_skipped(self):
+        from django.core import mail
+        self._rule(active=False)
+        self.assertEqual(self._run(), 0)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_one_failing_target_does_not_stop_the_rule(self):
+        from contacts.models import AutomationLog
+        broken = get_user_model().objects.create_user("beemail", password="very-secure-password")  # no email
+        other = Person.objects.create(first_name="Kitas", last_name="Naujokas")
+        Person.objects.filter(pk=other.pk).update(created_at=timezone.now() - timedelta(days=10))
+        self._rule(action_user=broken)
+        self._run()
+        self.assertEqual(AutomationLog.objects.filter(status="error").count(), 2)
+
+    def test_actions_are_capped_per_run(self):
+        from contacts.automation import _PER_RULE_CAP
+        from contacts.models import AutomationLog
+        people = [Person(first_name=f"N{n:03d}", last_name="Naujas") for n in range(_PER_RULE_CAP + 5)]
+        Person.objects.bulk_create(people)
+        Person.objects.filter(last_name="Naujas").update(created_at=timezone.now() - timedelta(days=10))
+        self._rule()
+        self._run()
+        self.assertEqual(AutomationLog.objects.count(), _PER_RULE_CAP)
+
+    def test_settings_page_is_admin_only_and_lists_match_counts(self):
+        self._rule()
+        self.client.force_login(get_user_model().objects.create_user("eilinis", password="very-secure-password"))
+        self.assertEqual(self.client.get(reverse("contacts:settings-automations")).status_code, 404)
+        self.client.force_login(self.admin)
+        resp = self.client.get(reverse("contacts:settings-automations"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Taisyklė")
+
+    def test_form_rejects_an_action_that_does_not_fit_the_trigger(self):
+        from contacts.forms import AutomationRuleForm
+        from contacts.models import AutomationRule
+        form = AutomationRuleForm(data={
+            "name": "X", "trigger": AutomationRule.OVERDUE, "threshold": 7,
+            "action": AutomationRule.ADD_TAG, "action_due_days": 3,
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("action", form.errors)

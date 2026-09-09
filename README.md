@@ -32,6 +32,8 @@ programoje: **Nustatymai → Dokumentacija**.
 - Prisijungimas per Microsoft Entra ID (OIDC) šalia vietinio prisijungimo.
 - Žymos, kategorijos, dinaminiai laukai; dublikatų aptikimas ir sujungimas.
 - CSV / XLSX kontaktų importas, CSV eksportas, pilna ZIP atsarginė kopija.
+- Automatikos taisyklės („kai kontaktas nutilo / liko be atsakingo / priminimas
+  vėluoja → pranešti / priskirti / sukurti užduotį / pridėti žymą"), vykdomos fone.
 - Veiksmų žurnalas (audit log). LT / EN sąsaja.
 
 El. paštas, gaunami laiškai ir Entra ID prisijungimas įjungiami ir suvedami

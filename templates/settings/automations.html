@@ -1,0 +1,56 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div><h2>{% translate 'Automatika' %}</h2><p>{% translate 'Taisyklės „kai X → daryk Y". Vertinamos fone kas kelias minutes.' %}</p></div>
+</div>
+
+<div class="setting-toggle" style="margin-bottom:20px">
+  <form method="post" style="display:contents">{% csrf_token %}<input type="hidden" name="op" value="toggle_global">
+    <input type="checkbox" onchange="this.form.submit()" {% if automations_enabled %}checked{% endif %} aria-label="{% translate 'Automatika įjungta' %}">
+    <span><strong>{% translate 'Automatika įjungta' %}</strong><small>{% translate 'Bendras jungiklis. Išjungus, jokia taisyklė neveikia.' %}</small></span>
+  </form>
+</div>
+
+{% if rules %}
+<div class="table-wrap"><table>
+  <thead><tr><th>{% translate 'Pavadinimas' %}</th><th>{% translate 'Sąlyga' %}</th><th>{% translate 'Veiksmas' %}</th><th>{% translate 'Dabar tinka' %}</th><th>{% translate 'Būsena' %}</th><th></th></tr></thead>
+  <tbody>{% for rule in rules %}<tr>
+    <td><strong>{{ rule.name }}</strong>{% if rule.last_run_at %}<small>{% translate 'paskutinį kartą' %} {{ rule.last_run_at|date:datetime_format }}</small>{% endif %}</td>
+    <td>{{ rule.get_trigger_display }}{% if rule.threshold %} · N={{ rule.threshold }}{% endif %}</td>
+    <td>{{ rule.get_action_display }}{% if rule.action_user %} → {{ rule.action_user.get_full_name|default:rule.action_user.username }}{% endif %}{% if rule.action_tag %} → {{ rule.action_tag.name }}{% endif %}</td>
+    <td>{{ rule.match_count }}</td>
+    <td>{% if rule.active %}<span class="crm-label tag-color-1">{% translate 'aktyvi' %}</span>{% else %}<span class="muted">{% translate 'sustabdyta' %}</span>{% endif %}</td>
+    <td>
+      <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="op" value="toggle"><input type="hidden" name="rule_id" value="{{ rule.pk }}"><button class="btn" type="submit">{% if rule.active %}{% translate 'Sustabdyti' %}{% else %}{% translate 'Įjungti' %}{% endif %}</button></form>
+      <a class="btn" href="?edit={{ rule.pk }}">{% translate 'Keisti' %}</a>
+      <form method="post" style="display:inline" onsubmit="return confirm('{% translate 'Pašalinti taisyklę?' %}')">{% csrf_token %}<input type="hidden" name="op" value="delete"><input type="hidden" name="rule_id" value="{{ rule.pk }}"><button class="btn danger" type="submit">{% translate 'Šalinti' %}</button></form>
+    </td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+<p style="margin-top:12px"><a class="btn" href="{% url 'contacts:settings-automation-log' %}">{% translate 'Veiksmų žurnalas' %}</a></p>
+{% else %}
+<p class="muted">{% translate 'Taisyklių dar nėra.' %}</p>
+{% endif %}
+
+<div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% if editing %}{% translate 'Keisti taisyklę' %}{% else %}{% translate 'Nauja taisyklė' %}{% endif %}</h2><p>{% translate 'Naują taisyklę įjunkite sąraše. Pirmą kartą ji suveiks visiems tinkantiems įrašams.' %}</p></div></div>
+  <form method="post" class="profile-form">{% csrf_token %}<input type="hidden" name="op" value="save">
+    {{ form.non_field_errors }}
+    <div class="profile-fields">
+      <label class="wide">{{ form.name.label }}{{ form.name }}{{ form.name.errors }}</label>
+      <label>{{ form.trigger.label }}{{ form.trigger }}{{ form.trigger.errors }}</label>
+      <label>{{ form.threshold.label }}{{ form.threshold }}{{ form.threshold.errors }}</label>
+      <label class="wide">{{ form.action.label }}{{ form.action }}{{ form.action.errors }}</label>
+      <label class="wide">{{ form.action_user.label }}{{ form.action_user }}{{ form.action_user.errors }}</label>
+      <label>{{ form.action_tag.label }}{{ form.action_tag }}{{ form.action_tag.errors }}</label>
+      <label class="wide">{{ form.action_text.label }}{{ form.action_text }}{{ form.action_text.errors }}</label>
+      <label>{{ form.action_due_days.label }}{{ form.action_due_days }}{{ form.action_due_days.errors }}</label>
+    </div>
+    <p class="muted" style="font-size:var(--fs-xs)">{% translate 'Priskirti atsakingą ir pridėti žymą galima tik kontaktų sąlygoms. „Pranešti" ir „Priskirti" reikalauja naudotojo, „Pridėti žymą" — žymos.' %}</p>
+    <div class="form-actions profile-form-actions">
+      {% if editing %}<a class="btn" href="{% url 'contacts:settings-automations' %}">{% translate 'Atšaukti' %}</a>{% endif %}
+      <button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% load i18n %}{% translate 'AUTOMATINĖ TAISYKLĖ' %}: {{ rule_name }}
+
+{% translate 'Sąlyga' %}: {{ trigger }}
+{% translate 'Įrašas' %}: {{ target }}
+{{ link }}
+
+{% translate 'Tvarkyti taisykles' %}: {{ manage_link }}

@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
 from . import permissions
-from .models import Activity, Category, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
+from .models import Activity, AutomationRule, Category, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
 
 
 class UserProfileForm(forms.Form):
@@ -197,6 +197,40 @@ class ImportSettingsForm(forms.ModelForm):
             "import_delimiter": tr("CSV skyriklis"),
             "import_encoding": tr("CSV koduotė"),
         }
+
+
+class AutomationRuleForm(forms.ModelForm):
+    class Meta:
+        model = AutomationRule
+        fields = ["name", "trigger", "threshold", "action", "action_user",
+                  "action_tag", "action_text", "action_due_days"]
+        labels = {
+            "name": tr("Pavadinimas"),
+            "trigger": tr("Sąlyga (kada)"),
+            "threshold": tr("N (dienų)"),
+            "action": tr("Veiksmas (ką)"),
+            "action_user": tr("Naudotojas (pranešimui / priskyrimui / vykdytojui)"),
+            "action_tag": tr("Žyma"),
+            "action_text": tr("Užduoties tekstas ({vardas} pakeičiamas kontaktu)"),
+            "action_due_days": tr("Užduoties terminas po (dienų)"),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["action_user"].queryset = get_user_model().objects.filter(is_active=True).order_by("first_name", "last_name", "username")
+        self.fields["action_tag"].queryset = Tag.objects.order_by("name")
+
+    def clean(self):
+        cleaned = super().clean()
+        trigger, action = cleaned.get("trigger"), cleaned.get("action")
+        allowed = AutomationRule.TRIGGER_ACTIONS.get(trigger, set())
+        if trigger and action and action not in allowed:
+            self.add_error("action", tr("Šis veiksmas netinka pasirinktai sąlygai."))
+        if action in (AutomationRule.NOTIFY, AutomationRule.ASSIGN) and not cleaned.get("action_user"):
+            self.add_error("action_user", tr("Nurodykite naudotoją."))
+        if action == AutomationRule.ADD_TAG and not cleaned.get("action_tag"):
+            self.add_error("action_tag", tr("Nurodykite žymą."))
+        return cleaned
 
 
 class PersonForm(forms.ModelForm):

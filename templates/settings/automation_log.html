@@ -1,0 +1,32 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div><h2>{% translate 'Automatikos žurnalas' %}</h2><p>{% translate 'Ką ir kada padarė taisyklės. Senesni nei 90 dienų įrašai išvalomi.' %}</p></div>
+</div>
+
+<form method="get" class="filter-row" style="margin-bottom:16px">
+  <select name="rule" onchange="this.form.submit()">
+    <option value="">{% translate 'Visos taisyklės' %}</option>
+    {% for rule in rules %}<option value="{{ rule.pk }}" {% if rule.pk|stringformat:'s' == rule_id %}selected{% endif %}>{{ rule.name }}</option>{% endfor %}
+  </select>
+  <a class="btn" href="{% url 'contacts:settings-automations' %}">{% translate 'Atgal į taisykles' %}</a>
+</form>
+
+<div class="table-wrap"><table>
+  <thead><tr><th>{% translate 'Laikas' %}</th><th>{% translate 'Taisyklė' %}</th><th>{% translate 'Įrašas' %}</th><th>{% translate 'Būsena' %}</th></tr></thead>
+  <tbody>{% for event in page %}<tr>
+    <td>{{ event.created_at|date:datetime_format }}</td>
+    <td>{{ event.rule.name }}</td>
+    <td>{{ event.target_label }}</td>
+    <td>{% if event.status == 'ok' %}{{ event.rule.get_action_display }}{% else %}<span class="error">{{ event.detail.error|default:'klaida' }}</span>{% endif %}</td>
+  </tr>{% empty %}<tr><td colspan="4" class="empty">{% translate 'Įrašų nėra.' %}</td></tr>{% endfor %}</tbody>
+</table></div>
+
+{% if page.has_other_pages %}
+<p style="margin-top:12px">
+  {% if page.has_previous %}<a class="btn" href="?rule={{ rule_id }}&page={{ page.previous_page_number }}">←</a>{% endif %}
+  <span class="muted">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="btn" href="?rule={{ rule_id }}&page={{ page.next_page_number }}">→</a>{% endif %}
+</p>
+{% endif %}
+{% endblock %}

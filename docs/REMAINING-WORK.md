@@ -662,12 +662,18 @@ Auditas — viena santraukos eilutė su `detail={"count": n}`. Pataisyta latenti
 `ValueError` (`filter(pk="")`) esamuose bulk helperiuose (`_int_or_none`).
 Testai — `ContactViewTests` (6 nauji).
 
-### H2. Automatika — ⏳ suplanuota
+### H2. Automatika — ✅ padaryta (`0.48.0`)
 `AutomationRule` + `AutomationLog` modeliai, `contacts/automation.py`,
-`manage.py run_automations` (worker). Trigeriai iš `_care_querysets` stiliaus
-užklausų; veiksmai: pranešti / priskirti / sukurti užduotį / pridėti žymą.
-`SystemSettings.automations_enabled` kaip kill switch. Idempotencija per
-`AutomationLog`. Nustatymai → Automatika (adminui).
+`manage.py run_automations` (worker loop). Sąlygos: kontaktas be atsakingo N d.,
+nutilęs kontaktas su atsakingu N d., naujas kontaktas be bendravimo N d.,
+priminimas vėluoja N d. Veiksmai: `notify_user` (el. paštu, `email/automation.*`),
+`assign_owner`, `create_task` (`{vardas}` pakeitimas), `add_tag` (3-cap).
+`SystemSettings.automations_enabled` — kill switch. Idempotencija: nėra
+`AutomationLog` per paskutines `threshold` d. Riba 200 veiksmų/taisyklei/paleidimą;
+klaida viename taikinyje nestabdo ciklo. Nustatymai → Automatika + „Automatikos
+žurnalas" (adminui). Auditas su `detail={"automation": pavadinimas}`. Testai —
+`AutomationTests` (9). Šalutinis pataisymas: `audit.log(detail=...)` dabar
+priimamas kaip aiškus argumentas (buvo įdedamas į `{"detail": {...}}`).
 
 ### H3. REST API + raktai — ⏳ suplanuota
 `contacts/api.py` (rankinis JSON, be DRF), `ApiToken` modelis (sha256, scope

@@ -1355,6 +1355,77 @@ def settings_login(request):
     })
 
 
+@login_required
+def settings_automations(request):
+    from .automation import matching_count
+    from .forms import AutomationRuleForm
+    from .models import AutomationRule
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    system = SystemSettings.load()
+    op = request.POST.get("op")
+    if request.method == "POST" and op == "toggle_global":
+        system.automations_enabled = not system.automations_enabled
+        system.save(update_fields=["automations_enabled", "updated_at"])
+        audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                  target_label=str(tr("Automatika")), new="enabled" if system.automations_enabled else "disabled")
+        return redirect("contacts:settings-automations")
+    if request.method == "POST" and op == "toggle" and request.POST.get("rule_id", "").isdigit():
+        rule = AutomationRule.objects.filter(pk=request.POST["rule_id"]).first()
+        if rule:
+            rule.active = not rule.active
+            rule.save(update_fields=["active"])
+            audit_log(AuditLog.SETTING, request=request, target_type="automation", target_label=rule.name,
+                      new="active" if rule.active else "paused")
+        return redirect("contacts:settings-automations")
+    if request.method == "POST" and op == "delete" and request.POST.get("rule_id", "").isdigit():
+        AutomationRule.objects.filter(pk=request.POST["rule_id"]).delete()
+        messages.success(request, tr("Taisyklė pašalinta."))
+        return redirect("contacts:settings-automations")
+
+    editing = AutomationRule.objects.filter(pk=request.GET.get("edit", "")).first() if request.GET.get("edit", "").isdigit() else None
+    form = AutomationRuleForm(request.POST or None, instance=editing)
+    if request.method == "POST" and op == "save" and form.is_valid():
+        rule = form.save(commit=False)
+        if not rule.pk:
+            rule.created_by = request.user
+        rule.save()
+        audit_log(AuditLog.SETTING, request=request, target_type="automation", target_label=rule.name,
+                  new=", ".join(form.changed_data) or "created")
+        messages.success(request, tr("Taisyklė išsaugota. Įjunkite ją sąraše."))
+        return redirect("contacts:settings-automations")
+
+    rules = list(AutomationRule.objects.select_related("action_user", "action_tag"))
+    for rule in rules:
+        rule.match_count = matching_count(rule)
+    return render(request, "settings/automations.html", {
+        "settings_section": "automations", "rules": rules, "form": form, "editing": editing,
+        "automations_enabled": system.automations_enabled,
+    })
+
+
+@login_required
+def settings_automation_log(request):
+    from .models import AutomationLog, AutomationRule
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    events = AutomationLog.objects.select_related("rule")
+    rule_id = request.GET.get("rule", "")
+    if rule_id.isdigit():
+        events = events.filter(rule_id=rule_id)
+    from django.core.paginator import Paginator
+
+    page = Paginator(events, 100).get_page(request.GET.get("page"))
+    return render(request, "settings/automation_log.html", {
+        "settings_section": "automations", "page": page,
+        "rules": AutomationRule.objects.all(), "rule_id": rule_id,
+    })
+
+
 def calendar_feed(request, token):
     profile = UserProfile.objects.filter(calendar_token=token).select_related("user").first()
     if profile is None or not profile.user.is_active:

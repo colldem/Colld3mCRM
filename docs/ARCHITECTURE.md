@@ -76,7 +76,8 @@ contacts/          vienintelė programa (app)
   integrations.py   efektyvi SMTP / IMAP / OIDC konfigūracija (DB + .env fallback)
   crypto.py         integracijų slaptažodžių šifravimas (Fernet, CRM_SECRETS_KEY)
   sanitizers.py     safe_url / csv_safe
-  management/commands/  send_notifications, extend_recurrences, fetch_mail, ensure_admin
+  automation.py     „kai X -> daryk Y" taisyklės (H2)
+  management/commands/  send_notifications, extend_recurrences, fetch_mail, run_automations, ensure_admin
   migrations/      migracijos
 templates/         serverio pusėje renderinami šablonai (be JS karkaso)
 static/            css/ (app.css, theme.css), js/ (progresyvus enhancement), vendor/adminlte
@@ -147,6 +148,9 @@ Naršyklė ─HTTPS─▶ Tailscale (Serve, TLS terminacija, tik tailnet arba Fu
 - `DuplicateSettings`, `SystemSettings` — vienaeilės konfigūracijos.
 - `AuditLog` — veiksmų žurnalas (aktorius, veiksmas, taikinio tipas/ID/etiketė,
   laukas, sena/nauja reikšmė, IP, kelias).
+- `IncomingMail` — nepriskirtas IMAP laiškas (rankiniam priskyrimui).
+- `AutomationRule` + `AutomationLog` — foninės „kai X → daryk Y" taisyklės ir jų
+  veiksmų žurnalas (idempotencijos raktas).
 
 ---
 
@@ -234,7 +238,7 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 | `crm-backup` | `postgres:17` | periodinis `pg_dump` (`scripts/backup.sh`) | `runtime/backups` |
 | `crm-tailscale` | `tailscale/tailscale` | TLS/tinklas, Tailscale Serve | `runtime/tailscale-state` |
 | `crm-web` | `crm-web:X.Y.Z` (vietinis build) | Django + Gunicorn | `runtime/media` |
-| `crm-worker` | `crm-web:X.Y.Z` (tas pats image) | foninis ciklas: `extend_recurrences`, `send_notifications`, `fetch_mail` | `runtime/media` |
+| `crm-worker` | `crm-web:X.Y.Z` (tas pats image) | foninis ciklas: `extend_recurrences`, `send_notifications`, `fetch_mail`, `run_automations` | `runtime/media` |
 
 - `crm-web` naudoja `network_mode: service:crm-tailscale` — dalijasi Tailscale
   konteinerio tinklu, todėl klausosi `:8080` už Tailscale Serve.

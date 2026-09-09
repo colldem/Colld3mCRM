@@ -20,8 +20,13 @@ def _actor_label(actor):
 
 
 def log(action, *, request=None, actor=None, target=None, target_type="", target_id="",
-        target_label="", field="", old=None, new=None, ip=None, **detail):
-    """Write one audit row. `target` fills type/id/label from a model instance."""
+        target_label="", field="", old=None, new=None, ip=None, detail=None, **extra):
+    """Write one audit row. `target` fills type/id/label from a model instance.
+
+    Extra context goes in `detail` (a dict) and/or as loose keyword arguments;
+    both are merged into the stored JSON.
+    """
+    detail = {**(detail or {}), **extra}
     if actor is None and request is not None:
         actor = getattr(request, "user", None)
     if actor is not None and not getattr(actor, "is_authenticated", False):

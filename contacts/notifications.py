@@ -110,3 +110,18 @@ def send_digest(user, overdue, today):
         "unsubscribe": _url("/notifications/unsubscribe/%s/" % (profile.unsubscribe_token if profile else "")),
         "calendar_link": _url("/calendar/"),
     }, audit_label="digest %s" % timezone.localdate())
+
+
+def send_rule_notice(user, rule, target):
+    """Automation rule (H2): tell `user` that `rule` matched `target`."""
+    with translation.override(_lang(user)):
+        from django.utils.translation import gettext as _
+        subject = _("Automatinė taisyklė: %s") % rule.name
+    to_link = getattr(target, "get_absolute_url", None)
+    return _send("automation", subject, user, {
+        "rule_name": rule.name,
+        "trigger": str(rule.get_trigger_display()),
+        "target": str(target),
+        "link": _url(to_link() if callable(to_link) else "/"),
+        "manage_link": _url("/settings/automations/"),
+    }, audit_label="automation rule %s" % rule.pk)
