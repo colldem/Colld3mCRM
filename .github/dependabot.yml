@@ -10,6 +10,6 @@ updates:
   - package-ecosystem: docker
     directory: "/"
     schedule: { interval: weekly }
-  - package-ecosystem: docker
-    directory: "/deploy/runner"
-    schedule: { interval: weekly }
+  # deploy/runner has no Dockerfile — its image is pinned in the NAS-only .env
+  # (RUNNER_IMAGE), so Dependabot cannot see or bump it. Rotate it by hand
+  # together with the PAT; see deploy/runner/README.md.

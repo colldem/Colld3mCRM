@@ -22,6 +22,8 @@ the app) and the app directory `/volume1/docker/crm`.
    docker inspect --format '{{index .RepoDigests 0}}' $(docker compose config --images)
    # put that tag@sha256:... into RUNNER_IMAGE in .env
    ```
+   `.env` never leaves the NAS, so Dependabot cannot bump this pin — repeat
+   this step by hand when you rotate the PAT.
 
 3. **Start it**
    ```sh
