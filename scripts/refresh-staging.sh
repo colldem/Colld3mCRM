@@ -2,7 +2,8 @@
 # Refresh staging with a fresh copy of the production database.
 #
 # Run by hand on the NAS when you want staging to match production again:
-#   sh /volume1/docker/crm-staging/scripts/refresh-staging.sh [--with-media]
+#   CRM_APP_DIR=/opt/crm CRM_STAGING_DIR=/opt/crm-staging \
+#     sh /opt/crm-staging/scripts/refresh-staging.sh [--with-media]
 #
 # Reads production, writes only staging. The production stack is never modified:
 # the only thing done there is a read-only pg_dump.
@@ -12,13 +13,14 @@
 # sanitize_staging pass below, which clears those settings from the data itself.
 set -eu
 
-PROD=/volume1/docker/crm
-STAGING=/volume1/docker/crm-staging
+PROD="${CRM_APP_DIR:-/opt/crm}"
+STAGING="${CRM_STAGING_DIR:-/opt/crm-staging}"
 WITH_MEDIA=""
 [ "${1:-}" = "--with-media" ] && WITH_MEDIA=1
 
-PROD_COMPOSE="docker compose -f $PROD/compose.yaml"
-STAGING_COMPOSE="docker compose -f $STAGING/compose.staging.yaml"
+# Each directory's .env selects its own overlays through COMPOSE_FILE.
+PROD_COMPOSE="docker compose --project-directory $PROD"
+STAGING_COMPOSE="docker compose --project-directory $STAGING"
 
 # --- sanity: never let this run against production ----------------------
 test -f "$STAGING/compose.staging.yaml" || { echo "FATAL: $STAGING is not a staging checkout"; exit 1; }

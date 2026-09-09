@@ -46,10 +46,14 @@ jobs:
       # Its only protection rule is the v* tag policy: required reviewers need
       # a paid plan on a private repo, so the tag push is the deliberate gate.
       name: Production
-      url: https://crm.tailb8493f.ts.net/
+      url: ${{ vars.CRM_PROD_URL }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.ref || github.ref }}
-      - name: Deploy to the NAS
+      - name: Deploy
+        # Site-specific paths live in repository variables, not in the workflow,
+        # so a fork only has to set them once. See docs/DEPLOYMENT.md.
+        env:
+          CRM_APP_DIR: ${{ vars.CRM_APP_DIR }}
         run: sh scripts/deploy.sh

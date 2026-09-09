@@ -3490,16 +3490,21 @@ class IsolatedTierTests(TestCase):
         import pathlib
         root = pathlib.Path(settings.BASE_DIR)
 
-        compose = (root / "compose.staging.yaml").read_text()
-        # Comments mention crm-worker to explain its absence, so read the
-        # directives only.
-        directives = "\n".join(
-            line for line in compose.splitlines() if not line.lstrip().startswith("#"))
-        self.assertIn("CRM_ENVIRONMENT: staging", directives)
-        # No background jobs at all on a clone of production data.
-        self.assertNotIn("crm-worker", directives)
-        self.assertNotIn("send_notifications", directives)
-        self.assertIn("serve-staging.json", directives)
+        def directives(path):
+            """The file without comments — they discuss what they switch off."""
+            return "\n".join(
+                line for line in path.read_text().splitlines()
+                if not line.lstrip().startswith("#"))
+
+        # The base file must pass the tier through, or the overlay cannot isolate.
+        self.assertIn("CRM_ENVIRONMENT: ${CRM_ENVIRONMENT:-production}",
+                      directives(root / "compose.yaml"))
+
+        # Staging is an overlay; compose cannot delete an inherited service, so
+        # the background ones are held at zero replicas instead.
+        staging = directives(root / "compose.staging.yaml")
+        for service in ("crm-worker", "crm-backup"):
+            self.assertRegex(staging, r"%s:\s*(?:\n\s+\w[^\n]*)*?\n\s+deploy:\s*\n\s+replicas:\s*0" % service)
 
         # Production is deliberately published through Funnel; staging must not be.
         self.assertNotIn("AllowFunnel", (root / "deploy" / "tailscale" / "serve-staging.json").read_text())
@@ -3508,6 +3513,9 @@ class IsolatedTierTests(TestCase):
         # Both staging scripts refuse to act unless the target really is staging.
         for name in ("deploy-staging.sh", "refresh-staging.sh"):
             self.assertIn("CRM_ENVIRONMENT=staging", (root / "scripts" / name).read_text())
+        # And the deploy refuses a Tailscale staging that would serve Funnel,
+        # since the overlay's default serve.json enables it.
+        self.assertIn("serve-staging.json", (root / "scripts" / "deploy-staging.sh").read_text())
 
     def test_sanitize_staging_refuses_to_run_on_production(self):
         from django.core.management import call_command

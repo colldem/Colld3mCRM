@@ -45,10 +45,12 @@ jobs:
     runs-on: [self-hosted, crm-nas]
     environment:
       name: Staging
-      url: https://crm-staging.tailb8493f.ts.net/
+      url: ${{ vars.CRM_STAGING_URL }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.ref || github.ref }}
-      - name: Deploy to staging on the NAS
+      - name: Deploy to staging
+        env:
+          CRM_STAGING_DIR: ${{ vars.CRM_STAGING_DIR }}
         run: sh scripts/deploy-staging.sh

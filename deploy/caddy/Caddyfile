@@ -1,0 +1,19 @@
+# Used by compose.caddy.yaml. Both values come from .env.
+{
+	email {$CRM_ACME_EMAIL}
+}
+
+{$CRM_DOMAIN} {
+	encode zstd gzip
+
+	# Django needs to know the original scheme and host to build absolute URLs
+	# and to accept the CSRF origin; Caddy sets X-Forwarded-* by default.
+	reverse_proxy crm-web:8080 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	# Attachments can be large; the app caps uploads itself.
+	request_body {
+		max_size 64MB
+	}
+}

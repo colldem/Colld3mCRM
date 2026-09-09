@@ -1,22 +1,36 @@
 name: crm
 
+# The CRM, ready to run anywhere Docker runs:
+#
+#   cp .env.example .env      # fill in POSTGRES_PASSWORD and DJANGO_SECRET_KEY
+#   docker compose up -d      # http://127.0.0.1:8080
+#
+# That is a complete, self-contained deployment. Two optional overlays put it on
+# a network, chosen with COMPOSE_FILE in .env (see docs/DEPLOYMENT.md):
+#
+#   COMPOSE_FILE=compose.yaml:compose.caddy.yaml       HTTPS on your own domain
+#   COMPOSE_FILE=compose.yaml:compose.tailscale.yaml   private Tailscale network
+#
+# With an overlay selected, plain `docker compose up -d` picks it up — no -f flags.
+
 x-crm-env: &crm-env
   DB_HOST: crm-db
   DB_NAME: crm
   DB_USER: crm
-  DB_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
-  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Nustatykite DJANGO_SECRET_KEY}
-  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-crm,localhost,127.0.0.1}
+  DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
   DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
   DJANGO_DEBUG: "false"
   DJANGO_FORCE_HTTPS: ${DJANGO_FORCE_HTTPS:-false}
   DJANGO_SESSION_IDLE_MINUTES: ${DJANGO_SESSION_IDLE_MINUTES:-480}
   CRM_BASE_URL: ${CRM_BASE_URL:-}
-  # Encryption key for integration secrets entered in the Settings UI (G5/G6/G7).
+  # "production", or any other name for an isolated copy — see docs/DEPLOYMENT.md.
+  CRM_ENVIRONMENT: ${CRM_ENVIRONMENT:-production}
+  # Encryption key for integration secrets entered in the Settings UI.
   CRM_SECRETS_KEY: ${CRM_SECRETS_KEY:-}
   # Email / IMAP / Entra below are an optional fallback — the Settings UI is the
   # primary place to configure them.
-  # Email notifications (G7)
   EMAIL_HOST: ${EMAIL_HOST:-}
   EMAIL_PORT: ${EMAIL_PORT:-587}
   EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
@@ -24,13 +38,11 @@ x-crm-env: &crm-env
   EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
   EMAIL_USE_SSL: ${EMAIL_USE_SSL:-false}
   DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
-  # Incoming mail (G6)
   IMAP_HOST: ${IMAP_HOST:-}
   IMAP_PORT: ${IMAP_PORT:-993}
   IMAP_USER: ${IMAP_USER:-}
   IMAP_PASSWORD: ${IMAP_PASSWORD:-}
   IMAP_FOLDER: ${IMAP_FOLDER:-INBOX}
-  # Microsoft Entra ID login (G5)
   OIDC_ENABLED: ${OIDC_ENABLED:-false}
   OIDC_RP_CLIENT_ID: ${OIDC_RP_CLIENT_ID:-}
   OIDC_RP_CLIENT_SECRET: ${OIDC_RP_CLIENT_SECRET:-}
@@ -43,7 +55,7 @@ services:
     environment:
       POSTGRES_DB: crm
       POSTGRES_USER: crm
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes: ["./runtime/postgres:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U crm -d crm"]
@@ -59,7 +71,7 @@ services:
       DB_HOST: crm-db
       DB_NAME: crm
       DB_USER: crm
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
     volumes:
@@ -70,35 +82,19 @@ services:
       crm-db: {condition: service_healthy}
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
-  crm-tailscale:
-    image: tailscale/tailscale:v1.102.2@sha256:321ce041508c19079b57a28b6666c8d81ab0b08accc0a2585b3ab663d557ac24
-    hostname: ${TS_HOSTNAME:-crm}
-    environment:
-      TS_AUTHKEY: ${TS_AUTHKEY:-}
-      TS_AUTH_ONCE: "true"
-      TS_STATE_DIR: /var/lib/tailscale
-      TS_SERVE_CONFIG: /config/serve.json
-      TS_USERSPACE: "true"
-      TS_ENABLE_HEALTH_CHECK: "true"
-      TS_LOCAL_ADDR_PORT: 127.0.0.1:9002
-    volumes:
-      - ./runtime/tailscale-state:/var/lib/tailscale
-      - ./deploy/tailscale:/config:ro
-    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_LAN_PORT:-18081}:8080"]
-    restart: unless-stopped
-    security_opt: ["no-new-privileges:true"]
   crm-web:
     image: crm-web:0.54.0
     build: .
     environment:
       <<: *crm-env
       CRM_SETUP_TOKEN: ${CRM_SETUP_TOKEN:-}
+    # Loopback by default: publish wider only behind a proxy that terminates TLS.
+    # Both overlays replace this with their own networking.
+    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_PORT:-8080}:8080"]
     volumes:
       - ./runtime/media:/app/runtime/media
-    network_mode: service:crm-tailscale
     depends_on:
       crm-db: {condition: service_healthy}
-      crm-tailscale: {condition: service_started}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3).read()"]
       interval: 10s

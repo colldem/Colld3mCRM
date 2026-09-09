@@ -1,0 +1,39 @@
+# Overlay: reach the CRM over a private Tailscale network instead of a domain.
+#
+# Enable it by putting this in .env, then use docker compose as usual:
+#   COMPOSE_FILE=compose.yaml:compose.tailscale.yaml
+#   TS_AUTHKEY=tskey-auth-...          from the Tailscale admin console
+#   TS_HOSTNAME=crm                    the node name, so https://crm.<your-tailnet>.ts.net
+#   TS_CERT_DOMAIN=crm.<your-tailnet>.ts.net
+#
+# Tailscale terminates HTTPS itself, so no certificate work is needed. By default
+# the CRM is then reachable only from devices on your tailnet. serve.json also
+# enables Funnel, which additionally publishes it to the public internet — drop
+# the AllowFunnel line there if you do not want that.
+
+services:
+  crm-tailscale:
+    image: tailscale/tailscale:v1.102.2@sha256:321ce041508c19079b57a28b6666c8d81ab0b08accc0a2585b3ab663d557ac24
+    hostname: ${TS_HOSTNAME:-crm}
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_AUTH_ONCE: "true"
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: ${TS_SERVE_CONFIG:-/config/serve.json}
+      TS_USERSPACE: "true"
+      TS_ENABLE_HEALTH_CHECK: "true"
+      TS_LOCAL_ADDR_PORT: 127.0.0.1:9002
+    volumes:
+      - ./runtime/tailscale-state:/var/lib/tailscale
+      - ./deploy/tailscale:/config:ro
+    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_LAN_PORT:-18081}:8080"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  crm-web:
+    # The app shares the Tailscale container's network stack, so it must not
+    # publish ports of its own — !reset drops the base file's mapping.
+    ports: !reset []
+    network_mode: service:crm-tailscale
+    depends_on:
+      crm-db: {condition: service_healthy}
+      crm-tailscale: {condition: service_started}

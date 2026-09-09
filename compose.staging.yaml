@@ -1,81 +1,32 @@
 name: crm-staging
 
-# Staging: a clone of production, redeployed from main on every push, with the
-# production data restored into it by scripts/refresh-staging.sh.
+# Overlay: a second, isolated copy of the CRM, holding a clone of production data
+# so changes can be tried against realistic records before they are released.
 #
-# Two things make it safe to hold real personal data:
+# In the staging directory's .env:
+#   COMPOSE_FILE=compose.yaml:compose.tailscale.yaml:compose.staging.yaml
+#   CRM_ENVIRONMENT=staging
+# (swap compose.tailscale.yaml for compose.caddy.yaml, or drop it entirely, to
+# match however you expose the main instance.)
+#
+# What makes it safe to hold real personal data:
 #   * CRM_ENVIRONMENT=staging — contacts/integrations.py returns an inert config
 #     for SMTP, IMAP and Entra, and contacts/webhooks.py refuses to queue or post,
-#     regardless of what the restored database says.
-#   * There is deliberately no crm-worker service here, so no background job runs
-#     at all. Do not add one.
+#     whatever the restored database says.
+#   * No background jobs: crm-worker and crm-backup are scaled to zero below, so
+#     nothing acts on the cloned data on a timer. Do not undo this.
 #
-# It also uses serve-staging.json, which has no AllowFunnel: unlike production,
-# staging is reachable only inside the tailnet.
-
-x-crm-env: &crm-env
-  DB_HOST: crm-db
-  DB_NAME: crm
-  DB_USER: crm
-  DB_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
-  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Nustatykite DJANGO_SECRET_KEY}
-  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-crm-staging,localhost,127.0.0.1}
-  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
-  DJANGO_DEBUG: "false"
-  DJANGO_FORCE_HTTPS: ${DJANGO_FORCE_HTTPS:-false}
-  DJANGO_SESSION_IDLE_MINUTES: ${DJANGO_SESSION_IDLE_MINUTES:-480}
-  CRM_BASE_URL: ${CRM_BASE_URL:-}
-  CRM_SECRETS_KEY: ${CRM_SECRETS_KEY:-}
-  # The switch that keeps this tier off the network. Never set it to production.
-  CRM_ENVIRONMENT: staging
+# scripts/refresh-staging.sh reloads the data from production on demand.
 
 services:
-  crm-db:
-    image: postgres:17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
-    environment:
-      POSTGRES_DB: crm
-      POSTGRES_USER: crm
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Nustatykite POSTGRES_PASSWORD}
-    volumes: ["./runtime/postgres:/var/lib/postgresql/data"]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U crm -d crm"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-    security_opt: ["no-new-privileges:true"]
-  crm-tailscale:
-    image: tailscale/tailscale:v1.102.2@sha256:321ce041508c19079b57a28b6666c8d81ab0b08accc0a2585b3ab663d557ac24
-    hostname: ${TS_HOSTNAME:-crm-staging}
-    environment:
-      TS_AUTHKEY: ${TS_AUTHKEY:-}
-      TS_AUTH_ONCE: "true"
-      TS_STATE_DIR: /var/lib/tailscale
-      TS_SERVE_CONFIG: /config/serve-staging.json
-      TS_USERSPACE: "true"
-      TS_ENABLE_HEALTH_CHECK: "true"
-      TS_LOCAL_ADDR_PORT: 127.0.0.1:9002
-    volumes:
-      - ./runtime/tailscale-state:/var/lib/tailscale
-      - ./deploy/tailscale:/config:ro
-    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_LAN_PORT:-18082}:8080"]
-    restart: unless-stopped
-    security_opt: ["no-new-privileges:true"]
   crm-web:
     image: crm-web:staging
-    build: .
-    environment:
-      <<: *crm-env
-    volumes:
-      - ./runtime/media:/app/runtime/media
-    network_mode: service:crm-tailscale
-    depends_on:
-      crm-db: {condition: service_healthy}
-      crm-tailscale: {condition: service_started}
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3).read()"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-    security_opt: ["no-new-privileges:true"]
+  # Not "removed" — compose cannot delete an inherited service, so both are
+  # defined with zero replicas, which starts none of them.
+  crm-worker:
+    image: crm-web:staging
+    deploy:
+      replicas: 0
+  crm-backup:
+    deploy:
+      replicas: 0
