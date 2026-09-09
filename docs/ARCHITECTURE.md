@@ -15,8 +15,9 @@ Docker Compose, prieiga per Tailscale HTTPS. Vienas realus naudotojas šiuo metu
 bet duomenų modelis ir teisės paruoštos kelioms paskyroms ir komandoms.
 
 Sąmoningi apribojimai: **nėra CI/CD**, nėra automatinių atsarginių kopijų su
-šifravimu, nėra el. paštu siunčiamo slaptažodžio atkūrimo, nėra atskiros
-„tik skaityti" prieigos. Diegimas rankinis ir patikrinamas.
+šifravimu, nėra el. paštu siunčiamo slaptažodžio atkūrimo. Sąsajoje visi matomi
+įrašai yra ir redaguojami; „tik skaityti" prieiga yra tik per API raktą.
+Diegimas rankinis ir patikrinamas.
 
 ---
 
@@ -33,6 +34,7 @@ Sąmoningi apribojimai: **nėra CI/CD**, nėra automatinių atsarginių kopijų 
 | Slaptažodžiai | Argon2 (`argon2-cffi`), min. 12 simbolių, 4 validatoriai | `PASSWORD_HASHERS` |
 | Prisijungimų ribojimas | `django-axes` 8 | 5 klaidos → 30 min blokada pagal (username, ip), HTTP 429 |
 | SSO (neprivalomas) | `mozilla-django-oidc` | Microsoft Entra ID prisijungimas, įjungiamas Nustatymuose |
+| REST API | rankomis rašytas JSON (`contacts/api.py`), be DRF | `/api/v1/`, „Bearer" token'ai, ta pati matomumo apsauga |
 | El. paštas | Django SMTP backend + `imaplib` (gauti laiškai) | konfigūruojama Nustatymuose; be jos — laiškai į žurnalą, IMAP išjungtas |
 | Paslaptys | `cryptography` (Fernet) | Nustatymuose suvesti integracijų slaptažodžiai šifruojami raktu `CRM_SECRETS_KEY` |
 | Importas | `openpyxl` | XLSX skaitymas; CSV — standartinė biblioteka |
@@ -77,6 +79,7 @@ contacts/          vienintelė programa (app)
   crypto.py         integracijų slaptažodžių šifravimas (Fernet, CRM_SECRETS_KEY)
   sanitizers.py     safe_url / csv_safe
   automation.py     „kai X -> daryk Y" taisyklės (H2)
+  api.py / api_urls.py  rankomis rašytas JSON REST API (H3), /api/v1/
   management/commands/  send_notifications, extend_recurrences, fetch_mail, run_automations, ensure_admin
   migrations/      migracijos
 templates/         serverio pusėje renderinami šablonai (be JS karkaso)
@@ -151,6 +154,7 @@ Naršyklė ─HTTPS─▶ Tailscale (Serve, TLS terminacija, tik tailnet arba Fu
 - `IncomingMail` — nepriskirtas IMAP laiškas (rankiniam priskyrimui).
 - `AutomationRule` + `AutomationLog` — foninės „kai X → daryk Y" taisyklės ir jų
   veiksmų žurnalas (idempotencijos raktas).
+- `ApiToken` — REST API „Bearer" raktas (saugoma tik sha256; scope read / read_write).
 
 ---
 
@@ -210,6 +214,9 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
   nė vieno naudotojo ir su `CRM_SETUP_TOKEN`.
 - Argon2, min. 12 simbolių, panašumo/dažnumo/skaitmenų validatoriai.
 - `django-axes`: 5 klaidos → 30 min blokada (username+IP), 429.
+- REST API (`/api/v1/`): „Bearer" token'ai (DB saugo tik `sha256`), CSRF-exempt
+  (be slapukų), scope `read` / `read_write`, veikia su token kūrėjo matomumu ir
+  teisėmis; panaikinami Nustatymuose. Nėra dažnio ribojimo (tailnet vidinis).
 - Neprivalomas Microsoft Entra ID (OIDC) prisijungimas, įjungiamas Nustatymai →
   Prisijungimas: `contacts.oidc.EntraOIDCBackend` susieja pagal el. paštą su esama
   aktyvia paskyra; naujų nekuria, kol neįjungtas atskiras jungiklis. Plumbing'as

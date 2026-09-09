@@ -19,5 +19,6 @@ urlpatterns = [
     path("health/ready", views.health_ready, name="health-ready"),
     path("manifest.webmanifest", views.pwa_manifest, name="pwa-manifest"),
     path("sw.js", views.pwa_service_worker, name="pwa-service-worker"),
+    path("api/v1/", include("contacts.api_urls")),
     path("", include("contacts.urls")),
 ]

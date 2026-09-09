@@ -1,0 +1,46 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div><h2>{% translate 'Integracijos' %}</h2><p>{% translate 'REST API raktai kitiems įrankiams jungti. Raktas veikia su jį sukūrusio naudotojo teisėmis ir matomumu.' %}</p></div>
+</div>
+
+<p class="message">{% translate 'Bazinis adresas' %}: <code>{{ base_url }}</code> · {% translate 'antraštė' %}: <code>Authorization: Bearer &lt;raktas&gt;</code></p>
+
+{% if new_token %}
+<div class="message" style="border-left-color:var(--success)">
+  <strong>{% translate 'Naujas raktas — nukopijuokite dabar, daugiau nebus rodomas:' %}</strong>
+  <p><code style="user-select:all">{{ new_token }}</code></p>
+</div>
+{% endif %}
+
+{% if tokens %}
+<div class="table-wrap"><table>
+  <thead><tr><th>{% translate 'Pavadinimas' %}</th><th>{% translate 'Pradžia' %}</th><th>{% translate 'Teisės' %}</th><th>{% translate 'Sukūrė' %}</th><th>{% translate 'Paskutinį kartą' %}</th><th>{% translate 'Būsena' %}</th><th></th></tr></thead>
+  <tbody>{% for token in tokens %}<tr>
+    <td>{{ token.name }}</td>
+    <td><code>{{ token.prefix }}…</code></td>
+    <td>{{ token.get_scope_display }}</td>
+    <td>{{ token.created_by.get_full_name|default:token.created_by.username }}</td>
+    <td>{{ token.last_used_at|date:datetime_format|default:"–" }}</td>
+    <td>{% if token.revoked_at %}<span class="muted">{% translate 'panaikintas' %}</span>{% else %}<span class="crm-label tag-color-1">{% translate 'aktyvus' %}</span>{% endif %}</td>
+    <td>{% if not token.revoked_at %}<form method="post" onsubmit="return confirm('{% translate 'Panaikinti raktą?' %}')">{% csrf_token %}<input type="hidden" name="op" value="revoke"><input type="hidden" name="token_id" value="{{ token.pk }}"><button class="btn danger" type="submit">{% translate 'Panaikinti' %}</button></form>{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}
+<p class="muted">{% translate 'Raktų dar nėra.' %}</p>
+{% endif %}
+
+<div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% translate 'Naujas raktas' %}</h2></div></div>
+  <form method="post" class="profile-form">{% csrf_token %}<input type="hidden" name="op" value="create">
+    <div class="profile-fields">
+      <label class="wide">{% translate 'Pavadinimas' %}<input type="text" name="name" maxlength="80" required></label>
+      <label class="wide">{% translate 'Teisės' %}<select name="scope">
+        <option value="read">{% translate 'Tik skaityti' %}</option>
+        <option value="read_write">{% translate 'Skaityti ir keisti' %}</option>
+      </select></label>
+    </div>
+    <div class="form-actions profile-form-actions"><button class="btn primary" type="submit">{% translate 'Sukurti raktą' %}</button></div>
+  </form>
+</div>
+{% endblock %}

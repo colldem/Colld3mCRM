@@ -2952,3 +2952,54 @@ msgstr "Condition:"
 
 msgid "Įrašas:"
 msgstr "Record:"
+
+msgid "Integracijos"
+msgstr "Integrations"
+
+msgid "REST API raktai kitiems įrankiams jungti. Raktas veikia su jį sukūrusio naudotojo teisėmis ir matomumu."
+msgstr "REST API tokens for connecting other tools. A token acts with the capabilities and visibility of the user who created it."
+
+msgid "Bazinis adresas"
+msgstr "Base URL"
+
+msgid "antraštė"
+msgstr "header"
+
+msgid "Naujas raktas — nukopijuokite dabar, daugiau nebus rodomas:"
+msgstr "New token — copy it now, it will not be shown again:"
+
+msgid "Teisės"
+msgstr "Access"
+
+msgid "Paskutinį kartą"
+msgstr "Last used"
+
+msgid "panaikintas"
+msgstr "revoked"
+
+msgid "Panaikinti raktą?"
+msgstr "Revoke this token?"
+
+msgid "Panaikinti"
+msgstr "Revoke"
+
+msgid "Raktų dar nėra."
+msgstr "No tokens yet."
+
+msgid "Naujas raktas"
+msgstr "New token"
+
+msgid "Tik skaityti"
+msgstr "Read only"
+
+msgid "Skaityti ir keisti"
+msgstr "Read and write"
+
+msgid "Sukurti raktą"
+msgstr "Create token"
+
+msgid "Nurodykite rakto pavadinimą."
+msgstr "Enter a token name."
+
+msgid "Raktas panaikintas."
+msgstr "Token revoked."

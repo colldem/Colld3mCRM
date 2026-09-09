@@ -34,6 +34,8 @@ programoje: **Nustatymai → Dokumentacija**.
 - CSV / XLSX kontaktų importas, CSV eksportas, pilna ZIP atsarginė kopija.
 - Automatikos taisyklės („kai kontaktas nutilo / liko be atsakingo / priminimas
   vėluoja → pranešti / priskirti / sukurti užduotį / pridėti žymą"), vykdomos fone.
+- REST API (`/api/v1/`, „Bearer" raktai iš Nustatymų → Integracijos) kontaktams,
+  įmonėms, veikloms ir priminimams skaityti/rašyti.
 - Veiksmų žurnalas (audit log). LT / EN sąsaja.
 
 El. paštas, gaunami laiškai ir Entra ID prisijungimas įjungiami ir suvedami

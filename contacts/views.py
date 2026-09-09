@@ -1407,6 +1407,39 @@ def settings_automations(request):
 
 
 @login_required
+def settings_integrations(request):
+    from .models import ApiToken
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    new_token = None
+    if request.method == "POST" and request.POST.get("op") == "create":
+        name = (request.POST.get("name") or "").strip()[:80]
+        scope = request.POST.get("scope") if request.POST.get("scope") in {ApiToken.READ, ApiToken.READ_WRITE} else ApiToken.READ
+        if name:
+            raw, digest = ApiToken.new()
+            ApiToken.objects.create(name=name, token_hash=digest, prefix=raw[:13], scope=scope, created_by=request.user)
+            audit_log(AuditLog.SETTING, request=request, target_type="api_token", target_label=name, new="created")
+            new_token = raw
+        else:
+            messages.error(request, tr("Nurodykite rakto pavadinimą."))
+    if request.method == "POST" and request.POST.get("op") == "revoke" and request.POST.get("token_id", "").isdigit():
+        token = ApiToken.objects.filter(pk=request.POST["token_id"], revoked_at__isnull=True).first()
+        if token:
+            token.revoked_at = timezone.now()
+            token.save(update_fields=["revoked_at"])
+            audit_log(AuditLog.SETTING, request=request, target_type="api_token", target_label=token.name, new="revoked")
+            messages.success(request, tr("Raktas panaikintas."))
+        return redirect("contacts:settings-integrations")
+    return render(request, "settings/integrations.html", {
+        "settings_section": "integrations", "new_token": new_token,
+        "tokens": ApiToken.objects.select_related("created_by"),
+        "base_url": request.build_absolute_uri("/api/v1").rstrip("/"),
+    })
+
+
+@login_required
 def settings_automation_log(request):
     from .models import AutomationLog, AutomationRule
     from .permissions import is_admin

@@ -1,3 +1,4 @@
+import hashlib
 from datetime import time
 from secrets import token_urlsafe
 
@@ -688,3 +689,32 @@ class AutomationLog(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-pk"]
+
+
+class ApiToken(models.Model):
+    """A bearer token for the JSON API (H3). Acts with its creator's visibility
+    and capabilities; only the sha256 of the token is stored."""
+    READ = "read"
+    READ_WRITE = "read_write"
+    SCOPE_CHOICES = ((READ, tr("Tik skaityti")), (READ_WRITE, tr("Skaityti ir keisti")))
+
+    name = models.CharField(max_length=80)
+    token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    prefix = models.CharField(max_length=16)
+    scope = models.CharField(max_length=12, choices=SCOPE_CHOICES, default=READ)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_tokens")
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.name
+
+    @staticmethod
+    def new():
+        """Return (raw_token, sha256_hex). The raw token is shown to the user once."""
+        raw = "crmk_" + token_urlsafe(30)
+        return raw, hashlib.sha256(raw.encode()).hexdigest()

@@ -50,7 +50,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
-  SystemSettings, IncomingMail, AutomationRule, AutomationLog.
+  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
   darbastalis ir analitika; `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
@@ -63,7 +63,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `oidc.py` — Microsoft Entra ID (OIDC) prisijungimo backend'as ir view'ai;
   `integrations.py` — efektyvi SMTP/IMAP/OIDC konfigūracija (DB + `.env` fallback);
   `crypto.py` — integracijų slaptažodžių šifravimas (`CRM_SECRETS_KEY`);
-  `automation.py` + `management/commands/run_automations.py` — „kai X → daryk Y" taisyklės.
+  `automation.py` + `management/commands/run_automations.py` — „kai X → daryk Y" taisyklės;
+  `api.py` + `api_urls.py` — rankomis rašytas JSON REST API (`/api/v1/`).
 - Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`,
   `run_automations`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).

@@ -675,10 +675,16 @@ klaida viename taikinyje nestabdo ciklo. Nustatymai → Automatika + „Automati
 `AutomationTests` (9). Šalutinis pataisymas: `audit.log(detail=...)` dabar
 priimamas kaip aiškus argumentas (buvo įdedamas į `{"detail": {...}}`).
 
-### H3. REST API + raktai — ⏳ suplanuota
-`contacts/api.py` (rankinis JSON, be DRF), `ApiToken` modelis (sha256, scope
-read / read_write), `/api/v1/` endpoint'ai kontaktams / įmonėms / veikloms /
-priminimams, matomumas = token kūrėjo. Nustatymai → Integracijos.
+### H3. REST API + raktai — ✅ padaryta (`0.49.0`)
+`contacts/api.py` (rankinis JSON, be DRF, `@csrf_exempt`), `ApiToken` modelis
+(saugo tik `sha256`, prefiksas rodomas, scope `read` / `read_write`, panaikinimas).
+`/api/v1/`: `me`, `contacts` + `contacts/<id>` (GET/POST/PATCH/DELETE — DELETE =
+archyvas, reikia `can_delete`), tie patys `companies`, `activities`, `reminders`
+(GET/POST). Sąrašai: `limit`≤100 / `offset`, `X-Total-Count`, `?q=`,
+`?updated_since=`. `POST /contacts` paleidžia dublikatų tikrinimą → `409` su
+radiniais (apeiti `?force=1`). Matomumas ir teisės = token kūrėjo. Auditas
+`detail={"via": "api", "token": pavadinimas}`. Nustatymai → Integracijos
+(adminui) — raktų sąrašas + kūrimas (rodomas vieną kartą). Testai — `tests/test_api.py` (11).
 
 ### H4. Webhooks — ⏳ suplanuota
 `Webhook` + `WebhookDelivery` modeliai, `contacts/webhooks.py` `emit()`,
