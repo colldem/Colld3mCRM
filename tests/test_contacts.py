@@ -12,7 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from contacts.models import Activity, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
-from contacts.duplicates import find_company_duplicates, find_person_duplicates
+from contacts.duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
 
 
 @override_settings(CRM_SETUP_TOKEN="one-time-setup-token")
@@ -1653,25 +1653,22 @@ class ContactViewTests(TestCase):
         # Non-admins cannot touch the global duplicate policy.
         self.client.force_login(self.user)
         self.assertEqual(self.client.get(reverse("contacts:settings-duplicates")).status_code, 404)
-        self.assertEqual(self.client.post(reverse("contacts:settings-duplicates"), {"level": "strict"}).status_code, 404)
+        self.assertEqual(self.client.post(reverse("contacts:settings-duplicates"), {"check_on_import": "on"}).status_code, 404)
         self.user.is_superuser = True
         self.user.save(update_fields=["is_superuser"])
         settings_response = self.client.get(reverse("contacts:settings-duplicates"))
-        self.assertContains(settings_response, '<select name="level" class="duplicate-level-select"')
-        self.assertNotContains(settings_response, 'type="radio"')
+        self.assertNotContains(settings_response, 'name="level"')   # one fixed rule, no level
         other = Person.objects.create(first_name="Kita", last_name="Pavardė")
         EmailAddress.objects.create(person=other, email="ruta@example.lt")
         response = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(response, self.person.get_absolute_url())
         self.assertContains(response, other.get_absolute_url())
         self.assertContains(response, "Tas pats el. paštas")
-        response = self.client.post(reverse("contacts:settings-duplicates"), {
-            "level": "strict",
-        })
+        response = self.client.post(reverse("contacts:settings-duplicates"), {"check_on_import": "on"})
         self.assertRedirects(response, reverse("contacts:settings-duplicates"))
-        duplicate_settings = DuplicateSettings.load()
-        self.assertFalse(duplicate_settings.enabled)
-        self.assertEqual(duplicate_settings.level, "strict")
+        settings_obj = DuplicateSettings.load()
+        self.assertFalse(settings_obj.enabled)
+        self.assertTrue(settings_obj.check_on_import)
 
     def test_bulk_merge_all_duplicates_keeps_the_older_record(self):
         self.client.force_login(self.user)
@@ -1940,7 +1937,7 @@ class ContactViewTests(TestCase):
         self.client.force_login(self.user)
         other = Company.objects.create(name="Kita įmonė", company_code="123456789")
         DuplicateSettings.objects.update_or_create(pk=1, defaults={
-            "enabled": True, "check_on_edit": False, "level": "standard",
+            "enabled": True, "check_on_edit": False,
         })
         response = self.client.post(reverse("contacts:company-field-edit", args=[self.company.pk]), {
             "field": "company_code", "value": other.company_code,
@@ -1949,32 +1946,48 @@ class ContactViewTests(TestCase):
         self.company.refresh_from_db()
         self.assertEqual(self.company.company_code, other.company_code)
 
-    def test_duplicate_levels_have_distinct_person_and_company_rules(self):
+    def test_person_matches_on_name_email_or_phone_only(self):
         same_name = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
-        PersonCompanyLink.objects.create(person=same_name, company=self.company)
-        person_data = {
-            "first_name": self.person.first_name,
-            "last_name": self.person.last_name,
-            "email": "",
-            "phone": "",
-            "companies": [self.company],
-        }
-        strict_matches = find_person_duplicates(person_data, exclude_pk=self.person.pk, level="strict")
-        self.assertEqual(strict_matches[0]["record"], same_name)
-        self.assertIn("name", strict_matches[0]["reasons"])
-        self.assertEqual(find_person_duplicates(person_data, exclude_pk=self.person.pk, level="standard")[0]["record"], same_name)
+        person_data = {"first_name": self.person.first_name, "last_name": self.person.last_name,
+                       "email": "", "phone": "", "companies": []}
+        match = find_person_duplicates(person_data, exclude_pk=self.person.pk)
+        self.assertEqual(match[0]["record"], same_name)
+        self.assertEqual(match[0]["reasons"], ["name"])
 
-        company = Company.objects.create(name="Tas pats pavadinimas")
-        company_data = {"name": company.name, "company_code": "", "vat_code": "", "email": "", "phone": "", "url": ""}
-        self.assertEqual(find_company_duplicates(company_data, exclude_pk=company.pk, level="standard"), [])
-        loose_matches = find_company_duplicates(company_data, exclude_pk=company.pk, level="loose")
-        self.assertEqual(loose_matches, [])
-        duplicate_name = Company.objects.create(name=company.name)
-        self.assertEqual(find_company_duplicates(company_data, exclude_pk=company.pk, level="loose")[0]["record"], duplicate_name)
+        # A shared company alone is not a reason any more.
+        shared = Company.objects.create(name="Bendra")
+        only_company = Person.objects.create(first_name="Visai", last_name="Kitas")
+        PersonCompanyLink.objects.create(person=only_company, company=shared)
+        self.assertNotIn(only_company, [m["record"] for m in
+                         find_person_duplicates({"first_name": "Nesutampa", "last_name": "Nieko",
+                                                 "email": "", "phone": "", "companies": [shared]})])
 
-    def test_strict_review_detects_exact_full_name_without_shared_company(self):
+    def test_company_matches_on_name_email_phone_vat_or_code(self):
+        company = Company.objects.create(name="UAB Pavyzdys", vat_code="LT100001", company_code="300001")
+        exact_name = Company.objects.create(name="UAB Pavyzdys")
+        data = {"name": company.name, "company_code": "", "vat_code": "", "email": "", "phone": ""}
+        self.assertEqual(find_company_duplicates(data, exclude_pk=company.pk)[0]["record"], exact_name)
+        # Partial name is not a match.
+        Company.objects.create(name="UAB Pavyzdys Plius")
+        near = {"name": "UAB Pavyzdys Kitas", "company_code": "", "vat_code": "", "email": "", "phone": ""}
+        self.assertEqual(find_company_duplicates(near), [])
+
+    def test_phone_and_email_never_bridge_a_person_and_a_company(self):
+        person = Person.objects.create(first_name="Tas", last_name="Pats")
+        PhoneNumber.objects.create(person=person, number="+37060011122")
+        EmailAddress.objects.create(person=person, email="bendras@example.lt")
+        Company.objects.create(name="UAB Sutampa", phone="+37060011122", email="bendras@example.lt")
+
+        self.assertEqual(find_company_duplicates(
+            {"name": "", "company_code": "", "vat_code": "",
+             "email": "bendras@example.lt", "phone": "+37060011122"}, exclude_pk=None,
+        ) and [], [])   # a person's contact details do not surface as a company match
+        pairs = all_person_duplicate_pairs() + all_company_duplicate_pairs()
+        self.assertEqual(pairs, [])
+
+    def test_strict_review_detects_exact_full_name(self):
         self.client.force_login(self.user)
-        DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True, "level": "strict"})
+        DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True})
         other = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
 
         response = self.client.get(reverse("contacts:duplicate-list"))
@@ -1982,6 +1995,24 @@ class ContactViewTests(TestCase):
         self.assertContains(response, self.person.get_absolute_url())
         self.assertContains(response, other.get_absolute_url())
         self.assertContains(response, "Tas pats vardas")
+
+    def test_not_a_duplicate_removes_the_pair_and_stops_warning(self):
+        from contacts.models import DuplicateException
+        self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save(update_fields=["is_superuser"])
+        DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True})
+        twin = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
+
+        low, high = sorted((self.person.pk, twin.pk))
+        self.client.post(reverse("contacts:duplicate-dismiss", args=["person", low, high]))
+        self.assertEqual(DuplicateException.objects.filter(kind="person", left_id=low, right_id=high).count(), 1)
+
+        self.assertContains(self.client.get(reverse("contacts:duplicate-list")), "Galimų dublikatų nerasta")
+        # Editing one of them no longer warns about the other.
+        data = {"first_name": self.person.first_name, "last_name": self.person.last_name,
+                "email": "", "phone": "", "companies": []}
+        self.assertEqual(find_person_duplicates(data, exclude_pk=self.person.pk), [])
 
     def test_import_does_not_report_exact_record_that_it_updates(self):
         self.client.force_login(self.user)

@@ -22,10 +22,8 @@ DUPLICATE_REASON_LABELS = {
     "email": _("tas pats el. paštas"),
     "phone": _("tas pats telefonas"),
     "name": _("tas pats vardas arba pavadinimas"),
-    "company": _("ta pati įmonė"),
     "company_code": _("tas pats įmonės kodas"),
     "vat_code": _("tas pats PVM kodas"),
-    "url": _("tas pats URL"),
 }
 
 
@@ -65,7 +63,7 @@ def person_duplicate_data(person, *, field, value):
 
 
 def company_duplicate_data(company, *, field, value):
-    data = {key: getattr(company, key) for key in ("name", "company_code", "vat_code", "email", "phone", "url")}
+    data = {key: getattr(company, key) for key in ("name", "company_code", "vat_code", "email", "phone")}
     if field in data:
         data[field] = value
     return data
@@ -213,8 +211,8 @@ def edit_company_field(request, pk):
         return JsonResponse({"error": " ".join(error.messages)}, status=400)
     changed = getattr(company, field) != value
     duplicate_settings = DuplicateSettings.load()
-    if changed and field in {"name", "company_code", "vat_code", "email", "phone", "url"} and duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-        matches = find_company_duplicates(company_duplicate_data(company, field=field, value=value), exclude_pk=company.pk, level=duplicate_settings.level, viewer=request.user)
+    if changed and field in {"name", "company_code", "vat_code", "email", "phone"} and duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
+        matches = find_company_duplicates(company_duplicate_data(company, field=field, value=value), exclude_pk=company.pk, viewer=request.user)
         if matches:
             return duplicate_conflict(matches)
     if changed:
@@ -359,7 +357,7 @@ def edit_contact_field(request, pk):
             if changed:
                 duplicate_settings = DuplicateSettings.load()
                 if duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user)
+                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, viewer=request.user)
                     if matches:
                         return duplicate_conflict(matches)
                 person.first_name = first_name
@@ -371,7 +369,7 @@ def edit_contact_field(request, pk):
             if changed and field in {"first_name", "last_name"}:
                 duplicate_settings = DuplicateSettings.load()
                 if duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=value), exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user)
+                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=value), exclude_pk=person.pk, viewer=request.user)
                     if matches:
                         return duplicate_conflict(matches)
             if changed:
@@ -386,7 +384,7 @@ def edit_contact_field(request, pk):
             if changed and field in {"phones", "emails"}:
                 duplicate_settings = DuplicateSettings.load()
                 if duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user)
+                    matches = find_person_duplicates(person_duplicate_data(person, field=field, value=values), exclude_pk=person.pk, viewer=request.user)
                     if matches:
                         return duplicate_conflict(matches)
             if changed:
@@ -413,7 +411,7 @@ def edit_contact_field(request, pk):
             changed = set(person.company_links.values_list("company_id", flat=True)) != {company.pk for company in selected} or bool(name and existing_company is None)
             duplicate_settings = DuplicateSettings.load()
             if changed and duplicate_settings.enabled and duplicate_settings.check_on_edit and request.POST.get("confirm_duplicate") != "1":
-                matches = find_person_duplicates(person_duplicate_data(person, field=field, value=selected), exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user)
+                matches = find_person_duplicates(person_duplicate_data(person, field=field, value=selected), exclude_pk=person.pk, viewer=request.user)
                 if matches:
                     return duplicate_conflict(matches)
             if changed:

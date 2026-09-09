@@ -184,10 +184,7 @@ class RolePermissions(models.Model):
 
 
 class DuplicateSettings(models.Model):
-    LEVEL_CHOICES = (("strict", tr("Griežtas")), ("standard", tr("Standartinis")), ("loose", tr("Laisvas")))
-
     enabled = models.BooleanField(default=True)
-    level = models.CharField(max_length=12, choices=LEVEL_CHOICES, default="standard")
     check_on_edit = models.BooleanField(default=True)
     check_on_import = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -200,6 +197,34 @@ class DuplicateSettings(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         return super().save(*args, **kwargs)
+
+
+class DuplicateException(models.Model):
+    """A pair a reviewer confirmed is *not* a duplicate, so it stops surfacing.
+
+    ``left_id`` is always the smaller pk, so the pair is stored once regardless
+    of which record was open when it was dismissed.
+    """
+    PERSON = "person"
+    COMPANY = "company"
+    KIND_CHOICES = ((PERSON, tr("Kontaktas")), (COMPANY, tr("Įmonė")))
+
+    kind = models.CharField(max_length=8, choices=KIND_CHOICES)
+    left_id = models.PositiveIntegerField()
+    right_id = models.PositiveIntegerField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["kind", "left_id", "right_id"],
+                                               name="unique_duplicate_exception")]
+
+    @classmethod
+    def dismiss(cls, kind, a, b, user=None):
+        low, high = sorted((int(a), int(b)))
+        cls.objects.get_or_create(kind=kind, left_id=low, right_id=high,
+                                  defaults={"created_by": user})
 
 
 class SystemSettings(models.Model):

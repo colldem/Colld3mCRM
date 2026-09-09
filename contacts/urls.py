@@ -85,6 +85,7 @@ urlpatterns = [
     path("calendar/event/<int:pk>/", calendar_views.calendar_event_save, name="calendar-event-update"),
     path("calendar/event/<int:pk>/delete/", calendar_views.calendar_event_delete, name="calendar-event-delete"),
     path("duplicates/", views.duplicate_list, name="duplicate-list"),
+    path("duplicates/<str:kind>/<int:left_pk>/<int:right_pk>/not-duplicate/", views.duplicate_dismiss, name="duplicate-dismiss"),
     path("duplicates/merge-all/", views.duplicate_merge_all, name="duplicate-merge-all"),
     path("duplicates/<str:kind>/<int:source_pk>/merge-into/<int:target_pk>/", views.duplicate_merge, name="duplicate-merge"),
 ]

@@ -1551,7 +1551,7 @@ def documentation_page(request):
 @login_required
 def duplicate_list(request):
     duplicate_settings = DuplicateSettings.load()
-    pairs = (all_person_duplicate_pairs(duplicate_settings.level) + all_company_duplicate_pairs(duplicate_settings.level)) if duplicate_settings.enabled else []
+    pairs = (all_person_duplicate_pairs() + all_company_duplicate_pairs()) if duplicate_settings.enabled else []
     from .permissions import can_see_company, can_see_person
 
     def _visible_pair(pair):
@@ -1561,6 +1561,31 @@ def duplicate_list(request):
 
     pairs = [pair for pair in pairs if _visible_pair(pair)]
     return render(request, "duplicates/list.html", {"pairs": pairs, "duplicate_settings": duplicate_settings})
+
+
+@login_required
+def duplicate_dismiss(request, kind, left_pk, right_pk):
+    """Mark a pair as reviewed and not a duplicate, so it stops surfacing."""
+    if request.method != "POST":
+        return redirect("contacts:duplicate-list")
+    if kind not in {"person", "company"} or left_pk == right_pk:
+        return HttpResponse(tr("Netinkami įrašai."), status=400)
+    model = Person if kind == "person" else Company
+    records = model.objects.filter(pk__in=(left_pk, right_pk), deleted_at__isnull=True)
+    from .permissions import can_see_company, can_see_person
+
+    checker = can_see_person if kind == "person" else can_see_company
+    if records.count() != 2 or not all(checker(request.user, r) for r in records):
+        raise Http404
+    from .models import DuplicateException
+
+    DuplicateException.dismiss(kind, left_pk, right_pk, request.user)
+    audit_log(AuditLog.UPDATE, request=request, target_type="duplicate",
+              target_label=str(tr("Ne dublikatas")), new="%s %s+%s" % (kind, left_pk, right_pk))
+    messages.success(request, tr("Pora pažymėta kaip ne dublikatai."))
+    if request.POST.get("next") == "record":
+        return redirect(model.objects.get(pk=left_pk).get_absolute_url())
+    return redirect("contacts:duplicate-list")
 
 
 @login_required
@@ -1578,8 +1603,8 @@ def duplicate_merge_all(request):
 
     merged = 0
     plans = (
-        (all_person_duplicate_pairs(duplicate_settings.level), can_see_person, merge_people),
-        (all_company_duplicate_pairs(duplicate_settings.level), can_see_company, merge_companies),
+        (all_person_duplicate_pairs(), can_see_person, merge_people),
+        (all_company_duplicate_pairs(), can_see_company, merge_companies),
     )
     for pairs, checker, merge_fn in plans:
         for pair in pairs:
@@ -1632,7 +1657,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
     pair_function = all_person_duplicate_pairs if kind == "person" else all_company_duplicate_pairs
     is_duplicate_pair = any(
         {pair["left"].pk, pair["right"].pk} == {source_pk, target_pk}
-        for pair in pair_function(duplicate_settings.level)
+        for pair in pair_function()
     )
     if not is_duplicate_pair:
         return HttpResponse(tr("Pasirinkti įrašai pagal dabartines taisykles nėra dublikatai."), status=400)
@@ -1688,7 +1713,7 @@ def contact_create(request):
     form = PersonForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
-        duplicates = find_person_duplicates(form.cleaned_data, level=duplicate_settings.level, viewer=request.user) if duplicate_settings.enabled else []
+        duplicates = find_person_duplicates(form.cleaned_data, viewer=request.user) if duplicate_settings.enabled else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti asmenį"), "duplicate_candidates": duplicates})
         person = form.save()
@@ -1712,7 +1737,7 @@ def contact_edit(request, pk):
     form = PersonForm(request.POST or None, instance=person, initial=initial, user=request.user)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
-        duplicates = find_person_duplicates(form.cleaned_data, exclude_pk=person.pk, level=duplicate_settings.level, viewer=request.user) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
+        duplicates = find_person_duplicates(form.cleaned_data, exclude_pk=person.pk, viewer=request.user) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person, "duplicate_candidates": duplicates})
         person = form.save()
@@ -2118,7 +2143,7 @@ def company_create(request):
     form = CompanyForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
-        duplicates = find_company_duplicates(form.cleaned_data, level=duplicate_settings.level, viewer=request.user) if duplicate_settings.enabled else []
+        duplicates = find_company_duplicates(form.cleaned_data, viewer=request.user) if duplicate_settings.enabled else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Pridėti įmonę"), "cancel_url": "/companies/", "duplicate_candidates": duplicates})
         company = form.save()
@@ -2135,7 +2160,7 @@ def company_edit(request, pk):
     form = CompanyForm(request.POST or None, instance=company)
     if request.method == "POST" and form.is_valid():
         duplicate_settings = DuplicateSettings.load()
-        duplicates = find_company_duplicates(form.cleaned_data, exclude_pk=company.pk, level=duplicate_settings.level, viewer=request.user) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
+        duplicates = find_company_duplicates(form.cleaned_data, exclude_pk=company.pk, viewer=request.user) if duplicate_settings.enabled and duplicate_settings.check_on_edit else []
         if duplicates and request.POST.get("confirm_duplicate") != "1":
             return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti įmonę"), "company": company, "cancel_url": company.get_absolute_url(), "duplicate_candidates": duplicates})
         company = form.save()
@@ -2366,7 +2391,7 @@ def _import_contact_rows(rows, owner=None, *, mode="update", collect_errors=Fals
             skipped += 1
     if report_duplicates and created_person_ids:
         possible_duplicates = sum(
-            1 for pair in all_person_duplicate_pairs(duplicate_settings.level)
+            1 for pair in all_person_duplicate_pairs()
             if pair["left"].pk in created_person_ids or pair["right"].pk in created_person_ids
         )
     return {"created": created, "updated": updated, "skipped": skipped, "possible_duplicates": possible_duplicates,

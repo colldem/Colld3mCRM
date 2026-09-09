@@ -1,8 +1,21 @@
+"""Duplicate detection.
+
+One fixed rule, no levels:
+
+* two **contacts** match on an exact first+last name, a shared email, or a
+  shared phone number;
+* two **companies** match on an exact name, a shared phone, email, VAT code or
+  company code;
+* a contact and a company are never compared against each other.
+
+A pair an admin has marked "not a duplicate" (:class:`DuplicateException`) is
+dropped from the list and stops warning on edit.
+"""
 import re
 from collections import defaultdict
 from itertools import combinations
 
-from .models import Company, Person
+from .models import Company, DuplicateException, Person
 
 
 def _lines(value):
@@ -13,94 +26,78 @@ def _phones(value):
     return {re.sub(r"\D", "", item) for item in (value or "").splitlines() if len(re.sub(r"\D", "", item)) >= 6}
 
 
-def find_person_duplicates(data, *, exclude_pk=None, level="standard", viewer=None):
+def _dismissed(kind):
+    """Sorted (id, id) tuples the admin marked as not duplicates."""
+    return {(row.left_id, row.right_id) for row in DuplicateException.objects.filter(kind=kind)}
+
+
+def _pair_key(a, b):
+    return (a, b) if a < b else (b, a)
+
+
+REASON_ORDER = ("name", "email", "phone", "vat_code", "company_code")
+
+
+def find_person_duplicates(data, *, exclude_pk=None, viewer=None):
     emails = _lines(data.get("email", ""))
     phones = _phones(data.get("phone", ""))
     first_name = (data.get("first_name") or "").strip().casefold()
     last_name = (data.get("last_name") or "").strip().casefold()
-    company_ids = {item.pk for item in data.get("companies", [])}
-    people = Person.objects.filter(deleted_at__isnull=True).prefetch_related("emails", "phones", "companies")
+    people = Person.objects.filter(deleted_at__isnull=True).prefetch_related("emails", "phones")
     if viewer is not None:
         from .permissions import visible_people
 
         people = visible_people(viewer, people)
     if exclude_pk:
         people = people.exclude(pk=exclude_pk)
+    dismissed = _dismissed("person") if exclude_pk else set()
     matches = []
     for person in people:
+        if exclude_pk and _pair_key(exclude_pk, person.pk) in dismissed:
+            continue
         person_emails = {item.email.strip().casefold() for item in person.emails.all()}
         person_phones = {re.sub(r"\D", "", item.number) for item in person.phones.all()}
-        same_email = bool(emails & person_emails)
-        same_phone = bool(phones & person_phones)
-        same_name = bool(first_name and last_name and first_name == person.first_name.strip().casefold() and last_name == person.last_name.strip().casefold())
-        same_company = bool(company_ids & {item.pk for item in person.companies.all()})
-        # An exact full-name match is always worth reviewing. It remains a
-        # candidate only, so the user still decides whether the records merge.
-        matched = same_email or same_phone or same_name
-        if level == "standard":
-            matched = matched or (same_name and same_company)
-        elif level == "loose":
-            matched = matched or same_name
-        if matched:
-            reasons = []
-            if same_email:
-                reasons.append("email")
-            if same_phone:
-                reasons.append("phone")
-            if same_name:
-                reasons.append("name")
-            if same_company:
-                reasons.append("company")
+        reasons = []
+        if first_name and last_name and first_name == person.first_name.strip().casefold() \
+                and last_name == person.last_name.strip().casefold():
+            reasons.append("name")
+        if emails & person_emails:
+            reasons.append("email")
+        if phones & person_phones:
+            reasons.append("phone")
+        if reasons:
             matches.append({"record": person, "reasons": reasons})
     return matches
 
 
-def all_person_duplicate_pairs(level="standard"):
-    people = list(Person.objects.filter(deleted_at__isnull=True).prefetch_related("emails", "phones", "companies"))
+def all_person_duplicate_pairs():
+    people = list(Person.objects.filter(deleted_at__isnull=True).prefetch_related("emails", "phones"))
     groups = defaultdict(list)
     for person in people:
         for email in {item.email.strip().casefold() for item in person.emails.all() if item.email.strip()}:
-            groups[("email", email)].append(person)
+            groups[("email", email)].append(person.pk)
         for phone in {re.sub(r"\D", "", item.number) for item in person.phones.all()}:
             if len(phone) >= 6:
-                groups[("phone", phone)].append(person)
-        name = (person.first_name.strip().casefold(), person.last_name.strip().casefold())
-        if all(name):
-            groups[("name", *name)].append(person)
-            if level == "standard":
-                for company in person.companies.all():
-                    groups[("name_company", *name, company.pk)].append(person)
-    pair_reasons = defaultdict(set)
-    people_by_id = {person.pk: person for person in people}
-    for key, members in groups.items():
-        reason = key[0]
-        for left, right in combinations({person.pk for person in members}, 2):
-            pair = tuple(sorted((left, right)))
-            if reason == "name_company":
-                pair_reasons[pair].update(("name", "company"))
-            else:
-                pair_reasons[pair].add(reason)
-    reason_order = ("email", "phone", "name", "company")
-    return [
-        {"left": people_by_id[left], "right": people_by_id[right], "reasons": [reason for reason in reason_order if reason in reasons], "kind": "person"}
-        for (left, right), reasons in sorted(pair_reasons.items())
-    ]
+                groups[("phone", phone)].append(person.pk)
+        first, last = person.first_name.strip().casefold(), person.last_name.strip().casefold()
+        if first and last:
+            groups[("name", first, last)].append(person.pk)
+    return _pairs_from_groups(groups, {p.pk: p for p in people}, "person")
 
 
 def _company_signals(data, company):
     normalized_phone = re.sub(r"\D", "", data.get("phone") or "")
     company_phone = re.sub(r"\D", "", company.phone or "")
     return {
-        "company_code": bool(data.get("company_code") and data["company_code"].strip().casefold() == company.company_code.strip().casefold()),
-        "vat_code": bool(data.get("vat_code") and data["vat_code"].strip().casefold() == company.vat_code.strip().casefold()),
+        "name": bool(data.get("name") and data["name"].strip().casefold() == company.name.strip().casefold()),
         "email": bool(data.get("email") and data["email"].strip().casefold() == company.email.strip().casefold()),
         "phone": bool(len(normalized_phone) >= 6 and normalized_phone == company_phone),
-        "url": bool(data.get("url") and data["url"].strip().rstrip("/").casefold() == company.url.strip().rstrip("/").casefold()),
-        "name": bool(data.get("name") and data["name"].strip().casefold() == company.name.strip().casefold()),
+        "vat_code": bool(data.get("vat_code") and data["vat_code"].strip().casefold() == company.vat_code.strip().casefold()),
+        "company_code": bool(data.get("company_code") and data["company_code"].strip().casefold() == company.company_code.strip().casefold()),
     }
 
 
-def find_company_duplicates(data, *, exclude_pk=None, level="standard", viewer=None):
+def find_company_duplicates(data, *, exclude_pk=None, viewer=None):
     companies = Company.objects.filter(deleted_at__isnull=True)
     if viewer is not None:
         from .permissions import visible_companies
@@ -108,43 +105,46 @@ def find_company_duplicates(data, *, exclude_pk=None, level="standard", viewer=N
         companies = visible_companies(viewer, companies)
     if exclude_pk:
         companies = companies.exclude(pk=exclude_pk)
+    dismissed = _dismissed("company") if exclude_pk else set()
     matches = []
     for company in companies:
+        if exclude_pk and _pair_key(exclude_pk, company.pk) in dismissed:
+            continue
         signals = _company_signals(data, company)
-        matched = signals["company_code"] or signals["vat_code"] or signals["email"]
-        if level in {"standard", "loose"}:
-            matched = matched or signals["phone"] or signals["url"]
-        if level == "loose":
-            matched = matched or signals["name"]
-        if matched:
-            matches.append({"record": company, "reasons": [reason for reason, value in signals.items() if value]})
+        reasons = [reason for reason in REASON_ORDER if signals.get(reason)]
+        if reasons:
+            matches.append({"record": company, "reasons": reasons})
     return matches
 
 
-def all_company_duplicate_pairs(level="standard"):
+def all_company_duplicate_pairs():
     companies = list(Company.objects.filter(deleted_at__isnull=True))
     groups = defaultdict(list)
     for company in companies:
         values = {
-            "company_code": company.company_code.strip().casefold(),
-            "vat_code": company.vat_code.strip().casefold(),
+            "name": company.name.strip().casefold(),
             "email": company.email.strip().casefold(),
+            "phone": re.sub(r"\D", "", company.phone or ""),
+            "vat_code": company.vat_code.strip().casefold(),
+            "company_code": company.company_code.strip().casefold(),
         }
-        if level in {"standard", "loose"}:
-            values["phone"] = re.sub(r"\D", "", company.phone or "")
-            values["url"] = company.url.strip().rstrip("/").casefold()
-        if level == "loose":
-            values["name"] = company.name.strip().casefold()
         for reason, value in values.items():
             if value and (reason != "phone" or len(value) >= 6):
-                groups[(reason, value)].append(company)
+                groups[(reason, value)].append(company.pk)
+    return _pairs_from_groups(groups, {c.pk: c for c in companies}, "company")
+
+
+def _pairs_from_groups(groups, records, kind):
+    """Turn {signal: [record ids]} into ordered, de-dismissed pairs."""
+    dismissed = _dismissed(kind)
     pair_reasons = defaultdict(set)
-    company_by_id = {company.pk: company for company in companies}
-    for (reason, _), members in groups.items():
-        for left, right in combinations({company.pk for company in members}, 2):
-            pair_reasons[tuple(sorted((left, right)))].add(reason)
-    reason_order = ("company_code", "vat_code", "email", "phone", "url", "name")
+    for key, ids in groups.items():
+        for left, right in combinations(sorted(set(ids)), 2):
+            if (left, right) in dismissed:
+                continue
+            pair_reasons[(left, right)].add(key[0])
     return [
-        {"left": company_by_id[left], "right": company_by_id[right], "reasons": [reason for reason in reason_order if reason in reasons], "kind": "company"}
+        {"left": records[left], "right": records[right],
+         "reasons": [reason for reason in REASON_ORDER if reason in reasons], "kind": kind}
         for (left, right), reasons in sorted(pair_reasons.items())
     ]

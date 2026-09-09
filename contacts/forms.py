@@ -65,14 +65,12 @@ class UserProfileForm(forms.Form):
 class DuplicateSettingsForm(forms.ModelForm):
     class Meta:
         model = DuplicateSettings
-        fields = ["enabled", "level", "check_on_edit", "check_on_import"]
+        fields = ["enabled", "check_on_edit", "check_on_import"]
         labels = {
             "enabled": tr("Įjungti dublikatų tikrinimą"),
-            "level": tr("Tikrinimo lygis"),
             "check_on_edit": tr("Tikrinti redaguojant įrašą"),
             "check_on_import": tr("Tikrinti importuojant"),
         }
-        widgets = {"level": forms.Select(attrs={"class": "duplicate-level-select"})}
 
 
 class SystemSettingsForm(forms.ModelForm):

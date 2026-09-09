@@ -3286,3 +3286,19 @@ msgstr "Translations updated: %(count)s."
 #: contacts/views.py
 msgid "(nenaudojama)"
 msgstr "(not used)"
+
+#: templates/duplicates/list.html contacts/views.py
+msgid "Ne dublikatas"
+msgstr "Not a duplicate"
+
+#: contacts/views.py
+msgid "Pora pažymėta kaip ne dublikatai."
+msgstr "The pair is marked as not duplicates."
+
+#: contacts/views.py
+msgid "Netinkami įrašai."
+msgstr "Invalid records."
+
+#: templates/settings/duplicates.html
+msgid "Kontaktai laikomi dublikatais, kai sutampa vardas ir pavardė, el. paštas arba telefonas. Įmonės — kai sutampa pavadinimas, el. paštas, telefonas, PVM kodas arba įmonės kodas. Kontaktas ir įmonė tarpusavyje nelyginami."
+msgstr "Two contacts are duplicates when the first and last name, an email, or a phone number match. Two companies match on the name, email, phone, VAT code or company code. A contact and a company are never compared."

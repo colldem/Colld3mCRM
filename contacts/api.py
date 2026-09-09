@@ -280,7 +280,7 @@ def _duplicate_matches(data, token):
         "email": "\n".join(data.get("emails", []) or []),
         "phone": "\n".join(data.get("phones", []) or []),
         "companies": [],
-    }, level=settings.level, viewer=token.created_by)
+    }, viewer=token.created_by)
     return [{"id": m["record"].pk, "reasons": m["reasons"], "url": m["record"].get_absolute_url()} for m in found]
 
 
