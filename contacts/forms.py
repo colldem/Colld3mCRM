@@ -154,7 +154,7 @@ class NotificationSettingsForm(_SecretFieldsMixin, forms.ModelForm):
         }
         widgets = {
             "digest_default_time": forms.TimeInput(attrs={"type": "time"}),
-            "site_base_url": forms.TextInput(attrs={"placeholder": "https://crm.tailb8493f.ts.net"}),
+            "site_base_url": forms.TextInput(attrs={"placeholder": "https://crm.example.com"}),
         }
 
 

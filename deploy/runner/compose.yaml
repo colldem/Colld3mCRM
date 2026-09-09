@@ -26,9 +26,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # The two app directories the deploy scripts write to — named individually
-      # rather than mounting /volume1/docker, which holds unrelated stacks.
-      - /volume1/docker/crm:/volume1/docker/crm
-      - /volume1/docker/crm-staging:/volume1/docker/crm-staging
+      # rather than mounting the app directory's parent, which holds unrelated stacks.
+      - /opt/crm:/opt/crm
+      - /opt/crm-staging:/opt/crm-staging
       - runner-work:/tmp/runner
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]

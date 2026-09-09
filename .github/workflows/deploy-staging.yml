@@ -42,6 +42,10 @@ jobs:
 
   deploy:
     needs: verify
+    # A fork must never drive this repository's runner. The deploy triggers
+    # (tag push, push to main, workflow_dispatch) already require write access,
+    # so this is the second lock rather than the first.
+    if: github.repository == 'colldem/Colld3mCRM' && github.event_name != 'pull_request'
     runs-on: [self-hosted, crm-nas]
     environment:
       name: Staging

@@ -601,7 +601,7 @@ atnaujinama profilyje „Sukurti naują nuorodą"). `contacts/ical.py` — ranki
 `LOCATION`=kontakto adresas, `URL`=`CRM_BASE_URL`+įrašo nuoroda; langas −90…+400 d.;
 turinys = naudotojo `mine_q` priminimai. Autentifikacija = token'as (be prisijungimo),
 todėl ilgas ir atšaukiamas. **Prod:** kad `URL:` nuorodos laiškuose ir .ics būtų
-teisingos, `.env` reikia `CRM_BASE_URL=https://crm.tailb8493f.ts.net`.
+teisingos, `.env` reikia `CRM_BASE_URL=https://crm.example.com`.
 
 <details><summary>Originalus planas</summary>
 `/calendar/feed/<token>.ics` — token `UserProfile.calendar_token` (generuojamas,
@@ -709,7 +709,7 @@ nenaudojamas `compose-v03.yaml`.
 `deploy.yml` — version tag `vX.Y.Z` → `verify` job'as + `deploy` job'as
 `runs-on: [self-hosted, crm-nas]` su `production` environment patvirtinimu.
 `deploy/runner/` — ephemeral runner konteineris ant NAS (PAT auto-registracija,
-docker socket, `/volume1/docker/crm` mount). `scripts/deploy.sh` — backup +
+docker socket, `/opt/crm` mount). `scripts/deploy.sh` — backup +
 `rsync` + build + up + health. `dependabot.yml` — savaitinės pip / actions /
 docker atnaujinimo PR'ai. Ruff lint gate (`pyproject.toml`, `select F,E9,B`).
 CI/CD nebe „žinomose ribose".

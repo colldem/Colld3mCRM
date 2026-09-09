@@ -101,6 +101,6 @@ smoke test on every push and pull request.
 
 ## Licence
 
-No licence has been chosen yet, so default copyright applies: the code is
-readable here, but not licensed for reuse. Open an issue if you would like that
-to change.
+[MIT](LICENSE) — use it, change it, run it for yourself or for a company, with
+or without paying anyone. Keep the copyright notice, and understand that it
+comes with no warranty.

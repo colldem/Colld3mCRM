@@ -293,7 +293,7 @@ Nėra vieno perkeliamo failo. Pilna kopija = PostgreSQL `pg_dump -Fc` +
   patikras; `deploy` job'as `runs-on: [self-hosted, crm-nas]` (ephemeral runner
   konteineris ant NAS, `deploy/runner/`), gate'inamas `production` environment
   patvirtinimu. `scripts/deploy.sh`: backup → `rsync` šaltinį į
-  `/volume1/docker/crm` → `compose build --pull` → `up -d` → sveikatos patikra.
+  `/opt/crm` → `compose build --pull` → `up -d` → sveikatos patikra.
 - Kiekvienam pakeitimui: minimalus diff, žalias `release-check`, patikra
   naršyklėje (LT/EN, desktop/mobile). Žr. `CLAUDE.md`.
 

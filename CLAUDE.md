@@ -1,7 +1,7 @@
 # Colld3m CRM — darbo taisyklės
 
 Django 5.2 CRM (kontaktai, įmonės, veiklos, priminimai). Produkcija: UGREEN NAS
-Docker, pasiekiama per Tailscale HTTPS (`https://crm.tailb8493f.ts.net`).
+Docker, pasiekiama per Tailscale HTTPS (`https://crm.example.com`).
 GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 
 ## Taisyklės KIEKVIENAM pakeitimui
@@ -27,7 +27,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
    ruff, `release-check.sh`, Docker image + smoke) turi būti žalias. Commit žinutė
    `fix:` / `feat:` / `chore:` stiliumi, glausta, apie tą vieną pakeitimą.
 5. **Diegimas.** Kiekvienas push į `main` automatiškai nusideploy'ina į
-   **staging** (`https://crm-staging.tailb8493f.ts.net`, `deploy-staging.yml` →
+   **staging** (`https://crm-staging.example.com`, `deploy-staging.yml` →
    `scripts/deploy-staging.sh`) — ten realių produkcijos duomenų kopija, bet
    `CRM_ENVIRONMENT=staging` išjungia el. paštą, IMAP, Entra ir webhook'us, ir
    nėra `crm-worker`. Duomenis atnaujinti: `scripts/refresh-staging.sh` (rankiniu
