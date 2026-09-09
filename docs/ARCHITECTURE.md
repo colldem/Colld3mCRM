@@ -221,8 +221,10 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
   (be slapukų), scope `read` / `read_write`, veikia su token kūrėjo matomumu ir
   teisėmis; panaikinami Nustatymuose. Nėra dažnio ribojimo (tailnet vidinis).
 - Webhooks: adresai admino konfigūruojami (tik `http`/`https`), paslaptis DB
-  šifruota, kūnas pasirašomas HMAC-SHA256. Payload'e gali būti bet kurio įrašo
-  duomenys — endpoint'as turi būti patikimas. SSRF apsaugos nėra (admino atsakomybė).
+  šifruota, kūnas pasirašomas HMAC-SHA256. SSRF ribojimas: atmetami loopback ir
+  link-local (debesų metadata) taikiniai, peradresavimai neseklojami; DNS
+  rebinding lieka likutine rizika (admino atsakomybė). Payload'e gali būti bet
+  kurio įrašo duomenys — endpoint'as turi būti patikimas.
 - Neprivalomas Microsoft Entra ID (OIDC) prisijungimas, įjungiamas Nustatymai →
   Prisijungimas: `contacts.oidc.EntraOIDCBackend` susieja pagal el. paštą su esama
   aktyvia paskyra; naujų nekuria, kol neįjungtas atskiras jungiklis. Plumbing'as

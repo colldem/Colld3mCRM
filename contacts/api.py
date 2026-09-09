@@ -9,7 +9,6 @@ import json
 import logging
 from functools import wraps
 
-from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
@@ -22,7 +21,7 @@ from .models import (
     EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress,
     Reminder, Tag, WebLink,
 )
-from .permissions import has_capability, visible_companies, visible_people, visible_reminders
+from .permissions import assignable_users_for, has_capability, visible_companies, visible_people, visible_reminders
 from .sanitizers import safe_url
 
 logger = logging.getLogger(__name__)
@@ -102,10 +101,11 @@ def _since(request):
     return parse_datetime(raw) if raw else None
 
 
-def _user(pk):
+def _assignable_user(actor, pk):
+    """An active user `actor` is allowed to set as owner/assignee, else None."""
     if pk in (None, "", 0):
         return None
-    return get_user_model().objects.filter(pk=pk, is_active=True).first()
+    return assignable_users_for(actor).filter(pk=pk).first()
 
 
 # --- serializers -----------------------------------------------------------
@@ -153,11 +153,12 @@ def serialize_company(c):
     return {
         "id": c.pk, "type": "company", "name": c.name,
         "company_code": c.company_code, "vat_code": c.vat_code,
-        "address": c.address, "phone": c.phone, "email": c.email, "url": c.url,
+        "address": c.address, "phone": c.phone, "email": c.email,
         "description": c.description, "owner_id": c.owner_id,
         "responsible_ids": list(c.responsibles.values_list("id", flat=True)),
         "tags": list(c.tags.values_list("name", flat=True)),
         "categories": list(c.categories.values_list("name", flat=True)),
+        "website": c.url,
         "custom_fields": _custom_fields(c),
         "created_at": c.created_at.isoformat(), "updated_at": c.updated_at.isoformat(),
         "url": c.get_absolute_url(),
@@ -187,15 +188,18 @@ def serialize_reminder(r):
 
 # --- write helpers -------------------------------------------------------
 
+_MULTI_MAX = {"email": 254, "number": 80, "address": 300, "url": 200}
+
+
 def _sync_multi(record, accessor, model, field, values):
     getattr(record, accessor).all().delete()
     seen = set()
-    for raw in values or []:
-        value = (str(raw) or "").strip()
+    for raw in (values or [])[:50]:
+        value = (str(raw) or "").strip()[:_MULTI_MAX.get(field, 200)]
         if not value or value.lower() in seen:
             continue
         seen.add(value.lower())
-        model.objects.create(person=record, **{field: value[:320]},
+        model.objects.create(person=record, **{field: value},
                              **({"is_primary": len(seen) == 1} if field in ("email", "number") else {}))
 
 
@@ -207,16 +211,20 @@ def _sync_labels(manager, model, names):
             manager.add(model.objects.get_or_create(name=name)[0])
 
 
+_PERSON_MAX = {"first_name": 100, "last_name": 100, "job_title": 160}
+_COMPANY_MAX = {"name": 200, "company_code": 40, "vat_code": 40, "address": 300, "phone": 80, "email": 254}
+
+
 def _write_person(person, data, token, *, creating):
-    for field in ("first_name", "last_name", "job_title"):
+    for field, cap in _PERSON_MAX.items():
         if field in data:
-            setattr(person, field, str(data[field] or "").strip()[:160])
+            setattr(person, field, str(data[field] or "").strip()[:cap])
     if "description" in data:
         person.description = str(data["description"] or "")[:5000]
     if "favourite" in data:
         person.favourite = bool(data["favourite"])
     if "owner_id" in data:
-        person.owner = _user(data["owner_id"])
+        person.owner = _assignable_user(token.created_by, data["owner_id"])
     if creating:
         person.created_by = token.created_by
     person.save()
@@ -242,15 +250,15 @@ def _write_person(person, data, token, *, creating):
 
 
 def _write_company(company, data, token, *, creating):
-    for field in ("name", "company_code", "vat_code", "address", "phone", "email"):
+    for field, cap in _COMPANY_MAX.items():
         if field in data:
-            setattr(company, field, str(data[field] or "").strip()[:300])
-    if "url" in data:
-        company.url = safe_url(str(data["url"] or ""))
+            setattr(company, field, str(data[field] or "").strip()[:cap])
+    if "website" in data:
+        company.url = safe_url(str(data["website"] or ""))
     if "description" in data:
         company.description = str(data["description"] or "")[:5000]
     if "owner_id" in data:
-        company.owner = _user(data["owner_id"])
+        company.owner = _assignable_user(token.created_by, data["owner_id"])
     if creating:
         company.created_by = token.created_by
     company.save()
@@ -414,8 +422,9 @@ def activities_collection(request, token):
         elif company:
             qs = qs.filter(company=company)
         else:
-            qs = qs.filter(Q(person__in=visible_people(token.created_by))
-                           | Q(company__in=visible_companies(token.created_by)))
+            qs = qs.filter(
+                Q(person__in=visible_people(token.created_by, Person.objects.filter(deleted_at__isnull=True)))
+                | Q(company__in=visible_companies(token.created_by, Company.objects.filter(deleted_at__isnull=True))))
         since = _since(request)
         if since:
             qs = qs.filter(created_at__gte=since)
@@ -457,7 +466,7 @@ def reminders_collection(request, token):
         reminder = Reminder.objects.create(
             person=person, company=company, text=str(data["text"])[:500], due_at=due_at,
             priority=priority, created_by=token.created_by,
-            assigned_to=_user(data.get("assigned_to_id")) or token.created_by)
+            assigned_to=_assignable_user(token.created_by, data.get("assigned_to_id")) or token.created_by)
         _audit(token, AuditLog.CREATE, person or company or reminder, field="API reminder", new=reminder.text[:150])
         return JsonResponse(serialize_reminder(reminder), status=201)
     return JsonResponse({"error": "method not allowed"}, status=405)

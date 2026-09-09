@@ -699,7 +699,10 @@ iki 6 bandymų; po 20 klaidų iš eilės webhook `active=False`. Įvykiai:
 Nustatymai → Integracijos: webhookų sąrašas + „Bandyti" (siunčia `ping` iškart).
 30 d. saugojimas. Testai — `tests/test_api.py` `WebhookTests` (5).
 
-**H skiltis baigta** (H1–H4).
+**H skiltis baigta** (H1–H4). `0.51.0`: kodo peržiūra — API laukų ilgių
+suderinimas su modeliu, `owner_id` per API ribojamas `assignable_users_for`,
+webhook SSRF apsauga (loopback/link-local block + no-redirect), pašalintas
+nenaudojamas `compose-v03.yaml`.
 
 ---
 

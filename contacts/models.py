@@ -5,6 +5,7 @@ from secrets import token_urlsafe
 from django.utils.translation import gettext_lazy as tr
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.db import models
 from django.urls import reverse
 
@@ -728,7 +729,7 @@ class Webhook(models.Model):
         "company.created", "company.updated", "company.archived",
         "activity.created", "reminder.created", "reminder.completed",
     ]
-    target_url = models.URLField(max_length=500)
+    target_url = models.URLField(max_length=500, validators=[URLValidator(schemes=["http", "https"])])
     secret = models.CharField(max_length=500, blank=True, default="")  # encrypted
     events = models.JSONField(default=list)
     active = models.BooleanField(default=True)

@@ -8,8 +8,11 @@ backoff, and auto-disable after a long failure streak.
 """
 import hashlib
 import hmac
+import ipaddress
 import json
+import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import timedelta
 
@@ -49,10 +52,41 @@ def _sign(secret, body):
     return "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A webhook target that 3xx-redirects could point the request at an
+    internal host after the safety check — so we refuse to follow redirects."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
+def target_is_allowed(url):
+    """Reject loopback and link-local (cloud metadata) targets. Private LAN
+    ranges are allowed on purpose — legitimate internal webhooks are common
+    in this single-tenant deployment."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return False
+    try:
+        infos = socket.getaddrinfo(parsed.hostname, None)
+    except socket.gaierror:
+        return True  # unresolvable now; let the delivery attempt fail normally
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if ip.is_loopback or ip.is_link_local or ip.is_unspecified or ip.is_multicast:
+            return False
+    return True
+
+
 def post_once(webhook, event, payload):
     """Deliver one payload now. Returns (ok, status_text)."""
     from .crypto import decrypt
 
+    if not target_is_allowed(webhook.target_url):
+        return False, "blocked target"
     body = json.dumps(payload).encode()
     headers = {"Content-Type": "application/json", "X-CRM-Event": event}
     secret = decrypt(webhook.secret)
@@ -60,7 +94,7 @@ def post_once(webhook, event, payload):
         headers["X-CRM-Signature"] = _sign(secret, body)
     request = urllib.request.Request(webhook.target_url, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(request, timeout=10) as response:
+        with _OPENER.open(request, timeout=10) as response:
             code = response.status
         return 200 <= code < 300, str(code)
     except urllib.error.HTTPError as error:

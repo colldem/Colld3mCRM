@@ -100,6 +100,22 @@ class ApiTests(TestCase):
     def test_me_endpoint_reports_scope(self):
         self.assertEqual(self._get("/api/v1/me").json()["scope"], "read_write")
 
+    def test_writes_respect_model_field_lengths(self):
+        r = self._send("post", "/api/v1/contacts?force=1",
+                       {"first_name": "A" * 250, "last_name": "B", "emails": ["x" * 400 + "@y.lt"]})
+        self.assertEqual(r.status_code, 201)
+        created = Person.objects.get(pk=r.json()["id"])
+        self.assertLessEqual(len(created.first_name), 100)
+        self.assertTrue(all(len(e) <= 254 for e in created.emails.values_list("email", flat=True)))
+
+    def test_owner_id_must_be_assignable_to_the_token_owner(self):
+        stranger = get_user_model().objects.create_user("nepazistamas", password="very-secure-password")
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": UserProfile.ROLE_RESTRICTED})
+        r = self._send("patch", "/api/v1/contacts/%s" % self.person.pk, {"owner_id": stranger.pk})
+        self.assertEqual(r.status_code, 200)
+        self.person.refresh_from_db()
+        self.assertIsNone(self.person.owner)  # not a teammate -> silently dropped
+
     def test_integrations_page_is_admin_only_and_creates_a_token_once(self):
         self.client.force_login(get_user_model().objects.create_user("plain", password="very-secure-password"))
         self.assertEqual(self.client.get("/settings/integrations/").status_code, 404)
@@ -116,9 +132,9 @@ class WebhookTests(TestCase):
             "wadmin", password="very-secure-password", is_superuser=True, is_staff=True)
         self.person = Person.objects.create(first_name="Web", last_name="Hook", owner=self.admin)
 
-    def _hook(self, events=("contact.created", "reminder.completed"), **kw):
+    def _hook(self, events=("contact.created", "reminder.completed"), target_url="https://example.test/hook", **kw):
         from contacts.models import Webhook
-        return Webhook.objects.create(target_url="https://example.test/hook", events=list(events), **kw)
+        return Webhook.objects.create(target_url=target_url, events=list(events), **kw)
 
     def test_emit_queues_a_delivery_only_for_subscribers(self):
         from contacts.models import WebhookDelivery
@@ -144,7 +160,7 @@ class WebhookTests(TestCase):
         from contacts.crypto import encrypt
         from contacts.models import WebhookDelivery
         from contacts.webhooks import deliver_pending
-        hook = self._hook(secret=encrypt("s3cr3t"))
+        self._hook(secret=encrypt("s3cr3t"))
         Person.objects.create(first_name="Sign", last_name="Me")
         captured = {}
 
@@ -153,20 +169,28 @@ class WebhookTests(TestCase):
             def __enter__(self): return self
             def __exit__(self, *a): return False
 
-        def fake_urlopen(req, timeout=None):
+        def fake_open(req, timeout=None):
             captured["sig"] = req.headers.get("X-crm-signature")
             captured["event"] = req.headers.get("X-crm-event")
             return FakeResp()
 
-        with patch("urllib.request.urlopen", fake_urlopen):
+        with patch("contacts.webhooks._OPENER.open", fake_open):
             self.assertEqual(deliver_pending(), 1)
         self.assertTrue(captured["sig"].startswith("sha256="))
         self.assertEqual(captured["event"], "contact.created")
         self.assertIsNotNone(WebhookDelivery.objects.first().delivered_at)
 
+    def test_blocked_loopback_target_is_not_delivered(self):
+        from contacts.webhooks import deliver_pending, target_is_allowed
+        self.assertFalse(target_is_allowed("http://127.0.0.1:9002/x"))
+        self.assertFalse(target_is_allowed("http://169.254.169.254/latest/meta-data/"))
+        self._hook(target_url="http://127.0.0.1:9002/x")
+        Person.objects.create(first_name="Ssrf", last_name="Try")
+        self.assertEqual(deliver_pending(), 0)
+
     def test_repeated_failure_backs_off_then_auto_disables(self):
         from unittest.mock import patch
-        from contacts.models import Webhook, WebhookDelivery
+        from contacts.models import WebhookDelivery
         from contacts.webhooks import deliver_pending, MAX_ATTEMPTS, AUTO_DISABLE_STREAK
         hook = self._hook()
         Person.objects.create(first_name="Fail", last_name="Case")
@@ -175,17 +199,15 @@ class WebhookTests(TestCase):
         def boom(req, timeout=None):
             raise OSError("nope")
 
-        with patch("urllib.request.urlopen", boom):
+        with patch("contacts.webhooks._OPENER.open", boom):
             for _ in range(MAX_ATTEMPTS):
                 WebhookDelivery.objects.filter(pk=delivery.pk).update(next_attempt_at=timezone.now())
                 deliver_pending()
-        delivery.refresh_from_db()
-        self.assertTrue(delivery.status.startswith("failed"))
-        # keep failing new deliveries until the streak auto-disables the hook
-        with patch("urllib.request.urlopen", boom):
+            delivery.refresh_from_db()
+            self.assertTrue(delivery.status.startswith("failed"))
             for _ in range(AUTO_DISABLE_STREAK):
-                d = WebhookDelivery.objects.create(webhook=hook, event="contact.created", payload={},
-                                                   next_attempt_at=timezone.now(), attempts=MAX_ATTEMPTS - 1)
+                WebhookDelivery.objects.create(webhook=hook, event="contact.created", payload={},
+                                               next_attempt_at=timezone.now(), attempts=MAX_ATTEMPTS - 1)
                 deliver_pending()
         hook.refresh_from_db()
         self.assertFalse(hook.active)

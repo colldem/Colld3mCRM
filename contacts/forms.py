@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
 from . import permissions
-from .models import Activity, AutomationRule, Category, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
+from .models import Activity, AutomationRule, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
 
 
 class UserProfileForm(forms.Form):
