@@ -28,12 +28,12 @@ def _nice_max(value):
     return step * 10
 
 
-def _axis(top):
+def _axis(top, height=HEIGHT):
     """Horizontal gridlines with their labels, from 0 to `top`.
 
     Small maxima get one line per whole number so the labels never repeat.
     """
-    plot_height = HEIGHT - PAD_TOP - PAD_BOTTOM
+    plot_height = height - PAD_TOP - PAD_BOTTOM
     steps = top if top <= 8 else 4
     return [{
         "value": int(round(top * index / steps)),
@@ -135,17 +135,18 @@ def donut_multi(rows, size=180, stroke=26):
             "total": total, "segments": segments}
 
 
-def grouped_bars(buckets, keys):
+def grouped_bars(buckets, keys, width=WIDTH, height=HEIGHT):
     """Bars side by side within each bucket, one per key.
 
     Same input shape as `stacked_bars`, but comparing series against each other
-    rather than summing them.
+    rather than summing them. `width` matters: the viewBox is scaled to the card
+    it sits in, so a narrow card needs a narrow box or its labels shrink away.
     """
     if not buckets:
         return None
     top = _nice_max(max((max(b["values"].get(k, 0) for k in keys) for b in buckets), default=0))
-    plot_height = HEIGHT - PAD_TOP - PAD_BOTTOM
-    plot_width = WIDTH - PAD_LEFT - PAD_RIGHT
+    plot_height = height - PAD_TOP - PAD_BOTTOM
+    plot_width = width - PAD_LEFT - PAD_RIGHT
     slot = plot_width / len(buckets)
     bar_width = min(slot * 0.30, 26)
     gap = bar_width * 0.25
@@ -156,15 +157,15 @@ def grouped_bars(buckets, keys):
         start = centre - span / 2
         for order, key in enumerate(keys):
             value = bucket["values"].get(key, 0)
-            height = plot_height * value / top
+            bar_height = plot_height * value / top     # not `height` — that is the chart's
             bars.append({"x": round(start + order * (bar_width + gap), 2),
-                         "y": round(PAD_TOP + plot_height - height, 2),
-                         "width": round(bar_width, 2), "height": round(height, 2),
+                         "y": round(PAD_TOP + plot_height - bar_height, 2),
+                         "width": round(bar_width, 2), "height": round(bar_height, 2),
                          "fill": SERIES_COLOURS[order % len(SERIES_COLOURS)],
                          "label": f'{bucket["label"]}: {value}'})
-        labels.append({"x": round(centre, 2), "y": HEIGHT - 8, "text": bucket["label"]})
-    return {"width": WIDTH, "height": HEIGHT, "bars": bars, "labels": labels,
-            "axis": _axis(top), "x0": PAD_LEFT, "x1": WIDTH - PAD_RIGHT}
+        labels.append({"x": round(centre, 2), "y": height - 8, "text": bucket["label"]})
+    return {"width": width, "height": height, "bars": bars, "labels": labels,
+            "axis": _axis(top, height), "x0": PAD_LEFT, "x1": width - PAD_RIGHT}
 
 
 def sparkline(values, width=132, height=40, pad=3):

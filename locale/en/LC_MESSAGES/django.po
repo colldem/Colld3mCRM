@@ -3097,3 +3097,61 @@ msgstr "Nov"
 
 msgid "Gru"
 msgstr "Dec"
+
+#: templates/analytics/dashboard.html
+msgid "Trumpa jūsų CRM apžvalga. Viskas, kas svarbiausia, vienoje vietoje."
+msgstr "A short overview of your CRM. Everything that matters, in one place."
+
+msgid "Kontaktą"
+msgstr "Contact"
+
+msgid "Įmonę"
+msgstr "Company"
+
+msgid "Priminimą"
+msgstr "Reminder"
+
+msgid "Veiklos pagal tipą"
+msgstr "Activity by type"
+
+msgid "Šį mėnesį"
+msgstr "This month"
+
+msgid "veiklos"
+msgstr "activities"
+
+msgid "viso"
+msgstr "total"
+
+msgid "Nauji kontaktai ir įmonės"
+msgstr "New contacts and companies"
+
+msgid "Paskutinių 6 mėnesių dinamika"
+msgstr "Over the last 6 months"
+
+msgid "Duomenų dar nėra."
+msgstr "No data yet."
+
+msgid "Artimiausi priminimai"
+msgstr "Upcoming reminders"
+
+msgid "Artimiausi"
+msgstr "Upcoming"
+
+msgid "Žiūrėti visus"
+msgstr "View all"
+
+msgid "Žiūrėti visas"
+msgstr "View all"
+
+msgid "Paskutiniai kontaktai"
+msgstr "Latest contacts"
+
+msgid "Kontaktų dar nėra."
+msgstr "No contacts yet."
+
+msgid "Paskutinės įmonės"
+msgstr "Latest companies"
+
+msgid "Paskutiniai įrašai"
+msgstr "Latest entries"

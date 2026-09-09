@@ -375,6 +375,16 @@ class Activity(TimestampedModel):
         ordering = ["-created_at"]
         verbose_name_plural = "Veiklos"
 
+    @property
+    def record(self):
+        """The contact or company this entry belongs to — as on Reminder."""
+        return self.person or self.company
+
+    @property
+    def record_url(self):
+        record = self.record
+        return record.get_absolute_url() if record else ""
+
 
 class Attachment(TimestampedModel):
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="attachments")

@@ -117,19 +117,6 @@ class AnalyticsTests(TestCase):
         self.assertEqual(counts["Pastaba"], 0)
         self.assertEqual(response.context["week_activity_total"], 2)
 
-    def test_dashboard_lists_records_this_user_recently_changed(self):
-        from contacts.audit import log
-        from contacts.models import AuditLog
-
-        mine = self._person("Mano")
-        theirs = self._person("Svetimas")
-        log(AuditLog.UPDATE, actor=self.user, target=mine)
-        log(AuditLog.UPDATE, actor=self.mate, target=theirs)
-        response = self.client.get(reverse("contacts:home"))
-        touched = [str(record) for record in response.context["recently_touched"]]
-        self.assertIn(str(mine), touched)
-        self.assertNotIn(str(theirs), touched)
-
     def test_dashboard_rings_activity_types_for_this_month(self):
         person = self._person("Ziedas")
         for _ in range(5):
@@ -161,6 +148,27 @@ class AnalyticsTests(TestCase):
             spark = response.context[key]
             self.assertEqual(len(spark["points"].split(" ")), 30)   # one point per day
 
+    @override_settings(LANGUAGE_CODE="lt")
+    def test_dashboard_svg_coordinates_keep_decimal_points_in_lithuanian(self):
+        """Lithuanian formats 68.83 as "68,83", which SVG cannot parse.
+
+        Without {% localize off %} the charts silently collapse — they render,
+        but every coordinate is dropped, so this asserts on the markup.
+        """
+        self._person("Koordinatė")
+        Activity.objects.create(person=self._person("Veikla"), activity_type="note",
+                                text="Pastaba", created_by=self.user)
+        response = self.client.get(reverse("contacts:home"))
+        html = response.content.decode()
+        import re
+        start = html.index('class="growth-chart"')
+        chart = html[start:html.index("</svg>", start)]
+        coordinates = re.findall(r'(?:x|y|x1|y1|x2|y2|cx|cy|width|height)="([0-9.,]+)"', chart)
+        self.assertTrue(coordinates)
+        for value in coordinates:
+            with self.subTest(value=value):
+                self.assertNotIn(",", value)
+
     def test_dashboard_lists_the_newest_records(self):
         old = self._person("Senas")
         Person.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=40))
@@ -178,6 +186,13 @@ class AnalyticsTests(TestCase):
         from contacts import charts
         self.assertIsNone(charts.grouped_bars([], ["a"]))
         self.assertIsNone(charts.sparkline([]))
+        # A narrower box must move the axis labels with it, not leave them at the
+        # default height (they are drawn relative to the chart, not to a bar).
+        narrow = charts.grouped_bars([{"label": "Rgs", "values": {"a": 3, "b": 1}}],
+                                     ["a", "b"], width=460, height=230)
+        self.assertEqual(narrow["width"], 460)
+        self.assertEqual({label["y"] for label in narrow["labels"]}, {230 - 8})
+        self.assertLessEqual(max(line["y"] for line in narrow["axis"]), 230)
         empty_ring = charts.donut_multi([{"label": "Pastaba", "total": 0}])
         self.assertEqual(empty_ring["total"], 0)
         self.assertEqual(empty_ring["segments"][0]["percent"], 0)

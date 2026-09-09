@@ -37,3 +37,26 @@ def user_initials(user):
 @register.filter
 def user_display_name(user):
     return user.get_full_name().strip() or user.get_username()
+
+
+@register.filter
+def record_initials(record):
+    """Up to two letters for a contact or company tile.
+
+    People read best as first + last initial; a company as the initials of its
+    first two words ("UAB Pavyzdys" -> "UP"), so the legal-form prefix does not
+    make every tile identical.
+    """
+    first = getattr(record, "first_name", "")
+    if first or getattr(record, "last_name", ""):
+        letters = f"{first[:1]}{getattr(record, 'last_name', '')[:1]}"
+    else:
+        words = str(record).split()
+        letters = "".join(word[:1] for word in words[:2])
+    return (letters.strip() or str(record)[:2]).upper()
+
+
+@register.filter
+def record_tone(record):
+    """A stable 0-5 palette index, so a record keeps the same tile colour."""
+    return sum(str(record).encode("utf-8")) % 6

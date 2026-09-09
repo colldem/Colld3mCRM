@@ -1,0 +1,2 @@
+{% load l10n %}{% comment %}Trend line for a summary card. Decorative: the card states the number.{% endcomment %}
+{% if spark %}{% localize off %}<svg class="spark" viewBox="0 0 {{ spark.width }} {{ spark.height }}" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon class="spark-area" points="{{ spark.area }}"></polygon><polyline class="spark-line" points="{{ spark.points }}"></polyline><circle class="spark-dot" cx="{{ spark.last_x }}" cy="{{ spark.last_y }}" r="2.5"></circle></svg>{% endlocalize %}{% endif %}

@@ -26,7 +26,6 @@ _MONTH_LABELS = [tr_lazy("Sau"), tr_lazy("Vas"), tr_lazy("Kov"), tr_lazy("Bal"),
 
 SILENT_WINDOWS = (30, 60, 90)
 LIST_LIMIT = 100
-RECENT_LIMIT = 6
 
 
 def _day_bounds(day):
@@ -72,34 +71,6 @@ def _daily_counts(queryset, today, days=30):
             for offset in range(days - 1, -1, -1)]
 
 
-def _recently_touched(user, limit=RECENT_LIMIT):
-    """Contacts and companies this user changed most recently, newest first."""
-    entries = (AuditLog.objects.filter(actor=user, target_type__in=("person", "company"))
-               .exclude(action=AuditLog.DELETE).order_by("-created_at")
-               .values_list("target_type", "target_id")[:200])
-    order, seen = [], set()
-    for kind, target_id in entries:
-        key = (kind, target_id)
-        if key in seen or not target_id.isdigit():
-            continue
-        seen.add(key)
-        order.append(key)
-        if len(order) >= limit:
-            break
-    person_ids = [int(pk) for kind, pk in order if kind == "person"]
-    company_ids = [int(pk) for kind, pk in order if kind == "company"]
-    people = {p.pk: p for p in visible_people(
-        user, Person.objects.filter(pk__in=person_ids, deleted_at__isnull=True))}
-    companies = {c.pk: c for c in visible_companies(
-        user, Company.objects.filter(pk__in=company_ids, deleted_at__isnull=True))}
-    records = []
-    for kind, target_id in order:
-        record = (people if kind == "person" else companies).get(int(target_id))
-        if record is not None:
-            records.append(record)
-    return records
-
-
 @login_required
 def dashboard(request):
     now = timezone.now()
@@ -137,13 +108,21 @@ def dashboard(request):
               for index, row in enumerate(people_months)]
 
     my_activities = Activity.objects.filter(created_by=request.user, deleted_at__isnull=True)
+    today_events = agenda.filter(due_at__gte=day_start, due_at__lt=day_end).order_by("due_at")
+    tomorrow_events = agenda.filter(due_at__gte=day_end, due_at__lt=tomorrow_end).order_by("due_at")
+    # Soonest first, so anything already overdue heads the list.
+    upcoming_events = agenda.order_by("due_at")[:5]
     return render(request, "analytics/dashboard.html", {
-        "today_events": agenda.filter(due_at__gte=day_start, due_at__lt=day_end).order_by("due_at"),
-        "tomorrow_events": agenda.filter(due_at__gte=day_end, due_at__lt=tomorrow_end).order_by("due_at"),
+        "today_events": today_events,
+        "tomorrow_events": tomorrow_events,
         "overdue_events": overdue.order_by("due_at")[:10],
         "overdue_total": overdue.count(),
-        "upcoming_events": agenda.filter(due_at__gte=now).order_by("due_at")[:5],
-        "recently_touched": _recently_touched(request.user),
+        "upcoming_events": upcoming_events,
+        "dash_reminder_tabs": [
+            ("upcoming", upcoming_events, tr("Aktyvių priminimų nėra.")),
+            ("today", today_events, tr("Šiandien įvykių nėra.")),
+            ("tomorrow", tomorrow_events, tr("Rytoj įvykių nėra.")),
+        ],
         "week_activity": week_activity,
         "week_activity_total": sum(item["total"] for item in week_activity),
         "new_people": people.filter(created_at__gte=month_ago).count(),
@@ -158,7 +137,7 @@ def dashboard(request):
         "activity_ring": charts.donut_multi(by_type),
         "activity_by_type": by_type,
         "activity_month_total": sum(row["total"] for row in by_type),
-        "growth_chart": charts.grouped_bars(growth, ["people", "companies"]),
+        "growth_chart": charts.grouped_bars(growth, ["people", "companies"], width=460, height=230),
         "recent_people": people.order_by("-created_at")
                                .prefetch_related("phones", "company_links__company")[:5],
         "recent_companies": companies.order_by("-created_at")[:4],
