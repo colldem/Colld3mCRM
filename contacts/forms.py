@@ -16,18 +16,12 @@ class UserProfileForm(forms.Form):
     timezone = forms.ChoiceField(choices=(("Europe/Vilnius", "Europe/Vilnius"), ("Europe/London", "Europe/London"), ("Europe/Berlin", "Europe/Berlin"), ("UTC", "UTC"), ("America/New_York", "America/New_York")), label=tr("Laiko zona"))
     avatar = forms.FileField(required=False, label=tr("Profilio nuotrauka"), widget=forms.FileInput(attrs={"accept": "image/png,image/jpeg,image/webp,image/gif"}))
     remove_avatar = forms.BooleanField(required=False, label=tr("Pašalinti profilio nuotrauką"))
-    digest_enabled = forms.BooleanField(required=False, label=tr("Gauti rytinę santrauką el. paštu"))
-    digest_time = forms.TimeField(required=False, label=tr("Santraukos laikas"), widget=forms.TimeInput(attrs={"type": "time"}))
-    notify_lead = forms.TypedChoiceField(required=False, coerce=int, empty_value=None, label=tr("Priminti apie įvykį prieš"),
-                                         choices=[("", tr("Kaip nustatyta sistemoje"))] + list(NOTIFY_LEAD_CHOICES))
 
     def __init__(self, *args, user, **kwargs):
         self.user = user
         self.profile, _ = UserProfile.objects.get_or_create(user=user)
         kwargs.setdefault("initial", {"first_name": user.first_name, "last_name": user.last_name, "email": user.email,
-                                      "language": self.profile.language, "timezone": self.profile.timezone,
-                                      "digest_enabled": self.profile.digest_enabled, "digest_time": self.profile.digest_time,
-                                      "notify_lead": "" if self.profile.notify_lead is None else self.profile.notify_lead})
+                                      "language": self.profile.language, "timezone": self.profile.timezone})
         super().__init__(*args, **kwargs)
 
     def clean_avatar(self):
@@ -48,9 +42,6 @@ class UserProfileForm(forms.Form):
         self.user.save(update_fields=["first_name", "last_name", "email"])
         self.profile.language = self.cleaned_data["language"]
         self.profile.timezone = self.cleaned_data["timezone"]
-        self.profile.digest_enabled = self.cleaned_data["digest_enabled"]
-        self.profile.digest_time = self.cleaned_data.get("digest_time")
-        self.profile.notify_lead = self.cleaned_data.get("notify_lead")
         if self.cleaned_data["remove_avatar"] and self.profile.avatar:
             self.profile.avatar.delete(save=False)
             self.profile.avatar = ""
@@ -127,20 +118,43 @@ class _SecretFieldsMixin:
         return cleaned
 
 
+class MyNotificationsForm(forms.Form):
+    """Per-user daily digest settings — every user has their own."""
+    digest_enabled = forms.BooleanField(required=False, label=tr("Siųsti man dienos santrauką el. paštu"))
+    digest_skip_weekends = forms.BooleanField(required=False, label=tr("Nesiųsti savaitgaliais"))
+    digest_time = forms.TimeField(required=False, label=tr("Siuntimo laikas"),
+                                  widget=forms.TimeInput(attrs={"type": "time"}))
+
+    def __init__(self, *args, user, **kwargs):
+        self.profile, _ = UserProfile.objects.get_or_create(user=user)
+        kwargs.setdefault("initial", {
+            "digest_enabled": self.profile.digest_enabled,
+            "digest_skip_weekends": self.profile.digest_skip_weekends,
+            "digest_time": self.profile.digest_time,
+        })
+        super().__init__(*args, **kwargs)
+
+    def save(self):
+        self.profile.digest_enabled = self.cleaned_data["digest_enabled"]
+        self.profile.digest_skip_weekends = self.cleaned_data["digest_skip_weekends"]
+        self.profile.digest_time = self.cleaned_data.get("digest_time")
+        self.profile.save(update_fields=["digest_enabled", "digest_skip_weekends", "digest_time", "updated_at"])
+        return self.profile
+
+
 class NotificationSettingsForm(_SecretFieldsMixin, forms.ModelForm):
     secret_fields = ("email_host_password",)
 
     class Meta:
         model = SystemSettings
         fields = [
-            "notifications_enabled", "digest_default_time", "notify_default_lead",
+            "notifications_enabled", "digest_default_time",
             "email_host", "email_port", "email_host_user", "email_host_password",
             "email_use_tls", "email_use_ssl", "email_from", "site_base_url",
         ]
         labels = {
             "notifications_enabled": tr("Siųsti pranešimus el. paštu"),
-            "digest_default_time": tr("Numatytas rytinės santraukos laikas"),
-            "notify_default_lead": tr("Numatyta įspėti apie įvykį prieš"),
+            "digest_default_time": tr("Numatytas dienos santraukos laikas"),
             "email_host": tr("SMTP serveris"),
             "email_port": tr("Prievadas"),
             "email_host_user": tr("Naudotojas"),
@@ -324,10 +338,11 @@ class ReminderForm(forms.ModelForm):
 
     class Meta:
         model = Reminder
-        fields = ["text", "due_at", "assigned_to", "priority",
+        fields = ["text", "due_at", "assigned_to", "priority", "notify_before",
                   "recurrence_freq", "recurrence_interval", "recurrence_until", "recurrence_count"]
         labels = {"text": tr("Priminimas"), "due_at": tr("Data ir laikas"),
                   "assigned_to": tr("Priskirta"), "priority": tr("Prioritetas"),
+                  "notify_before": tr("Priminti el. paštu prieš"),
                   "recurrence_freq": tr("Kartojimas"), "recurrence_interval": tr("Kas kiek"),
                   "recurrence_until": tr("Kartoti iki"), "recurrence_count": tr("Kartų skaičius")}
         widgets = {
@@ -343,6 +358,8 @@ class ReminderForm(forms.ModelForm):
         self.fields["assigned_to"].empty_label = None
         self.fields["assigned_to"].label_from_instance = permissions.user_label
         self.fields["priority"].required = False
+        self.fields["notify_before"].required = False
+        self.fields["notify_before"].choices = [("", tr("Nesiųsti"))] + list(NOTIFY_LEAD_CHOICES[1:])
         for name in ("recurrence_interval", "recurrence_until", "recurrence_count"):
             self.fields[name].required = False
         # A single occurrence out of a series cannot carry its own rule.

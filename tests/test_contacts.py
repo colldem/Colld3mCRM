@@ -3209,12 +3209,12 @@ class NotificationTests(TestCase):
         self._run()
         self.assertEqual(len(mail.outbox), 0)
 
-    def test_upcoming_reminder_is_emailed_once_within_the_lead_window(self):
+    def test_pre_event_email_goes_out_once_when_the_reminder_asks_for_it(self):
         from django.core import mail
         from contacts.models import UserProfile
         UserProfile.objects.filter(user=self.admin).update(digest_enabled=False)  # isolate the upcoming path
         r = Reminder.objects.create(person=self.person, text="Skambutis", created_by=self.admin, assigned_to=self.admin,
-                                    due_at=timezone.now() + timedelta(minutes=20))
+                                    due_at=timezone.now() + timedelta(minutes=20), notify_before=60)
         self._run()
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("Skambutis", mail.outbox[0].subject)
@@ -3224,10 +3224,19 @@ class NotificationTests(TestCase):
         self._run()  # not sent twice
         self.assertEqual(len(mail.outbox), 1)
 
+    def test_no_pre_event_email_without_notify_before(self):
+        from django.core import mail
+        from contacts.models import UserProfile
+        UserProfile.objects.filter(user=self.admin).update(digest_enabled=False)
+        Reminder.objects.create(person=self.person, text="Be priminimo", created_by=self.admin, assigned_to=self.admin,
+                                due_at=timezone.now() + timedelta(minutes=20))
+        self._run()
+        self.assertEqual(len(mail.outbox), 0)
+
     def test_far_off_reminder_is_not_emailed_yet(self):
         from django.core import mail
         Reminder.objects.create(person=self.person, text="Vėliau", created_by=self.admin, assigned_to=self.admin,
-                                due_at=timezone.now() + timedelta(days=3))
+                                due_at=timezone.now() + timedelta(days=3), notify_before=60)
         self._run()
         self.assertEqual(len(mail.outbox), 0)
 
@@ -3267,6 +3276,20 @@ class NotificationTests(TestCase):
         self._run()
         self.assertEqual(len([m for m in mail.outbox if "santrauka" in m.subject.lower()]), 0)
 
+    @patch("django.utils.timezone.now")
+    def test_digest_skips_weekends_when_asked(self, mock_now):
+        from datetime import datetime, timezone as _tz
+        from django.core import mail
+        from contacts.models import UserProfile
+        # A Saturday at noon UTC.
+        mock_now.return_value = datetime(2026, 6, 13, 12, 0, tzinfo=_tz.utc)
+        UserProfile.objects.filter(user=self.admin).update(
+            digest_time="00:00", digest_skip_weekends=True, timezone="UTC")
+        Reminder.objects.create(person=self.person, text="Vėluoja", created_by=self.admin, assigned_to=self.admin,
+                                due_at=mock_now.return_value - timedelta(hours=2))
+        self._run()
+        self.assertEqual([m for m in mail.outbox if "santrauka" in m.subject.lower()], [])
+
     def test_unsubscribe_link_turns_the_digest_off(self):
         from contacts.models import UserProfile
         token = UserProfile.objects.get(user=self.mate).unsubscribe_token
@@ -3279,6 +3302,27 @@ class NotificationTests(TestCase):
         self.assertEqual(self.client.get(reverse("contacts:settings-notifications")).status_code, 404)
         self.client.force_login(self.admin)
         self.assertEqual(self.client.get(reverse("contacts:settings-notifications")).status_code, 200)
+
+    def test_every_user_has_their_own_digest_settings(self):
+        from contacts.models import UserProfile
+        self.client.force_login(self.mate)   # a plain user
+        url = reverse("contacts:settings-my-notifications")
+        self.assertEqual(self.client.get(url).status_code, 200)
+        response = self.client.post(url, {"digest_skip_weekends": "on", "digest_time": "09:15"})
+        self.assertRedirects(response, url)
+        profile = UserProfile.objects.get(user=self.mate)
+        self.assertTrue(profile.digest_skip_weekends)
+        self.assertFalse(profile.digest_enabled)          # unchecked in the POST
+        self.assertEqual(profile.digest_time.strftime("%H:%M"), "09:15")
+
+    def test_reminder_carries_a_pre_event_email_choice(self):
+        self.client.force_login(self.admin)
+        due = (timezone.now() + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("contacts:reminder-create", args=[self.person.pk]), {
+            "text": "Su priminimu", "due_at": due, "priority": "normal", "notify_before": "60",
+            "submission_token": "tok-nb-1"})
+        reminder = Reminder.objects.get(text="Su priminimu")
+        self.assertEqual(reminder.notify_before, 60)
 
 
 class RecurringReminderTests(TestCase):
@@ -3484,7 +3528,7 @@ class IntegrationConfigTests(TestCase):
         from contacts.integrations import email_config
         from contacts.models import SystemSettings
         resp = self.client.post(reverse("contacts:settings-notifications"), {
-            "notifications_enabled": "on", "digest_default_time": "07:30", "notify_default_lead": "60",
+            "notifications_enabled": "on", "digest_default_time": "07:30",
             "email_host": "smtp.example.lt", "email_port": "587", "email_host_user": "crm@example.lt",
             "email_host_password": "s3cret-pass", "email_use_tls": "on", "email_from": "crm@example.lt",
             "site_base_url": "https://crm.example.lt",
@@ -3500,7 +3544,7 @@ class IntegrationConfigTests(TestCase):
         from contacts.models import SystemSettings
         for _ in range(2):
             self.client.post(reverse("contacts:settings-notifications"), {
-                "notifications_enabled": "on", "digest_default_time": "07:30", "notify_default_lead": "60",
+                "notifications_enabled": "on", "digest_default_time": "07:30",
                 "email_host": "smtp.example.lt", "email_port": "587",
                 "email_host_password": "keepme" if _ == 0 else "",
             })

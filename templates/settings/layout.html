@@ -5,6 +5,7 @@
 <div class="settings-layout">
   <nav class="settings-nav" aria-label="{% translate 'Nustatymų skyriai' %}">
     <a class="{% if settings_section == 'profile' %}active{% endif %}" href="{% url 'contacts:settings' %}">{% translate 'Profilis' %}</a>
+    <a class="{% if settings_section == 'my-notifications' %}active{% endif %}" href="{% url 'contacts:settings-my-notifications' %}">{% translate 'Pranešimai man' %}</a>
     {% if crm_caps.can_manage_taxonomy %}<a class="{% if settings_section == 'tags' %}active{% endif %}" href="{% url 'contacts:settings-tags' %}">{% translate 'Žymos' %}</a>
     <a class="{% if settings_section == 'categories' %}active{% endif %}" href="{% url 'contacts:settings-categories' %}">{% translate 'Kategorijos' %}</a>{% endif %}
     {% if is_crm_admin %}<a class="{% if settings_section == 'duplicates' %}active{% endif %}" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Dublikatų tikrinimas' %}</a>{% endif %}

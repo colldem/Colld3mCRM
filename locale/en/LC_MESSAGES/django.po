@@ -3302,3 +3302,51 @@ msgstr "Invalid records."
 #: templates/settings/duplicates.html
 msgid "Kontaktai laikomi dublikatais, kai sutampa vardas ir pavardė, el. paštas arba telefonas. Įmonės — kai sutampa pavadinimas, el. paštas, telefonas, PVM kodas arba įmonės kodas. Kontaktas ir įmonė tarpusavyje nelyginami."
 msgstr "Two contacts are duplicates when the first and last name, an email, or a phone number match. Two companies match on the name, email, phone, VAT code or company code. A contact and a company are never compared."
+
+#: templates/settings/layout.html templates/settings/my_notifications.html
+msgid "Pranešimai man"
+msgstr "My notifications"
+
+#: templates/settings/my_notifications.html
+msgid "Dienos santrauka — laiškas su jūsų vėluojančiais ir šios dienos priminimais."
+msgstr "A daily digest — an email with your overdue and today's reminders."
+
+#: templates/settings/my_notifications.html
+msgid "El. pašto pranešimai sistemoje išjungti. Kol administratorius jų neįjungs (Nustatymai → El. paštas), laiškai nesiunčiami."
+msgstr "Email notifications are switched off system-wide. Until an administrator turns them on (Settings → Email), no messages are sent."
+
+#: contacts/forms.py
+msgid "Siųsti man dienos santrauką el. paštu"
+msgstr "Email me a daily digest"
+
+#: contacts/forms.py
+msgid "Nesiųsti savaitgaliais"
+msgstr "Not on weekends"
+
+#: contacts/forms.py templates/settings/my_notifications.html
+msgid "Siuntimo laikas"
+msgstr "Send time"
+
+#: templates/settings/my_notifications.html
+msgid "Palikite tuščią — bus siunčiama sistemos numatytu laiku."
+msgstr "Leave empty to use the system default time."
+
+#: contacts/views.py
+msgid "Pranešimų nustatymai išsaugoti."
+msgstr "Notification settings saved."
+
+#: contacts/forms.py templates/reminders/form.html templates/contacts/_detail_layout.html
+msgid "Priminti el. paštu prieš"
+msgstr "Email reminder before"
+
+#: contacts/models.py contacts/forms.py
+msgid "Nesiųsti"
+msgstr "Do not send"
+
+#: contacts/forms.py
+msgid "Numatytas dienos santraukos laikas"
+msgstr "Default daily digest time"
+
+#: templates/settings/notifications.html
+msgid "Naudotojo laiko zona. Naudotojas gali pakeisti savo laiką skiltyje „Pranešimai man\"."
+msgstr "In the user's time zone. Each user can change their own time under “My notifications”."

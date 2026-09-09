@@ -39,9 +39,10 @@ lives inside the app: **Settings → Documentation**.
 - **Calendar.** Day, week and month views, recurring reminders, and an `.ics`
   subscription URL for Google, Outlook or Apple Calendar.
 - **Tasks.** Assign work to a colleague with a priority and a due date.
-- **Email.** Notifications for an upcoming event, a morning digest and a newly
-  assigned task. Incoming mail from an IMAP mailbox is attached to the matching
-  contact automatically.
+- **Email.** A daily digest each user controls themselves (time, weekends on or
+  off), a pre-event reminder set per reminder, and a newly-assigned-task notice.
+  Incoming mail from an IMAP mailbox is attached to the matching contact
+  automatically.
 - **Automation.** Rules of the form *when a contact has gone quiet / has no
   owner / a reminder is overdue → notify, assign, create a task or add a tag*,
   evaluated in the background.

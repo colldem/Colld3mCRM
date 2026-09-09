@@ -10,8 +10,8 @@ from django.db import models
 from django.urls import reverse
 
 
-# Email-notification lead time, shared by SystemSettings and UserProfile (G7).
-NOTIFY_LEAD_CHOICES = ((0, tr("Išjungta")), (15, tr("15 min.")), (60, tr("1 val.")), (1440, tr("1 diena")))
+# Pre-event email lead time, set per reminder when planning it.
+NOTIFY_LEAD_CHOICES = ((0, tr("Nesiųsti")), (15, tr("15 min.")), (60, tr("1 val.")), (1440, tr("1 diena")))
 
 
 class RecordDetailsModel(models.Model):
@@ -139,7 +139,7 @@ class UserProfile(models.Model):
     # Email notifications (G7). Effective defaults come from SystemSettings.
     digest_enabled = models.BooleanField(default=True)
     digest_time = models.TimeField(null=True, blank=True)
-    notify_lead = models.PositiveSmallIntegerField(null=True, blank=True, choices=NOTIFY_LEAD_CHOICES)
+    digest_skip_weekends = models.BooleanField(default=False)
     digest_sent_on = models.DateField(null=True, blank=True)
     unsubscribe_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
     calendar_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
@@ -252,7 +252,6 @@ class SystemSettings(models.Model):
     import_encoding = models.CharField(max_length=16, default="auto", choices=IMPORT_ENCODING_CHOICES)
     notifications_enabled = models.BooleanField(default=False)
     digest_default_time = models.TimeField(default=time(7, 30))
-    notify_default_lead = models.PositiveSmallIntegerField(default=60, choices=NOTIFY_LEAD_CHOICES)
 
     # Outgoing email (SMTP) — configured in Settings -> Pranešimai. The password
     # is stored encrypted (see contacts/crypto.py); the rest is plain.
@@ -462,6 +461,9 @@ class Reminder(TimestampedModel):
     priority = models.CharField(max_length=8, choices=PRIORITY_CHOICES, default=PRIORITY_NORMAL)
     submission_token = models.CharField(max_length=64, blank=True, unique=True, null=True)
     # Email-notification bookkeeping (G7).
+    # Per-reminder pre-event email: minutes before due_at, or blank for none.
+    # Set when planning the reminder, not in personal settings.
+    notify_before = models.PositiveSmallIntegerField(null=True, blank=True, choices=NOTIFY_LEAD_CHOICES)
     upcoming_notified_at = models.DateTimeField(null=True, blank=True)
     assigned_notified_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     # Recurrence (G3). The rule lives on the series root; every occurrence is a

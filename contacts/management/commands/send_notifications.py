@@ -13,7 +13,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from ...models import Reminder, SystemSettings, UserProfile
-from ...notifications import effective_lead, send_digest, send_task_assigned, send_upcoming
+from ...notifications import send_digest, send_task_assigned, send_upcoming
 from ...reminder_queries import mine_q, pending_reminders
 
 
@@ -45,14 +45,14 @@ class Command(BaseCommand):
         return count
 
     def _upcoming(self, sys, now):
+        # Only reminders whose planner asked for a pre-event email (notify_before).
         pending = (Reminder.objects.filter(completed_at__isnull=True, deleted_at__isnull=True,
-                                           upcoming_notified_at__isnull=True, due_at__gt=now)
+                                           upcoming_notified_at__isnull=True, due_at__gt=now,
+                                           notify_before__isnull=False, notify_before__gt=0)
                    .select_related("assigned_to", "created_by", "person", "company"))
         count = 0
         for reminder in pending:
-            user = reminder.assigned_to or reminder.created_by
-            lead = effective_lead(user, sys)
-            if lead and reminder.due_at - now <= timedelta(minutes=lead):
+            if reminder.due_at - now <= timedelta(minutes=reminder.notify_before):
                 if send_upcoming(reminder):
                     Reminder.objects.filter(pk=reminder.pk).update(upcoming_notified_at=now)
                     count += 1
@@ -70,6 +70,8 @@ class Command(BaseCommand):
             except Exception:
                 tz = ZoneInfo("Europe/Vilnius")
             local = now.astimezone(tz)
+            if profile.digest_skip_weekends and local.weekday() >= 5:
+                continue
             due_time = profile.digest_time or sys.digest_default_time
             if local.time() < due_time or profile.digest_sent_on == local.date():
                 continue

@@ -586,3 +586,17 @@ body.has-env-banner{padding-bottom:28px}
 
 @media(max-width:1200px){.dash-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.dash-grid,.kpi-row{grid-template-columns:1fr}.ring-wrap{justify-content:center}}
+
+/* Settings forms: a single-column stack where every field, toggle and the
+   action row line up on the same left edge and share one width. */
+.settings-form-grid{display:grid;gap:14px;max-width:480px}
+.settings-form-grid .setting-toggle{margin:0}
+.settings-form-grid .field-row{display:grid;gap:6px;font-weight:650}
+.settings-form-grid .field-row input,.settings-form-grid .field-row select{width:100%}
+.settings-form-grid .field-row small{color:var(--muted);font-weight:400;font-size:var(--fs-xs);line-height:1.5}
+.settings-form-grid>.form-actions{margin:4px 0 0;padding-top:0}
+.settings-form-grid>.form-actions .btn{width:100%;justify-content:center}
+/* The admin email page uses .field-row inline in a wider form. */
+.field-row{display:grid;gap:6px;font-weight:650;max-width:420px}
+.field-row input,.field-row select{width:100%}
+.field-row small{color:var(--muted);font-weight:400;font-size:var(--fs-xs);line-height:1.5}

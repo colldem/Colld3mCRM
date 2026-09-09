@@ -7,6 +7,7 @@
   <p><label for="{{ form.due_at.id_for_label }}">{{ form.due_at.label }}</label>{{ form.due_at }}{{ form.due_at.errors }}</p>
   <p><label for="{{ form.assigned_to.id_for_label }}">{{ form.assigned_to.label }}</label>{{ form.assigned_to }}{{ form.assigned_to.errors }}</p>
   <p><label for="{{ form.priority.id_for_label }}">{{ form.priority.label }}</label>{{ form.priority }}{{ form.priority.errors }}</p>
+  <p><label for="{{ form.notify_before.id_for_label }}">{{ form.notify_before.label }}</label>{{ form.notify_before }}{{ form.notify_before.errors }}</p>
   {% if form.recurrence_freq %}
   <fieldset class="recurrence-fields"><legend>{% translate 'Kartojimas' %}</legend>
     <p><label for="{{ form.recurrence_freq.id_for_label }}">{{ form.recurrence_freq.label }}</label>{{ form.recurrence_freq }}</p>

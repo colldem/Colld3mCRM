@@ -19,8 +19,7 @@
   {% csrf_token %}
   {{ form.non_field_errors }}
   <label class="setting-toggle">{{ form.notifications_enabled }}<span><strong>{{ form.notifications_enabled.label }}</strong><small>{% translate 'Bendras jungiklis. Išjungus, jokie pranešimai nesiunčiami.' %}</small></span></label>
-  <label class="duplicate-level-field"><strong>{{ form.digest_default_time.label }}</strong>{{ form.digest_default_time.errors }}{{ form.digest_default_time }}<small>{% translate 'Naudotojo laiko zona. Naudotojas gali pakeisti savo profilyje.' %}</small></label>
-  <label class="duplicate-level-field"><strong>{{ form.notify_default_lead.label }}</strong>{{ form.notify_default_lead.errors }}{{ form.notify_default_lead }}<small>{% translate 'Prieš kiek laiko iki įvykio išsiųsti priminimą.' %}</small></label>
+  <label class="field-row"><strong>{{ form.digest_default_time.label }}</strong>{{ form.digest_default_time.errors }}{{ form.digest_default_time }}<small>{% translate 'Naudotojo laiko zona. Naudotojas gali pakeisti savo laiką skiltyje „Pranešimai man".' %}</small></label>
 
   <div class="settings-subsection">
     <div class="settings-section-head"><div><h2>{% translate 'SMTP serveris' %}</h2><p>{% translate 'Išeinančio pašto serverio duomenys. Slaptažodis saugomas užšifruotas.' %}</p></div></div>

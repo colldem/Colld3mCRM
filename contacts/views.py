@@ -756,6 +756,23 @@ def settings_page(request):
 
 
 @login_required
+def settings_my_notifications(request):
+    """Every user's own daily-digest email settings."""
+    from .forms import MyNotificationsForm
+
+    form = MyNotificationsForm(request.POST or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, tr("Pranešimų nustatymai išsaugoti."))
+        return redirect("contacts:settings-my-notifications")
+    return render(request, "settings/my_notifications.html", {
+        "form": form,
+        "settings_section": "my-notifications",
+        "system_notifications_on": SystemSettings.load().notifications_enabled,
+    })
+
+
+@login_required
 def settings_custom_fields(request):
     from .models import CustomField
 

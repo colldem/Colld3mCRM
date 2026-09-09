@@ -20,14 +20,6 @@ def _profile(user):
     return getattr(user, "crm_profile", None) or UserProfile.objects.filter(user=user).first()
 
 
-def effective_lead(user, sys=None):
-    sys = sys or SystemSettings.load()
-    profile = _profile(user)
-    if profile and profile.notify_lead is not None:
-        return profile.notify_lead
-    return sys.notify_default_lead
-
-
 def effective_digest_time(user, sys=None):
     sys = sys or SystemSettings.load()
     profile = _profile(user)
