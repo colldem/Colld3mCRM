@@ -26,17 +26,7 @@ grep -q '^CRM_ENVIRONMENT=staging$' "$STAGING/.env" || {
   echo "FATAL: $STAGING/.env does not set CRM_ENVIRONMENT=staging — refusing"; exit 1; }
 [ "$PROD" != "$STAGING" ] || { echo "FATAL: paths collide"; exit 1; }
 
-DUMP="$STAGING/runtime/prod-$(date +%Y%m%d-%H%M%S).dump"
-mkdir -p "$STAGING/runtime"
-
-# --- 1. read production (read-only) -------------------------------------
-echo ">>> dumping production"
-$PROD_COMPOSE exec -T crm-db pg_dump -U crm -d crm -Fc < /dev/null > "$DUMP"
-test -s "$DUMP" || { echo "FATAL: dump is empty"; rm -f "$DUMP"; exit 1; }
-echo "    $(basename "$DUMP") ($(wc -c < "$DUMP") bytes)"
-
-# --- 2. restore into staging -------------------------------------------
-echo ">>> restoring into staging"
+# --- 1. prepare staging -------------------------------------------------
 cd "$STAGING"
 $STAGING_COMPOSE stop crm-web >/dev/null 2>&1 || true   # drop app connections first
 $STAGING_COMPOSE up -d crm-db
@@ -44,8 +34,16 @@ for _ in $(seq 1 30); do
   $STAGING_COMPOSE exec -T crm-db pg_isready -U crm -d crm < /dev/null >/dev/null 2>&1 && break
   sleep 2
 done
-$STAGING_COMPOSE exec -T crm-db pg_restore --clean --if-exists --no-owner --no-privileges \
-  -U crm -d crm < "$DUMP" || echo "    (pg_restore reported non-fatal notices)"
+
+# --- 2. stream production straight into it ------------------------------
+# Piped rather than staged through a file: the deploy already leaves dated dumps
+# in the production directory if one is ever needed, and this way the refresh
+# needs no writable path on the host, which the deploy leaves owned by root.
+echo ">>> streaming production -> staging"
+$PROD_COMPOSE exec -T crm-db pg_dump -U crm -d crm -Fc < /dev/null \
+  | $STAGING_COMPOSE exec -T crm-db pg_restore --clean --if-exists --no-owner \
+      --no-privileges -U crm -d crm \
+  || echo "    (pg_restore reported notices; checked below)"
 
 # --- 3. bring the app back and make the clone harmless ------------------
 $STAGING_COMPOSE up -d
@@ -56,14 +54,22 @@ for _ in $(seq 1 30); do
 done
 [ -n "$ok" ] || { echo "FATAL: staging crm-web did not become healthy"; exit 1; }
 
+# Prove the restore actually landed before declaring success.
+# -v 0 keeps Django 5.2's automatic-model-import notice out of the value.
+people="$($STAGING_COMPOSE exec -T crm-web python manage.py shell -v 0 -c \
+  'from contacts.models import Person; print(Person.objects.count())' < /dev/null | tr -d '\r\n')"
+echo "    restored contacts: $people"
+
 $STAGING_COMPOSE exec -T crm-web python manage.py migrate --noinput < /dev/null
 $STAGING_COMPOSE exec -T crm-web python manage.py sanitize_staging < /dev/null
 
 # --- 4. optional: real attachments --------------------------------------
 if [ -n "$WITH_MEDIA" ]; then
+  # Through a container, because the deploy leaves runtime/ owned by root.
   echo ">>> copying media"
-  rsync -a --delete "$PROD/runtime/media/" "$STAGING/runtime/media/"
+  docker run --rm \
+    -v "$PROD/runtime/media:/src:ro" -v "$STAGING/runtime/media:/dst" \
+    alpine:3 sh -c 'rm -rf /dst/* && cp -a /src/. /dst/ 2>/dev/null; echo "    media copied"'
 fi
 
-ls -1t "$STAGING"/runtime/prod-*.dump 2>/dev/null | tail -n +4 | xargs -r rm -f   # keep 3
 echo ">>> staging refreshed from production"
