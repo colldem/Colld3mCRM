@@ -2,6 +2,45 @@
 {% block title %}{% translate 'Archyvas - CRM' %}{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>{% translate 'Archyvas' %}</h1><p>{% translate 'Archyvuoti įrašai nėra negrįžtamai ištrinti.' %}</p></div></div>
-<section class="archive-section"><h2>{% translate 'Kontaktai' %}</h2><div class="table-wrap"><table><thead><tr><th>{% translate 'Asmuo' %}</th><th>{% translate 'Archyvuota' %}</th><th></th></tr></thead><tbody>{% for person in people %}<tr><td>{{ person }}</td><td>{{ person.deleted_at|date:datetime_format }}</td><td><form method="post" action="{% url 'contacts:restore' person.pk %}">{% csrf_token %}<button class="btn">{% translate 'Atkurti' %}</button></form></td></tr>{% empty %}<tr><td colspan="3" class="empty">{% translate 'Archyvuotų kontaktų nėra.' %}</td></tr>{% endfor %}</tbody></table></div></section>
-<section class="archive-section"><h2>{% translate 'Įmonės' %}</h2><div class="table-wrap"><table><thead><tr><th>{% translate 'Įmonė' %}</th><th>{% translate 'Archyvuota' %}</th><th></th></tr></thead><tbody>{% for company in companies %}<tr><td>{{ company.name }}</td><td>{{ company.deleted_at|date:datetime_format }}</td><td><form method="post" action="{% url 'contacts:company-restore' company.pk %}">{% csrf_token %}<button class="btn">{% translate 'Atkurti' %}</button></form></td></tr>{% empty %}<tr><td colspan="3" class="empty">{% translate 'Archyvuotų įmonių nėra.' %}</td></tr>{% endfor %}</tbody></table></div></section>
+
+<section class="archive-section">
+  <h2>{% translate 'Kontaktai' %}</h2>
+  <form method="post" action="{% url 'contacts:archive-bulk' %}" class="archive-bulk">{% csrf_token %}<input type="hidden" name="kind" value="person">
+  <div class="table-wrap"><table>
+    <thead><tr><th><input type="checkbox" class="archive-all" aria-label="{% translate 'Pažymėti visus' %}"></th><th>{% translate 'Asmuo' %}</th><th>{% translate 'Archyvuota' %}</th><th></th></tr></thead>
+    <tbody>{% for person in people %}<tr>
+      <td><input type="checkbox" class="archive-select" name="selected" value="{{ person.pk }}" aria-label="{% translate 'Pažymėti' %} {{ person }}"></td>
+      <td>{{ person }}</td><td>{{ person.deleted_at|date:datetime_format }}</td>
+      <td><button class="btn" formaction="{% url 'contacts:restore' person.pk %}" formmethod="post">{% translate 'Atkurti' %}</button></td>
+    </tr>{% empty %}<tr><td colspan="4" class="empty">{% translate 'Archyvuotų kontaktų nėra.' %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if people %}<button class="btn primary archive-restore-selected" type="submit" hidden>{% translate 'Atkurti pažymėtus' %}</button>{% endif %}
+  </form>
+</section>
+
+<section class="archive-section">
+  <h2>{% translate 'Įmonės' %}</h2>
+  <form method="post" action="{% url 'contacts:archive-bulk' %}" class="archive-bulk">{% csrf_token %}<input type="hidden" name="kind" value="company">
+  <div class="table-wrap"><table>
+    <thead><tr><th><input type="checkbox" class="archive-all" aria-label="{% translate 'Pažymėti visus' %}"></th><th>{% translate 'Įmonė' %}</th><th>{% translate 'Archyvuota' %}</th><th></th></tr></thead>
+    <tbody>{% for company in companies %}<tr>
+      <td><input type="checkbox" class="archive-select" name="selected" value="{{ company.pk }}" aria-label="{% translate 'Pažymėti' %} {{ company.name }}"></td>
+      <td>{{ company.name }}</td><td>{{ company.deleted_at|date:datetime_format }}</td>
+      <td><button class="btn" formaction="{% url 'contacts:company-restore' company.pk %}" formmethod="post">{% translate 'Atkurti' %}</button></td>
+    </tr>{% empty %}<tr><td colspan="4" class="empty">{% translate 'Archyvuotų įmonių nėra.' %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if companies %}<button class="btn primary archive-restore-selected" type="submit" hidden>{% translate 'Atkurti pažymėtus' %}</button>{% endif %}
+  </form>
+</section>
+
+<script>
+document.querySelectorAll('.archive-bulk').forEach(function(form){
+  var all=form.querySelector('.archive-all'),
+      rows=[].slice.call(form.querySelectorAll('.archive-select')),
+      btn=form.querySelector('.archive-restore-selected');
+  function sync(){var n=rows.filter(function(x){return x.checked}).length; if(btn) btn.hidden=!n;}
+  if(all) all.addEventListener('change',function(){rows.forEach(function(x){x.checked=all.checked});sync();});
+  rows.forEach(function(x){x.addEventListener('change',sync);});
+});
+</script>
 {% endblock %}

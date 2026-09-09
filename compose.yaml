@@ -88,7 +88,7 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-web:
-    image: crm-web:0.46.0
+    image: crm-web:0.47.0
     build: .
     environment:
       <<: *crm-env
@@ -107,7 +107,7 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-worker:
-    image: crm-web:0.46.0
+    image: crm-web:0.47.0
     entrypoint: ["/bin/sh", "-c"]
     command:
       - "while true; do python manage.py extend_recurrences || true; python manage.py send_notifications || true; python manage.py fetch_mail || true; sleep ${WORKER_INTERVAL_SECONDS:-300}; done"

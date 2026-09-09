@@ -53,7 +53,15 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .record-actions .bulk-bar #selection-count,.record-actions .bulk-bar #company-selection-count{order:-1;width:auto;font-weight:650;overflow:visible}
 .bulk-label{display:inline-flex;align-items:center;gap:6px}
 .bulk-label select{width:auto;min-width:110px;max-width:170px;min-height:32px;padding:6px 26px 6px 8px;background-position:right 8px center;font-size:13px}
-.bulk-label .btn{min-height:32px;padding:6px 12px;font-size:12px}
+.bulk-label .btn,.bulk-more>summary.btn{min-height:32px;padding:6px 12px;font-size:12px}
+.bulk-more{position:relative;list-style:none}
+.bulk-more>summary{cursor:pointer}
+.bulk-more>summary::-webkit-details-marker{display:none}
+.bulk-panel{position:absolute;z-index:4;right:0;top:40px;width:min(420px,90vw);display:grid;gap:12px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:0 12px 30px rgba(6,43,99,.16);white-space:normal}
+.bulk-panel-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.bulk-panel-row>label{flex:0 0 100%;font-size:12px;font-weight:700;color:var(--muted)}
+.bulk-panel-row input,.bulk-panel-row select{width:auto;min-width:120px;flex:1 1 120px;min-height:32px;padding:6px 8px;font-size:13px}
+.bulk-panel-row .btn{min-height:32px;padding:6px 12px;font-size:12px;flex:0 0 auto}
 .import-preview{overflow-x:auto;border:1px solid var(--line);border-radius:6px;margin:14px 0}
 .import-preview table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
 .import-preview th,.import-preview td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left}

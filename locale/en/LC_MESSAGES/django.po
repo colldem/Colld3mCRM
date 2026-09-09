@@ -2709,3 +2709,90 @@ msgstr "Create new users automatically"
 
 msgid "Kada ir ar gauti priminimų laiškus. Tuščia = sistemos numatyta."
 msgstr "When and whether to get reminder emails. Blank = system default."
+
+msgid "Daugiau…"
+msgstr "More…"
+
+msgid "Nustatyti lauką"
+msgstr "Set a field"
+
+msgid "Laukas…"
+msgstr "Field…"
+
+msgid "Reikšmė"
+msgstr "Value"
+
+msgid "Nustatyti"
+msgstr "Set"
+
+msgid "Papildomas atsakingas"
+msgstr "Extra responsible"
+
+msgid "Sukurti užduotį"
+msgstr "Create a task"
+
+msgid "Užduoties tekstas"
+msgstr "Task text"
+
+msgid "Vykdytojas"
+msgstr "Assignee"
+
+msgid "Man"
+msgstr "Me"
+
+msgid "Sukurti"
+msgstr "Create"
+
+msgid "Registruoti veiklą"
+msgstr "Log an activity"
+
+msgid "Įrašyti"
+msgstr "Log"
+
+msgid "Pažymėti visus"
+msgstr "Select all"
+
+msgid "Atkurti pažymėtus"
+msgstr "Restore selected"
+
+msgid "Šio tipo laukų masiškai nustatyti negalima."
+msgstr "Fields of this type cannot be set in bulk."
+
+msgid "Netinkama reikšmė. Galimos: %(o)s."
+msgstr "Invalid value. Allowed: %(o)s."
+
+msgid "Laukas „%(f)s“ nustatytas įrašams: %(n)s."
+msgstr "Field “%(f)s” set on %(n)s records."
+
+msgid "Neturite teisės keisti atsakingų."
+msgstr "You do not have permission to change responsibles."
+
+msgid "Papildomas atsakingas pridėtas įrašams: %(n)s."
+msgstr "Extra responsible added to %(n)s records."
+
+msgid "Papildomas atsakingas nuimtas nuo įrašų: %(n)s."
+msgstr "Extra responsible removed from %(n)s records."
+
+msgid "Nurodykite užduoties tekstą ir datą."
+msgstr "Enter the task text and date."
+
+msgid "Sukurta užduočių: %(n)s."
+msgstr "Tasks created: %(n)s."
+
+msgid "Riba %(m)s — likusiems įrašams užduotys nesukurtos."
+msgstr "Limit %(m)s — no tasks created for the rest."
+
+msgid "Nurodykite veiklos tipą ir tekstą."
+msgstr "Enter the activity type and text."
+
+msgid "Užregistruota veiklų: %(n)s."
+msgstr "Activities logged: %(n)s."
+
+msgid "Riba %(m)s — likusiems įrašams veiklos neužregistruotos."
+msgstr "Limit %(m)s — no activities logged for the rest."
+
+msgid "Atkurta įmonių: %(n)s."
+msgstr "Companies restored: %(n)s."
+
+msgid "Atkurta kontaktų: %(n)s."
+msgstr "Contacts restored: %(n)s."

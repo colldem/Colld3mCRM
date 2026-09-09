@@ -14,8 +14,10 @@ programoje: **Nustatymai → Dokumentacija**.
   (visi / komandos / savi).
 - Asmenys, įmonės ir jų ryšiai; daugiareikšmiai telefonai, el. paštai, adresai, URL.
 - Kontaktų ir įmonių sąrašai: paieška, išplėsti filtrai, išsaugoti filtrai,
-  rikiavimas, pasirinktiniai stulpeliai, 50 / 100 eilučių puslapiavimas, masiniai
-  veiksmai.
+  rikiavimas, pasirinktiniai stulpeliai, puslapiavimas. Masiniai veiksmai:
+  žymos/kategorijos/atsakingo priskyrimas, dinaminio lauko nustatymas, papildomas
+  atsakingas, užduoties ar veiklos sukūrimas pažymėtiems, archyvavimas ir
+  atkūrimas.
 - Kontakto ir įmonės kortelės su inline redagavimu, bendravimo istorija, failais,
   priminimais ir komentarais.
 - Darbastalis (darbotvarkė, vėluojantys priminimai, savaitės veiklos) ir analitika

@@ -1,4 +1,5 @@
 from django.utils.translation import gettext as _, gettext_lazy as tr
+from datetime import datetime, time
 import mimetypes
 import os
 import secrets
@@ -317,6 +318,7 @@ def contact_list(request):
         "tags": tags, "filter_values": filter_values,
         "custom_fields": custom_fields, "custom_columns": custom_columns,
         "owner_users": owner_users, "can_assign_owner": _can_assign_owner(request.user),
+        "activity_types": Activity.TYPE_CHOICES,
         "owner_filter_hint": _owner_filter_hint(request.user, filter_values["owner"]),
         "active_filter_count": active_filter_count(filter_values),
         "filter_chips": filter_chips(request.GET, filter_values, label_maps, request.path),
@@ -325,15 +327,20 @@ def contact_list(request):
     })
 
 
+def _int_or_none(value):
+    value = (value or "").strip()
+    return int(value) if value.isdigit() else None
+
+
 def _bulk_add_label(request, queryset, action):
     """Add one tag or category to every record in queryset, keeping the 3-item cap."""
     if action == "add_tag":
         model, field = Tag, "tags"
-        item = model.objects.filter(pk=request.POST.get("tag")).first()
+        item = model.objects.filter(pk=_int_or_none(request.POST.get("tag"))).first()
         limit_msg = tr("Praleista (jau 3 žymos): %(n)s.")
     else:
         model, field = Category, "categories"
-        item = model.objects.filter(pk=request.POST.get("category")).first()
+        item = model.objects.filter(pk=_int_or_none(request.POST.get("category"))).first()
         limit_msg = tr("Praleista (jau 3 kategorijos): %(n)s.")
     if not item:
         return
@@ -364,7 +371,7 @@ def _bulk_remove_label(request, queryset, action):
         model, field, key = Tag, "tags", "tag"
     else:
         model, field, key = Category, "categories", "category"
-    item = model.objects.filter(pk=request.POST.get(key)).first()
+    item = model.objects.filter(pk=_int_or_none(request.POST.get(key))).first()
     if not item:
         return
     removed = 0
@@ -405,6 +412,121 @@ def _bulk_assign_owner(request, queryset):
         messages.success(request, tr("Atsakingas pašalintas nuo įrašų: %(n)s.") % {"n": count})
 
 
+_BULK_MAX_CREATE = 500
+
+
+def _bulk_set_custom(request, queryset, entity):
+    """Set one dynamic field to the same value on every record in the queryset."""
+    from .custom_fields import clean_and_store
+
+    field = CustomField.objects.filter(pk=_int_or_none(request.POST.get("custom_field")), entity=entity).first()
+    if not field:
+        return
+    if field.field_type in (CustomField.BOOL, CustomField.MULTISELECT):
+        messages.error(request, tr("Šio tipo laukų masiškai nustatyti negalima."))
+        return
+    if field.field_type == CustomField.SELECT:
+        picked = (request.POST.get("value") or "").strip()
+        if picked and picked not in field.options:
+            messages.error(request, tr("Netinkama reikšmė. Galimos: %(o)s.") % {"o": ", ".join(field.options)})
+            return
+    updated = 0
+    for record in queryset:
+        clean_and_store(record, field, request.POST)
+        updated += 1
+    if updated:
+        audit_log(AuditLog.UPDATE, request=request, target_type="bulk", field=field.name,
+                  new=(request.POST.get("value") or "")[:150], detail={"count": updated})
+        messages.success(request, tr("Laukas „%(f)s“ nustatytas įrašams: %(n)s.") % {"f": field.name, "n": updated})
+
+
+def _bulk_edit_responsible(request, queryset, *, add):
+    """Add or remove one extra responsible for every record in the queryset."""
+    from .permissions import user_label
+
+    if not _can_assign_owner(request.user):
+        messages.error(request, tr("Neturite teisės keisti atsakingų."))
+        return
+    user = get_user_model().objects.filter(pk=_int_or_none(request.POST.get("responsible")), is_active=True).first()
+    if not user:
+        messages.error(request, tr("Pasirinktas naudotojas nerastas."))
+        return
+    changed = 0
+    for record in queryset:
+        relation = record.responsibles
+        has = relation.filter(pk=user.pk).exists()
+        if add and not has:
+            relation.add(user)
+            changed += 1
+        elif not add and has:
+            relation.remove(user)
+            changed += 1
+    if changed:
+        audit_log(AuditLog.UPDATE, request=request, target_type="bulk", field=str(tr("Papildomas atsakingas")),
+                  new=user_label(user) if add else "", old="" if add else user_label(user), detail={"count": changed})
+        messages.success(request, (tr("Papildomas atsakingas pridėtas įrašams: %(n)s.") if add
+                                   else tr("Papildomas atsakingas nuimtas nuo įrašų: %(n)s.")) % {"n": changed})
+
+
+def _bulk_due_at(raw):
+    parsed = parse_date((raw or "").strip())
+    return timezone.make_aware(datetime.combine(parsed, time(9, 0))) if parsed else None
+
+
+def _bulk_create_task(request, queryset, kind):
+    """Create the same reminder against every record in the queryset."""
+    text = (request.POST.get("task_text") or "").strip()[:500]
+    due_at = _bulk_due_at(request.POST.get("task_due"))
+    assignee = get_user_model().objects.filter(pk=_int_or_none(request.POST.get("task_assigned")), is_active=True).first() or request.user
+    if not text or not due_at:
+        messages.error(request, tr("Nurodykite užduoties tekstą ir datą."))
+        return
+    records = list(queryset[:_BULK_MAX_CREATE])
+    for record in records:
+        Reminder.objects.create(**{kind: record}, text=text, due_at=due_at,
+                                created_by=request.user, assigned_to=assignee)
+    if records:
+        audit_log(AuditLog.CREATE, request=request, target_type="bulk", field=str(tr("Priminimas")),
+                  new=text[:150], detail={"count": len(records)})
+        messages.success(request, tr("Sukurta užduočių: %(n)s.") % {"n": len(records)})
+    if queryset.count() > _BULK_MAX_CREATE:
+        messages.error(request, tr("Riba %(m)s — likusiems įrašams užduotys nesukurtos.") % {"m": _BULK_MAX_CREATE})
+
+
+def _bulk_log_activity(request, queryset, kind):
+    """Log the same activity against every record in the queryset."""
+    activity_type = request.POST.get("activity_type")
+    text = (request.POST.get("activity_text") or "").strip()[:10000]
+    if activity_type not in {choice[0] for choice in Activity.TYPE_CHOICES} or not text:
+        messages.error(request, tr("Nurodykite veiklos tipą ir tekstą."))
+        return
+    records = list(queryset[:_BULK_MAX_CREATE])
+    for record in records:
+        Activity.objects.create(**{kind: record}, activity_type=activity_type, text=text, created_by=request.user)
+    if records:
+        audit_log(AuditLog.CREATE, request=request, target_type="bulk", field=str(tr("Veikla")),
+                  new=text[:150], detail={"count": len(records)})
+        messages.success(request, tr("Užregistruota veiklų: %(n)s.") % {"n": len(records)})
+    if queryset.count() > _BULK_MAX_CREATE:
+        messages.error(request, tr("Riba %(m)s — likusiems įrašams veiklos neužregistruotos.") % {"m": _BULK_MAX_CREATE})
+
+
+def _run_bulk_extra(request, queryset, *, entity, kind):
+    """Bulk actions shared by contacts and companies beyond the label/owner set."""
+    action = request.POST.get("action")
+    if action == "set_custom":
+        _require_capability(request, "can_bulk_edit")
+        _bulk_set_custom(request, queryset, entity)
+    elif action in {"add_responsible", "remove_responsible"}:
+        _bulk_edit_responsible(request, queryset, add=action == "add_responsible")
+    elif action == "create_task":
+        _require_capability(request, "can_bulk_edit")
+        _bulk_create_task(request, queryset, kind)
+    elif action == "log_activity":
+        _require_capability(request, "can_bulk_edit")
+        _bulk_log_activity(request, queryset, kind)
+
+
 @login_required
 def contact_bulk_action(request):
     if request.method != "POST":
@@ -428,6 +550,8 @@ def contact_bulk_action(request):
         _bulk_remove_label(request, people, action)
     elif action == "assign_owner":
         _bulk_assign_owner(request, people)
+    else:
+        _run_bulk_extra(request, people, entity=CustomField.PERSON, kind="person")
     return redirect("contacts:list")
 
 
@@ -455,6 +579,8 @@ def company_bulk_action(request):
         _bulk_remove_label(request, companies, action)
     elif action == "assign_owner":
         _bulk_assign_owner(request, companies)
+    else:
+        _run_bulk_extra(request, companies, entity=CustomField.COMPANY, kind="company")
     return redirect("contacts:company-list")
 
 
@@ -510,6 +636,30 @@ def company_restore(request, pk):
         company.save(update_fields=["deleted_at", "updated_at"])
         audit_log(AuditLog.RESTORE, request=request, target=company)
         messages.success(request, tr("Įmonė atkurta."))
+    return redirect("contacts:archive-list")
+
+
+@login_required
+def archive_bulk_action(request):
+    """Restore several archived contacts or companies at once."""
+    if request.method != "POST":
+        return redirect("contacts:archive-list")
+    _require_capability(request, "can_delete")
+    ids = request.POST.getlist("selected")
+    if request.POST.get("kind") == "company":
+        model, base = Company, visible_companies
+        message = tr("Atkurta įmonių: %(n)s.")
+    else:
+        model, base = Person, visible_people
+        message = tr("Atkurta kontaktų: %(n)s.")
+    records = list(base(request.user, model.objects.filter(
+        pk__in=ids, deleted_at__isnull=False, merged_into__isnull=True)))
+    for record in records:
+        record.deleted_at = None
+        record.save(update_fields=["deleted_at", "updated_at"])
+        audit_log(AuditLog.RESTORE, request=request, target=record)
+    if records:
+        messages.success(request, message % {"n": len(records)})
     return redirect("contacts:archive-list")
 
 
@@ -1737,6 +1887,7 @@ def company_list(request):
         "page": page, "query": query, "page_size": page_size, "sort": sort_key, "direction": direction, "filter_values": filter_values, "columns": columns,
         "custom_fields": custom_fields, "custom_columns": custom_columns,
         "owner_users": owner_users, "can_assign_owner": _can_assign_owner(request.user),
+        "activity_types": Activity.TYPE_CHOICES,
         "owner_filter_hint": _owner_filter_hint(request.user, filter_values["owner"]),
         "page_numbers": _elided_page_numbers(page),
         "list_query": list_query.urlencode(),

@@ -2184,6 +2184,69 @@ class ContactViewTests(TestCase):
         self.client.post(reverse("contacts:company-bulk-action"), {"action": "add_tag", "tag": tag.pk, "selected": [self.company.pk]})
         self.assertIn(tag, self.company.tags.all())
 
+    def test_bulk_set_custom_field_for_selected_contacts(self):
+        self.client.force_login(self.user)
+        field = CustomField.objects.create(entity=CustomField.PERSON, name="Šaltinis", field_type=CustomField.SELECT, options=["Web", "Renginys"])
+        other = Person.objects.create(first_name="Kita", last_name="Pavardė")
+        self.client.post(reverse("contacts:bulk-action"), {
+            "action": "set_custom", "custom_field": field.pk, "value": "Renginys",
+            "selected": [self.person.pk, other.pk],
+        })
+        self.assertEqual(CustomValue.objects.filter(field=field, value="Renginys").count(), 2)
+        resp = self.client.post(reverse("contacts:bulk-action"), {
+            "action": "set_custom", "custom_field": field.pk, "value": "Blogai", "selected": [self.person.pk],
+        }, follow=True)
+        self.assertContains(resp, "Netinkama reikšmė")
+
+    def test_bulk_add_and_remove_extra_responsible(self):
+        self.client.force_login(self.user)
+        mate = get_user_model().objects.create_user("kolega47", password="very-secure-password")
+        self.client.post(reverse("contacts:bulk-action"), {
+            "action": "add_responsible", "responsible": mate.pk, "selected": [self.person.pk],
+        })
+        self.assertIn(mate, self.person.responsibles.all())
+        self.client.post(reverse("contacts:bulk-action"), {
+            "action": "remove_responsible", "responsible": mate.pk, "selected": [self.person.pk],
+        })
+        self.assertNotIn(mate, self.person.responsibles.all())
+
+    def test_bulk_create_task_and_log_activity_for_selected(self):
+        self.client.force_login(self.user)
+        other = Company.objects.create(name="UAB Antra")
+        self.client.post(reverse("contacts:company-bulk-action"), {
+            "action": "create_task", "task_text": "Perskambinti", "task_due": "2026-12-31",
+            "selected": [self.company.pk, other.pk],
+        })
+        self.assertEqual(Reminder.objects.filter(text="Perskambinti").count(), 2)
+        self.assertTrue(Reminder.objects.filter(company=other, assigned_to=self.user).exists())
+        self.client.post(reverse("contacts:company-bulk-action"), {
+            "action": "log_activity", "activity_type": "call", "activity_text": "Kampanijos skambutis",
+            "selected": [self.company.pk],
+        })
+        self.assertTrue(Activity.objects.filter(company=self.company, activity_type="call", text="Kampanijos skambutis").exists())
+
+    def test_bulk_extra_actions_need_can_bulk_edit(self):
+        restricted = get_user_model().objects.create_user("ribotas47", password="very-secure-password")
+        from contacts.models import UserProfile
+        UserProfile.objects.create(user=restricted, role=UserProfile.ROLE_RESTRICTED)
+        self.client.force_login(restricted)
+        field = CustomField.objects.create(entity=CustomField.PERSON, name="X", field_type=CustomField.TEXT)
+        resp = self.client.post(reverse("contacts:bulk-action"), {
+            "action": "set_custom", "custom_field": field.pk, "value": "y", "selected": [self.person.pk],
+        })
+        self.assertEqual(resp.status_code, 404)
+        self.assertFalse(CustomValue.objects.exists())
+
+    def test_bulk_restore_from_archive(self):
+        self.client.force_login(self.user)
+        gone = Person.objects.create(first_name="Archyvuota", last_name="Byla", deleted_at=timezone.now())
+        gone_co = Company.objects.create(name="Archyvo UAB", deleted_at=timezone.now())
+        self.client.post(reverse("contacts:archive-bulk"), {"kind": "person", "selected": [gone.pk]})
+        self.client.post(reverse("contacts:archive-bulk"), {"kind": "company", "selected": [gone_co.pk]})
+        gone.refresh_from_db(); gone_co.refresh_from_db()
+        self.assertIsNone(gone.deleted_at)
+        self.assertIsNone(gone_co.deleted_at)
+
     def test_global_search_groups_people_companies_activities_and_reminders(self):
         self.client.force_login(self.user)
         Company.objects.create(name="Vilniaus partneriai")

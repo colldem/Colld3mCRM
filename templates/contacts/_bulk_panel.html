@@ -1,0 +1,40 @@
+{% load i18n %}
+<details class="bulk-more">
+  <summary class="btn">{% translate 'Daugiau…' %}</summary>
+  <div class="bulk-panel">
+    {% if crm_caps.can_bulk_edit and custom_fields %}
+    <div class="bulk-panel-row">
+      <label>{% translate 'Nustatyti lauką' %}</label>
+      <select name="custom_field">
+        <option value="">{% translate 'Laukas…' %}</option>
+        {% for field in custom_fields %}<option value="{{ field.pk }}">{{ field.name }}</option>{% endfor %}
+      </select>
+      <input type="text" name="value" placeholder="{% translate 'Reikšmė' %}">
+      <button class="btn" name="action" value="set_custom" type="submit">{% translate 'Nustatyti' %}</button>
+    </div>
+    {% endif %}
+    {% if can_assign_owner %}
+    <div class="bulk-panel-row">
+      <label>{% translate 'Papildomas atsakingas' %}</label>
+      <select name="responsible">{% for member in owner_users %}<option value="{{ member.pk }}">{{ member.get_full_name|default:member.username }}</option>{% endfor %}</select>
+      <button class="btn" name="action" value="add_responsible" type="submit">{% translate 'Pridėti' %}</button>
+      <button class="btn" name="action" value="remove_responsible" type="submit">{% translate 'Nuimti' %}</button>
+    </div>
+    {% endif %}
+    {% if crm_caps.can_bulk_edit %}
+    <div class="bulk-panel-row">
+      <label>{% translate 'Sukurti užduotį' %}</label>
+      <input type="text" name="task_text" placeholder="{% translate 'Užduoties tekstas' %}">
+      <input type="date" name="task_due" aria-label="{% translate 'Terminas' %}">
+      <select name="task_assigned" aria-label="{% translate 'Vykdytojas' %}"><option value="">{% translate 'Man' %}</option>{% for member in owner_users %}<option value="{{ member.pk }}">{{ member.get_full_name|default:member.username }}</option>{% endfor %}</select>
+      <button class="btn" name="action" value="create_task" type="submit">{% translate 'Sukurti' %}</button>
+    </div>
+    <div class="bulk-panel-row">
+      <label>{% translate 'Registruoti veiklą' %}</label>
+      <select name="activity_type">{% for value, label in activity_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+      <input type="text" name="activity_text" placeholder="{% translate 'Tekstas' %}">
+      <button class="btn" name="action" value="log_activity" type="submit">{% translate 'Įrašyti' %}</button>
+    </div>
+    {% endif %}
+  </div>
+</details>

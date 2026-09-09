@@ -646,6 +646,41 @@ DB + `.env` fallback. Nesusietų laiškų sąrašas su „Priskirti kontaktui" /
 
 ---
 
+## H. HubSpot įkvėpti darbai (planas 2026-09-09)
+
+Vykdymo tvarka: **H1 masiniai veiksmai → H2 automatika → H3 REST API → H4 webhooks.**
+
+### H1. Praplėsti masiniai veiksmai — ✅ padaryta (`0.47.0`)
+Prie esamų (žyma / kategorija / atsakingas / archyvas) `contact_bulk_action` /
+`company_bulk_action` pridėta: `set_custom` (dinaminio lauko reikšmė per
+`custom_fields.clean_and_store`, tik text/textarea/select), `add_responsible` /
+`remove_responsible`, `create_task` ir `log_activity` (po vieną `Reminder` /
+`Activity` kiekvienam įrašui, riba 500). Nauja `archive_bulk_action` — kelių
+archyvuotų įrašų atkūrimas iš karto. UI: `templates/contacts/_bulk_panel.html`
+(`<details>` „Daugiau…") sąrašuose; `templates/archive.html` — žymėjimo langeliai.
+Auditas — viena santraukos eilutė su `detail={"count": n}`. Pataisyta latentinė
+`ValueError` (`filter(pk="")`) esamuose bulk helperiuose (`_int_or_none`).
+Testai — `ContactViewTests` (6 nauji).
+
+### H2. Automatika — ⏳ suplanuota
+`AutomationRule` + `AutomationLog` modeliai, `contacts/automation.py`,
+`manage.py run_automations` (worker). Trigeriai iš `_care_querysets` stiliaus
+užklausų; veiksmai: pranešti / priskirti / sukurti užduotį / pridėti žymą.
+`SystemSettings.automations_enabled` kaip kill switch. Idempotencija per
+`AutomationLog`. Nustatymai → Automatika (adminui).
+
+### H3. REST API + raktai — ⏳ suplanuota
+`contacts/api.py` (rankinis JSON, be DRF), `ApiToken` modelis (sha256, scope
+read / read_write), `/api/v1/` endpoint'ai kontaktams / įmonėms / veikloms /
+priminimams, matomumas = token kūrėjo. Nustatymai → Integracijos.
+
+### H4. Webhooks — ⏳ suplanuota
+`Webhook` + `WebhookDelivery` modeliai, `contacts/webhooks.py` `emit()`,
+`manage.py deliver_webhooks` (worker) su HMAC parašu ir backoff. Secret per
+`crypto.py`.
+
+---
+
 ## F. Kalendorius — ✅ padaryta (`0.28.0`)
 
 Asmeninė darbotvarkė: kiekvienas naudotojas mato **tik savo sukurtus** priminimus.
