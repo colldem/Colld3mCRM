@@ -26,7 +26,12 @@ grep -q '^COMPOSE_FILE=' "$APP/.env" || {
   echo "FATAL: $APP/.env must set COMPOSE_FILE — see docs/DEPLOYMENT.md"; exit 1; }
 
 # --- 1. back up the live database ---------------------------------------
-(cd "$APP" && docker compose exec -T crm-db pg_dump -U crm -d crm -Fc < /dev/null) > "$DUMP"
+# Explicit -f compose.yaml, not the .env COMPOSE_FILE: an overlay named there
+# (compose.tailscale.yaml) may not be on the host yet on the deploy that first
+# introduces it, and the backup only needs the already-running db container,
+# which compose.yaml alone defines.
+docker compose -f "$APP/compose.yaml" --project-directory "$APP" \
+  exec -T crm-db pg_dump -U crm -d crm -Fc < /dev/null > "$DUMP"
 test -s "$DUMP" || { echo "FATAL: backup is empty"; rm -f "$DUMP"; exit 1; }
 echo "    backup: $(basename "$DUMP") ($(wc -c < "$DUMP") bytes)"
 ls -1t "$APP"/pre-*.dump 2>/dev/null | tail -n +21 | xargs -r rm -f   # keep 20
