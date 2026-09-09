@@ -17,7 +17,9 @@ a VPS, a home server, a NAS — and needs no account with any third party.
 
 ## Quick start
 
-Requires Docker with the Compose plugin (Docker 20.10+).
+Requires Docker with the Compose plugin. The base file works on any recent
+version; the two overlays below use `!reset`, which needs **Compose v2.24 or
+newer** (`docker compose version`).
 
 ```sh
 git clone https://github.com/colldem/Colld3mCRM.git crm
@@ -43,6 +45,19 @@ docker compose up -d
 
 The CRM is on <http://127.0.0.1:8080>. The database schema is created
 automatically on first start.
+
+Note that this is **on the machine you started it on, and nowhere else**. Two
+settings do that on purpose, and both are the first thing people trip over:
+
+- `CRM_BIND_IP=127.0.0.1` means the port is not published to the network. To
+  reach it from another machine while testing, set `CRM_BIND_IP=0.0.0.0` — but
+  only on a trusted network, since the app speaks plain HTTP.
+- `DJANGO_ALLOWED_HOSTS` lists the names the app answers to. Reach it by any
+  other name or IP and Django replies **400 Bad Request** rather than serving
+  the page. Add the name you actually use, e.g.
+  `DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.50`.
+
+For anything beyond a local trial, use one of the three options below instead.
 
 `CRM_SECRETS_KEY` is the one value you cannot regenerate later: lose it and the
 SMTP, IMAP and Entra passwords saved through the Settings UI become unreadable.
