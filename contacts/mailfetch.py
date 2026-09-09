@@ -10,7 +10,6 @@ import re
 from email.header import decode_header, make_header
 from email.utils import getaddresses, parsedate_to_datetime
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -107,7 +106,9 @@ def process_message(raw):
     except Exception:
         received = timezone.now()
 
-    own = (settings.IMAP_USER or "").lower()
+    from .integrations import imap_config
+
+    own = (imap_config().user or "").lower()
     candidates = [addr for addr in recipients if addr and addr != own]
     person = Person.objects.filter(deleted_at__isnull=True, emails__email__in=candidates).distinct().first()
     User = get_user_model()
@@ -130,15 +131,18 @@ def process_message(raw):
 
 
 def fetch():
-    if not settings.IMAP_HOST:
+    from .integrations import imap_config
+
+    cfg = imap_config()
+    if not cfg.active:
         return {}
     import imaplib
 
     counts = {}
-    conn = imaplib.IMAP4_SSL(settings.IMAP_HOST, settings.IMAP_PORT)
+    conn = imaplib.IMAP4_SSL(cfg.host, cfg.port)
     try:
-        conn.login(settings.IMAP_USER, settings.IMAP_PASSWORD)
-        conn.select(settings.IMAP_FOLDER)
+        conn.login(cfg.user, cfg.password)
+        conn.select(cfg.folder)
         _typ, data = conn.search(None, "UNSEEN")
         for num in (data[0] or b"").split():
             _typ, msg_data = conn.fetch(num, "(RFC822)")

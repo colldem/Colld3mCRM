@@ -14,6 +14,7 @@
     {% if is_crm_admin %}<a class="{% if settings_section == 'permissions' %}active{% endif %}" href="{% url 'contacts:settings-permissions' %}">{% translate 'Rolės ir teisės' %}</a>{% endif %}
     {% if is_crm_admin %}<a class="{% if settings_section == 'notifications' %}active{% endif %}" href="{% url 'contacts:settings-notifications' %}">{% translate 'Pranešimai' %}</a>
     <a class="{% if settings_section == 'incoming-mail' %}active{% endif %}" href="{% url 'contacts:settings-incoming-mail' %}">{% translate 'Gauti laiškai' %}</a>
+    <a class="{% if settings_section == 'login' %}active{% endif %}" href="{% url 'contacts:settings-login' %}">{% translate 'Prisijungimas' %}</a>
     <a class="{% if settings_section == 'system' %}active{% endif %}" href="{% url 'contacts:settings-system' %}">{% translate 'Sistema' %}</a>
     <a class="{% if settings_section == 'import' %}active{% endif %}" href="{% url 'contacts:settings-import' %}">{% translate 'Importas' %}</a>{% endif %}
     {% if crm_caps.can_view_audit %}<a class="{% if settings_section == 'audit' %}active{% endif %}" href="{% url 'contacts:settings-audit' %}">{% translate 'Žurnalas' %}</a>{% endif %}

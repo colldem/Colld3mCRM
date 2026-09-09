@@ -64,6 +64,7 @@ urlpatterns = [
     path("settings/system/", views.settings_system, name="settings-system"),
     path("settings/notifications/", views.settings_notifications, name="settings-notifications"),
     path("settings/incoming-mail/", views.settings_incoming_mail, name="settings-incoming-mail"),
+    path("settings/login/", views.settings_login, name="settings-login"),
     path("notifications/unsubscribe/<str:token>/", views.notifications_unsubscribe, name="notifications-unsubscribe"),
     path("calendar/feed/<str:token>.ics", views.calendar_feed, name="calendar-feed"),
     path("settings/import/", views.settings_import, name="settings-import"),

@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
@@ -13,6 +12,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    # Entra ID (OIDC) — the views 404 unless login through Entra is enabled in Settings.
+    path("oidc/", include("mozilla_django_oidc.urls")),
     path("setup/", views.setup_admin, name="setup"),
     path("health/live", views.health_live, name="health-live"),
     path("health/ready", views.health_ready, name="health-ready"),
@@ -20,6 +21,3 @@ urlpatterns = [
     path("sw.js", views.pwa_service_worker, name="pwa-service-worker"),
     path("", include("contacts.urls")),
 ]
-
-if settings.OIDC_ENABLED:
-    urlpatterns.insert(4, path("oidc/", include("mozilla_django_oidc.urls")))

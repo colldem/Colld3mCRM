@@ -25,15 +25,17 @@ programoje: **Nustatymai → Dokumentacija**.
   `.ics` prenumeratos nuoroda (Google / Outlook / Apple).
 - Užduočių priskyrimas kolegai su prioritetu.
 - El. pašto pranešimai (artėjantis įvykis, rytinė santrauka, priskirta užduotis) –
-  SMTP iš `.env`; be jo laiškai rašomi tik į žurnalą.
-- Gautų el. laiškų prisegimas prie kontaktų per IMAP dėžutę (`.env`).
-- Prisijungimas per Microsoft Entra ID (OIDC) šalia vietinio prisijungimo (`.env`).
+  SMTP konfigūruojamas Nustatymuose; be jo laiškai rašomi tik į žurnalą.
+- Gautų el. laiškų prisegimas prie kontaktų per IMAP dėžutę.
+- Prisijungimas per Microsoft Entra ID (OIDC) šalia vietinio prisijungimo.
 - Žymos, kategorijos, dinaminiai laukai; dublikatų aptikimas ir sujungimas.
 - CSV / XLSX kontaktų importas, CSV eksportas, pilna ZIP atsarginė kopija.
 - Veiksmų žurnalas (audit log). LT / EN sąsaja.
 
-El. pašto pranešimai, gaunami laiškai ir Entra ID prisijungimas kode yra baigti;
-jie įsijungia užpildžius atitinkamus `.env` kintamuosius (žr. [`.env.example`](.env.example)).
+El. paštas, gaunami laiškai ir Entra ID prisijungimas įjungiami ir suvedami
+Nustatymų languose (Pranešimai / Gauti laiškai / Prisijungimas), be konteinerio
+perkrovimo. Slaptažodžiai duomenų bazėje šifruojami raktu `CRM_SECRETS_KEY` iš
+`.env` (žr. [`.env.example`](.env.example)).
 
 Pirmoji administratoriaus paskyra sukuriama adresu `/setup/` naudojant vienkartinį
 `CRM_SETUP_TOKEN`. Sukūrus pirmą naudotoją setup puslapis automatiškai išsijungia.
@@ -41,9 +43,9 @@ Pirmoji administratoriaus paskyra sukuriama adresu `/setup/` naudojant vienkarti
 ## Technologijos
 
 Python 3.13 · Django 5.2 · PostgreSQL 17 (produkcijoje) / SQLite (lokaliai) ·
-Gunicorn · WhiteNoise · django-axes · Argon2 · mozilla-django-oidc · AdminLTE 4 +
-Bootstrap 5 (įdiegti vietoje) · Tailscale. Grafikai – rankomis generuojamas SVG be
-išorinių bibliotekų. Foniniai darbai – `crm-worker` konteineris.
+Gunicorn · WhiteNoise · django-axes · Argon2 · mozilla-django-oidc · cryptography ·
+AdminLTE 4 + Bootstrap 5 (įdiegti vietoje) · Tailscale. Grafikai – rankomis
+generuojamas SVG be išorinių bibliotekų. Foniniai darbai – `crm-worker` konteineris.
 
 Išsamus architektūros aprašymas: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 

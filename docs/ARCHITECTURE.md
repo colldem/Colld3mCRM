@@ -32,8 +32,9 @@ Sąmoningi apribojimai: **nėra CI/CD**, nėra automatinių atsarginių kopijų 
 | DB draiveris | `psycopg` 3 (binary) | — |
 | Slaptažodžiai | Argon2 (`argon2-cffi`), min. 12 simbolių, 4 validatoriai | `PASSWORD_HASHERS` |
 | Prisijungimų ribojimas | `django-axes` 8 | 5 klaidos → 30 min blokada pagal (username, ip), HTTP 429 |
-| SSO (neprivalomas) | `mozilla-django-oidc` | Microsoft Entra ID prisijungimas, kai `OIDC_ENABLED=true` |
-| El. paštas | Django SMTP backend (`EMAIL_*`) + `imaplib` (gauti laiškai) | be `.env` — laiškai į žurnalą, IMAP išjungtas |
+| SSO (neprivalomas) | `mozilla-django-oidc` | Microsoft Entra ID prisijungimas, įjungiamas Nustatymuose |
+| El. paštas | Django SMTP backend + `imaplib` (gauti laiškai) | konfigūruojama Nustatymuose; be jos — laiškai į žurnalą, IMAP išjungtas |
+| Paslaptys | `cryptography` (Fernet) | Nustatymuose suvesti integracijų slaptažodžiai šifruojami raktu `CRM_SECRETS_KEY` |
 | Importas | `openpyxl` | XLSX skaitymas; CSV — standartinė biblioteka |
 | Sąsaja | AdminLTE 4 + Bootstrap 5, **įdiegti vietoje** `static/vendor/adminlte/` | uždaras tinklas — jokių CDN |
 | Grafikai | rankomis generuojamas inline SVG (`contacts/charts.py`) | jokios chart bibliotekos |
@@ -71,7 +72,9 @@ contacts/          vienintelė programa (app)
   recurrence.py     pasikartojančių priminimų materializavimas
   ical.py           .ics kalendoriaus srautas (be bibliotekos)
   mailfetch.py      IMAP gautų laiškų parsisiuntimas ir priskyrimas
-  oidc.py           Microsoft Entra ID (OIDC) prisijungimo backend'as
+  oidc.py           Microsoft Entra ID (OIDC) backend'as + gate'inti view'ai
+  integrations.py   efektyvi SMTP / IMAP / OIDC konfigūracija (DB + .env fallback)
+  crypto.py         integracijų slaptažodžių šifravimas (Fernet, CRM_SECRETS_KEY)
   sanitizers.py     safe_url / csv_safe
   management/commands/  send_notifications, extend_recurrences, fetch_mail, ensure_admin
   migrations/      migracijos
@@ -203,9 +206,17 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
   nė vieno naudotojo ir su `CRM_SETUP_TOKEN`.
 - Argon2, min. 12 simbolių, panašumo/dažnumo/skaitmenų validatoriai.
 - `django-axes`: 5 klaidos → 30 min blokada (username+IP), 429.
-- Neprivalomas Microsoft Entra ID (OIDC) prisijungimas (`OIDC_ENABLED=true`):
-  `contacts.oidc.EntraOIDCBackend` susieja pagal el. paštą su esama aktyvia
-  paskyra; naujų nekuria be `OIDC_CREATE_USERS=true`. Vietinis prisijungimas lieka.
+- Neprivalomas Microsoft Entra ID (OIDC) prisijungimas, įjungiamas Nustatymai →
+  Prisijungimas: `contacts.oidc.EntraOIDCBackend` susieja pagal el. paštą su esama
+  aktyvia paskyra; naujų nekuria, kol neįjungtas atskiras jungiklis. Plumbing'as
+  visada įkeltas, `EntraRequestView`/`EntraCallbackView` grąžina 404, kol
+  `oidc_config().usable` yra `False`; endpoint'ai ir client id/secret imami iš DB
+  per užklausą (`get_settings` override). Vietinis prisijungimas lieka.
+- Integracijų slaptažodžiai (SMTP / IMAP / Entra secret) suvedami Nustatymuose ir
+  DB saugomi šifruoti (`Fernet`, `enc:v1:` prefiksas). Raktas `CRM_SECRETS_KEY` —
+  tik `.env`; be jo neslapti laukai veikia, slaptažodžių išsaugoti negalima.
+  Formos laukai write-only (pateikus tuščią — lieka esamas). `pg_dump` ir ZIP
+  eksportas neša tik neatšifruojamą tekstą.
 - CSRF įjungta; `HttpOnly` + `SameSite=Lax` sesijos slapukai; idle timeout
   (`SESSION_COOKIE_AGE`, numatyta 480 min, `SESSION_SAVE_EVERY_REQUEST`).
 - `DJANGO_FORCE_HTTPS=true` (prod): saugūs slapukai, `SECURE_SSL_REDIRECT`, HSTS.
@@ -228,7 +239,7 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 - `crm-web` naudoja `network_mode: service:crm-tailscale` — dalijasi Tailscale
   konteinerio tinklu, todėl klausosi `:8080` už Tailscale Serve.
 - `crm-worker` sukasi `while true; do … ; sleep ${WORKER_INTERVAL_SECONDS:-300}; done`;
-  komandos nekenksmingai nieko nedaro, kol `.env` integracijos nesukonfigūruotos.
+  komandos nekenksmingai nieko nedaro, kol integracijos neįjungtos Nustatymuose.
 - Bendri env kintamieji laikomi `compose.yaml` YAML anchor'e `x-crm-env` ir
   įtraukiami į `crm-web` bei `crm-worker`.
 - `entrypoint.sh`: `migrate --noinput` → `collectstatic --noinput` → gunicorn.
@@ -236,8 +247,8 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 - Funkcinis pakeitimas → `VERSION` + `compose.yaml` `image:` tag'as bumpinami kartu.
 - `.env` (negitinamas) laiko `POSTGRES_PASSWORD`, `DJANGO_SECRET_KEY`,
   `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_FORCE_HTTPS`,
-  `TS_AUTHKEY`, `CRM_SETUP_TOKEN`, taip pat neprivalomus `EMAIL_*`, `IMAP_*`,
-  `OIDC_*`, `CRM_BASE_URL` (žr. `.env.example`) ir kt.
+  `TS_AUTHKEY`, `CRM_SETUP_TOKEN`, `CRM_SECRETS_KEY`, `CRM_BASE_URL`, taip pat
+  neprivalomus `EMAIL_*`, `IMAP_*`, `OIDC_*` fallback'us (žr. `.env.example`).
 
 ---
 
@@ -268,6 +279,7 @@ Nėra vieno perkeliamo failo. Pilna kopija = PostgreSQL `pg_dump -Fc` +
 „G" skyriaus darbai (`docs/REMAINING-WORK.md`) įgyvendinti: analitika, užduočių
 priskyrimas kolegoms, el. pašto pranešimai, pasikartojantys įvykiai, `.ics`
 prenumerata, Microsoft Entra ID prisijungimas, gautų el. laiškų prisegimas.
-Trys pastarosios (SMTP, IMAP, Entra) kode baigtos ir įsijungia užpildžius `.env`.
+Trys pastarosios (SMTP, IMAP, Entra) įjungiamos ir konfigūruojamos Nustatymų
+languose be konteinerio perkrovimo.
 Sąmoningai atmesta: sandoriai/piltuvėlis, dvipusė kalendoriaus sinchronizacija,
 grafinis ryšių medis.

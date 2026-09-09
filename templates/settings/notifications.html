@@ -7,9 +7,13 @@
 <div class="setting-toggle" style="margin-bottom:20px">
   <span>
     <strong>{% translate 'SMTP būsena' %}</strong>
-    <small>{% if smtp_configured %}{% translate 'Sukonfigūruota:' %} {{ smtp_host }}{% else %}{% translate 'Nesukonfigūruota — laiškai tik rašomi į konteinerio žurnalą. Nustatykite EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD faile .env.' %}{% endif %}</small>
+    <small>{% if smtp_configured %}{% translate 'Sukonfigūruota:' %} {{ smtp_host }}{% else %}{% translate 'Nesukonfigūruota — laiškai tik rašomi į konteinerio žurnalą. Užpildykite SMTP laukus žemiau.' %}{% endif %}</small>
   </span>
 </div>
+
+{% if not secrets_available %}
+<p class="message" style="border-left-color:var(--danger)">{% translate 'Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte išsaugoti SMTP slaptažodį.' %}</p>
+{% endif %}
 
 <form method="post" class="profile-form">
   {% csrf_token %}
@@ -17,6 +21,20 @@
   <label class="setting-toggle">{{ form.notifications_enabled }}<span><strong>{{ form.notifications_enabled.label }}</strong><small>{% translate 'Bendras jungiklis. Išjungus, jokie pranešimai nesiunčiami.' %}</small></span></label>
   <label class="duplicate-level-field"><strong>{{ form.digest_default_time.label }}</strong>{{ form.digest_default_time.errors }}{{ form.digest_default_time }}<small>{% translate 'Naudotojo laiko zona. Naudotojas gali pakeisti savo profilyje.' %}</small></label>
   <label class="duplicate-level-field"><strong>{{ form.notify_default_lead.label }}</strong>{{ form.notify_default_lead.errors }}{{ form.notify_default_lead }}<small>{% translate 'Prieš kiek laiko iki įvykio išsiųsti priminimą.' %}</small></label>
+
+  <div class="settings-subsection">
+    <div class="settings-section-head"><div><h2>{% translate 'SMTP serveris' %}</h2><p>{% translate 'Išeinančio pašto serverio duomenys. Slaptažodis saugomas užšifruotas.' %}</p></div></div>
+    <label class="duplicate-level-field"><strong>{{ form.email_host.label }}</strong>{{ form.email_host.errors }}{{ form.email_host }}</label>
+    <label class="duplicate-level-field"><strong>{{ form.email_port.label }}</strong>{{ form.email_port.errors }}{{ form.email_port }}</label>
+    <label class="duplicate-level-field"><strong>{{ form.email_host_user.label }}</strong>{{ form.email_host_user.errors }}{{ form.email_host_user }}</label>
+    <label class="duplicate-level-field"><strong>{{ form.email_host_password.label }}</strong>{{ form.email_host_password.errors }}{{ form.email_host_password }}<small>{% translate 'Palikite tuščią, kad liktų dabartinis.' %}</small></label>
+    <label class="setting-toggle">{{ form.email_host_password_clear }}<span>{{ form.email_host_password_clear.label }}</span></label>
+    <label class="setting-toggle">{{ form.email_use_tls }}<span>{{ form.email_use_tls.label }}</span></label>
+    <label class="setting-toggle">{{ form.email_use_ssl }}<span>{{ form.email_use_ssl.label }}</span></label>
+    <label class="duplicate-level-field"><strong>{{ form.email_from.label }}</strong>{{ form.email_from.errors }}{{ form.email_from }}</label>
+    <label class="duplicate-level-field"><strong>{{ form.site_base_url.label }}</strong>{{ form.site_base_url.errors }}{{ form.site_base_url }}<small>{% translate 'Naudojama nuorodoms laiškuose ir kalendoriaus faile.' %}</small></label>
+  </div>
+
   <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
 </form>
 

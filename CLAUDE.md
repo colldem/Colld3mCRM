@@ -60,7 +60,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `recurrence.py` + `management/commands/extend_recurrences.py` — pasikartojantys priminimai;
   `ical.py` — .ics kalendoriaus srautas; `sanitizers.py` — `safe_url` / `csv_safe`;
   `mailfetch.py` + `management/commands/fetch_mail.py` — IMAP gautų laiškų prisegimas;
-  `oidc.py` — Microsoft Entra ID (OIDC) prisijungimo backend'as.
+  `oidc.py` — Microsoft Entra ID (OIDC) prisijungimo backend'as ir view'ai;
+  `integrations.py` — efektyvi SMTP/IMAP/OIDC konfigūracija (DB + `.env` fallback);
+  `crypto.py` — integracijų slaptažodžių šifravimas (`CRM_SECRETS_KEY`).
 - Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`) vykdo
   `crm-worker` paslauga `compose.yaml` (ciklas kas `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.

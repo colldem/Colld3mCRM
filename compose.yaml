@@ -12,6 +12,10 @@ x-crm-env: &crm-env
   DJANGO_FORCE_HTTPS: ${DJANGO_FORCE_HTTPS:-false}
   DJANGO_SESSION_IDLE_MINUTES: ${DJANGO_SESSION_IDLE_MINUTES:-480}
   CRM_BASE_URL: ${CRM_BASE_URL:-}
+  # Encryption key for integration secrets entered in the Settings UI (G5/G6/G7).
+  CRM_SECRETS_KEY: ${CRM_SECRETS_KEY:-}
+  # Email / IMAP / Entra below are an optional fallback — the Settings UI is the
+  # primary place to configure them.
   # Email notifications (G7)
   EMAIL_HOST: ${EMAIL_HOST:-}
   EMAIL_PORT: ${EMAIL_PORT:-587}
@@ -84,7 +88,7 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-web:
-    image: crm-web:0.45.0
+    image: crm-web:0.46.0
     build: .
     environment:
       <<: *crm-env
@@ -103,7 +107,7 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-worker:
-    image: crm-web:0.45.0
+    image: crm-web:0.46.0
     entrypoint: ["/bin/sh", "-c"]
     command:
       - "while true; do python manage.py extend_recurrences || true; python manage.py send_notifications || true; python manage.py fetch_mail || true; sleep ${WORKER_INTERVAL_SECONDS:-300}; done"

@@ -142,8 +142,16 @@ SECURE_HSTS_SECONDS = 0 if DEBUG else int(os.environ.get("DJANGO_HSTS_SECONDS", 
 SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
 SECURE_HSTS_PRELOAD = not DEBUG
 
-# Email notifications (G7). Real delivery needs EMAIL_HOST in the environment;
-# without it mail is only printed to the container log.
+# Integration secrets (SMTP / IMAP passwords, Entra client secret) are entered in
+# the Settings UI and stored encrypted with this key. Keep it in .env only.
+CRM_SECRETS_KEY = os.environ.get("CRM_SECRETS_KEY", "")
+if RUNNING_TESTS and not CRM_SECRETS_KEY:
+    from cryptography.fernet import Fernet
+
+    os.environ["CRM_SECRETS_KEY"] = CRM_SECRETS_KEY = Fernet.generate_key().decode()
+
+# Email / IMAP / Entra: the Settings UI is the primary source. These environment
+# values are only a fallback for deployments that prefer to configure them here.
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
@@ -152,38 +160,37 @@ EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() == "true"
 EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "false").lower() == "true"
 EMAIL_TIMEOUT = 20
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "crm@localhost")
+# Fallback backend for any send that does not go through contacts.notifications
+# (which builds its own SMTP connection from the effective config).
 if RUNNING_TESTS:
     EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 elif EMAIL_HOST:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-# Absolute base for links inside emails (no request object in the cron command).
+# Absolute base for links inside emails / .ics (no request object in the worker).
 CRM_BASE_URL = os.environ.get("CRM_BASE_URL", "https://%s" % (ALLOWED_HOSTS[0] if ALLOWED_HOSTS else "localhost"))
 
-# Incoming mail dropbox (G6). Empty IMAP_HOST disables fetching.
 IMAP_HOST = os.environ.get("IMAP_HOST", "")
 IMAP_PORT = int(os.environ.get("IMAP_PORT", "993"))
 IMAP_USER = os.environ.get("IMAP_USER", "")
 IMAP_PASSWORD = os.environ.get("IMAP_PASSWORD", "")
 IMAP_FOLDER = os.environ.get("IMAP_FOLDER", "INBOX")
 
-# Microsoft Entra ID / OpenID Connect login (G5). Off unless OIDC_ENABLED=true.
-OIDC_ENABLED = os.environ.get("OIDC_ENABLED", "false").lower() == "true" and bool(os.environ.get("OIDC_RP_CLIENT_ID"))
+OIDC_ENV_ENABLED = os.environ.get("OIDC_ENABLED", "false").lower() == "true"
 OIDC_RP_CLIENT_ID = os.environ.get("OIDC_RP_CLIENT_ID", "")
 OIDC_RP_CLIENT_SECRET = os.environ.get("OIDC_RP_CLIENT_SECRET", "")
 OIDC_TENANT_ID = os.environ.get("OIDC_TENANT_ID", "")
 OIDC_CREATE_USERS = os.environ.get("OIDC_CREATE_USERS", "false").lower() == "true"
-if OIDC_ENABLED:
-    INSTALLED_APPS.append("mozilla_django_oidc")
-    AUTHENTICATION_BACKENDS.insert(1, "contacts.oidc.EntraOIDCBackend")
-    _authority = "https://login.microsoftonline.com/%s/v2.0" % (OIDC_TENANT_ID or "common")
-    OIDC_OP_AUTHORIZATION_ENDPOINT = _authority + "/authorize"
-    OIDC_OP_TOKEN_ENDPOINT = _authority + "/token"
-    OIDC_OP_USER_ENDPOINT = _authority.replace("/v2.0", "") + "/openid/userinfo"
-    OIDC_OP_JWKS_ENDPOINT = _authority + "/keys"
-    OIDC_RP_SIGN_ALGO = "RS256"
-    OIDC_RP_SCOPES = "openid email profile"
-    OIDC_USERNAME_ALGO = "contacts.oidc.username_from_claims"
-    LOGIN_REDIRECT_URL = "contacts:list"
-    LOGOUT_REDIRECT_URL = "login"
+
+# OIDC plumbing is always loaded; whether login through Entra is actually offered
+# and accepted is decided per request from the database (see contacts/oidc.py).
+INSTALLED_APPS.append("mozilla_django_oidc")
+AUTHENTICATION_BACKENDS.append("contacts.oidc.EntraOIDCBackend")
+OIDC_AUTHENTICATE_CLASS = "contacts.oidc.EntraRequestView"
+OIDC_CALLBACK_CLASS = "contacts.oidc.EntraCallbackView"
+OIDC_USERNAME_ALGO = "contacts.oidc.username_from_claims"
+OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_RP_SCOPES = "openid email profile"
+LOGIN_REDIRECT_URL = "contacts:list"
+LOGOUT_REDIRECT_URL = "login"

@@ -2601,3 +2601,108 @@ msgstr "Copy"
 
 msgid "Komentaras"
 msgstr "Comment"
+
+msgid "Nesukonfigūruota — laiškai tik rašomi į konteinerio žurnalą. Užpildykite SMTP laukus žemiau."
+msgstr "Not configured - emails are only written to the container log. Fill in the SMTP fields below."
+
+msgid "Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte išsaugoti SMTP slaptažodį."
+msgstr "Set CRM_SECRETS_KEY in .env to be able to save the SMTP password."
+
+msgid "SMTP serveris"
+msgstr "SMTP server"
+
+msgid "Išeinančio pašto serverio duomenys. Slaptažodis saugomas užšifruotas."
+msgstr "Outgoing mail server details. The password is stored encrypted."
+
+msgid "Palikite tuščią, kad liktų dabartinis."
+msgstr "Leave blank to keep the current one."
+
+msgid "Naudojama nuorodoms laiškuose ir kalendoriaus faile."
+msgstr "Used for links in emails and the calendar file."
+
+msgid "Nesukonfigūruota. Užpildykite IMAP laukus žemiau ir įjunkite tikrinimą."
+msgstr "Not configured. Fill in the IMAP fields below and turn checking on."
+
+msgid "Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte išsaugoti IMAP slaptažodį."
+msgstr "Set CRM_SECRETS_KEY in .env to be able to save the IMAP password."
+
+msgid "Kol išjungta, dėžutė netikrinama."
+msgstr "While off, the mailbox is not checked."
+
+msgid "Nepriskirti laiškai"
+msgstr "Unassigned emails"
+
+msgid "Prisijungimas per Microsoft Entra ID (OpenID Connect). Vietinis naudotojo vardas ir slaptažodis lieka."
+msgstr "Sign-in through Microsoft Entra ID (OpenID Connect). Local username and password still work."
+
+msgid "Įjungta — prisijungimo puslapyje rodomas „Prisijungti su Microsoft\"."
+msgstr "On - the login page shows \"Sign in with Microsoft\"."
+
+msgid "Išjungta arba nepilnai sukonfigūruota."
+msgstr "Off or not fully configured."
+
+msgid "Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte išsaugoti kliento paslaptį."
+msgstr "Set CRM_SECRETS_KEY in .env to be able to save the client secret."
+
+msgid "Entra programos peradresavimo URI (redirect URI):"
+msgstr "Entra app redirect URI:"
+
+msgid "Įsigalioja iškart, be konteinerio perkrovimo."
+msgstr "Takes effect immediately, without a container restart."
+
+msgid "Iš Entra: Directory (tenant) ID."
+msgstr "From Entra: Directory (tenant) ID."
+
+msgid "Iš Entra: Application (client) ID."
+msgstr "From Entra: Application (client) ID."
+
+msgid "Palikite tuščią, kad liktų dabartinė."
+msgstr "Leave blank to keep the current one."
+
+msgid "Įjungus, nežinomas Entra naudotojas sukuriamas automatiškai. Išjungus, prisijungti gali tik jau esami CRM naudotojai (pagal el. paštą)."
+msgstr "When on, an unknown Entra user is created automatically. When off, only existing CRM users can sign in (matched by email)."
+
+msgid "Išvalyti išsaugotą reikšmę"
+msgstr "Clear the stored value"
+
+msgid "Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte saugoti slaptažodį."
+msgstr "Set CRM_SECRETS_KEY in .env to be able to store the password."
+
+msgid "Prievadas"
+msgstr "Port"
+
+msgid "Naudoti TLS (STARTTLS)"
+msgstr "Use TLS (STARTTLS)"
+
+msgid "Naudoti SSL"
+msgstr "Use SSL"
+
+msgid "Siuntėjo adresas (From)"
+msgstr "Sender address (From)"
+
+msgid "CRM adresas nuorodoms laiškuose"
+msgstr "CRM address for links in emails"
+
+msgid "Tikrinti dėžutę"
+msgstr "Check the mailbox"
+
+msgid "IMAP serveris"
+msgstr "IMAP server"
+
+msgid "Aplankas"
+msgstr "Folder"
+
+msgid "Leisti prisijungti per Microsoft Entra ID"
+msgstr "Allow sign-in through Microsoft Entra ID"
+
+msgid "Katalogo (nuomininko) ID"
+msgstr "Directory (tenant) ID"
+
+msgid "Programos (kliento) ID"
+msgstr "Application (client) ID"
+
+msgid "Kliento paslaptis (secret)"
+msgstr "Client secret"
+
+msgid "Kurti naujus naudotojus automatiškai"
+msgstr "Create new users automatically"

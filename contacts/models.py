@@ -223,6 +223,33 @@ class SystemSettings(models.Model):
     notifications_enabled = models.BooleanField(default=False)
     digest_default_time = models.TimeField(default=time(7, 30))
     notify_default_lead = models.PositiveSmallIntegerField(default=60, choices=NOTIFY_LEAD_CHOICES)
+
+    # Outgoing email (SMTP) — configured in Settings -> Pranešimai. The password
+    # is stored encrypted (see contacts/crypto.py); the rest is plain.
+    email_host = models.CharField(max_length=255, blank=True, default="")
+    email_port = models.PositiveIntegerField(default=587)
+    email_host_user = models.CharField(max_length=255, blank=True, default="")
+    email_host_password = models.CharField(max_length=500, blank=True, default="")
+    email_use_tls = models.BooleanField(default=True)
+    email_use_ssl = models.BooleanField(default=False)
+    email_from = models.CharField(max_length=255, blank=True, default="")
+    site_base_url = models.CharField(max_length=255, blank=True, default="")
+
+    # Incoming mail (IMAP) — configured in Settings -> Gauti laiškai.
+    imap_enabled = models.BooleanField(default=False)
+    imap_host = models.CharField(max_length=255, blank=True, default="")
+    imap_port = models.PositiveIntegerField(default=993)
+    imap_user = models.CharField(max_length=255, blank=True, default="")
+    imap_password = models.CharField(max_length=500, blank=True, default="")
+    imap_folder = models.CharField(max_length=128, blank=True, default="INBOX")
+
+    # Microsoft Entra ID (OIDC) login — configured in Settings -> Prisijungimas.
+    oidc_enabled = models.BooleanField(default=False)
+    oidc_tenant_id = models.CharField(max_length=255, blank=True, default="")
+    oidc_client_id = models.CharField(max_length=255, blank=True, default="")
+    oidc_client_secret = models.CharField(max_length=500, blank=True, default="")
+    oidc_create_users = models.BooleanField(default=False)
+
     updated_at = models.DateTimeField(auto_now=True)
 
     @property

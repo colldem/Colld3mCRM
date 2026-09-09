@@ -26,11 +26,11 @@ def user_profile(request):
 
 
 def system_settings(request):
-    from django.conf import settings as django_settings
+    from .integrations import oidc_config
 
     system = SystemSettings.load()
     return {"date_format": system.date_format, "datetime_format": system.datetime_format,
-            "oidc_enabled": django_settings.OIDC_ENABLED}
+            "oidc_enabled": oidc_config(system).usable}
 
 
 def crm_permissions(request):

@@ -6,9 +6,29 @@
 
 <div class="setting-toggle" style="margin-bottom:20px">
   <span><strong>{% translate 'IMAP būsena' %}</strong>
-  <small>{% if imap_configured %}{% translate 'Sukonfigūruota:' %} {{ imap_host }}{% else %}{% translate 'Nesukonfigūruota. Nustatykite IMAP_HOST, IMAP_USER, IMAP_PASSWORD faile .env, kad CRM tikrintų dėžutę.' %}{% endif %}</small></span>
+  <small>{% if imap_configured %}{% translate 'Sukonfigūruota:' %} {{ imap_host }}{% else %}{% translate 'Nesukonfigūruota. Užpildykite IMAP laukus žemiau ir įjunkite tikrinimą.' %}{% endif %}</small></span>
 </div>
 
+{% if not secrets_available %}
+<p class="message" style="border-left-color:var(--danger)">{% translate 'Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte išsaugoti IMAP slaptažodį.' %}</p>
+{% endif %}
+
+<form method="post" class="profile-form">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="save_config">
+  {{ config_form.non_field_errors }}
+  <label class="setting-toggle">{{ config_form.imap_enabled }}<span><strong>{{ config_form.imap_enabled.label }}</strong><small>{% translate 'Kol išjungta, dėžutė netikrinama.' %}</small></span></label>
+  <label class="duplicate-level-field"><strong>{{ config_form.imap_host.label }}</strong>{{ config_form.imap_host.errors }}{{ config_form.imap_host }}</label>
+  <label class="duplicate-level-field"><strong>{{ config_form.imap_port.label }}</strong>{{ config_form.imap_port.errors }}{{ config_form.imap_port }}</label>
+  <label class="duplicate-level-field"><strong>{{ config_form.imap_user.label }}</strong>{{ config_form.imap_user.errors }}{{ config_form.imap_user }}</label>
+  <label class="duplicate-level-field"><strong>{{ config_form.imap_password.label }}</strong>{{ config_form.imap_password.errors }}{{ config_form.imap_password }}<small>{% translate 'Palikite tuščią, kad liktų dabartinis.' %}</small></label>
+  <label class="setting-toggle">{{ config_form.imap_password_clear }}<span>{{ config_form.imap_password_clear.label }}</span></label>
+  <label class="duplicate-level-field"><strong>{{ config_form.imap_folder.label }}</strong>{{ config_form.imap_folder.errors }}{{ config_form.imap_folder }}</label>
+  <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
+</form>
+
+<div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% translate 'Nepriskirti laiškai' %}</h2></div></div>
 {% for mail in mails %}
 <section class="panel" style="margin-bottom:10px">
   <div class="panel-head"><h2>{{ mail.subject|default:'(be temos)' }}</h2><span>{{ mail.received_at|date:datetime_format }}</span></div>
@@ -24,4 +44,5 @@
 {% empty %}
 <p class="muted">{% translate 'Nepriskirtų laiškų nėra.' %}</p>
 {% endfor %}
+</div>
 {% endblock %}

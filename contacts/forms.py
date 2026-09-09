@@ -85,16 +85,108 @@ class SystemSettingsForm(forms.ModelForm):
         }
 
 
-class NotificationSettingsForm(forms.ModelForm):
+class _SecretFieldsMixin:
+    """Write-only handling for encrypted secret fields on a SystemSettings form.
+
+    The stored value is never rendered. Submitting blank keeps the existing
+    secret; submitting a value encrypts and replaces it; ticking the matching
+    ``<name>_clear`` box wipes it.
+    """
+
+    secret_fields = ()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .crypto import secrets_available
+
+        self._secrets_available = secrets_available()
+        for name in self.secret_fields:
+            stored = bool(getattr(self.instance, name, ""))
+            self.fields[name].required = False
+            self.fields[name].widget = forms.PasswordInput(
+                render_value=False,
+                attrs={"placeholder": "••••••••" if stored else "", "autocomplete": "new-password"},
+            )
+            self.initial[name] = ""
+            self.fields["%s_clear" % name] = forms.BooleanField(
+                required=False, label=tr("Išvalyti išsaugotą reikšmę"),
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        from .crypto import encrypt
+
+        for name in self.secret_fields:
+            submitted = (cleaned.get(name) or "").strip()
+            if cleaned.get("%s_clear" % name):
+                cleaned[name] = ""
+            elif not submitted:
+                cleaned[name] = getattr(self.instance, name, "")
+            elif not self._secrets_available:
+                self.add_error(name, tr("Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte saugoti slaptažodį."))
+            else:
+                cleaned[name] = encrypt(submitted)
+        return cleaned
+
+
+class NotificationSettingsForm(_SecretFieldsMixin, forms.ModelForm):
+    secret_fields = ("email_host_password",)
+
     class Meta:
         model = SystemSettings
-        fields = ["notifications_enabled", "digest_default_time", "notify_default_lead"]
+        fields = [
+            "notifications_enabled", "digest_default_time", "notify_default_lead",
+            "email_host", "email_port", "email_host_user", "email_host_password",
+            "email_use_tls", "email_use_ssl", "email_from", "site_base_url",
+        ]
         labels = {
             "notifications_enabled": tr("Siųsti pranešimus el. paštu"),
             "digest_default_time": tr("Numatytas rytinės santraukos laikas"),
             "notify_default_lead": tr("Numatyta įspėti apie įvykį prieš"),
+            "email_host": tr("SMTP serveris"),
+            "email_port": tr("Prievadas"),
+            "email_host_user": tr("Naudotojas"),
+            "email_host_password": tr("Slaptažodis"),
+            "email_use_tls": tr("Naudoti TLS (STARTTLS)"),
+            "email_use_ssl": tr("Naudoti SSL"),
+            "email_from": tr("Siuntėjo adresas (From)"),
+            "site_base_url": tr("CRM adresas nuorodoms laiškuose"),
         }
-        widgets = {"digest_default_time": forms.TimeInput(attrs={"type": "time"})}
+        widgets = {
+            "digest_default_time": forms.TimeInput(attrs={"type": "time"}),
+            "site_base_url": forms.TextInput(attrs={"placeholder": "https://crm.tailb8493f.ts.net"}),
+        }
+
+
+class IncomingMailSettingsForm(_SecretFieldsMixin, forms.ModelForm):
+    secret_fields = ("imap_password",)
+
+    class Meta:
+        model = SystemSettings
+        fields = ["imap_enabled", "imap_host", "imap_port", "imap_user", "imap_password", "imap_folder"]
+        labels = {
+            "imap_enabled": tr("Tikrinti dėžutę"),
+            "imap_host": tr("IMAP serveris"),
+            "imap_port": tr("Prievadas"),
+            "imap_user": tr("Naudotojas"),
+            "imap_password": tr("Slaptažodis"),
+            "imap_folder": tr("Aplankas"),
+        }
+
+
+class LoginSettingsForm(_SecretFieldsMixin, forms.ModelForm):
+    secret_fields = ("oidc_client_secret",)
+
+    class Meta:
+        model = SystemSettings
+        fields = ["oidc_enabled", "oidc_tenant_id", "oidc_client_id", "oidc_client_secret", "oidc_create_users"]
+        labels = {
+            "oidc_enabled": tr("Leisti prisijungti per Microsoft Entra ID"),
+            "oidc_tenant_id": tr("Katalogo (nuomininko) ID"),
+            "oidc_client_id": tr("Programos (kliento) ID"),
+            "oidc_client_secret": tr("Kliento paslaptis (secret)"),
+            "oidc_create_users": tr("Kurti naujus naudotojus automatiškai"),
+        }
 
 
 class ImportSettingsForm(forms.ModelForm):

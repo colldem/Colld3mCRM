@@ -1089,17 +1089,20 @@ def settings_notifications(request):
             messages.error(request, tr("Nepavyko išsiųsti. Patikrinkite SMTP nustatymus ir žurnalą."))
         return redirect("contacts:settings-notifications")
     if request.method == "POST" and form.is_valid():
-        changed = list(form.changed_data)
+        changed = [f for f in form.changed_data if not f.endswith("_clear")]
         form.save()
         if changed:
             audit_log(AuditLog.SETTING, request=request, target_type="setting",
                       target_label=str(tr("Pranešimai")), new=", ".join(changed))
         messages.success(request, tr("Pranešimų nustatymai išsaugoti."))
         return redirect("contacts:settings-notifications")
+    from .crypto import secrets_available
+    from .integrations import email_config
+    cfg = email_config(system)
     return render(request, "settings/notifications.html", {
         "form": form, "settings_section": "notifications",
-        "smtp_configured": bool(settings.EMAIL_HOST),
-        "smtp_host": settings.EMAIL_HOST,
+        "smtp_configured": cfg.configured, "smtp_host": cfg.host,
+        "secrets_available": secrets_available(),
     })
 
 
@@ -1113,12 +1116,27 @@ def notifications_unsubscribe(request, token):
 
 @login_required
 def settings_incoming_mail(request):
+    from .crypto import secrets_available
+    from .forms import IncomingMailSettingsForm
+    from .integrations import imap_config
     from .models import IncomingMail
     from .permissions import is_admin
 
     if not is_admin(request.user):
         raise Http404
-    if request.method == "POST":
+    system = SystemSettings.load()
+    config_form = IncomingMailSettingsForm(instance=system)
+    if request.method == "POST" and request.POST.get("action") == "save_config":
+        config_form = IncomingMailSettingsForm(request.POST, instance=system)
+        if config_form.is_valid():
+            changed = [f for f in config_form.changed_data if not f.endswith("_clear")]
+            config_form.save()
+            if changed:
+                audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                          target_label=str(tr("Gauti laiškai")), new=", ".join(changed))
+            messages.success(request, tr("IMAP nustatymai išsaugoti."))
+            return redirect("contacts:settings-incoming-mail")
+    elif request.method == "POST":
         mail = IncomingMail.objects.filter(pk=request.POST.get("mail_id"), resolved_at__isnull=True).first()
         if mail and request.POST.get("action") == "ignore":
             mail.resolved_at = timezone.now()
@@ -1149,11 +1167,41 @@ def settings_incoming_mail(request):
                           new=mail.subject[:150])
                 messages.success(request, tr("Laiškas priskirtas kontaktui."))
         return redirect("contacts:settings-incoming-mail")
+    cfg = imap_config(system)
     return render(request, "settings/incoming_mail.html", {
         "settings_section": "incoming-mail",
+        "config_form": config_form,
         "mails": IncomingMail.objects.filter(resolved_at__isnull=True),
-        "imap_configured": bool(settings.IMAP_HOST),
-        "imap_host": settings.IMAP_HOST,
+        "imap_configured": cfg.active,
+        "imap_host": cfg.host,
+        "secrets_available": secrets_available(),
+    })
+
+
+@login_required
+def settings_login(request):
+    from .crypto import secrets_available
+    from .forms import LoginSettingsForm
+    from .integrations import oidc_config, site_base_url
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    system = SystemSettings.load()
+    form = LoginSettingsForm(request.POST or None, instance=system)
+    if request.method == "POST" and form.is_valid():
+        changed = [f for f in form.changed_data if not f.endswith("_clear")]
+        form.save()
+        if changed:
+            audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                      target_label=str(tr("Prisijungimas")), new=", ".join(changed))
+        messages.success(request, tr("Prisijungimo nustatymai išsaugoti."))
+        return redirect("contacts:settings-login")
+    return render(request, "settings/login.html", {
+        "form": form, "settings_section": "login",
+        "oidc_usable": oidc_config(system).usable,
+        "redirect_uri": (site_base_url(system) or request.build_absolute_uri("/").rstrip("/")) + "/oidc/callback/",
+        "secrets_available": secrets_available(),
     })
 
 

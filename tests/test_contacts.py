@@ -3002,6 +3002,8 @@ class NotificationTests(TestCase):
 
     def test_upcoming_reminder_is_emailed_once_within_the_lead_window(self):
         from django.core import mail
+        from contacts.models import UserProfile
+        UserProfile.objects.filter(user=self.admin).update(digest_enabled=False)  # isolate the upcoming path
         r = Reminder.objects.create(person=self.person, text="Skambutis", created_by=self.admin, assigned_to=self.admin,
                                     due_at=timezone.now() + timedelta(minutes=20))
         self._run()
@@ -3246,14 +3248,77 @@ class EntraLoginTests(TestCase):
         self.assertNotContains(response, "Prisijungti su Microsoft")
         self.assertNotContains(response, "oidc")
 
-    @override_settings(
-        OIDC_RP_CLIENT_ID="x", OIDC_RP_CLIENT_SECRET="y", OIDC_RP_SIGN_ALGO="RS256",
-        OIDC_OP_AUTHORIZATION_ENDPOINT="https://e/a", OIDC_OP_TOKEN_ENDPOINT="https://e/t",
-        OIDC_OP_USER_ENDPOINT="https://e/u", OIDC_OP_JWKS_ENDPOINT="https://e/k",
-        OIDC_CREATE_USERS=False)
     def test_backend_links_by_email_and_never_auto_creates_by_default(self):
         from contacts.oidc import EntraOIDCBackend
         user = get_user_model().objects.create_user("esamas", email="esamas@imone.lt", password="very-secure-password")
         backend = EntraOIDCBackend()
         self.assertEqual(list(backend.filter_users_by_claims({"email": "ESAMAS@imone.lt"})), [user])
         self.assertIsNone(backend.create_user({"email": "naujas@imone.lt"}))
+
+
+class IntegrationConfigTests(TestCase):
+    """SMTP / IMAP / Entra are configured from Settings, secrets encrypted at rest."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user(
+            "cfg", password="very-secure-password", email="cfg@example.lt", is_superuser=True, is_staff=True)
+        self.client.force_login(self.admin)
+
+    def test_secret_round_trips_through_encryption(self):
+        from contacts.crypto import decrypt, encrypt, looks_encrypted
+        token = encrypt("hunter2")
+        self.assertTrue(looks_encrypted(token))
+        self.assertNotIn("hunter2", token)
+        self.assertEqual(decrypt(token), "hunter2")
+
+    def test_smtp_config_is_saved_encrypted_and_drives_sending(self):
+        from contacts.integrations import email_config
+        from contacts.models import SystemSettings
+        resp = self.client.post(reverse("contacts:settings-notifications"), {
+            "notifications_enabled": "on", "digest_default_time": "07:30", "notify_default_lead": "60",
+            "email_host": "smtp.example.lt", "email_port": "587", "email_host_user": "crm@example.lt",
+            "email_host_password": "s3cret-pass", "email_use_tls": "on", "email_from": "crm@example.lt",
+            "site_base_url": "https://crm.example.lt",
+        })
+        self.assertEqual(resp.status_code, 302)
+        system = SystemSettings.load()
+        self.assertTrue(system.email_host_password.startswith("enc:v1:"))
+        self.assertNotIn("s3cret-pass", system.email_host_password)
+        cfg = email_config(system)
+        self.assertEqual((cfg.host, cfg.user, cfg.password), ("smtp.example.lt", "crm@example.lt", "s3cret-pass"))
+
+    def test_blank_secret_keeps_the_stored_value(self):
+        from contacts.models import SystemSettings
+        for _ in range(2):
+            self.client.post(reverse("contacts:settings-notifications"), {
+                "notifications_enabled": "on", "digest_default_time": "07:30", "notify_default_lead": "60",
+                "email_host": "smtp.example.lt", "email_port": "587",
+                "email_host_password": "keepme" if _ == 0 else "",
+            })
+        self.assertEqual(SystemSettings.load().email_host_password.count("enc:v1:"), 1)
+        from contacts.crypto import decrypt
+        self.assertEqual(decrypt(SystemSettings.load().email_host_password), "keepme")
+
+    def test_imap_config_from_settings_activates_fetch(self):
+        from contacts.integrations import imap_config
+        self.client.post(reverse("contacts:settings-incoming-mail"), {
+            "action": "save_config", "imap_enabled": "on", "imap_host": "imap.example.lt",
+            "imap_port": "993", "imap_user": "crm@example.lt", "imap_password": "imap-pass", "imap_folder": "INBOX",
+        })
+        cfg = imap_config()
+        self.assertTrue(cfg.active)
+        self.assertEqual(cfg.password, "imap-pass")
+
+    def test_entra_toggle_from_settings_controls_the_login_button_and_urls(self):
+        self.assertNotContains(self.client.get(reverse("login")), "Prisijungti su Microsoft")
+        self.assertEqual(self.client.get("/oidc/authenticate/").status_code, 404)
+        self.client.post(reverse("contacts:settings-login"), {
+            "oidc_enabled": "on", "oidc_tenant_id": "tid", "oidc_client_id": "cid", "oidc_client_secret": "csecret",
+        })
+        self.assertContains(self.client.get(reverse("login")), "Prisijungti su Microsoft")
+        self.assertEqual(self.client.get("/oidc/authenticate/").status_code, 302)  # redirects to Microsoft
+
+    def test_integration_pages_are_admin_only(self):
+        self.client.force_login(get_user_model().objects.create_user("plain", password="very-secure-password"))
+        for name in ("settings-notifications", "settings-incoming-mail", "settings-login"):
+            self.assertEqual(self.client.get(reverse("contacts:%s" % name)).status_code, 404)

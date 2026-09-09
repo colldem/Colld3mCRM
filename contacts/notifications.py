@@ -2,15 +2,17 @@
 
 Three messages: an upcoming-event reminder, a daily morning digest, and a
 "task assigned to you" note. Delivery is best-effort — a failure is logged to
-the audit trail and never propagates. Real sending only happens when EMAIL_HOST
-is configured; otherwise Django prints the message to the container log.
+the audit trail and never propagates. The SMTP connection is built from the
+effective config (Settings UI, then .env); without an SMTP host the message is
+written to the container log instead.
 """
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import EmailMultiAlternatives, get_connection
 from django.template.loader import render_to_string
 from django.utils import timezone, translation
 
 from .audit import log as audit_log
+from .integrations import email_config, site_base_url
 from .models import AuditLog, SystemSettings, UserProfile
 
 
@@ -38,7 +40,20 @@ def _lang(user):
 
 
 def _url(path):
-    return settings.CRM_BASE_URL.rstrip("/") + path
+    return (site_base_url() or "") + path
+
+
+def _connection(cfg):
+    if getattr(settings, "RUNNING_TESTS", False):
+        return get_connection("django.core.mail.backends.locmem.EmailBackend")
+    if cfg.configured:
+        return get_connection(
+            "django.core.mail.backends.smtp.EmailBackend",
+            host=cfg.host, port=cfg.port, username=cfg.user, password=cfg.password,
+            use_tls=cfg.use_tls, use_ssl=cfg.use_ssl, timeout=settings.EMAIL_TIMEOUT,
+        )
+    # No SMTP configured yet — write to the container log so nothing is lost.
+    return get_connection("django.core.mail.backends.console.EmailBackend")
 
 
 def _send(name, subject, user, context, *, audit_label):
@@ -46,14 +61,15 @@ def _send(name, subject, user, context, *, audit_label):
     if not to:
         return False
     sys = SystemSettings.load()
-    context = {**context, "base_url": settings.CRM_BASE_URL.rstrip("/"),
+    cfg = email_config(sys)
+    context = {**context, "base_url": site_base_url(sys),
                "date_format": sys.date_format, "datetime_format": sys.datetime_format,
                "LANGUAGE_CODE": _lang(user)}
     with translation.override(_lang(user)):
         subject = str(subject)
         text_body = render_to_string("email/%s.txt" % name, context)
         html_body = render_to_string("email/%s.html" % name, context)
-    message = EmailMultiAlternatives(subject, text_body, settings.DEFAULT_FROM_EMAIL, [to])
+    message = EmailMultiAlternatives(subject, text_body, cfg.from_email, [to], connection=_connection(cfg))
     message.attach_alternative(html_body, "text/html")
     try:
         message.send()

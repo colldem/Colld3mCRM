@@ -1,7 +1,8 @@
 """Send due email notifications (G7).
 
 Idempotent — safe to run every few minutes from a loop container. Does nothing
-until an admin turns notifications on in Settings and EMAIL_HOST is configured.
+until an admin turns notifications on in Settings. Without SMTP details the
+messages are written to the container log instead of being delivered.
 """
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo

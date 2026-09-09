@@ -1,0 +1,29 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div><h2>{% translate 'Prisijungimas' %}</h2><p>{% translate 'Prisijungimas per Microsoft Entra ID (OpenID Connect). Vietinis naudotojo vardas ir slaptažodis lieka.' %}</p></div>
+</div>
+
+<div class="setting-toggle" style="margin-bottom:20px">
+  <span><strong>{% translate 'Būsena' %}</strong>
+  <small>{% if oidc_usable %}{% translate 'Įjungta — prisijungimo puslapyje rodomas „Prisijungti su Microsoft".' %}{% else %}{% translate 'Išjungta arba nepilnai sukonfigūruota.' %}{% endif %}</small></span>
+</div>
+
+{% if not secrets_available %}
+<p class="message" style="border-left-color:var(--danger)">{% translate 'Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte išsaugoti kliento paslaptį.' %}</p>
+{% endif %}
+
+<p class="message">{% translate 'Entra programos peradresavimo URI (redirect URI):' %} <code>{{ redirect_uri }}</code></p>
+
+<form method="post" class="profile-form">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <label class="setting-toggle">{{ form.oidc_enabled }}<span><strong>{{ form.oidc_enabled.label }}</strong><small>{% translate 'Įsigalioja iškart, be konteinerio perkrovimo.' %}</small></span></label>
+  <label class="duplicate-level-field"><strong>{{ form.oidc_tenant_id.label }}</strong>{{ form.oidc_tenant_id.errors }}{{ form.oidc_tenant_id }}<small>{% translate 'Iš Entra: Directory (tenant) ID.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.oidc_client_id.label }}</strong>{{ form.oidc_client_id.errors }}{{ form.oidc_client_id }}<small>{% translate 'Iš Entra: Application (client) ID.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.oidc_client_secret.label }}</strong>{{ form.oidc_client_secret.errors }}{{ form.oidc_client_secret }}<small>{% translate 'Palikite tuščią, kad liktų dabartinė.' %}</small></label>
+  <label class="setting-toggle">{{ form.oidc_client_secret_clear }}<span>{{ form.oidc_client_secret_clear.label }}</span></label>
+  <label class="setting-toggle">{{ form.oidc_create_users }}<span><strong>{{ form.oidc_create_users.label }}</strong><small>{% translate 'Įjungus, nežinomas Entra naudotojas sukuriamas automatiškai. Išjungus, prisijungti gali tik jau esami CRM naudotojai (pagal el. paštą).' %}</small></span></label>
+  <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
+</form>
+{% endblock %}
