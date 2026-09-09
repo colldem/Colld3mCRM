@@ -2706,3 +2706,6 @@ msgstr "Client secret"
 
 msgid "Kurti naujus naudotojus automatiškai"
 msgstr "Create new users automatically"
+
+msgid "Kada ir ar gauti priminimų laiškus. Tuščia = sistemos numatyta."
+msgstr "When and whether to get reminder emails. Blank = system default."

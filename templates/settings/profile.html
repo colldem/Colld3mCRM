@@ -1,5 +1,6 @@
 {% extends "settings/layout.html" %}{% load i18n crm_format %}
 {% block settings_content %}
+<div class="profile-layout">
 <div class="settings-section-head"><div><h2>{% translate 'Mano profilis' %}</h2><p>{% translate 'Atnaujinkite rodomą vardą, kalbą, laiko zoną ir profilio nuotrauką.' %}</p></div><div class="profile-preview">{% if crm_user_profile.avatar %}<img src="{% url 'contacts:profile-avatar' %}" alt="">{% else %}{{ request.user|user_initials }}{% endif %}</div></div>
 <form method="post" enctype="multipart/form-data" class="profile-form">{% csrf_token %}
   {{ form.non_field_errors }}
@@ -12,20 +13,22 @@
     <label class="wide">{{ form.avatar.label }}{{ form.avatar }}<small>{% translate 'PNG, JPG, WEBP arba GIF. Iki 5 MB.' %}</small>{{ form.avatar.errors }}</label>
     {% if crm_user_profile.avatar %}<label class="remove-avatar">{{ form.remove_avatar }} {{ form.remove_avatar.label }}</label>{% endif %}
   </div>
-  <fieldset class="profile-notify">
-    <legend>{% translate 'Pranešimai el. paštu' %}</legend>
+
+  <div class="settings-subsection">
+    <div class="settings-section-head"><div><h2>{% translate 'Pranešimai el. paštu' %}</h2><p>{% translate 'Kada ir ar gauti priminimų laiškus. Tuščia = sistemos numatyta.' %}</p></div></div>
     <label class="setting-toggle">{{ form.digest_enabled }}<span><strong>{{ form.digest_enabled.label }}</strong></span></label>
     <div class="profile-fields">
       <label>{{ form.digest_time.label }}{{ form.digest_time }}<small>{% translate 'Tuščia = sistemos laikas.' %}</small></label>
       <label>{{ form.notify_lead.label }}{{ form.notify_lead }}</label>
     </div>
-  </fieldset>
+  </div>
+
   <div class="form-actions profile-form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
 </form>
 
 <div class="settings-subsection">
   <div class="settings-section-head"><div><h2>{% translate 'Kalendoriaus prenumerata' %}</h2><p>{% translate 'Vienpusė nuoroda į jums priskirtus įvykius. Įklijuokite ją prenumeruojant kalendorių pagal URL (Google, Outlook, Apple).' %}</p></div></div>
-  <p><input type="text" readonly value="{{ calendar_feed_url }}" style="max-width:520px" onclick="this.select()"></p>
+  <div class="profile-fields"><label class="wide"><input type="text" readonly value="{{ calendar_feed_url }}" onclick="this.select()"></label></div>
   <form method="post"><input type="hidden" name="action" value="new_calendar_token">{% csrf_token %}<button class="btn" type="submit">{% translate 'Sukurti naują nuorodą' %}</button></form>
   <p class="muted">{% translate 'Sukūrus naują, senoji nebeveikia — reikės iš naujo prenumeruoti.' %}</p>
 </div>
@@ -34,12 +37,13 @@
   <div class="settings-section-head"><div><h2>{% translate 'Slaptažodžio keitimas' %}</h2><p>{% translate 'Įveskite dabartinį slaptažodį ir naują — ne trumpesnį nei 12 simbolių.' %}</p></div></div>
   <form method="post" action="{% url 'contacts:settings-password' %}" class="profile-form">{% csrf_token %}
     {{ password_form.non_field_errors }}
-    <div class="password-fields">
-      <label>{{ password_form.old_password.label }}{{ password_form.old_password }}{{ password_form.old_password.errors }}</label>
-      <label>{{ password_form.new_password1.label }}{{ password_form.new_password1 }}<small>{% translate 'Bent 12 simbolių. Negali būti panašus į naudotojo vardą ar el. paštą, dažnai naudojamas arba vien iš skaičių.' %}</small>{{ password_form.new_password1.errors }}</label>
-      <label>{{ password_form.new_password2.label }}{{ password_form.new_password2 }}{{ password_form.new_password2.errors }}</label>
+    <div class="profile-fields">
+      <label class="wide">{{ password_form.old_password.label }}{{ password_form.old_password }}{{ password_form.old_password.errors }}</label>
+      <label class="wide">{{ password_form.new_password1.label }}{{ password_form.new_password1 }}<small>{% translate 'Bent 12 simbolių. Negali būti panašus į naudotojo vardą ar el. paštą, dažnai naudojamas arba vien iš skaičių.' %}</small>{{ password_form.new_password1.errors }}</label>
+      <label class="wide">{{ password_form.new_password2.label }}{{ password_form.new_password2 }}{{ password_form.new_password2.errors }}</label>
     </div>
     <div class="form-actions profile-form-actions"><button class="btn primary" type="submit">{% translate 'Pakeisti slaptažodį' %}</button></div>
   </form>
+</div>
 </div>
 {% endblock %}
