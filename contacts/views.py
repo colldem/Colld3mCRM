@@ -1976,6 +1976,7 @@ def company_list(request):
         "phone": "phone",
         "email": "email",
         "address": "address",
+        "city": "city",
         "contacts": "contact_count",
         "category": "sort_category",
         "tags": "sort_tag",
@@ -1995,7 +1996,7 @@ def company_list(request):
         sort_tag=Min("tags__name"),
     ).order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
     custom_fields = list(CustomField.objects.filter(entity=CustomField.COMPANY))
-    allowed_columns = ["company_code", "vat_code", "address", "phone", "email", "contacts", "owner"] + [field.key for field in custom_fields]
+    allowed_columns = ["company_code", "vat_code", "address", "city", "phone", "email", "contacts", "owner"] + [field.key for field in custom_fields]
     default_columns = ["company_code", "vat_code", "phone", "email", "contacts"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
@@ -2188,13 +2189,13 @@ def companies_export(request):
     response["Content-Disposition"] = 'attachment; filename="crm-imones.csv"'
     response.write("\ufeff")
     writer = csv.writer(response)
-    writer.writerow(["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Telefonas", "El. paštas", "Atsakingas", "Atsakingi"])
+    writer.writerow(["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Miestas", "Telefonas", "El. paštas", "Atsakingas", "Atsakingi"])
     companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).select_related("owner").prefetch_related("responsibles")
     if request.method == "POST": companies = companies.filter(pk__in=request.POST.getlist("selected"))
     from .permissions import user_label
     rows = 0
     for company in companies:
-        writer.writerow([csv_safe(v) for v in [company.name, company.company_code, company.vat_code, company.address, company.phone, company.email, user_label(company.owner), "; ".join(u.get_username() for u in company.responsibles.all())]])
+        writer.writerow([csv_safe(v) for v in [company.name, company.company_code, company.vat_code, company.address, company.city, company.phone, company.email, user_label(company.owner), "; ".join(u.get_username() for u in company.responsibles.all())]])
         rows += 1
     audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Įmonės (CSV)")), new=str(rows))
     return response

@@ -301,8 +301,8 @@ class PersonForm(forms.ModelForm):
 class CompanyForm(forms.ModelForm):
     class Meta:
         model = Company
-        fields = ["name", "company_code", "vat_code", "address", "phone", "email", "url", "description"]
-        labels = {"name": tr("Pavadinimas"), "company_code": tr("Įmonės kodas"), "vat_code": tr("PVM kodas"), "address": tr("Adresas"), "phone": tr("Telefonas"), "email": tr("El. paštas"), "url": "URL", "description": tr("Aprašymas")}
+        fields = ["name", "company_code", "vat_code", "address", "city", "phone", "email", "url", "description"]
+        labels = {"name": tr("Pavadinimas"), "company_code": tr("Įmonės kodas"), "vat_code": tr("PVM kodas"), "address": tr("Adresas"), "city": tr("Miestas"), "phone": tr("Telefonas"), "email": tr("El. paštas"), "url": "URL", "description": tr("Aprašymas")}
         widgets = {"description": forms.Textarea(attrs={"rows": 4})}
 
 

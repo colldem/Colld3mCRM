@@ -310,7 +310,7 @@ def detail_fields(person, viewer=None):
 
 
 _CONTACT_INFO_KEYS = {
-    True: {"email", "phone", "address", "url", "company_code", "vat_code"},
+    True: {"email", "phone", "address", "city", "url", "company_code", "vat_code"},
     False: {"emails", "phones", "addresses", "web_links"},
 }
 

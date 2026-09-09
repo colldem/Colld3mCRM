@@ -3056,3 +3056,44 @@ msgstr "real data; email, IMAP and webhooks are off"
 #: templates/settings/documentation.html
 msgid "Aplinkos ir izoliacija"
 msgstr "Environments and isolation"
+
+#: contacts/forms.py templates/companies/list.html
+msgid "Miestas"
+msgstr "City"
+
+#: contacts/analytics_views.py
+msgid "Sau"
+msgstr "Jan"
+
+msgid "Vas"
+msgstr "Feb"
+
+msgid "Kov"
+msgstr "Mar"
+
+msgid "Bal"
+msgstr "Apr"
+
+msgid "Geg"
+msgstr "May"
+
+msgid "Bir"
+msgstr "Jun"
+
+msgid "Lie"
+msgstr "Jul"
+
+msgid "Rgp"
+msgstr "Aug"
+
+msgid "Rgs"
+msgstr "Sep"
+
+msgid "Spa"
+msgstr "Oct"
+
+msgid "Lap"
+msgstr "Nov"
+
+msgid "Gru"
+msgstr "Dec"

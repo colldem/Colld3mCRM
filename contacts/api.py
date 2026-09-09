@@ -153,7 +153,7 @@ def serialize_company(c):
     return {
         "id": c.pk, "type": "company", "name": c.name,
         "company_code": c.company_code, "vat_code": c.vat_code,
-        "address": c.address, "phone": c.phone, "email": c.email,
+        "address": c.address, "city": c.city, "phone": c.phone, "email": c.email,
         "description": c.description, "owner_id": c.owner_id,
         "responsible_ids": list(c.responsibles.values_list("id", flat=True)),
         "tags": list(c.tags.values_list("name", flat=True)),
@@ -212,7 +212,7 @@ def _sync_labels(manager, model, names):
 
 
 _PERSON_MAX = {"first_name": 100, "last_name": 100, "job_title": 160}
-_COMPANY_MAX = {"name": 200, "company_code": 40, "vat_code": 40, "address": 300, "phone": 80, "email": 254}
+_COMPANY_MAX = {"name": 200, "company_code": 40, "vat_code": 40, "address": 300, "city": 120, "phone": 80, "email": 254}
 
 
 def _write_person(person, data, token, *, creating):

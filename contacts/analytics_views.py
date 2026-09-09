@@ -8,6 +8,7 @@ from datetime import datetime, time, timedelta
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, F, Max, Min, Q
+from django.db.models.functions import TruncDate
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -16,6 +17,12 @@ from django.utils.translation import gettext as tr, gettext_lazy as tr_lazy
 from . import charts
 from .models import Activity, AuditLog, Category, Company, Person, Reminder, Tag
 from .permissions import visible_companies, visible_people, visible_reminders
+
+# Short month names for the dashboard's six-month chart. Indexed by month - 1;
+# lazy so the list is not frozen into one language at import time.
+_MONTH_LABELS = [tr_lazy("Sau"), tr_lazy("Vas"), tr_lazy("Kov"), tr_lazy("Bal"),
+                 tr_lazy("Geg"), tr_lazy("Bir"), tr_lazy("Lie"), tr_lazy("Rgp"),
+                 tr_lazy("Rgs"), tr_lazy("Spa"), tr_lazy("Lap"), tr_lazy("Gru")]
 
 SILENT_WINDOWS = (30, 60, 90)
 LIST_LIMIT = 100
@@ -26,6 +33,43 @@ def _day_bounds(day):
     tz = timezone.get_current_timezone()
     start = timezone.make_aware(datetime.combine(day, time.min), tz)
     return start, start + timedelta(days=1)
+
+
+def _month_starts(today, count):
+    """The first day of each of the last `count` months, oldest first."""
+    starts, year, month = [], today.year, today.month
+    for _ in range(count):
+        starts.append(today.replace(year=year, month=month, day=1))
+        month -= 1
+        if month == 0:
+            year, month = year - 1, 12
+    return list(reversed(starts))
+
+
+def _monthly_counts(queryset, today, months=6):
+    """New records per calendar month, as [{"label": "Rgs", "value": n}]."""
+    starts = _month_starts(today, months)
+    window_start, _ = _day_bounds(starts[0])
+    rows = []
+    for index, first in enumerate(starts):
+        start, _ = _day_bounds(first)
+        if index + 1 < len(starts):
+            end, _ = _day_bounds(starts[index + 1])
+            total = queryset.filter(created_at__gte=start, created_at__lt=end).count()
+        else:
+            total = queryset.filter(created_at__gte=start).count()
+        rows.append({"label": _MONTH_LABELS[first.month - 1], "value": total})
+    return rows, window_start
+
+
+def _daily_counts(queryset, today, days=30):
+    """One count per day, oldest first — the shape behind a card's sparkline."""
+    start, _ = _day_bounds(today - timedelta(days=days - 1))
+    per_day = dict(queryset.filter(created_at__gte=start)
+                   .annotate(day=TruncDate("created_at"))
+                   .values_list("day").annotate(total=Count("id")))
+    return [per_day.get(today - timedelta(days=offset), 0)
+            for offset in range(days - 1, -1, -1)]
 
 
 def _recently_touched(user, limit=RECENT_LIMIT):
@@ -76,12 +120,29 @@ def dashboard(request):
     people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
     month_ago = now - timedelta(days=30)
+    overdue = agenda.filter(due_at__lt=now)
 
+    # "This month" for the type ring, six calendar months for the growth chart.
+    month_start, _ = _day_bounds(today.replace(day=1))
+    month_counts = dict(Activity.objects.filter(created_by=request.user, deleted_at__isnull=True,
+                                                created_at__gte=month_start)
+                        .values_list("activity_type").annotate(total=Count("id")))
+    by_type = [{"label": label, "total": month_counts.get(key, 0)}
+               for key, label in Activity.TYPE_CHOICES]
+
+    people_months, _ = _monthly_counts(people, today)
+    company_months, _ = _monthly_counts(companies, today)
+    growth = [{"label": row["label"],
+               "values": {"people": row["value"], "companies": company_months[index]["value"]}}
+              for index, row in enumerate(people_months)]
+
+    my_activities = Activity.objects.filter(created_by=request.user, deleted_at__isnull=True)
     return render(request, "analytics/dashboard.html", {
         "today_events": agenda.filter(due_at__gte=day_start, due_at__lt=day_end).order_by("due_at"),
         "tomorrow_events": agenda.filter(due_at__gte=day_end, due_at__lt=tomorrow_end).order_by("due_at"),
-        "overdue_events": agenda.filter(due_at__lt=now).order_by("due_at")[:10],
-        "overdue_total": agenda.filter(due_at__lt=now).count(),
+        "overdue_events": overdue.order_by("due_at")[:10],
+        "overdue_total": overdue.count(),
+        "upcoming_events": agenda.filter(due_at__gte=now).order_by("due_at")[:5],
         "recently_touched": _recently_touched(request.user),
         "week_activity": week_activity,
         "week_activity_total": sum(item["total"] for item in week_activity),
@@ -89,6 +150,20 @@ def dashboard(request):
         "new_companies": companies.filter(created_at__gte=month_ago).count(),
         "people_total": people.count(),
         "companies_total": companies.count(),
+        # Summary-card trends: the shape behind each number over the last 30 days.
+        "spark_people": charts.sparkline(_daily_counts(people, today)),
+        "spark_companies": charts.sparkline(_daily_counts(companies, today)),
+        "spark_activity": charts.sparkline(_daily_counts(my_activities, today)),
+        "spark_overdue": charts.sparkline(_daily_counts(overdue, today)),
+        "activity_ring": charts.donut_multi(by_type),
+        "activity_by_type": by_type,
+        "activity_month_total": sum(row["total"] for row in by_type),
+        "growth_chart": charts.grouped_bars(growth, ["people", "companies"]),
+        "recent_people": people.order_by("-created_at")
+                               .prefetch_related("phones", "company_links__company")[:5],
+        "recent_companies": companies.order_by("-created_at")[:4],
+        "recent_activities": (my_activities.select_related("person", "company", "created_by")
+                              .order_by("-created_at")[:5]),
     })
 
 

@@ -42,6 +42,9 @@ class Company(RecordDetailsModel, TimestampedModel):
     company_code = models.CharField(max_length=40, blank=True, db_index=True)
     vat_code = models.CharField(max_length=40, blank=True, db_index=True)
     address = models.CharField(max_length=300, blank=True)
+    # Kept apart from `address` so lists and the dashboard can show a place
+    # without parsing a free-text line.
+    city = models.CharField(max_length=120, blank=True, db_index=True)
     phone = models.CharField(max_length=80, blank=True)
     email = models.EmailField(blank=True)
     url = models.URLField(blank=True)

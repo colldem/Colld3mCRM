@@ -130,6 +130,61 @@ class AnalyticsTests(TestCase):
         self.assertIn(str(mine), touched)
         self.assertNotIn(str(theirs), touched)
 
+    def test_dashboard_rings_activity_types_for_this_month(self):
+        person = self._person("Ziedas")
+        for _ in range(5):
+            Activity.objects.create(person=person, activity_type="note", text="Pastaba", created_by=self.user)
+        Activity.objects.create(person=person, activity_type="call", text="Skambutis", created_by=self.user)
+        Activity.objects.create(person=person, activity_type="note", text="Kolegos", created_by=self.mate)
+
+        response = self.client.get(reverse("contacts:home"))
+        ring = response.context["activity_ring"]
+        self.assertEqual(ring["total"], 6)          # the colleague's entry is not mine
+        shares = {s["label"]: s["percent"] for s in ring["segments"]}
+        self.assertEqual((shares["Pastaba"], shares["Skambutis"]), (83, 17))
+        self.assertEqual(response.context["activity_month_total"], 6)
+
+    def test_dashboard_charts_six_months_of_new_records(self):
+        self._person("Naujas")
+        Company.objects.create(name="UAB Nauja")
+        response = self.client.get(reverse("contacts:home"))
+        chart = response.context["growth_chart"]
+        # Two series across six buckets, and this month's two records are in it.
+        self.assertEqual(len(chart["labels"]), 6)
+        self.assertEqual(len(chart["bars"]), 12)
+        self.assertTrue(any(bar["height"] > 0 for bar in chart["bars"]))
+
+    def test_dashboard_summary_cards_carry_a_trend(self):
+        self._person("Su tendencija")
+        response = self.client.get(reverse("contacts:home"))
+        for key in ("spark_people", "spark_companies", "spark_activity", "spark_overdue"):
+            spark = response.context[key]
+            self.assertEqual(len(spark["points"].split(" ")), 30)   # one point per day
+
+    def test_dashboard_lists_the_newest_records(self):
+        old = self._person("Senas")
+        Person.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=40))
+        fresh = self._person("Naujausias")
+        Company.objects.create(name="UAB Naujausia", city="Vilnius")
+        Activity.objects.create(person=fresh, activity_type="note", text="Uzrasas", created_by=self.user)
+
+        response = self.client.get(reverse("contacts:home"))
+        self.assertEqual(str(response.context["recent_people"][0]), str(fresh))
+        self.assertEqual(response.context["recent_companies"][0].city, "Vilnius")
+        self.assertEqual(response.context["recent_activities"][0].text, "Uzrasas")
+
+    def test_chart_helpers_survive_empty_and_flat_input(self):
+        """The dashboard renders on day one, when there is nothing to plot."""
+        from contacts import charts
+        self.assertIsNone(charts.grouped_bars([], ["a"]))
+        self.assertIsNone(charts.sparkline([]))
+        empty_ring = charts.donut_multi([{"label": "Pastaba", "total": 0}])
+        self.assertEqual(empty_ring["total"], 0)
+        self.assertEqual(empty_ring["segments"][0]["percent"], 0)
+        # A flat line sits mid-height, so an empty CRM does not look like a decline.
+        flat = charts.sparkline([0, 0, 0], height=40, pad=3)
+        self.assertEqual({round(float(p.split(",")[1])) for p in flat["points"].split(" ")}, {20})
+
     def test_care_lists_group_contacts_that_need_attention(self):
         quiet = self._person("Nutiles")
         old = Activity.objects.create(person=quiet, activity_type="call", text="Seniai", created_by=self.user)
@@ -874,6 +929,25 @@ class ContactViewTests(TestCase):
             with self.subTest(key=key):
                 self.assertContains(response, f"sort={key}&amp;direction=asc")
                 self.assertContains(response, f"sort={key}&amp;direction=desc")
+
+    def test_company_city_is_editable_listed_and_exported(self):
+        """City is its own field so a place can be shown without parsing an address."""
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:company-edit", args=[self.company.pk]), {
+            "name": self.company.name, "company_code": "", "vat_code": "",
+            "address": "Gedimino pr. 1", "city": "Vilnius", "phone": "", "email": "",
+            "url": "", "description": ""})
+        self.assertEqual(response.status_code, 302)
+        self.company.refresh_from_db()
+        self.assertEqual((self.company.address, self.company.city), ("Gedimino pr. 1", "Vilnius"))
+
+        listed = self.client.get(reverse("contacts:company-list"), {"columns": "city"})
+        self.assertContains(listed, "Vilnius")
+        self.assertContains(listed, "sort=city&amp;direction=asc")
+
+        csv_text = self.client.get(reverse("contacts:companies-export")).content.decode("utf-8-sig")
+        self.assertIn("Miestas", csv_text.splitlines()[0])
+        self.assertIn("Vilnius", csv_text)
 
     def test_searches_related_fields(self):
         self.client.force_login(self.user)

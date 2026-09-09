@@ -66,7 +66,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   darbastalis ir analitika; `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
   `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
-  `permissions.py` — rolės, teisės ir įrašų matomumas; `charts.py` — SVG grafikai;
+  `permissions.py` — rolės, teisės ir įrašų matomumas; `charts.py` — SVG grafikai
+  (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);
   `notifications.py` + `management/commands/send_notifications.py` — el. pašto pranešimai;
   `recurrence.py` + `management/commands/extend_recurrences.py` — pasikartojantys priminimai;
   `ical.py` — .ics kalendoriaus srautas; `sanitizers.py` — `safe_url` / `csv_safe`;
