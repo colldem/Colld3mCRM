@@ -3159,3 +3159,130 @@ msgstr "Latest entries"
 #: templates/analytics/_more_rows.html
 msgid "Rodyti daugiau"
 msgstr "Show more"
+
+#: contacts/views.py templates/settings/translations.html templates/settings/layout.html
+msgid "Vertimai"
+msgstr "Translations"
+
+#: contacts/views.py
+msgid "Vertimai (CSV)"
+msgstr "Translations (CSV)"
+
+#: templates/settings/translations.html
+msgid "Sąsajos tekstus keiskite atsisiuntę CSV, pataisę jį skaičiuoklėje ir įkėlę atgal."
+msgstr "Adjust interface wording by exporting a CSV, editing it in a spreadsheet, and importing it back."
+
+#: templates/settings/translations.html
+msgid "1. Atsisiųskite"
+msgstr "1. Download"
+
+#: templates/settings/translations.html
+msgid "2. Įkelkite atgal"
+msgstr "2. Upload it back"
+
+#: templates/settings/translations.html
+msgid "Faile yra keturi stulpeliai: modulis (kur tekstas naudojamas), kintamasis, LT ir EN."
+msgstr "The file has four columns: module (where the text is used), key, LT and EN."
+
+#: templates/settings/translations.html
+msgid "Iš viso eilučių"
+msgstr "Rows in total"
+
+#: templates/settings/translations.html
+msgid "Jau pakeista"
+msgstr "Already changed"
+
+#: templates/settings/translations.html
+msgid "Nebenaudojama sistemoje"
+msgstr "No longer used in the system"
+
+#: templates/settings/translations.html
+msgid "Stulpelio „Kintamasis“ nekeiskite — pagal jį atpažįstama eilutė. Ištuštinus LT arba EN grąžinamas pradinis vertimas."
+msgstr "Do not change the “Key” column — the row is matched by it. Clearing LT or EN restores the shipped translation."
+
+#: templates/settings/translations.html
+msgid "Atsisiųsti CSV"
+msgstr "Download CSV"
+
+#: templates/settings/translations.html
+msgid "Prieš pritaikant parodysime, kas pasikeis."
+msgstr "You will see what changes before it is applied."
+
+#: templates/settings/translations.html
+msgid "Peržiūrėti"
+msgstr "Preview"
+
+#: templates/settings/translations.html
+msgid "Failas turi būti UTF-8 (Excel: „Įrašyti kaip“ → CSV UTF-8). Pakeitimai įsigalioja iš karto, be perkrovimo."
+msgstr "The file must be UTF-8 (Excel: “Save As” → CSV UTF-8). Changes take effect immediately, without a restart."
+
+#: templates/settings/translations.html
+msgid "Peržiūra prieš pritaikant"
+msgstr "Preview before applying"
+
+#: templates/settings/translations.html
+msgid "Pasikeis eilučių"
+msgstr "Rows that will change"
+
+#: templates/settings/translations.html
+msgid "Modulis"
+msgstr "Module"
+
+#: templates/settings/translations.html
+msgid "Kintamasis"
+msgstr "Key"
+
+#: templates/settings/translations.html
+msgid "Rodomos pirmos 100. Pritaikytos bus visos."
+msgstr "Showing the first 100. All will be applied."
+
+#: templates/settings/translations.html
+msgid "Pritaikyti"
+msgstr "Apply"
+
+#: templates/settings/translations.html
+msgid "Pakeitimų nerasta — failas sutampa su dabartiniais vertimais."
+msgstr "No changes found — the file matches the current translations."
+
+#: templates/settings/translations.html
+msgid "Grįžti"
+msgstr "Back"
+
+#: templates/settings/translations.html
+msgid "Nežinomų kintamųjų (bus praleisti)"
+msgstr "Unknown keys (will be skipped)"
+
+#: contacts/views.py
+msgid "Pasirinkite failą."
+msgstr "Choose a file."
+
+#: contacts/views.py
+msgid "Failas per didelis (iki 4 MB)."
+msgstr "File is too large (up to 4 MB)."
+
+#: contacts/views.py
+msgid "Failas turi būti UTF-8. Excel: „Įrašyti kaip“ → CSV UTF-8."
+msgstr "The file must be UTF-8. Excel: “Save As” → CSV UTF-8."
+
+#: contacts/views.py
+msgid "Failas tuščias."
+msgstr "The file is empty."
+
+#: contacts/views.py
+msgid "Netinkamos stulpelių antraštės. Atsisiųskite failą iš naujo."
+msgstr "Wrong column headers. Download the file again."
+
+#: contacts/views.py
+msgid "Trūksta stulpelių eilutėje %(line)s."
+msgstr "Missing columns on line %(line)s."
+
+#: contacts/views.py
+msgid "Tuščias kintamasis eilutėje %(line)s."
+msgstr "Empty key on line %(line)s."
+
+#: contacts/views.py
+msgid "Atnaujinta vertimų: %(count)s."
+msgstr "Translations updated: %(count)s."
+#: contacts/views.py
+msgid "(nenaudojama)"
+msgstr "(not used)"

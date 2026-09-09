@@ -1,0 +1,61 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="page-head"><div><h1>{% translate 'Vertimai' %}</h1>
+  <p>{% translate 'Sąsajos tekstus keiskite atsisiuntę CSV, pataisę jį skaičiuoklėje ir įkėlę atgal.' %}</p></div></div>
+
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+
+{% if preview %}
+  <section class="settings-card">
+    <h2>{% translate 'Peržiūra prieš pritaikant' %}</h2>
+    {% if preview.total %}
+      <p>{% translate 'Pasikeis eilučių' %}: <b>{{ preview.total }}</b></p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>{% translate 'Modulis' %}</th><th>{% translate 'Kintamasis' %}</th><th>{% translate 'Buvo' %}</th><th>{% translate 'Tapo' %}</th></tr></thead>
+        <tbody>{% for change in preview.changes %}<tr>
+          <td><small>{{ change.module|default:"—" }}</small></td>
+          <td><small>{{ change.msgid }}</small></td>
+          <td><small>LT: {{ change.old_lt }}<br>EN: {{ change.old_en }}</small></td>
+          <td><small><b>LT: {{ change.new_lt }}<br>EN: {{ change.new_en }}</b></small></td>
+        </tr>{% endfor %}</tbody>
+      </table></div>
+      {% if preview.total > preview.changes|length %}<p class="edit-hint">{% translate 'Rodomos pirmos 100. Pritaikytos bus visos.' %}</p>{% endif %}
+      <form method="post" class="form-actions">{% csrf_token %}
+        <input type="hidden" name="op" value="apply">
+        <button class="btn primary" type="submit">{% translate 'Pritaikyti' %}</button>
+        <a class="btn" href="{% url 'contacts:settings-translations' %}">{% translate 'Atšaukti' %}</a>
+      </form>
+    {% else %}
+      <p>{% translate 'Pakeitimų nerasta — failas sutampa su dabartiniais vertimais.' %}</p>
+      <a class="btn" href="{% url 'contacts:settings-translations' %}">{% translate 'Grįžti' %}</a>
+    {% endif %}
+    {% if preview.unknown_total %}
+      <p class="error">{% translate 'Nežinomų kintamųjų (bus praleisti)' %}: <b>{{ preview.unknown_total }}</b></p>
+      <ul class="settings-list">{% for msgid in preview.unknown %}<li><small>{{ msgid }}</small></li>{% endfor %}</ul>
+    {% endif %}
+  </section>
+{% else %}
+  <div class="settings-grid">
+    <section class="settings-card">
+      <h2>{% translate '1. Atsisiųskite' %}</h2>
+      <p>{% translate 'Faile yra keturi stulpeliai: modulis (kur tekstas naudojamas), kintamasis, LT ir EN.' %}</p>
+      <ul class="settings-list">
+        <li>{% translate 'Iš viso eilučių' %}: <b>{{ total }}</b></li>
+        <li>{% translate 'Jau pakeista' %}: <b>{{ overridden }}</b></li>
+        <li>{% translate 'Nebenaudojama sistemoje' %}: <b>{{ unused }}</b></li>
+      </ul>
+      <p class="edit-hint">{% translate 'Stulpelio „Kintamasis“ nekeiskite — pagal jį atpažįstama eilutė. Ištuštinus LT arba EN grąžinamas pradinis vertimas.' %}</p>
+      <a class="btn primary" href="?export=csv">{% translate 'Atsisiųsti CSV' %}</a>
+    </section>
+    <section class="settings-card">
+      <h2>{% translate '2. Įkelkite atgal' %}</h2>
+      <p>{% translate 'Prieš pritaikant parodysime, kas pasikeis.' %}</p>
+      <form method="post" enctype="multipart/form-data" class="settings-form">{% csrf_token %}
+        <input type="file" name="file" accept=".csv,text/csv" required>
+        <button class="btn primary" type="submit">{% translate 'Peržiūrėti' %}</button>
+      </form>
+      <p class="edit-hint">{% translate 'Failas turi būti UTF-8 (Excel: „Įrašyti kaip“ → CSV UTF-8). Pakeitimai įsigalioja iš karto, be perkrovimo.' %}</p>
+    </section>
+  </div>
+{% endif %}
+{% endblock %}

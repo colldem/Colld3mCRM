@@ -3748,3 +3748,109 @@ class AutomationTests(TestCase):
         })
         self.assertFalse(form.is_valid())
         self.assertIn("action", form.errors)
+
+
+class TranslationOverrideTests(TestCase):
+    """Interface wording is edited through a CSV round trip (Settings -> Vertimai)."""
+
+    def setUp(self):
+        from contacts import translations
+        self.admin = get_user_model().objects.create_user(
+            "vert", password="very-secure-password", is_superuser=True, is_staff=True)
+        self.client.force_login(self.admin)
+        self.url = reverse("contacts:settings-translations")
+        translations.capture_defaults()
+
+    def tearDown(self):
+        from contacts import translations
+        from contacts.models import Translation
+        Translation.objects.all().delete()
+        translations.apply_overrides()          # leave the catalog as we found it
+
+    def _csv(self, rows):
+        body = "Modulis,Kintamasis,LT,EN\r\n"
+        for module, msgid, lt, en in rows:
+            body += '"%s","%s","%s","%s"\r\n' % (module, msgid, lt, en)
+        return SimpleUploadedFile("vertimai.csv", body.encode("utf-8-sig"), content_type="text/csv")
+
+    def test_export_lists_every_string_with_the_module_that_uses_it(self):
+        response = self.client.get(self.url, {"export": "csv"})
+        self.assertEqual(response.status_code, 200)
+        text = response.content.decode("utf-8-sig")
+        header, *lines = [line for line in text.splitlines() if line.strip()]
+        self.assertEqual(header, "Modulis,Kintamasis,LT,EN")
+        self.assertGreater(len(lines), 500)
+        # The module column is what tells two similar strings apart.
+        self.assertIn("contacts/list", text)
+
+    def test_import_previews_before_it_changes_anything(self):
+        from contacts.models import Translation
+        response = self.client.post(self.url, {"file": self._csv([
+            ("contacts/list", "Kontaktai", "Kontaktai", "People")])})
+        self.assertEqual(response.status_code, 200)
+        preview = response.context["preview"]
+        self.assertEqual(preview["total"], 1)
+        self.assertEqual(preview["changes"][0]["new_en"], "People")
+        self.assertEqual(preview["changes"][0]["old_en"], "Contacts")
+        self.assertEqual(Translation.objects.count(), 0)   # nothing saved yet
+
+    def test_applying_the_preview_changes_what_the_interface_shows(self):
+        from django.utils import translation as django_translation
+        self.client.post(self.url, {"file": self._csv([
+            ("contacts/list", "Kontaktai", "Kontaktų sąrašas", "People")])})
+        response = self.client.post(self.url, {"op": "apply"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+        with django_translation.override("en"):
+            self.assertEqual(django_translation.gettext("Kontaktai"), "People")
+        # The source language is overridable too, even though there is no lt .mo.
+        with django_translation.override("lt"):
+            self.assertEqual(django_translation.gettext("Kontaktai"), "Kontaktų sąrašas")
+
+    def test_clearing_a_cell_restores_the_shipped_translation(self):
+        from django.utils import translation as django_translation
+        self.client.post(self.url, {"file": self._csv([("", "Kontaktai", "Sarasas", "People")])})
+        self.client.post(self.url, {"op": "apply"})
+        self.client.post(self.url, {"file": self._csv([("", "Kontaktai", "", "")])})
+        self.client.post(self.url, {"op": "apply"})
+        with django_translation.override("en"):
+            self.assertEqual(django_translation.gettext("Kontaktai"), "Contacts")
+        # Lithuanian has no .mo, so reverting means the msgid shows through again
+        # rather than a stale override sticking around.
+        with django_translation.override("lt"):
+            self.assertEqual(django_translation.gettext("Kontaktai"), "Kontaktai")
+
+    def test_unknown_keys_are_reported_rather_than_silently_skipped(self):
+        response = self.client.post(self.url, {"file": self._csv([
+            ("", "Toks tekstas sistemoje neegzistuoja", "x", "y")])})
+        self.assertEqual(response.context["preview"]["unknown_total"], 1)
+        self.assertEqual(response.context["preview"]["total"], 0)
+
+    def test_a_file_it_cannot_read_is_refused_whole(self):
+        bad_header = SimpleUploadedFile(
+            "x.csv", "A,B,C,D\r\n1,2,3,4\r\n".encode("utf-8"), content_type="text/csv")
+        self.assertContains(self.client.post(self.url, {"file": bad_header}), "antraštės")
+        not_utf8 = SimpleUploadedFile(
+            "x.csv", "Modulis,Kintamasis,LT,EN\r\n".encode("utf-16"), content_type="text/csv")
+        self.assertContains(self.client.post(self.url, {"file": not_utf8}), "UTF-8")
+
+    def test_export_import_round_trip_does_not_invent_changes(self):
+        """A downloaded file re-uploaded unchanged must show nothing to apply,
+        even for strings that begin with "+" or "-"."""
+        import csv as _csv
+        import io as _io
+        text = self.client.get(self.url, {"export": "csv"}).content.decode("utf-8-sig")
+        rows = list(_csv.reader(_io.StringIO(text)))
+        self.assertEqual(rows[0], ["Modulis", "Kintamasis", "LT", "EN"])
+        self.assertTrue(any(r[1].startswith(("+", "-")) for r in rows[1:]))
+
+        same = SimpleUploadedFile(
+            "vertimai.csv", ("\ufeff" + text).encode("utf-8"), content_type="text/csv")
+        response = self.client.post(self.url, {"file": same})
+        self.assertEqual(response.context["preview"]["total"], 0)
+        self.assertEqual(response.context["preview"]["unknown_total"], 0)
+
+    def test_only_administrators_may_open_it(self):
+        self.client.force_login(get_user_model().objects.create_user(
+            "eilinis", password="very-secure-password"))
+        self.assertEqual(self.client.get(self.url).status_code, 404)

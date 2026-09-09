@@ -17,6 +17,7 @@
     <a class="{% if settings_section == 'login' %}active{% endif %}" href="{% url 'contacts:settings-login' %}">{% translate 'Prisijungimas' %}</a>
     <a class="{% if settings_section == 'automations' %}active{% endif %}" href="{% url 'contacts:settings-automations' %}">{% translate 'Automatika' %}</a>
     <a class="{% if settings_section == 'integrations' %}active{% endif %}" href="{% url 'contacts:settings-integrations' %}">{% translate 'Integracijos' %}</a>
+    <a class="{% if settings_section == 'translations' %}active{% endif %}" href="{% url 'contacts:settings-translations' %}">{% translate 'Vertimai' %}</a>
     <a class="{% if settings_section == 'system' %}active{% endif %}" href="{% url 'contacts:settings-system' %}">{% translate 'Sistema' %}</a>
     <a class="{% if settings_section == 'import' %}active{% endif %}" href="{% url 'contacts:settings-import' %}">{% translate 'Importas' %}</a>{% endif %}
     {% if crm_caps.can_view_audit %}<a class="{% if settings_section == 'audit' %}active{% endif %}" href="{% url 'contacts:settings-audit' %}">{% translate 'Žurnalas' %}</a>{% endif %}

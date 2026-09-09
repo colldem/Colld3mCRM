@@ -6,4 +6,11 @@ class ContactsConfig(AppConfig):
     name = "contacts"
 
     def ready(self):
-        from . import signals  # noqa: F401
+        from . import signals, translations  # noqa: F401
+
+        # Remember the shipped translations before anything overrides them, so
+        # clearing an override can restore the original.
+        try:
+            translations.capture_defaults()
+        except Exception:  # pragma: no cover - catalogs are built lazily
+            pass

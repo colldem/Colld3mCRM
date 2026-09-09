@@ -2517,3 +2517,139 @@ def contacts_import_errors(request):
     for entry in errors:
         writer.writerow([entry["row"], csv_safe(entry["error"])] + [csv_safe(entry["data"].get(name, "")) for name in field_names])
     return response
+
+
+CSV_HEADER = ["Modulis", "Kintamasis", "LT", "EN"]
+
+
+def _translations_csv(response):
+    """Write every translatable string with where it is used.
+
+    The key and the two values are written verbatim, not csv_safe-escaped: they
+    round-trip through the re-import, and prefixing an apostrophe onto a string
+    that starts with "+" or "-" ("+ Add contact") would either break the key
+    match or be saved as a translation with a stray apostrophe. Only the
+    informational module column, which the import ignores, is escaped.
+    """
+    from . import translations
+
+    response.write("﻿")                      # so Excel reads UTF-8
+    writer = csv.writer(response)
+    writer.writerow(CSV_HEADER)
+    for row in translations.rows():
+        module = str(tr("(nenaudojama)")) if row["unused"] else row["module"]
+        writer.writerow([csv_safe(module), row["msgid"], row["lt"], row["en"]])
+    return response
+
+
+def _read_translations_csv(upload):
+    """Parse an uploaded file into {msgid: (lt, en)}, or raise ValueError.
+
+    Refuses anything it cannot read confidently rather than importing half of
+    it: a silent partial import would look like success.
+    """
+    raw = upload.read()
+    if len(raw) > 4 * 1024 * 1024:
+        raise ValueError(tr("Failas per didelis (iki 4 MB)."))
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise ValueError(tr("Failas turi būti UTF-8. Excel: „Įrašyti kaip“ → CSV UTF-8.")) from None
+    reader = csv.reader(io.StringIO(text))
+    try:
+        header = next(reader)
+    except StopIteration:
+        raise ValueError(tr("Failas tuščias.")) from None
+    if [h.strip() for h in header[:4]] != CSV_HEADER:
+        raise ValueError(tr("Netinkamos stulpelių antraštės. Atsisiųskite failą iš naujo."))
+    parsed = {}
+    for number, row in enumerate(reader, start=2):
+        if not any(cell.strip() for cell in row):
+            continue
+        if len(row) < 4:
+            raise ValueError(tr("Trūksta stulpelių eilutėje %(line)s.") % {"line": number})
+        msgid = row[1]
+        if not msgid:
+            raise ValueError(tr("Tuščias kintamasis eilutėje %(line)s.") % {"line": number})
+        parsed[msgid] = (row[2], row[3])
+    return parsed
+
+
+def _translation_changes(parsed):
+    """What the upload would change, and which keys it does not recognise."""
+    from . import translations
+
+    known = {row["msgid"]: row for row in translations.rows()}
+    changes, unknown = [], []
+    for msgid, (lt, en) in parsed.items():
+        current = known.get(msgid)
+        if current is None:
+            unknown.append(msgid)
+        elif (lt, en) != (current["lt"], current["en"]):
+            changes.append({"msgid": msgid, "module": current["module"],
+                            "old_lt": current["lt"], "new_lt": lt,
+                            "old_en": current["en"], "new_en": en})
+    return changes, unknown
+
+
+@login_required
+def settings_translations(request):
+    """Adjust interface wording by exporting a CSV and importing it back."""
+    from . import translations
+    from .models import Translation
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+
+    if request.GET.get("export") == "csv":
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="crm-vertimai.csv"'
+        audit_log(AuditLog.EXPORT, request=request, target_type="export",
+                  target_label=str(tr("Vertimai (CSV)")))
+        return _translations_csv(response)
+
+    error = preview = None
+    if request.method == "POST" and request.POST.get("op") == "apply":
+        # The browser cannot re-send the file with the confirmation, so the
+        # reviewed changes were parked in the session by the preview step.
+        changes = request.session.pop("translation_changes", [])
+        for change in changes:
+            # An empty cell means "use the shipped translation".
+            if not (change["new_lt"] or change["new_en"]):
+                Translation.objects.filter(msgid=change["msgid"]).delete()
+            else:
+                Translation.objects.update_or_create(
+                    msgid=change["msgid"],
+                    defaults={"lt": change["new_lt"], "en": change["new_en"],
+                              "updated_by": request.user})
+        translations.apply_overrides()
+        audit_log(AuditLog.UPDATE, request=request, target_type="translations",
+                  target_label=str(tr("Vertimai")), new=str(len(changes)))
+        messages.success(request, tr("Atnaujinta vertimų: %(count)s.") % {"count": len(changes)})
+        return redirect("contacts:settings-translations")
+
+    if request.method == "POST":
+        upload = request.FILES.get("file")
+        if not upload:
+            error = tr("Pasirinkite failą.")
+        else:
+            try:
+                parsed = _read_translations_csv(upload)
+            except ValueError as problem:
+                error = str(problem)
+            else:
+                changes, unknown = _translation_changes(parsed)
+                request.session["translation_changes"] = changes
+                preview = {"changes": changes[:100], "total": len(changes),
+                           "unknown": unknown[:10], "unknown_total": len(unknown)}
+
+    rows = translations.rows()
+    return render(request, "settings/translations.html", {
+        "settings_section": "translations",
+        "total": len(rows),
+        "overridden": sum(1 for row in rows if row["overridden"]),
+        "unused": sum(1 for row in rows if row["unused"]),
+        "preview": preview,
+        "error": error,
+    })

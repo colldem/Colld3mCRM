@@ -67,6 +67,7 @@ urlpatterns = [
     path("settings/login/", views.settings_login, name="settings-login"),
     path("settings/automations/", views.settings_automations, name="settings-automations"),
     path("settings/automations/log/", views.settings_automation_log, name="settings-automation-log"),
+    path("settings/translations/", views.settings_translations, name="settings-translations"),
     path("settings/integrations/", views.settings_integrations, name="settings-integrations"),
     path("notifications/unsubscribe/<str:token>/", views.notifications_unsubscribe, name="notifications-unsubscribe"),
     path("calendar/feed/<str:token>.ics", views.calendar_feed, name="calendar-feed"),

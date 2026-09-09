@@ -771,3 +771,38 @@ class WebhookDelivery(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-pk"]
+
+
+class TranslationManager(models.Manager):
+    def version(self):
+        """A stamp that moves whenever any override changes.
+
+        Each gunicorn worker keeps its own in-memory catalog, so this is what
+        tells a worker that another one edited a translation. Deletions move it
+        too, which counting alone would miss.
+        """
+        state = self.aggregate(count=models.Count("id"), last=models.Max("updated_at"))
+        return (state["count"], state["last"].isoformat() if state["last"] else "")
+
+
+class Translation(models.Model):
+    """An edited interface string, overriding what the .po files ship.
+
+    Kept in the database rather than written back to locale/: those files live
+    inside the image and would be lost on the next rebuild. An empty value means
+    "use the shipped translation", so clearing a cell reverts it.
+    """
+    msgid = models.TextField(unique=True)
+    lt = models.TextField(blank=True, default="")
+    en = models.TextField(blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name="+")
+
+    objects = TranslationManager()
+
+    class Meta:
+        ordering = ["msgid"]
+
+    def __str__(self):
+        return self.msgid[:60]
