@@ -4,6 +4,11 @@ updates:
     directory: "/"
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
+    ignore:
+      # Stay on the 5.2 LTS line (supported until 2028-04); 5.2.x security and
+      # bugfix releases still come through.
+      - dependency-name: django
+        versions: [">=6.0"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule: { interval: weekly }
