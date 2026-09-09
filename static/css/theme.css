@@ -523,8 +523,17 @@ body.has-env-banner{padding-bottom:28px}
 .tone-overdue .spark-line,.tone-overdue .spark-dot{stroke:var(--danger);fill:var(--danger)}
 .tone-overdue .spark-area{fill:var(--danger)}
 
-.dash-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
-.dash-card{padding:20px;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;min-width:0}
+/* Cards in a row share the tallest one's height (grid stretches by default),
+   and each is a column so its list can grow and its footer sit at the bottom. */
+.dash-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.dash-card{display:flex;flex-direction:column;padding:20px;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;min-width:0}
+.dash-card>.event-list,.dash-card>.record-list{flex:1}
+.more-rows{margin-top:auto;border-top:1px solid var(--line)}
+.more-rows>summary{list-style:none;cursor:pointer;padding:10px 0 2px;color:var(--blue-600);font-size:var(--fs-xs);font-weight:650}
+.more-rows>summary::-webkit-details-marker{display:none}
+.more-rows>summary::after{content:" ↓"}
+.more-rows[open]>summary::after{content:" ↑"}
+.more-rows[open]>summary{border-bottom:1px solid var(--line);padding-bottom:10px}
 .dash-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px}
 .dash-card-head h2{margin:0;font-size:var(--fs-md)}
 .dash-card-head p{margin:4px 0 0;color:var(--muted);font-size:var(--fs-xs)}

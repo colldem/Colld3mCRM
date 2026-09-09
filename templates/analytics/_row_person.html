@@ -1,0 +1,6 @@
+{% load i18n crm_format %}{% with person=row %}<li>
+  <span class="tile tone-{{ person|record_tone }}" aria-hidden="true">{{ person|record_initials }}</span>
+  <span class="record-main"><a href="{{ person.get_absolute_url }}">{{ person }}</a>{% with link=person.company_links.first %}{% if link %}<small>{{ link.company.name }}</small>{% endif %}{% endwith %}</span>
+  {% with phone=person.phones.first %}{% if phone %}<span class="record-side"><a href="tel:{{ phone.number }}">{{ phone.number }}</a></span>{% endif %}{% endwith %}
+  <span class="record-date">{{ person.created_at|date:date_format }}</span>
+</li>{% endwith %}

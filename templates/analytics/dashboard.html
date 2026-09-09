@@ -93,23 +93,20 @@
       <a class="dash-more" href="{% url 'contacts:reminder-list' %}">{% translate 'Žiūrėti visus' %}</a>
     </div>
     <div class="dash-tabs" role="tablist">
-      {% for key, events, empty_text in dash_reminder_tabs %}
+      {% for key, rows, empty_text in dash_reminder_tabs %}
         <button class="tab{% if forloop.first %} is-active{% endif %}" type="button" role="tab" data-tab="{{ key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
           {% if key == 'upcoming' %}{% translate 'Artimiausi' %}{% elif key == 'today' %}{% translate 'Šiandien' %}{% else %}{% translate 'Rytoj' %}{% endif %}
-          {% if events %}<span>{{ events|length }}</span>{% endif %}
+          {% if rows.total %}<span>{{ rows.total }}</span>{% endif %}
         </button>
       {% endfor %}
     </div>
-    {% for key, events, empty_text in dash_reminder_tabs %}
-      <ul class="event-list tab-panel{% if forloop.first %} is-active{% endif %}" data-panel="{{ key }}" role="tabpanel"{% if not forloop.first %} hidden{% endif %}>
-        {% for reminder in events %}
-          <li>
-            <span class="event-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-            <span class="event-main"><strong>{{ reminder.text }}</strong>{% if reminder.record %}<a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
-            <span class="event-when{% if reminder.is_active %} is-overdue{% endif %}">{{ reminder.due_at|date:datetime_format }}</span>
-          </li>
-        {% empty %}<li class="muted">{{ empty_text }}</li>{% endfor %}
-      </ul>
+    {% for key, rows, empty_text in dash_reminder_tabs %}
+      <div class="tab-panel dash-panel{% if forloop.first %} is-active{% endif %}" data-panel="{{ key }}" role="tabpanel"{% if not forloop.first %} hidden{% endif %}>
+        <ul class="event-list">
+          {% for row in rows.visible %}{% include "analytics/_row_reminder.html" %}{% empty %}<li class="muted">{{ empty_text }}</li>{% endfor %}
+        </ul>
+        {% if rows.rest %}{% include "analytics/_more_rows.html" with rest=rows.rest row_template="analytics/_row_reminder.html" list_class="event-list" %}{% endif %}
+      </div>
     {% endfor %}
   </section>
 
@@ -119,15 +116,9 @@
       <a class="dash-more" href="{% url 'contacts:list' %}">{% translate 'Žiūrėti visus' %}</a>
     </div>
     <ul class="record-list">
-      {% for person in recent_people %}
-        <li>
-          <span class="tile tone-{{ person|record_tone }}" aria-hidden="true">{{ person|record_initials }}</span>
-          <span class="record-main"><a href="{{ person.get_absolute_url }}">{{ person }}</a>{% with link=person.company_links.first %}{% if link %}<small>{{ link.company.name }}</small>{% endif %}{% endwith %}</span>
-          {% with phone=person.phones.first %}{% if phone %}<span class="record-side"><a href="tel:{{ phone.number }}">{{ phone.number }}</a></span>{% endif %}{% endwith %}
-          <span class="record-date">{{ person.created_at|date:date_format }}</span>
-        </li>
-      {% empty %}<li class="muted">{% translate 'Kontaktų dar nėra.' %}</li>{% endfor %}
+      {% for row in recent_people.visible %}{% include "analytics/_row_person.html" %}{% empty %}<li class="muted">{% translate 'Kontaktų dar nėra.' %}</li>{% endfor %}
     </ul>
+    {% if recent_people.rest %}{% include "analytics/_more_rows.html" with rest=recent_people.rest row_template="analytics/_row_person.html" list_class="record-list" %}{% endif %}
   </section>
 
   <section class="dash-card">
@@ -136,15 +127,9 @@
       <a class="dash-more" href="{% url 'contacts:company-list' %}">{% translate 'Žiūrėti visas' %}</a>
     </div>
     <ul class="record-list">
-      {% for company in recent_companies %}
-        <li>
-          <span class="tile tone-{{ company|record_tone }}" aria-hidden="true">{{ company|record_initials }}</span>
-          <span class="record-main"><a href="{{ company.get_absolute_url }}">{{ company.name }}</a>{% if company.description %}<small>{{ company.description|truncatechars:40 }}</small>{% endif %}</span>
-          {% if company.city %}<span class="record-side">{{ company.city }}</span>{% endif %}
-          <span class="record-date">{{ company.created_at|date:date_format }}</span>
-        </li>
-      {% empty %}<li class="muted">{% translate 'Įmonių dar nėra.' %}</li>{% endfor %}
+      {% for row in recent_companies.visible %}{% include "analytics/_row_company.html" %}{% empty %}<li class="muted">{% translate 'Įmonių dar nėra.' %}</li>{% endfor %}
     </ul>
+    {% if recent_companies.rest %}{% include "analytics/_more_rows.html" with rest=recent_companies.rest row_template="analytics/_row_company.html" list_class="record-list" %}{% endif %}
   </section>
 
   <section class="dash-card">
@@ -153,14 +138,9 @@
       <a class="dash-more" href="{% url 'contacts:analytics-communication' %}">{% translate 'Žiūrėti visus' %}</a>
     </div>
     <ul class="record-list">
-      {% for activity in recent_activities %}
-        <li>
-          <span class="event-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg></span>
-          <span class="record-main">{% if activity.record %}<a href="{{ activity.record_url }}">{{ activity.record }}</a>{% else %}<span>{{ activity.get_activity_type_display }}</span>{% endif %}<small>{{ activity.text|truncatechars:52 }}</small></span>
-          <span class="record-date">{{ activity.created_at|date:date_format }}</span>
-        </li>
-      {% empty %}<li class="muted">{% translate 'Įrašų dar nėra.' %}</li>{% endfor %}
+      {% for row in recent_activities.visible %}{% include "analytics/_row_activity.html" %}{% empty %}<li class="muted">{% translate 'Įrašų dar nėra.' %}</li>{% endfor %}
     </ul>
+    {% if recent_activities.rest %}{% include "analytics/_more_rows.html" with rest=recent_activities.rest row_template="analytics/_row_activity.html" list_class="record-list" %}{% endif %}
   </section>
 </div>
 {% endblock %}

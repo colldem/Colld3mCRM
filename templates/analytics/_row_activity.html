@@ -1,0 +1,5 @@
+{% load i18n %}{% with activity=row %}<li>
+  <span class="event-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg></span>
+  <span class="record-main">{% if activity.record %}<a href="{{ activity.record_url }}">{{ activity.record }}</a>{% else %}<span>{{ activity.get_activity_type_display }}</span>{% endif %}<small>{{ activity.text|truncatechars:52 }}</small></span>
+  <span class="record-date">{{ activity.created_at|date:date_format }}</span>
+</li>{% endwith %}

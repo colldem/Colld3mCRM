@@ -1,0 +1,6 @@
+{% load i18n crm_format %}{% with company=row %}<li>
+  <span class="tile tone-{{ company|record_tone }}" aria-hidden="true">{{ company|record_initials }}</span>
+  <span class="record-main"><a href="{{ company.get_absolute_url }}">{{ company.name }}</a>{% if company.description %}<small>{{ company.description|truncatechars:40 }}</small>{% endif %}</span>
+  {% if company.city %}<span class="record-side">{{ company.city }}</span>{% endif %}
+  <span class="record-date">{{ company.created_at|date:date_format }}</span>
+</li>{% endwith %}

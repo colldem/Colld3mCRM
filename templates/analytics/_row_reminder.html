@@ -1,0 +1,5 @@
+{% load i18n %}{% with reminder=row %}<li>
+  <span class="event-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+  <span class="event-main"><strong>{{ reminder.text }}</strong>{% if reminder.record %}<a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}</span>
+  <span class="event-when{% if reminder.is_active %} is-overdue{% endif %}">{{ reminder.due_at|date:datetime_format }}</span>
+</li>{% endwith %}

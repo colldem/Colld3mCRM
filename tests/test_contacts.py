@@ -105,6 +105,10 @@ class AnalyticsTests(TestCase):
         self.assertEqual(texts("tomorrow_events"), ["Rytoj"])
         for key in ("overdue_events", "today_events", "tomorrow_events"):
             self.assertNotIn("Kolegos", texts(key))
+        # Each tab reports how many it holds, so its badge is not the visible
+        # slice. "Today" is 2: the overdue one is also due today.
+        tabs = {key: rows["total"] for key, rows, _ in response.context["dash_reminder_tabs"]}
+        self.assertEqual((tabs["today"], tabs["tomorrow"]), (2, 1))
 
     def test_dashboard_counts_my_week_activity_by_type(self):
         person = self._person("Veiklus")
@@ -177,9 +181,31 @@ class AnalyticsTests(TestCase):
         Activity.objects.create(person=fresh, activity_type="note", text="Uzrasas", created_by=self.user)
 
         response = self.client.get(reverse("contacts:home"))
-        self.assertEqual(str(response.context["recent_people"][0]), str(fresh))
-        self.assertEqual(response.context["recent_companies"][0].city, "Vilnius")
-        self.assertEqual(response.context["recent_activities"][0].text, "Uzrasas")
+        self.assertEqual(str(response.context["recent_people"]["visible"][0]), str(fresh))
+        self.assertEqual(response.context["recent_companies"]["visible"][0].city, "Vilnius")
+        self.assertEqual(response.context["recent_activities"]["visible"][0].text, "Uzrasas")
+
+    def test_dashboard_hides_extra_rows_behind_show_more(self):
+        """Cards share a height, so anything past the fixed count folds away."""
+        from contacts.analytics_views import DASH_VISIBLE
+        for index in range(DASH_VISIBLE + 3):
+            self._person("Eile%d" % index)
+
+        response = self.client.get(reverse("contacts:home"))
+        rows = response.context["recent_people"]
+        self.assertEqual(len(rows["visible"]), DASH_VISIBLE)
+        self.assertEqual(len(rows["rest"]), 3)
+        self.assertContains(response, "Rodyti daugiau")
+        # Hidden, but present — expanding must not need another request.
+        self.assertContains(response, str(rows["rest"][0]))
+        # The tab badge counts everything, not just the visible slice.
+        self.assertEqual(rows["total"], DASH_VISIBLE + 3)
+
+    def test_dashboard_omits_show_more_when_everything_fits(self):
+        self._person("Vienintelis")
+        response = self.client.get(reverse("contacts:home"))
+        self.assertEqual(response.context["recent_people"]["rest"], [])
+        self.assertNotContains(response, "Rodyti daugiau")
 
     def test_chart_helpers_survive_empty_and_flat_input(self):
         """The dashboard renders on day one, when there is nothing to plot."""

@@ -26,6 +26,10 @@ _MONTH_LABELS = [tr_lazy("Sau"), tr_lazy("Vas"), tr_lazy("Kov"), tr_lazy("Bal"),
 
 SILENT_WINDOWS = (30, 60, 90)
 LIST_LIMIT = 100
+# Dashboard lists: how many rows a card shows before "show more", and how many
+# are fetched at all. The cards share a height, so the visible count is fixed.
+DASH_VISIBLE = 5
+DASH_FETCH = 12
 
 
 def _day_bounds(day):
@@ -59,6 +63,14 @@ def _monthly_counts(queryset, today, months=6):
             total = queryset.filter(created_at__gte=start).count()
         rows.append({"label": _MONTH_LABELS[first.month - 1], "value": total})
     return rows, window_start
+
+
+def _split_rows(rows):
+    """Split a dashboard list into what a card shows and what hides behind
+    "show more". Evaluates the queryset once."""
+    rows = list(rows)
+    # `total` is counted here because a template cannot add two filtered lengths.
+    return {"visible": rows[:DASH_VISIBLE], "rest": rows[DASH_VISIBLE:], "total": len(rows)}
 
 
 def _daily_counts(queryset, today, days=30):
@@ -111,7 +123,7 @@ def dashboard(request):
     today_events = agenda.filter(due_at__gte=day_start, due_at__lt=day_end).order_by("due_at")
     tomorrow_events = agenda.filter(due_at__gte=day_end, due_at__lt=tomorrow_end).order_by("due_at")
     # Soonest first, so anything already overdue heads the list.
-    upcoming_events = agenda.order_by("due_at")[:5]
+    upcoming_events = agenda.order_by("due_at")[:DASH_FETCH]
     return render(request, "analytics/dashboard.html", {
         "today_events": today_events,
         "tomorrow_events": tomorrow_events,
@@ -119,9 +131,9 @@ def dashboard(request):
         "overdue_total": overdue.count(),
         "upcoming_events": upcoming_events,
         "dash_reminder_tabs": [
-            ("upcoming", upcoming_events, tr("Aktyvių priminimų nėra.")),
-            ("today", today_events, tr("Šiandien įvykių nėra.")),
-            ("tomorrow", tomorrow_events, tr("Rytoj įvykių nėra.")),
+            ("upcoming", _split_rows(upcoming_events), tr("Aktyvių priminimų nėra.")),
+            ("today", _split_rows(today_events), tr("Šiandien įvykių nėra.")),
+            ("tomorrow", _split_rows(tomorrow_events), tr("Rytoj įvykių nėra.")),
         ],
         "week_activity": week_activity,
         "week_activity_total": sum(item["total"] for item in week_activity),
@@ -138,11 +150,12 @@ def dashboard(request):
         "activity_by_type": by_type,
         "activity_month_total": sum(row["total"] for row in by_type),
         "growth_chart": charts.grouped_bars(growth, ["people", "companies"], width=460, height=230),
-        "recent_people": people.order_by("-created_at")
-                               .prefetch_related("phones", "company_links__company")[:5],
-        "recent_companies": companies.order_by("-created_at")[:4],
-        "recent_activities": (my_activities.select_related("person", "company", "created_by")
-                              .order_by("-created_at")[:5]),
+        "recent_people": _split_rows(people.order_by("-created_at")
+                                     .prefetch_related("phones", "company_links__company")[:DASH_FETCH]),
+        "recent_companies": _split_rows(companies.order_by("-created_at")[:DASH_FETCH]),
+        "recent_activities": _split_rows(
+            my_activities.select_related("person", "company", "created_by")
+                         .order_by("-created_at")[:DASH_FETCH]),
     })
 
 

@@ -1,0 +1,6 @@
+{% load i18n %}{% comment %}The rows a card does not show. A <details> so the
+expand needs no JavaScript. `row_template` renders one row from `row`.{% endcomment %}
+<details class="more-rows">
+  <summary>{% translate 'Rodyti daugiau' %} ({{ rest|length }})</summary>
+  <ul class="{{ list_class }}">{% for row in rest %}{% include row_template %}{% endfor %}</ul>
+</details>
