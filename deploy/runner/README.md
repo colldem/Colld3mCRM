@@ -14,16 +14,20 @@ the app) and the app directory `/volume1/docker/crm`.
    - Short expiry (e.g. 90 days); set a calendar reminder to rotate.
 
 2. **Configure and pin the image**
+
+   `/volume1/docker/crm-runner` on the NAS is already provisioned: `compose.yaml`,
+   a `.env` (mode 600) with `REPO_URL` and the verified `DOCKER_GID=121`, and
+   `RUNNER_IMAGE` pinned to the pulled digest. Only the token is missing — put
+   the PAT from step 1 on the `ACCESS_TOKEN=` line, replacing the placeholder.
+
+   To re-pin the image later (do this when you rotate the PAT — `.env` never
+   leaves the NAS, so Dependabot cannot bump it):
    ```sh
-   cd /volume1/docker/crm-runner        # or wherever you keep this
-   cp .env.example .env
-   # edit .env: ACCESS_TOKEN, REPO_URL, DOCKER_GID (getent group docker | cut -d: -f3)
+   cd /volume1/docker/crm-runner
    docker compose pull
    docker inspect --format '{{index .RepoDigests 0}}' $(docker compose config --images)
-   # put that tag@sha256:... into RUNNER_IMAGE in .env
+   # put that name@sha256:... into RUNNER_IMAGE in .env
    ```
-   `.env` never leaves the NAS, so Dependabot cannot bump this pin — repeat
-   this step by hand when you rotate the PAT.
 
 3. **Start it**
    ```sh
