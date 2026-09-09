@@ -72,7 +72,7 @@ def _json_body(request):
     try:
         data = json.loads(request.body or b"{}")
     except ValueError:
-        raise ApiError(400, "invalid JSON body")
+        raise ApiError(400, "invalid JSON body") from None
     if not isinstance(data, dict):
         raise ApiError(400, "body must be a JSON object")
     return data
@@ -83,7 +83,7 @@ def _paginate(request, queryset):
         limit = min(max(int(request.GET.get("limit", 50)), 1), MAX_PAGE)
         offset = max(int(request.GET.get("offset", 0)), 0)
     except (TypeError, ValueError):
-        raise ApiError(400, "bad limit or offset")
+        raise ApiError(400, "bad limit or offset") from None
     total = queryset.count()
     return list(queryset[offset:offset + limit]), total, limit, offset
 

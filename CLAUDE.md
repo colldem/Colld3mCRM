@@ -23,13 +23,16 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
    DJANGO_DEBUG=true .venv/bin/python manage.py runserver 127.0.0.1:8765
    ```
    Lokalus adminas: `dev` / `devlocalpass123` (tik lokali SQLite, ne produkcija).
-4. **Diegimas į Docker.** Kodą į NAS kelia naudotojas per UGREEN programėlę,
-   tada `docker compose build --pull && docker compose up -d`. Patikrinti, kad
-   `crm-db`, `crm-web`, `crm-tailscale` yra healthy ir `/health/ready` = `ready`.
-   Jei keitėsi funkcionalumas — bumpinti `VERSION` ir `image: crm-web:X.Y.Z`
-   tag'ą `compose.yaml`.
-5. **GitHub.** Tik po sėkmingo diegimo — `git push` į `main`. Commit žinutė
+4. **GitHub.** `git push` į `main` iškart po commit'o — CI (`.github/workflows/ci.yml`:
+   ruff, `release-check.sh`, Docker image + smoke) turi būti žalias. Commit žinutė
    `fix:` / `feat:` / `chore:` stiliumi, glausta, apie tą vieną pakeitimą.
+5. **Diegimas.** Jei keitėsi funkcionalumas — bumpinti `VERSION` ir
+   `image: crm-web:X.Y.Z` `compose.yaml`. Diegimas: `git tag vX.Y.Z && git push
+   origin vX.Y.Z` → GitHub Actions „Deploy" praeina patikras → patvirtini
+   `production` environment → runner ant NAS daro backup → build → `up -d` →
+   health check. Rankinis atsarginis kelias: `scripts/deploy.sh` (ant NAS) arba
+   `docker compose build --pull && up -d`. Patikrinti: `crm-db`, `crm-web`,
+   `crm-worker` healthy, `/health/ready` = `ready`.
 6. **Dokumentacija.** Jei pakeitimas prideda ar keičia funkciją, matomą
    naudotojui (naują langą, mygtuką, nustatymą, prieigos taisyklę), tame
    pačiame pakeitime atnaujinti in-app žinyną `templates/settings/documentation.html`
@@ -70,5 +73,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `run_automations`, `deliver_webhooks`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
+- `.github/workflows/` — `ci.yml` (push/PR), `deploy.yml` (tag `v*` + `production`
+  approval, `runs-on: self-hosted crm-nas`). `scripts/deploy.sh` — NAS diegimas.
+  `deploy/runner/` — self-hosted runner konteineris (`README.md` — sąranka).
 - `docs/DEPLOYMENT-UGREEN.md` — diegimo procedūra; prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.

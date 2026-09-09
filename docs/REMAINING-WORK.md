@@ -704,6 +704,16 @@ suderinimas su modeliu, `owner_id` per API ribojamas `assignable_users_for`,
 webhook SSRF apsauga (loopback/link-local block + no-redirect), pašalintas
 nenaudojamas `compose-v03.yaml`.
 
+### CI/CD — ✅ padaryta (`0.52.0`)
+`ci.yml` (ruff, `release-check.sh`, Docker image + smoke) push/PR metu.
+`deploy.yml` — version tag `vX.Y.Z` → `verify` job'as + `deploy` job'as
+`runs-on: [self-hosted, crm-nas]` su `production` environment patvirtinimu.
+`deploy/runner/` — ephemeral runner konteineris ant NAS (PAT auto-registracija,
+docker socket, `/volume1/docker/crm` mount). `scripts/deploy.sh` — backup +
+`rsync` + build + up + health. `dependabot.yml` — savaitinės pip / actions /
+docker atnaujinimo PR'ai. Ruff lint gate (`pyproject.toml`, `select F,E9,B`).
+CI/CD nebe „žinomose ribose".
+
 ---
 
 ## F. Kalendorius — ✅ padaryta (`0.28.0`)

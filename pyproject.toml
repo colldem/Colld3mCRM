@@ -1,0 +1,15 @@
+[tool.ruff]
+target-version = "py313"
+line-length = 120
+extend-exclude = ["contacts/migrations", "**/__pycache__"]
+
+[tool.ruff.lint]
+# F  = pyflakes (undefined names, unused imports/vars) — the checks that catch real bugs
+# E9 = syntax errors
+# B  = flake8-bugbear (mutable defaults, silent except, etc.)
+select = ["F", "E9", "B"]
+ignore = ["B008"]  # Django's FK(..., on_delete=...) as a default is idiomatic
+
+[tool.ruff.lint.per-file-ignores]
+"contacts/apps.py" = ["F401"]        # signals imported for its side effects
+"contacts/tests.py" = ["F401", "F403"]  # `from tests.test_contacts import *` shim

@@ -1,0 +1,34 @@
+name: crm-runner
+
+# Self-hosted GitHub Actions runner for CRM deploys. Lives on the NAS, separate
+# from the app's compose project. Ephemeral: it de-registers after each job and
+# re-registers, so nothing carries over between jobs.
+#
+# Setup (see README.md):
+#   1. cp .env.example .env  and fill ACCESS_TOKEN + REPO_URL + DOCKER_GID
+#   2. pin RUNNER_IMAGE to a tag + digest
+#   3. docker compose up -d
+
+services:
+  runner:
+    image: ${RUNNER_IMAGE:-myoung34/github-runner:latest}
+    environment:
+      REPO_URL: ${REPO_URL}
+      ACCESS_TOKEN: ${ACCESS_TOKEN}
+      RUNNER_NAME: crm-nas
+      RUNNER_SCOPE: repo
+      LABELS: crm-nas
+      EPHEMERAL: "true"
+      DISABLE_AUTO_UPDATE: "true"
+      RUNNER_WORKDIR: /tmp/runner/work
+    group_add:
+      - ${DOCKER_GID:?set DOCKER_GID to the host docker group id}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /volume1/docker/crm:/volume1/docker/crm
+      - runner-work:/tmp/runner
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  runner-work:

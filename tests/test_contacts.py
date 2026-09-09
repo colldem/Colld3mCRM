@@ -405,9 +405,9 @@ class ReminderAssignmentTests(TestCase):
         return Reminder.objects.create(**{**d, **kw})
 
     def test_list_scopes_split_assigned_created_and_all(self):
-        mine = self._reminder(text="Man")
-        i_made_for_mate = self._reminder(text="Kolegai", assigned_to=self.mate)
-        someone_elses = self._reminder(text="Svetimas", created_by=self.mate, assigned_to=self.mate)
+        self._reminder(text="Man")
+        self._reminder(text="Kolegai", assigned_to=self.mate)
+        self._reminder(text="Svetimas", created_by=self.mate, assigned_to=self.mate)
         texts = lambda scope: {r.text for r in self.client.get(
             reverse("contacts:reminder-list"), {"scope": scope}).context["scheduled_reminders"]}
         self.assertEqual(texts("assigned"), {"Man"})
@@ -703,7 +703,7 @@ class ContactViewTests(TestCase):
             self.assertEqual(self.client.post(url, {'field': 'favourite', 'value': 'true'}).status_code, 200)
         self.person.refresh_from_db()
         self.assertTrue(self.person.favourite)
-        other = Person.objects.create(first_name='Other', last_name='Test')
+        Person.objects.create(first_name='Other', last_name='Test')
         response = self.client.get(reverse('contacts:list'), {'favourite': '1'})
         self.assertEqual(list(response.context['page']), [self.person])
         for kind, record in [('person', self.person), ('company', self.company)]:
@@ -2552,7 +2552,7 @@ class ContactViewTests(TestCase):
         self.assertEqual(self.client.get(reverse("contacts:settings-audit")).status_code, 404)
 
     def test_admin_revokes_a_capability_and_it_takes_effect(self):
-        from contacts.models import RolePermissions, UserProfile
+        from contacts.models import RolePermissions
         member = self._plain_member("busexportas")
         admin = get_user_model().objects.create_user("adm", password="very-secure-password", is_superuser=True)
         self.client.force_login(admin)
@@ -3019,7 +3019,7 @@ class SecurityHardeningTests(TestCase):
         from contacts.models import UserProfile
         from contacts.forms import PersonForm
         boss = get_user_model().objects.create_user("bosas-uab", password="very-secure-password")
-        mine = Company.objects.create(name="Mano UAB", owner=self.member)
+        Company.objects.create(name="Mano UAB", owner=self.member)
         hidden = Company.objects.create(name="Slapta UAB", owner=boss)
         UserProfile.objects.create(user=self.member, role=UserProfile.ROLE_RESTRICTED,
                                    record_visibility=UserProfile.VISIBILITY_OWN)

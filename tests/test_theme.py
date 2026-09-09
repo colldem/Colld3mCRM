@@ -2,7 +2,6 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
-from django.utils.translation import override
 from contacts.models import Tag, Person, Company
 
 
@@ -70,7 +69,6 @@ class ThemeTests(TestCase):
 
     def test_font_sizes_follow_one_type_scale(self):
         app_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
-        theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
         # The 8-step scale is declared once as tokens.
         for token in ("--fs-2xs:11px", "--fs-xs:12px", "--fs-sm:13px", "--fs-base:14px",
                       "--fs-md:16px", "--fs-lg:20px", "--fs-xl:24px", "--fs-2xl:28px"):
@@ -78,7 +76,6 @@ class ThemeTests(TestCase):
 
     def test_stylesheets_have_no_malformed_declarations(self):
         # Guards against bulk find/replace eating a ";" (e.g. "transparent padding:4px").
-        import re
         for name in ("app.css", "theme.css"):
             css = (settings.BASE_DIR / "static" / "css" / name).read_text()
             self.assertEqual(css.count("{"), css.count("}"), name)

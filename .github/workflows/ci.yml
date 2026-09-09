@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Release checks (migrations, tests, deploy check)
+        env:
+          PYTHON_BIN: python
+        run: ./scripts/release-check.sh
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the production image
+        run: docker build -t crm-web:ci .
+      - name: Smoke test the image (migrate, collectstatic, health)
+        run: |
+          docker run -d --name crm-ci -p 8080:8080 \
+            -e DJANGO_SECRET_KEY=ci-only-0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMN \
+            -e DJANGO_ALLOWED_HOSTS='localhost,127.0.0.1' \
+            -e DJANGO_DEBUG=false \
+            crm-web:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8080/health/ready && break
+            sleep 2
+          done
+          curl -fsS http://localhost:8080/health/ready
+          docker rm -f crm-ci

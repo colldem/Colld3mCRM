@@ -14,10 +14,9 @@ ryšiai, bendravimo istorija, failai ir priminimai. Produkcija — vienas UGREEN
 Docker Compose, prieiga per Tailscale HTTPS. Vienas realus naudotojas šiuo metu,
 bet duomenų modelis ir teisės paruoštos kelioms paskyroms ir komandoms.
 
-Sąmoningi apribojimai: **nėra CI/CD**, nėra automatinių atsarginių kopijų su
-šifravimu, nėra el. paštu siunčiamo slaptažodžio atkūrimo. Sąsajoje visi matomi
-įrašai yra ir redaguojami; „tik skaityti" prieiga yra tik per API raktą.
-Diegimas rankinis ir patikrinamas.
+Sąmoningi apribojimai: nėra automatinių atsarginių kopijų su šifravimu, nėra
+el. paštu siunčiamo slaptažodžio atkūrimo. Sąsajoje visi matomi įrašai yra ir
+redaguojami; „tik skaityti" prieiga yra tik per API raktą.
 
 ---
 
@@ -287,9 +286,16 @@ Nėra vieno perkeliamo failo. Pilna kopija = PostgreSQL `pg_dump -Fc` +
   `check --deploy` (su prod-panašiais env) → `serve.json` JSON patikra.
 - ~250 testų `tests/`. `test_theme.py` sergsti dizaino žetonų skalę ir CSS
   taisyklių korektiškumą.
+- **CI** (`.github/workflows/ci.yml`, push/PR į `main`): `ruff check`,
+  `release-check.sh`, Docker image build + `/health/ready` smoke.
+- **CD** (`.github/workflows/deploy.yml`): paleidžiama version tag'u `vX.Y.Z`
+  (arba rankiniu `workflow_dispatch`). `verify` job'as GitHub runner'yje pakartoja
+  patikras; `deploy` job'as `runs-on: [self-hosted, crm-nas]` (ephemeral runner
+  konteineris ant NAS, `deploy/runner/`), gate'inamas `production` environment
+  patvirtinimu. `scripts/deploy.sh`: backup → `rsync` šaltinį į
+  `/volume1/docker/crm` → `compose build --pull` → `up -d` → sveikatos patikra.
 - Kiekvienam pakeitimui: minimalus diff, žalias `release-check`, patikra
-  naršyklėje (LT/EN, desktop/mobile), tada diegimas, tik po jo — `git push`.
-  Žr. `CLAUDE.md`.
+  naršyklėje (LT/EN, desktop/mobile). Žr. `CLAUDE.md`.
 
 ---
 

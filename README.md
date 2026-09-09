@@ -53,6 +53,10 @@ Gunicorn · WhiteNoise · django-axes · Argon2 · mozilla-django-oidc · crypto
 AdminLTE 4 + Bootstrap 5 (įdiegti vietoje) · Tailscale. Grafikai – rankomis
 generuojamas SVG be išorinių bibliotekų. Foniniai darbai – `crm-worker` konteineris.
 
+CI: `.github/workflows/ci.yml` (ruff + `release-check.sh` + Docker smoke) kiekvienam
+push/PR. Diegimas: version tag'as `vX.Y.Z` → GitHub Actions „Deploy" (self-hosted
+runner ant NAS, `production` patvirtinimas). Sąranka: [`deploy/runner/README.md`](deploy/runner/README.md).
+
 Išsamus architektūros aprašymas: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Vietinė patikra

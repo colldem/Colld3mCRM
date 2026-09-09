@@ -1126,7 +1126,7 @@ def profile_avatar(request):
             content_type=mimetypes.guess_type(profile.avatar.name)[0] or "application/octet-stream",
         )
     except FileNotFoundError:
-        raise Http404("Profilio nuotrauka nerasta.")
+        raise Http404("Profilio nuotrauka nerasta.") from None
     response["Cache-Control"] = "private, no-store"
     return response
 
@@ -1953,7 +1953,7 @@ def attachment_download(request, pk):
     try:
         return FileResponse(attachment.file.open("rb"), as_attachment=True, filename=attachment.original_name)
     except FileNotFoundError:
-        raise Http404("Failas nerastas.")
+        raise Http404("Failas nerastas.") from None
 
 
 @login_required
