@@ -42,7 +42,10 @@ jobs:
     needs: verify
     runs-on: [self-hosted, crm-nas]
     environment:
-      name: production
+      # Matches the environment as GitHub stores it (it title-cases this name).
+      # Its only protection rule is the v* tag policy: required reviewers need
+      # a paid plan on a private repo, so the tag push is the deliberate gate.
+      name: Production
       url: https://crm.tailb8493f.ts.net/
     steps:
       - uses: actions/checkout@v7
