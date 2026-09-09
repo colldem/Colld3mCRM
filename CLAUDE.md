@@ -26,7 +26,13 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 4. **GitHub.** `git push` į `main` iškart po commit'o — CI (`.github/workflows/ci.yml`:
    ruff, `release-check.sh`, Docker image + smoke) turi būti žalias. Commit žinutė
    `fix:` / `feat:` / `chore:` stiliumi, glausta, apie tą vieną pakeitimą.
-5. **Diegimas.** Jei keitėsi funkcionalumas — bumpinti `VERSION` ir
+5. **Diegimas.** Kiekvienas push į `main` automatiškai nusideploy'ina į
+   **staging** (`https://crm-staging.tailb8493f.ts.net`, `deploy-staging.yml` →
+   `scripts/deploy-staging.sh`) — ten realių produkcijos duomenų kopija, bet
+   `CRM_ENVIRONMENT=staging` išjungia el. paštą, IMAP, Entra ir webhook'us, ir
+   nėra `crm-worker`. Duomenis atnaujinti: `scripts/refresh-staging.sh` (rankiniu
+   būdu ant NAS). Į produkciją — tik po patikros staging'e.
+   Jei keitėsi funkcionalumas — bumpinti `VERSION` ir
    `image: crm-web:X.Y.Z` `compose.yaml`. Diegimas: `git tag vX.Y.Z && git push
    origin vX.Y.Z` → GitHub Actions „Deploy" praeina patikras → patvirtini
    `production` environment → runner ant NAS daro backup → build → `up -d` →
@@ -77,8 +83,11 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `run_automations`, `deliver_webhooks`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
-- `.github/workflows/` — `ci.yml` (push/PR), `deploy.yml` (tag `v*` + `production`
-  approval, `runs-on: self-hosted crm-nas`). `scripts/deploy.sh` — NAS diegimas.
+- `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
+  `deploy.yml` (tag `v*`), abu `runs-on: self-hosted crm-nas`.
+  `scripts/deploy.sh` / `deploy-staging.sh` — diegimas; `refresh-staging.sh` —
+  produkcijos duomenų kopija į staging. `compose.staging.yaml` — staging stack'as
+  (be `crm-worker`, `serve-staging.json` be Funnel).
   `deploy/runner/` — self-hosted runner konteineris (`README.md` — sąranka).
 - `docs/DEPLOYMENT-UGREEN.md` — diegimo procedūra; prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.

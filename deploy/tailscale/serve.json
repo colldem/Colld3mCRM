@@ -1,4 +1,5 @@
 {
+  "_comment": "Production. AllowFunnel publishes this to the public internet on purpose. serve-staging.json is the tailnet-only variant used by compose.staging.yaml.",
   "TCP": {"443": {"HTTPS": true}},
   "Web": {"${TS_CERT_DOMAIN}:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}}},
   "AllowFunnel": {"${TS_CERT_DOMAIN}:443": true}

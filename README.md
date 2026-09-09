@@ -49,6 +49,12 @@ išjungiami, nepaisant duomenų bazės turinio, o sąsajoje rodoma raudona juost
 Komanda `manage.py sanitize_staging` papildomai išvalo šiuos nustatymus iš pačių
 atkurtų duomenų.
 
+Aplinkos: **kūrimo** (lokaliai, SQLite) → **staging** (NAS, produkcijos duomenų
+kopija, pasiekiama tik Tailscale tinkle; atnaujinama kas push į `main`) →
+**produkcija** (diegiama pažymėjus `vX.Y.Z`). Staging aprašytas
+[`compose.staging.yaml`](compose.staging.yaml); duomenys perkraunami
+[`scripts/refresh-staging.sh`](scripts/refresh-staging.sh).
+
 Pirmoji administratoriaus paskyra sukuriama adresu `/setup/` naudojant vienkartinį
 `CRM_SETUP_TOKEN`. Sukūrus pirmą naudotoją setup puslapis automatiškai išsijungia.
 

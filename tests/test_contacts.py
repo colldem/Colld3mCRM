@@ -3480,6 +3480,35 @@ class IsolatedTierTests(TestCase):
         self.assertEqual(Webhook.objects.filter(active=True).count(), 0)
         self.assertEqual(ApiToken.objects.count(), 0)
 
+    def test_staging_stack_config_keeps_its_safety_properties(self):
+        """Guards the two config invariants that let staging hold real data.
+
+        Asserted on the files rather than a running stack: if someone adds a
+        worker back, or copies production's Funnel setting across, that is a data
+        leak, and it should fail here rather than in front of real contacts.
+        """
+        import pathlib
+        root = pathlib.Path(settings.BASE_DIR)
+
+        compose = (root / "compose.staging.yaml").read_text()
+        # Comments mention crm-worker to explain its absence, so read the
+        # directives only.
+        directives = "\n".join(
+            line for line in compose.splitlines() if not line.lstrip().startswith("#"))
+        self.assertIn("CRM_ENVIRONMENT: staging", directives)
+        # No background jobs at all on a clone of production data.
+        self.assertNotIn("crm-worker", directives)
+        self.assertNotIn("send_notifications", directives)
+        self.assertIn("serve-staging.json", directives)
+
+        # Production is deliberately published through Funnel; staging must not be.
+        self.assertNotIn("AllowFunnel", (root / "deploy" / "tailscale" / "serve-staging.json").read_text())
+        self.assertIn("AllowFunnel", (root / "deploy" / "tailscale" / "serve.json").read_text())
+
+        # Both staging scripts refuse to act unless the target really is staging.
+        for name in ("deploy-staging.sh", "refresh-staging.sh"):
+            self.assertIn("CRM_ENVIRONMENT=staging", (root / "scripts" / name).read_text())
+
     def test_sanitize_staging_refuses_to_run_on_production(self):
         from django.core.management import call_command
         from django.core.management.base import CommandError

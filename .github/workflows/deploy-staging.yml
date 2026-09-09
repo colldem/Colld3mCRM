@@ -1,0 +1,54 @@
+name: Deploy staging
+
+# Every push to main lands on staging, which runs the same code against a copy of
+# the production data. Verify there, then tag vX.Y.Z to promote to production.
+#
+# The data itself is not touched here — refresh it on demand with
+# scripts/refresh-staging.sh on the NAS.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag, branch or SHA to deploy to staging"
+        required: true
+        default: "main"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - run: ruff check .
+      - run: ./scripts/release-check.sh
+        env:
+          PYTHON_BIN: python
+
+  deploy:
+    needs: verify
+    runs-on: [self-hosted, crm-nas]
+    environment:
+      name: Staging
+      url: https://crm-staging.tailb8493f.ts.net/
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - name: Deploy to staging on the NAS
+        run: sh scripts/deploy-staging.sh
