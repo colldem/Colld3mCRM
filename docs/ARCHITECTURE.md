@@ -3,7 +3,7 @@
 Šis dokumentas apibendrina, iš ko sudaryta CRM, kaip komponentai jungiasi ir
 kokiais principais parašytas kodas. Kasdienio darbo ir diegimo instrukcijos yra
 atskirai: programoje **Nustatymai → Dokumentacija**, `README.md` ir
-`docs/DEPLOYMENT-UGREEN.md`.
+`docs/DEPLOYMENT.md`.
 
 ---
 
@@ -88,7 +88,7 @@ locale/en/         .po / .mo (šaltinis — lietuviški msgid)
 tests/             test_contacts.py, test_theme.py (~250 iš viso)
 scripts/           entrypoint.sh, backup.sh, release-check.sh
 deploy/tailscale/  serve.json
-docs/              ši byla, DEPLOYMENT-UGREEN.md, REMAINING-WORK.md
+docs/              ši byla, DEPLOYMENT.md, REMAINING-WORK.md
 ```
 
 ---

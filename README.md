@@ -1,90 +1,106 @@
 # Colld3m CRM
 
-Django CRM kontaktiniams asmenims ir įmonėms, jų ryšiams, bendravimo istorijai,
-failams ir priminimams tvarkyti. Veikia naršyklėje, produkcijoje – UGREEN NAS
-Docker konteineriuose, pasiekiama per Tailscale HTTPS.
+A self-hosted CRM for people, companies, the relationships between them, and the
+history of working with them — contact history, files, reminders and tasks. It
+runs in the browser, ships as a Docker Compose project, and depends on no
+third-party service.
 
-Dabartinė versija: žr. [`VERSION`](VERSION). Techninė ir naudotojo dokumentacija –
-programoje: **Nustatymai → Dokumentacija**.
+The interface is available in Lithuanian and English.
 
-## Funkcijos
+```sh
+git clone https://github.com/colldem/Colld3mCRM.git crm && cd crm
+cp .env.example .env      # fill in four values, the file explains each
+docker compose up -d      # http://127.0.0.1:8080
+```
 
-- Autentifikacija, prisijungimų ribojimas, rolės (administratorius / visi įrašai /
-  tik savi įrašai), rolių teisių lentelė, komandos ir įrašų matomumas
-  (visi / komandos / savi).
-- Asmenys, įmonės ir jų ryšiai; daugiareikšmiai telefonai, el. paštai, adresai, URL.
-- Kontaktų ir įmonių sąrašai: paieška, išplėsti filtrai, išsaugoti filtrai,
-  rikiavimas, pasirinktiniai stulpeliai, puslapiavimas. Masiniai veiksmai:
-  žymos/kategorijos/atsakingo priskyrimas, dinaminio lauko nustatymas, papildomas
-  atsakingas, užduoties ar veiklos sukūrimas pažymėtiems, archyvavimas ir
-  atkūrimas.
-- Kontakto ir įmonės kortelės su inline redagavimu, bendravimo istorija, failais,
-  priminimais ir komentarais.
-- Darbastalis (darbotvarkė, vėluojantys priminimai, savaitės veiklos) ir analitika
-  (ryšių priežiūra, komunikacijos, priminimų vykdymo ir bazės augimo statistika su
-  SVG grafikais, sistemos naudojimas).
-- Kalendorius su dienos / savaitės / mėnesio vaizdu; pasikartojantys priminimai;
-  `.ics` prenumeratos nuoroda (Google / Outlook / Apple).
-- Užduočių priskyrimas kolegai su prioritetu.
-- El. pašto pranešimai (artėjantis įvykis, rytinė santrauka, priskirta užduotis) –
-  SMTP konfigūruojamas Nustatymuose; be jo laiškai rašomi tik į žurnalą.
-- Gautų el. laiškų prisegimas prie kontaktų per IMAP dėžutę.
-- Prisijungimas per Microsoft Entra ID (OIDC) šalia vietinio prisijungimo.
-- Žymos, kategorijos, dinaminiai laukai; dublikatų aptikimas ir sujungimas.
-- CSV / XLSX kontaktų importas, CSV eksportas, pilna ZIP atsarginė kopija.
-- Automatikos taisyklės („kai kontaktas nutilo / liko be atsakingo / priminimas
-  vėluoja → pranešti / priskirti / sukurti užduotį / pridėti žymą"), vykdomos fone.
-- REST API (`/api/v1/`, „Bearer" raktai iš Nustatymų → Integracijos) kontaktams,
-  įmonėms, veikloms ir priminimams skaityti/rašyti; webhookai su HMAC parašu.
-- Veiksmų žurnalas (audit log). LT / EN sąsaja.
+Then open `/setup/` and create the first administrator. Putting it on your own
+domain with HTTPS, or on a private network, is one line in `.env` —
+see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
-El. paštas, gaunami laiškai ir Entra ID prisijungimas įjungiami ir suvedami
-Nustatymų languose (Pranešimai / Gauti laiškai / Prisijungimas), be konteinerio
-perkrovimo. Slaptažodžiai duomenų bazėje šifruojami raktu `CRM_SECRETS_KEY` iš
-`.env` (žr. [`.env.example`](.env.example)).
+Current version: see [`VERSION`](VERSION). User and administrator documentation
+lives inside the app: **Settings → Documentation**.
 
-Aplinkoje, kur `CRM_ENVIRONMENT` ≠ `production` (izoliuota kopija, paprastai
-atkurta iš produkcijos duomenų), SMTP, IMAP, Entra ir webhook'ai priverstinai
-išjungiami, nepaisant duomenų bazės turinio, o sąsajoje rodoma raudona juosta.
-Komanda `manage.py sanitize_staging` papildomai išvalo šiuos nustatymus iš pačių
-atkurtų duomenų.
+## Features
 
-Aplinkos: **kūrimo** (lokaliai, SQLite) → **staging** (NAS, produkcijos duomenų
-kopija, pasiekiama tik Tailscale tinkle; atnaujinama kas push į `main`) →
-**produkcija** (diegiama pažymėjus `vX.Y.Z`). Staging aprašytas
-[`compose.staging.yaml`](compose.staging.yaml); duomenys perkraunami
-[`scripts/refresh-staging.sh`](scripts/refresh-staging.sh).
+- **Records.** People, companies and the links between them; multiple phone
+  numbers, emails, addresses and URLs per record. Tags, categories and custom
+  fields. Duplicate detection and merging. Archive with restore.
+- **Lists.** Search, advanced filters, saved filters, sorting, selectable
+  columns, pagination. Bulk actions on a selection: assign tags, categories or an
+  owner, set a custom field, add a co-owner, create a task or log an activity,
+  archive and restore.
+- **Record pages.** Inline editing of every field, communication history, file
+  attachments, reminders and comments.
+- **Dashboard and analytics.** Agenda, overdue reminders, the week's activity;
+  relationship care, communication, reminder follow-through and database growth,
+  charted as inline SVG with no external libraries.
+- **Calendar.** Day, week and month views, recurring reminders, and an `.ics`
+  subscription URL for Google, Outlook or Apple Calendar.
+- **Tasks.** Assign work to a colleague with a priority and a due date.
+- **Email.** Notifications for an upcoming event, a morning digest and a newly
+  assigned task. Incoming mail from an IMAP mailbox is attached to the matching
+  contact automatically.
+- **Automation.** Rules of the form *when a contact has gone quiet / has no
+  owner / a reminder is overdue → notify, assign, create a task or add a tag*,
+  evaluated in the background.
+- **Integration.** A JSON REST API at `/api/v1/` with bearer tokens, and outgoing
+  webhooks signed with HMAC-SHA256.
+- **Access control.** Roles (administrator / all records / own records only), a
+  role-permission table, teams, and per-record visibility. Sign-in rate limiting
+  and lockout. Microsoft Entra ID (OIDC) single sign-on alongside local accounts.
+  A full audit log.
+- **Import and export.** CSV and XLSX contact import, CSV export, and a complete
+  ZIP backup.
 
-Pirmoji administratoriaus paskyra sukuriama adresu `/setup/` naudojant vienkartinį
-`CRM_SETUP_TOKEN`. Sukūrus pirmą naudotoją setup puslapis automatiškai išsijungia.
+Email, incoming mail and Entra sign-on are switched on and configured in the
+Settings UI without restarting anything. Their passwords are encrypted in the
+database with `CRM_SECRETS_KEY` from `.env`.
 
-## Technologijos
+## Environments
 
-Python 3.13 · Django 5.2 · PostgreSQL 17 (produkcijoje) / SQLite (lokaliai) ·
+`CRM_ENVIRONMENT` names the tier. Anything other than `production` marks the
+instance as an isolated copy — typically one restored from a production dump, so
+holding real personal data. There, SMTP, IMAP, Entra and webhooks are forced off
+regardless of what the database says, and a red banner names the tier on every
+page. The switch lives in the environment, not the database, so reloading the
+data cannot turn it back on.
+
+That makes a **development → staging → production** flow practical:
+`compose.staging.yaml` runs a second instance against a copy of live data, and
+`scripts/refresh-staging.sh` reloads it. See
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#a-second-isolated-copy-for-testing).
+
+## Built with
+
+Python 3.13 · Django 5.2 LTS · PostgreSQL 17 (SQLite for local development) ·
 Gunicorn · WhiteNoise · django-axes · Argon2 · mozilla-django-oidc · cryptography ·
-AdminLTE 4 + Bootstrap 5 (įdiegti vietoje) · Tailscale. Grafikai – rankomis
-generuojamas SVG be išorinių bibliotekų. Foniniai darbai – `crm-worker` konteineris.
+AdminLTE 4 and Bootstrap 5, vendored locally. Charts are hand-generated SVG with
+no charting library. Background work runs in a `crm-worker` container. Optional
+Caddy or Tailscale overlays handle HTTPS.
 
-CI: `.github/workflows/ci.yml` (ruff + `release-check.sh` + Docker smoke) kiekvienam
-push/PR. Diegimas: version tag'as `vX.Y.Z` → GitHub Actions „Deploy" (self-hosted
-runner ant NAS, `production` patvirtinimas). Sąranka: [`deploy/runner/README.md`](deploy/runner/README.md).
+Architecture notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-Išsamus architektūros aprašymas: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+## Development
 
-## Vietinė patikra
-
-```bash
+```sh
 python -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 .venv/bin/python manage.py migrate
 PYTHON_BIN=.venv/bin/python sh scripts/release-check.sh
 ```
 
-`release-check.sh` paleidžia `makemigrations --check`, visus testus ir
-`manage.py check --deploy`. Lokalus serveris:
-`DJANGO_DEBUG=true .venv/bin/python manage.py runserver 127.0.0.1:8765`.
+`release-check.sh` runs `makemigrations --check`, the full test suite and
+`manage.py check --deploy`. To serve locally:
 
-## Diegimas
+```sh
+DJANGO_DEBUG=true .venv/bin/python manage.py runserver 127.0.0.1:8765
+```
 
-Žr. [`docs/DEPLOYMENT-UGREEN.md`](docs/DEPLOYMENT-UGREEN.md). Prieš kiekvieną
-diegimą būtina PostgreSQL ir `runtime/media` atsarginė kopija.
+`.github/workflows/ci.yml` runs ruff, the same release check and a Docker image
+smoke test on every push and pull request.
+
+## Licence
+
+No licence has been chosen yet, so default copyright applies: the code is
+readable here, but not licensed for reuse. Open an issue if you would like that
+to change.

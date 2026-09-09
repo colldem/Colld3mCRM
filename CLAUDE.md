@@ -34,11 +34,13 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
    būdu ant NAS). Į produkciją — tik po patikros staging'e.
    Jei keitėsi funkcionalumas — bumpinti `VERSION` ir
    `image: crm-web:X.Y.Z` `compose.yaml`. Diegimas: `git tag vX.Y.Z && git push
-   origin vX.Y.Z` → GitHub Actions „Deploy" praeina patikras → patvirtini
-   `production` environment → runner ant NAS daro backup → build → `up -d` →
-   health check. Rankinis atsarginis kelias: `scripts/deploy.sh` (ant NAS) arba
-   `docker compose build --pull && up -d`. Patikrinti: `crm-db`, `crm-web`,
-   `crm-worker` healthy, `/health/ready` = `ready`.
+   origin vX.Y.Z` → GitHub Actions „Deploy" praeina patikras → runner ant NAS
+   daro backup → build → `up -d` → health check. Patvirtinimo mygtuko **nėra**
+   („Required reviewers" reikalauja mokamo plano privačiam repo), tad sąmoningas
+   veiksmas yra pati žymos įkėlimas. Rankinis atsarginis kelias:
+   `scripts/deploy.sh` arba `docker compose build --pull && up -d`. Perdangos
+   parenkamos per `COMPOSE_FILE` NAS `.env` faile. Patikrinti: `crm-db`,
+   `crm-web`, `crm-worker` healthy, `/health/ready` = `ready`.
 6. **Dokumentacija.** Jei pakeitimas prideda ar keičia funkciją, matomą
    naudotojui (naują langą, mygtuką, nustatymą, prieigos taisyklę), tame
    pačiame pakeitime atnaujinti in-app žinyną `templates/settings/documentation.html`
@@ -89,5 +91,6 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   produkcijos duomenų kopija į staging. `compose.staging.yaml` — staging stack'as
   (be `crm-worker`, `serve-staging.json` be Funnel).
   `deploy/runner/` — self-hosted runner konteineris (`README.md` — sąranka).
-- `docs/DEPLOYMENT-UGREEN.md` — diegimo procedūra; prieš diegimą būtina DB ir
+- `docs/DEPLOYMENT.md` — bendrinė diegimo procedūra (bet kuris Docker hostas,
+  nuosavas domenas per Caddy, Tailscale); prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.
