@@ -3048,3 +3048,11 @@ msgstr "Webhook deleted."
 
 msgid "Bandomasis siuntimas: %(s)s"
 msgstr "Test delivery: %(s)s"
+
+#: templates/base.html
+msgid "realūs duomenys; laiškai, IMAP ir webhook’ai išjungti"
+msgstr "real data; email, IMAP and webhooks are off"
+
+#: templates/settings/documentation.html
+msgid "Aplinkos ir izoliacija"
+msgstr "Environments and isolation"

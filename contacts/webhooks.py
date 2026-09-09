@@ -16,6 +16,7 @@ import urllib.parse
 import urllib.request
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 
 from .models import Webhook, WebhookDelivery
@@ -35,6 +36,8 @@ def _serializer(kind):
 
 
 def emit(event, obj):
+    if settings.CRM_ISOLATED:  # a clone must not queue deliveries to real endpoints
+        return
     hooks = [h for h in Webhook.objects.filter(active=True) if event in (h.events or [])]
     if not hooks:
         return
@@ -85,6 +88,10 @@ def post_once(webhook, event, payload):
     """Deliver one payload now. Returns (ok, status_text)."""
     from .crypto import decrypt
 
+    if settings.CRM_ISOLATED:
+        # A restored production dump brings its own queue of pending deliveries;
+        # refuse here too so they can never go out from a clone.
+        return False, "isolated tier"
     if not target_is_allowed(webhook.target_url):
         return False, "blocked target"
     body = json.dumps(payload).encode()

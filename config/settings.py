@@ -171,6 +171,15 @@ else:
 # Absolute base for links inside emails / .ics (no request object in the worker).
 CRM_BASE_URL = os.environ.get("CRM_BASE_URL", "https://%s" % (ALLOWED_HOSTS[0] if ALLOWED_HOSTS else "localhost"))
 
+# Deployment tier. Anything but "production" is an isolated copy — typically a
+# staging clone restored from a production dump, holding real personal data.
+# Such a tier must not reach the outside world, so contacts.integrations and
+# contacts.webhooks force SMTP, IMAP, Entra and webhook delivery off no matter
+# what the restored database says. This lives in the environment on purpose:
+# refreshing the data cannot switch it back on.
+CRM_ENVIRONMENT = (os.environ.get("CRM_ENVIRONMENT") or "production").strip().lower()
+CRM_ISOLATED = CRM_ENVIRONMENT != "production"
+
 IMAP_HOST = os.environ.get("IMAP_HOST", "")
 IMAP_PORT = int(os.environ.get("IMAP_PORT", "993"))
 IMAP_USER = os.environ.get("IMAP_USER", "")

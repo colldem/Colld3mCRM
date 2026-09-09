@@ -487,3 +487,13 @@ a.crm-info-box:hover{border-color:#9bbbe0;background:#f7faff;text-decoration:non
 
 .recurrence-fields{border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:8px 0 0}
 .recurrence-fields legend{padding:0 6px;font-weight:700;font-size:var(--fs-sm);color:var(--navy-950)}
+
+/* Deployment-tier banner. Rendered only when CRM_ENVIRONMENT is not "production"
+   (contacts.context_processors.system_settings). Such a tier is a clone holding
+   real data, so which tier you are on must be obvious at a glance. Pinned to the
+   bottom to stay clear of the fixed header and sidebar. */
+.env-banner{position:fixed;z-index:1080;inset:auto 0 0 0;padding:5px 12px;background:var(--danger);color:#fff;font-size:var(--fs-xs);font-weight:700;letter-spacing:.04em;text-align:center;text-transform:uppercase}
+body.has-env-banner{padding-bottom:28px}
+/* The text wraps to two lines on narrow screens, so reserve more room there. */
+@media(max-width:820px){body.has-env-banner{padding-bottom:56px}}
+@media print{.env-banner{display:none}}

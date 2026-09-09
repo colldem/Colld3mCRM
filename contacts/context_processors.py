@@ -1,3 +1,4 @@
+from django.conf import settings as dj_settings
 from django.db.models import F, Q
 from django.utils import timezone
 
@@ -30,7 +31,11 @@ def system_settings(request):
 
     system = SystemSettings.load()
     return {"date_format": system.date_format, "datetime_format": system.datetime_format,
-            "oidc_enabled": oidc_config(system).usable}
+            "oidc_enabled": oidc_config(system).usable,
+            # Names the tier in the top banner so a clone holding real data is
+            # never mistaken for production.
+            "crm_environment": dj_settings.CRM_ENVIRONMENT,
+            "crm_isolated": dj_settings.CRM_ISOLATED}
 
 
 def crm_permissions(request):

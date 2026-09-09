@@ -43,6 +43,12 @@ Nustatymų languose (Pranešimai / Gauti laiškai / Prisijungimas), be konteiner
 perkrovimo. Slaptažodžiai duomenų bazėje šifruojami raktu `CRM_SECRETS_KEY` iš
 `.env` (žr. [`.env.example`](.env.example)).
 
+Aplinkoje, kur `CRM_ENVIRONMENT` ≠ `production` (izoliuota kopija, paprastai
+atkurta iš produkcijos duomenų), SMTP, IMAP, Entra ir webhook'ai priverstinai
+išjungiami, nepaisant duomenų bazės turinio, o sąsajoje rodoma raudona juosta.
+Komanda `manage.py sanitize_staging` papildomai išvalo šiuos nustatymus iš pačių
+atkurtų duomenų.
+
 Pirmoji administratoriaus paskyra sukuriama adresu `/setup/` naudojant vienkartinį
 `CRM_SETUP_TOKEN`. Sukūrus pirmą naudotoją setup puslapis automatiškai išsijungia.
 

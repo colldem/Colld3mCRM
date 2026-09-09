@@ -65,6 +65,10 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `mailfetch.py` + `management/commands/fetch_mail.py` — IMAP gautų laiškų prisegimas;
   `oidc.py` — Microsoft Entra ID (OIDC) prisijungimo backend'as ir view'ai;
   `integrations.py` — efektyvi SMTP/IMAP/OIDC konfigūracija (DB + `.env` fallback);
+  izoliacija: kai `CRM_ENVIRONMENT` ≠ `production`, visi trys akcesoriai grąžina
+  inertišką konfigūraciją, o `webhooks.emit`/`post_once` atsisako siųsti — kad
+  iš produkcijos atkurta kopija neveiktų realiame pasaulyje
+  (`manage.py sanitize_staging` išvalo tai ir pačiuose duomenyse);
   `crypto.py` — integracijų slaptažodžių šifravimas (`CRM_SECRETS_KEY`);
   `automation.py` + `management/commands/run_automations.py` — „kai X → daryk Y" taisyklės;
   `api.py` + `api_urls.py` — rankomis rašytas JSON REST API (`/api/v1/`);

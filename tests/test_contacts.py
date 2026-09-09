@@ -3387,6 +3387,108 @@ class IntegrationConfigTests(TestCase):
             self.assertEqual(self.client.get(reverse("contacts:%s" % name)).status_code, 404)
 
 
+class IsolatedTierTests(TestCase):
+    """A staging clone restored from production must not reach the outside world.
+
+    The database still holds the real SMTP / IMAP / Entra credentials and the
+    real webhook subscriptions, so every check below configures them first and
+    then asserts CRM_ISOLATED overrides them.
+    """
+
+    def setUp(self):
+        from contacts.crypto import encrypt
+        from contacts.models import SystemSettings
+        self.admin = get_user_model().objects.create_user(
+            "stg", password="very-secure-password", email="stg@example.lt", is_superuser=True, is_staff=True)
+        self.client.force_login(self.admin)
+        # Exactly what a restored production dump looks like: live credentials,
+        # every integration switched on.
+        system = SystemSettings.load()
+        system.notifications_enabled = True
+        system.email_host, system.email_host_user = "smtp.example.lt", "crm@example.lt"
+        system.email_host_password, system.email_from = encrypt("smtp-pass"), "crm@example.lt"
+        system.imap_enabled, system.imap_host = True, "imap.example.lt"
+        system.imap_user, system.imap_password = "crm@example.lt", encrypt("imap-pass")
+        system.oidc_enabled, system.oidc_tenant_id = True, "tid"
+        system.oidc_client_id, system.oidc_client_secret = "cid", encrypt("csecret")
+        system.automations_enabled = True
+        system.save()
+
+    def test_production_tier_keeps_the_configured_integrations(self):
+        from contacts.integrations import email_config, imap_config, oidc_config
+        self.assertTrue(email_config().configured)
+        self.assertTrue(imap_config().active)
+        self.assertTrue(oidc_config().usable)
+
+    @override_settings(CRM_ENVIRONMENT="staging", CRM_ISOLATED=True)
+    def test_isolated_tier_forces_smtp_imap_and_entra_off(self):
+        from contacts.integrations import email_config, imap_config, oidc_config
+        mail = email_config()
+        self.assertFalse(mail.configured)
+        self.assertFalse(mail.enabled)
+        self.assertEqual(mail.password, "")          # the real secret never surfaces
+        self.assertFalse(imap_config().active)
+        self.assertFalse(oidc_config().usable)
+        # The Entra endpoints stay closed even though the database has credentials.
+        self.assertEqual(self.client.get("/oidc/authenticate/").status_code, 404)
+
+    @override_settings(CRM_ENVIRONMENT="staging", CRM_ISOLATED=True)
+    def test_isolated_tier_neither_queues_nor_posts_webhooks(self):
+        from contacts.models import Webhook, WebhookDelivery
+        from contacts.webhooks import emit, post_once
+        hook = Webhook.objects.create(
+            target_url="https://example.test/hook", events=["person.created"], active=True)
+        person = Person.objects.create(first_name="Nauja", last_name="Kontaktas")
+        emit("person.created", person)
+        self.assertEqual(WebhookDelivery.objects.count(), 0)
+        with patch("contacts.webhooks._OPENER.open") as opener:
+            ok, status = post_once(hook, "person.created", {"event": "person.created"})
+        self.assertFalse(ok)
+        self.assertEqual(status, "isolated tier")
+        opener.assert_not_called()
+
+    @override_settings(CRM_ENVIRONMENT="staging", CRM_ISOLATED=True)
+    def test_isolated_tier_shows_a_banner(self):
+        self.assertContains(self.client.get(reverse("contacts:list")), "env-banner")
+        # Also before sign-in: you must know which tier you are on before typing
+        # a password into it.
+        self.client.logout()
+        self.assertContains(self.client.get(reverse("login")), "env-banner")
+
+    def test_production_tier_shows_no_banner(self):
+        self.assertNotContains(self.client.get(reverse("contacts:list")), "env-banner")
+        self.client.logout()
+        self.assertNotContains(self.client.get(reverse("login")), "env-banner")
+
+    @override_settings(CRM_ENVIRONMENT="staging", CRM_ISOLATED=True)
+    def test_sanitize_staging_clears_what_the_dump_carried(self):
+        from django.core.management import call_command
+        from contacts.models import ApiToken, SystemSettings, Webhook
+        Webhook.objects.create(
+            target_url="https://example.test/hook", events=["person.created"], active=True)
+        raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="k", token_hash=digest, prefix=raw[:12], created_by=self.admin)
+
+        call_command("sanitize_staging")
+
+        system = SystemSettings.load()
+        self.assertEqual(system.email_host, "")
+        self.assertEqual(system.imap_password, "")
+        self.assertEqual(system.oidc_client_secret, "")
+        self.assertFalse(system.notifications_enabled)
+        self.assertFalse(system.automations_enabled)
+        self.assertEqual(Webhook.objects.filter(active=True).count(), 0)
+        self.assertEqual(ApiToken.objects.count(), 0)
+
+    def test_sanitize_staging_refuses_to_run_on_production(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        from contacts.models import SystemSettings
+        with self.assertRaises(CommandError):
+            call_command("sanitize_staging")
+        self.assertEqual(SystemSettings.load().email_host, "smtp.example.lt")
+
+
 class AutomationTests(TestCase):
     def setUp(self):
         from contacts.models import SystemSettings, UserProfile

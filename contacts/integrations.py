@@ -81,7 +81,21 @@ def _load(system):
     return system or SystemSettings.load()
 
 
+def _isolated():
+    """True on a non-production tier (see ``CRM_ISOLATED`` in settings).
+
+    A staging clone is restored from a production dump, so its database carries
+    the real SMTP, IMAP and Entra credentials. Every accessor below returns an
+    inert config there, which is what keeps the clone from mailing real
+    contacts. Gating at construction means no caller can bypass it.
+    """
+    return getattr(dj, "CRM_ISOLATED", False)
+
+
 def email_config(system=None):
+    if _isolated():
+        return EmailConfig(host="", port=0, user="", password="", use_tls=False,
+                           use_ssl=False, from_email=dj.DEFAULT_FROM_EMAIL, enabled=False)
     system = _load(system)
     host = system.email_host or dj.EMAIL_HOST
     from_db = bool(system.email_host)
@@ -98,6 +112,8 @@ def email_config(system=None):
 
 
 def imap_config(system=None):
+    if _isolated():
+        return ImapConfig(host="", port=0, user="", password="", folder="INBOX", enabled=False)
     system = _load(system)
     host = system.imap_host or dj.IMAP_HOST
     from_db = bool(system.imap_host)
@@ -112,6 +128,8 @@ def imap_config(system=None):
 
 
 def oidc_config(system=None):
+    if _isolated():
+        return OIDCConfig(enabled=False, tenant_id="", client_id="", client_secret="", create_users=False)
     system = _load(system)
     from_db = bool(system.oidc_client_id)
     return OIDCConfig(
