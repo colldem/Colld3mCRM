@@ -1377,10 +1377,8 @@ def settings_automations(request):
     from .automation import matching_count
     from .forms import AutomationRuleForm
     from .models import AutomationRule
-    from .permissions import is_admin
 
-    if not is_admin(request.user):
-        raise Http404
+    _require_capability(request, "can_manage_automations")
     system = SystemSettings.load()
     op = request.POST.get("op")
     if request.method == "POST" and op == "toggle_global":
@@ -1491,10 +1489,8 @@ def settings_integrations(request):
 @login_required
 def settings_automation_log(request):
     from .models import AutomationLog, AutomationRule
-    from .permissions import is_admin
 
-    if not is_admin(request.user):
-        raise Http404
+    _require_capability(request, "can_manage_automations")
     events = AutomationLog.objects.select_related("rule")
     rule_id = request.GET.get("rule", "")
     if rule_id.isdigit():

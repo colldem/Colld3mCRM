@@ -3805,14 +3805,22 @@ class AutomationTests(TestCase):
         self._run()
         self.assertEqual(AutomationLog.objects.count(), _PER_RULE_CAP)
 
-    def test_settings_page_is_admin_only_and_lists_match_counts(self):
+    def test_automations_page_follows_the_can_manage_automations_capability(self):
+        from contacts.models import RolePermissions, UserProfile
         self._rule()
-        self.client.force_login(get_user_model().objects.create_user("eilinis", password="very-secure-password"))
+        member = get_user_model().objects.create_user("eilinis", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_MEMBER)
+        self.client.force_login(member)
         self.assertEqual(self.client.get(reverse("contacts:settings-automations")).status_code, 404)
-        self.client.force_login(self.admin)
+
+        RolePermissions.objects.update_or_create(
+            role=UserProfile.ROLE_MEMBER, defaults={"permissions": {"can_manage_automations": True}})
         resp = self.client.get(reverse("contacts:settings-automations"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Taisyklė")
+
+        self.client.force_login(self.admin)   # admin always has it
+        self.assertEqual(self.client.get(reverse("contacts:settings-automations")).status_code, 200)
 
     def test_form_rejects_an_action_that_does_not_fit_the_trigger(self):
         from contacts.forms import AutomationRuleForm

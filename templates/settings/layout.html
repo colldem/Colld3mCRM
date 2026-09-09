@@ -4,26 +4,63 @@
 <div class="page-head"><div><h1>{% translate 'Nustatymai' %}</h1><p>{% translate 'Tvarkykite profilį, klasifikatorius ir CRM informaciją.' %}</p></div></div>
 <div class="settings-layout">
   <nav class="settings-nav" aria-label="{% translate 'Nustatymų skyriai' %}">
-    <a class="{% if settings_section == 'profile' %}active{% endif %}" href="{% url 'contacts:settings' %}">{% translate 'Profilis' %}</a>
-    <a class="{% if settings_section == 'my-notifications' %}active{% endif %}" href="{% url 'contacts:settings-my-notifications' %}">{% translate 'Pranešimai man' %}</a>
-    {% if crm_caps.can_manage_taxonomy %}<a class="{% if settings_section == 'tags' %}active{% endif %}" href="{% url 'contacts:settings-tags' %}">{% translate 'Žymos' %}</a>
-    <a class="{% if settings_section == 'categories' %}active{% endif %}" href="{% url 'contacts:settings-categories' %}">{% translate 'Kategorijos' %}</a>{% endif %}
-    {% if is_crm_admin %}<a class="{% if settings_section == 'duplicates' %}active{% endif %}" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Dublikatų tikrinimas' %}</a>{% endif %}
-    {% if crm_caps.can_manage_custom_fields %}<a class="{% if settings_section == 'custom-fields' %}active{% endif %}" href="{% url 'contacts:settings-custom-fields' %}">{% translate 'Dinaminiai laukai' %}</a>{% endif %}
-    {% if is_crm_admin %}<a class="{% if settings_section == 'users' %}active{% endif %}" href="{% url 'contacts:settings-users' %}">{% translate 'Naudotojai' %}</a>{% endif %}
-    {% if is_crm_admin %}<a class="{% if settings_section == 'teams' %}active{% endif %}" href="{% url 'contacts:settings-teams' %}">{% translate 'Komandos' %}</a>{% endif %}
-    {% if is_crm_admin %}<a class="{% if settings_section == 'permissions' %}active{% endif %}" href="{% url 'contacts:settings-permissions' %}">{% translate 'Rolės ir teisės' %}</a>{% endif %}
-    {% if is_crm_admin %}<a class="{% if settings_section == 'notifications' %}active{% endif %}" href="{% url 'contacts:settings-notifications' %}">{% translate 'Pranešimai' %}</a>
-    <a class="{% if settings_section == 'incoming-mail' %}active{% endif %}" href="{% url 'contacts:settings-incoming-mail' %}">{% translate 'Gauti laiškai' %}</a>
-    <a class="{% if settings_section == 'login' %}active{% endif %}" href="{% url 'contacts:settings-login' %}">{% translate 'Prisijungimas' %}</a>
-    <a class="{% if settings_section == 'automations' %}active{% endif %}" href="{% url 'contacts:settings-automations' %}">{% translate 'Automatika' %}</a>
-    <a class="{% if settings_section == 'integrations' %}active{% endif %}" href="{% url 'contacts:settings-integrations' %}">{% translate 'Integracijos' %}</a>
-    <a class="{% if settings_section == 'translations' %}active{% endif %}" href="{% url 'contacts:settings-translations' %}">{% translate 'Vertimai' %}</a>
-    <a class="{% if settings_section == 'system' %}active{% endif %}" href="{% url 'contacts:settings-system' %}">{% translate 'Sistema' %}</a>
-    <a class="{% if settings_section == 'import' %}active{% endif %}" href="{% url 'contacts:settings-import' %}">{% translate 'Importas' %}</a>{% endif %}
-    {% if crm_caps.can_view_audit %}<a class="{% if settings_section == 'audit' %}active{% endif %}" href="{% url 'contacts:settings-audit' %}">{% translate 'Žurnalas' %}</a>{% endif %}
-    {% if request.user.is_staff %}<a class="{% if settings_section == 'data-export' %}active{% endif %}" href="{% url 'contacts:settings-data-export' %}">{% translate 'Duomenų eksportas' %}</a>{% endif %}
-    <a class="{% if settings_section == 'documentation' %}active{% endif %}" href="{% url 'contacts:settings-documentation' %}">{% translate 'Dokumentacija' %}</a>
+
+    <div class="settings-nav-group">
+      <span class="settings-nav-label">{% translate 'Asmeniniai' %}</span>
+      <a class="{% if settings_section == 'profile' %}active{% endif %}" href="{% url 'contacts:settings' %}">{% translate 'Profilis' %}</a>
+      <a class="{% if settings_section == 'my-notifications' %}active{% endif %}" href="{% url 'contacts:settings-my-notifications' %}">{% translate 'Pranešimai man' %}</a>
+    </div>
+
+    {% if crm_caps.can_manage_taxonomy or crm_caps.can_manage_custom_fields or is_crm_admin %}
+    <div class="settings-nav-group">
+      <span class="settings-nav-label">{% translate 'Duomenų klasifikatoriai' %}</span>
+      {% if crm_caps.can_manage_taxonomy %}
+        <a class="{% if settings_section == 'tags' %}active{% endif %}" href="{% url 'contacts:settings-tags' %}">{% translate 'Žymos' %}</a>
+        <a class="{% if settings_section == 'categories' %}active{% endif %}" href="{% url 'contacts:settings-categories' %}">{% translate 'Kategorijos' %}</a>
+      {% endif %}
+      {% if crm_caps.can_manage_custom_fields %}<a class="{% if settings_section == 'custom-fields' %}active{% endif %}" href="{% url 'contacts:settings-custom-fields' %}">{% translate 'Dinaminiai laukai' %}</a>{% endif %}
+      {% if is_crm_admin %}<a class="{% if settings_section == 'duplicates' %}active{% endif %}" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Dublikatai' %}</a>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if is_crm_admin %}
+    <div class="settings-nav-group">
+      <span class="settings-nav-label">{% translate 'Naudotojai ir prieiga' %}</span>
+      <a class="{% if settings_section == 'users' %}active{% endif %}" href="{% url 'contacts:settings-users' %}">{% translate 'Naudotojai' %}</a>
+      <a class="{% if settings_section == 'teams' %}active{% endif %}" href="{% url 'contacts:settings-teams' %}">{% translate 'Komandos' %}</a>
+      <a class="{% if settings_section == 'permissions' %}active{% endif %}" href="{% url 'contacts:settings-permissions' %}">{% translate 'Rolės ir teisės' %}</a>
+    </div>
+    {% endif %}
+
+    {% if is_crm_admin or crm_caps.can_manage_automations %}
+    <div class="settings-nav-group">
+      <span class="settings-nav-label">{% translate 'El. paštas ir integracijos' %}</span>
+      {% if is_crm_admin %}
+        <a class="{% if settings_section == 'notifications' %}active{% endif %}" href="{% url 'contacts:settings-notifications' %}">{% translate 'El. paštas (SMTP)' %}</a>
+        <a class="{% if settings_section == 'incoming-mail' %}active{% endif %}" href="{% url 'contacts:settings-incoming-mail' %}">{% translate 'Gauti laiškai' %}</a>
+        <a class="{% if settings_section == 'login' %}active{% endif %}" href="{% url 'contacts:settings-login' %}">{% translate 'Prisijungimas' %}</a>
+      {% endif %}
+      {% if crm_caps.can_manage_automations %}<a class="{% if settings_section == 'automations' %}active{% endif %}" href="{% url 'contacts:settings-automations' %}">{% translate 'Automatika' %}</a>{% endif %}
+      {% if is_crm_admin %}<a class="{% if settings_section == 'integrations' %}active{% endif %}" href="{% url 'contacts:settings-integrations' %}">{% translate 'API ir webhookai' %}</a>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if is_crm_admin or crm_caps.can_view_audit or request.user.is_staff %}
+    <div class="settings-nav-group">
+      <span class="settings-nav-label">{% translate 'Sistema' %}</span>
+      {% if is_crm_admin %}
+        <a class="{% if settings_section == 'system' %}active{% endif %}" href="{% url 'contacts:settings-system' %}">{% translate 'Bendri nustatymai' %}</a>
+        <a class="{% if settings_section == 'translations' %}active{% endif %}" href="{% url 'contacts:settings-translations' %}">{% translate 'Vertimai' %}</a>
+        <a class="{% if settings_section == 'import' %}active{% endif %}" href="{% url 'contacts:settings-import' %}">{% translate 'Importas' %}</a>
+      {% endif %}
+      {% if request.user.is_staff %}<a class="{% if settings_section == 'data-export' %}active{% endif %}" href="{% url 'contacts:settings-data-export' %}">{% translate 'Duomenų eksportas' %}</a>{% endif %}
+      {% if crm_caps.can_view_audit %}<a class="{% if settings_section == 'audit' %}active{% endif %}" href="{% url 'contacts:settings-audit' %}">{% translate 'Žurnalas' %}</a>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="settings-nav-group">
+      <a class="{% if settings_section == 'documentation' %}active{% endif %}" href="{% url 'contacts:settings-documentation' %}">{% translate 'Dokumentacija' %}</a>
+    </div>
   </nav>
   <section class="settings-content">{% block settings_content %}{% endblock %}</section>
 </div>

@@ -14,6 +14,7 @@ CAPABILITIES = [
     ("can_reassign_owner", _("Keisti atsakingą naudotoją")),
     ("can_manage_custom_fields", _("Tvarkyti dinaminius laukus")),
     ("can_manage_taxonomy", _("Tvarkyti žymas ir kategorijas")),
+    ("can_manage_automations", _("Tvarkyti automatikos taisykles")),
     ("can_view_audit", _("Matyti žurnalą")),
 ]
 CAPABILITY_KEYS = [key for key, _label in CAPABILITIES]
@@ -22,12 +23,14 @@ _CAPABILITY_DEFAULTS = {
     UserProfile.ROLE_MEMBER: {
         "can_import": True, "can_export": True, "can_delete": True,
         "can_merge_duplicates": True, "can_bulk_edit": True, "can_reassign_owner": True,
-        "can_manage_custom_fields": False, "can_manage_taxonomy": False, "can_view_audit": False,
+        "can_manage_custom_fields": False, "can_manage_taxonomy": False,
+        "can_manage_automations": False, "can_view_audit": False,
     },
     UserProfile.ROLE_RESTRICTED: {
         "can_import": False, "can_export": True, "can_delete": True,
         "can_merge_duplicates": False, "can_bulk_edit": False, "can_reassign_owner": False,
-        "can_manage_custom_fields": False, "can_manage_taxonomy": False, "can_view_audit": False,
+        "can_manage_custom_fields": False, "can_manage_taxonomy": False,
+        "can_manage_automations": False, "can_view_audit": False,
     },
 }
 

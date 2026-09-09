@@ -3350,3 +3350,36 @@ msgstr "Default daily digest time"
 #: templates/settings/notifications.html
 msgid "Naudotojo laiko zona. Naudotojas gali pakeisti savo laiką skiltyje „Pranešimai man\"."
 msgstr "In the user's time zone. Each user can change their own time under “My notifications”."
+
+#: templates/settings/layout.html
+msgid "Asmeniniai"
+msgstr "Personal"
+
+msgid "Duomenų klasifikatoriai"
+msgstr "Data classifiers"
+
+msgid "Naudotojai ir prieiga"
+msgstr "Users and access"
+
+msgid "El. paštas ir integracijos"
+msgstr "Email and integrations"
+
+#: templates/settings/layout.html
+msgid "Dublikatai"
+msgstr "Duplicates"
+
+#: templates/settings/layout.html
+msgid "El. paštas (SMTP)"
+msgstr "Email (SMTP)"
+
+#: templates/settings/layout.html
+msgid "API ir webhookai"
+msgstr "API and webhooks"
+
+#: templates/settings/layout.html
+msgid "Bendri nustatymai"
+msgstr "General settings"
+
+#: contacts/permissions.py
+msgid "Tvarkyti automatikos taisykles"
+msgstr "Manage automation rules"
