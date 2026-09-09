@@ -3383,3 +3383,15 @@ msgstr "General settings"
 #: contacts/permissions.py
 msgid "Tvarkyti automatikos taisykles"
 msgstr "Manage automation rules"
+
+#: templates/import_export.html
+msgid "CSV skaitymo nustatymai"
+msgstr "CSV reading settings"
+
+#: templates/import_export.html
+msgid "Išsaugoti nustatymus"
+msgstr "Save settings"
+
+#: contacts/views.py
+msgid "CSV skaitymo nustatymai išsaugoti."
+msgstr "CSV reading settings saved."

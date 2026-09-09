@@ -70,4 +70,20 @@
   </section>
   {% endif %}
 </div>
+
+{% if read_form %}
+<details class="import-read-settings">
+  <summary>{% translate 'CSV skaitymo nustatymai' %}</summary>
+  <p class="muted">{% translate 'Kaip skaitomi įkeliami CSV failai. XLSX failams šie nustatymai netaikomi.' %}</p>
+  <form method="post" class="settings-form-grid">{% csrf_token %}
+    <input type="hidden" name="op" value="read_settings">
+    {{ read_form.non_field_errors }}
+    <label class="field-row"><strong>{{ read_form.import_delimiter.label }}</strong>{{ read_form.import_delimiter.errors }}{{ read_form.import_delimiter }}
+      <small>{% translate '„Automatiškai“ atspėja skyriklį pagal failo antraštę.' %}</small></label>
+    <label class="field-row"><strong>{{ read_form.import_encoding.label }}</strong>{{ read_form.import_encoding.errors }}{{ read_form.import_encoding }}
+      <small>{% translate 'Lietuviškas „Excel“ dažnai eksportuoja Windows-1257 koduote su kabliataškiais.' %}</small></label>
+    <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti nustatymus' %}</button></div>
+  </form>
+</details>
+{% endif %}
 {% endblock %}

@@ -600,3 +600,26 @@ body.has-env-banner{padding-bottom:28px}
 .field-row{display:grid;gap:6px;font-weight:650;max-width:420px}
 .field-row input,.field-row select{width:100%}
 .field-row small{color:var(--muted);font-weight:400;font-size:var(--fs-xs);line-height:1.5}
+
+/* Journal (audit) filter bar + table — fields share one width and the buttons
+   sit on the input baseline, not the label baseline. */
+.audit-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 14px;margin-bottom:20px;padding:16px;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff}
+.audit-filters label{display:grid;gap:6px;font-weight:650;font-size:var(--fs-sm)}
+.audit-filters select,.audit-filters input[type=date]{width:100%;min-height:var(--control-h)}
+.audit-filters .filter-actions{grid-column:1/-1;display:flex;justify-content:flex-start;gap:8px}
+@media(max-width:640px){.audit-filters{grid-template-columns:1fr 1fr}}
+.audit-table{table-layout:fixed}
+.audit-table th,.audit-table td{vertical-align:top;overflow-wrap:anywhere}
+.audit-table th:nth-child(1),.audit-table td:nth-child(1){width:150px}
+.audit-table th:nth-child(2),.audit-table td:nth-child(2){width:150px}
+.audit-table th:nth-child(3),.audit-table td:nth-child(3){width:120px}
+.audit-table th:nth-child(5),.audit-table td:nth-child(5){width:120px}
+.audit-table td small{display:block;color:var(--muted);font-size:var(--fs-2xs)}
+
+/* "CSV read settings" fold on the Import / export page. */
+.import-read-settings{margin-top:24px;padding:16px;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff}
+.import-read-settings>summary{cursor:pointer;font-weight:700}
+.import-read-settings>summary::-webkit-details-marker{display:none}
+.import-read-settings>summary::after{content:" ↓";color:var(--muted)}
+.import-read-settings[open]>summary::after{content:" ↑"}
+.import-read-settings .settings-form-grid{margin-top:14px}

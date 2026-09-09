@@ -2030,9 +2030,14 @@ class ContactViewTests(TestCase):
         self.client.force_login(self.user)
         self.user.is_superuser = True
         self.user.save()
-        self.assertEqual(self.client.get(reverse("contacts:settings-import")).status_code, 200)
-        self.client.post(reverse("contacts:settings-import"),
-                         {"import_delimiter": "auto", "import_encoding": "auto"})
+        # The old settings URL now redirects to the merged Import / export page,
+        # where the read settings live in a fold.
+        self.assertRedirects(self.client.get(reverse("contacts:settings-import")),
+                             reverse("contacts:import-export"))
+        page = self.client.get(reverse("contacts:import-export"))
+        self.assertContains(page, "CSV skaitymo nustatymai")
+        self.client.post(reverse("contacts:import-export"),
+                         {"op": "read_settings", "import_delimiter": "auto", "import_encoding": "auto"})
         system = SystemSettings.load()
         self.assertEqual((system.import_delimiter, system.import_encoding), ("auto", "auto"))
         content = "Vardas;Pavardė;Pareigos\nJonas;Kęstutaitis;Vadovas\n".encode("cp1257")
@@ -2040,7 +2045,7 @@ class ContactViewTests(TestCase):
         person = Person.objects.get(first_name="Jonas", last_name="Kęstutaitis")
         self.assertEqual(person.job_title, "Vadovas")
 
-    def test_import_uses_selected_duplicate_level_and_reports_real_phone_duplicate(self):
+    def test_import_reports_a_real_phone_duplicate(self):
         self.client.force_login(self.user)
         content = "Vardas,Pavardė,Telefonai\nKitas,Asmuo,+370 645 21 987\n".encode()
         _preview, response = self._import_file(SimpleUploadedFile("contacts.csv", content, content_type="text/csv"))

@@ -1517,21 +1517,9 @@ def calendar_feed(request, token):
 
 @login_required
 def settings_import(request):
-    from .forms import ImportSettingsForm
-    from .permissions import is_admin
-
-    if not is_admin(request.user):
-        raise Http404
-    form = ImportSettingsForm(request.POST or None, instance=SystemSettings.load())
-    if request.method == "POST" and form.is_valid():
-        changed = list(form.changed_data)
-        form.save()
-        if changed:
-            audit_log(AuditLog.SETTING, request=request, target_type="setting",
-                      target_label=str(tr("Importo nustatymai")), new=", ".join(changed))
-        messages.success(request, tr("Importo nustatymai išsaugoti."))
-        return redirect("contacts:settings-import")
-    return render(request, "settings/import_settings.html", {"form": form, "settings_section": "import"})
+    # The CSV read settings moved onto the Import / export page itself; keep the
+    # old URL working for bookmarks.
+    return redirect("contacts:import-export")
 
 
 @login_required
@@ -2485,8 +2473,22 @@ def _import_preview(rows, mapping):
 @login_required
 def contacts_import(request):
     _require_capability(request, "can_import")
+    from .forms import ImportSettingsForm
+    from .permissions import is_admin
+
     context = {}
-    if request.method == "POST" and request.POST.get("confirm") == "1":
+    read_form = ImportSettingsForm(instance=SystemSettings.load()) if is_admin(request.user) else None
+    if request.method == "POST" and request.POST.get("op") == "read_settings" and read_form is not None:
+        read_form = ImportSettingsForm(request.POST, instance=SystemSettings.load())
+        if read_form.is_valid():
+            changed = list(read_form.changed_data)
+            read_form.save()
+            if changed:
+                audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                          target_label=str(tr("Importo nustatymai")), new=", ".join(changed))
+            messages.success(request, tr("CSV skaitymo nustatymai išsaugoti."))
+            return redirect("contacts:import-export")
+    elif request.method == "POST" and request.POST.get("confirm") == "1":
         rows = request.session.pop("import_rows", None)
         stored_mapping = request.session.pop("import_mapping", {})
         if not rows:
@@ -2533,6 +2535,7 @@ def contacts_import(request):
         request.session.pop("import_rows", None)
         request.session.pop("import_mapping", None)
     context["has_error_report"] = bool(request.session.get("import_errors"))
+    context["read_form"] = read_form
     return render(request, "import_export.html", context)
 
 

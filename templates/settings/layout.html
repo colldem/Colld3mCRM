@@ -45,14 +45,14 @@
     </div>
     {% endif %}
 
-    {% if is_crm_admin or crm_caps.can_view_audit or request.user.is_staff %}
+    {% if is_crm_admin or crm_caps.can_view_audit or crm_caps.can_import or crm_caps.can_export or request.user.is_staff %}
     <div class="settings-nav-group">
       <span class="settings-nav-label">{% translate 'Sistema' %}</span>
       {% if is_crm_admin %}
         <a class="{% if settings_section == 'system' %}active{% endif %}" href="{% url 'contacts:settings-system' %}">{% translate 'Bendri nustatymai' %}</a>
         <a class="{% if settings_section == 'translations' %}active{% endif %}" href="{% url 'contacts:settings-translations' %}">{% translate 'Vertimai' %}</a>
-        <a class="{% if settings_section == 'import' %}active{% endif %}" href="{% url 'contacts:settings-import' %}">{% translate 'Importas' %}</a>
       {% endif %}
+      {% if crm_caps.can_import or crm_caps.can_export %}<a href="{% url 'contacts:import-export' %}">{% translate 'Importas / eksportas' %}</a>{% endif %}
       {% if request.user.is_staff %}<a class="{% if settings_section == 'data-export' %}active{% endif %}" href="{% url 'contacts:settings-data-export' %}">{% translate 'Duomenų eksportas' %}</a>{% endif %}
       {% if crm_caps.can_view_audit %}<a class="{% if settings_section == 'audit' %}active{% endif %}" href="{% url 'contacts:settings-audit' %}">{% translate 'Žurnalas' %}</a>{% endif %}
     </div>
