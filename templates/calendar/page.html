@@ -3,6 +3,7 @@
 {% block content %}
 <div class="page-head">
   <div><h1>{% translate 'Kalendorius' %}</h1><p>{% translate 'Tik jūsų suplanuoti priminimai.' %}</p></div>
+  <div class="page-actions"><button class="btn primary" type="button" data-cal-new>＋ {% translate 'Naujas įvykis' %}</button></div>
 </div>
 
 <div class="cal-toolbar">
@@ -16,11 +17,10 @@
       {% else %}{{ range_start|date:date_format }} – {{ range_end|date:date_format }}{% endif %}
     </strong>
   </div>
-  <div class="cal-views">
-    <a class="btn{% if calendar_view == 'day' %} primary{% endif %}" href="?view=day&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Diena' %}</a>
-    <a class="btn{% if calendar_view == 'week' %} primary{% endif %}" href="?view=week&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Savaitė' %}</a>
-    <a class="btn{% if calendar_view == 'month' %} primary{% endif %}" href="?view=month&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Mėnuo' %}</a>
-    <button class="btn primary" type="button" data-cal-new>{% translate '+ Naujas įvykis' %}</button>
+  <div class="cal-views segmented" role="group" aria-label="{% translate 'Rodinys' %}">
+    <a class="{% if calendar_view == 'day' %}is-on{% endif %}" href="?view=day&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Diena' %}</a>
+    <a class="{% if calendar_view == 'week' %}is-on{% endif %}" href="?view=week&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Savaitė' %}</a>
+    <a class="{% if calendar_view == 'month' %}is-on{% endif %}" href="?view=month&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Mėnuo' %}</a>
   </div>
 </div>
 

@@ -420,6 +420,18 @@ class CalendarTests(TestCase):
         self.start = timezone.localtime().replace(hour=10, minute=0, second=0, microsecond=0)
         self.client.force_login(self.user)
 
+    def test_calendar_toolbar_groups_navigation_views_and_the_primary_action(self):
+        """The primary action sits in the page head like everywhere else, and
+        the three views read as one control rather than three loose buttons."""
+        response = self.client.get(reverse("contacts:calendar"))
+        head = response.content.decode().split('class="cal-toolbar"')[0]
+        self.assertIn('class="page-actions"', head)
+        self.assertIn("data-cal-new", head)
+        self.assertContains(response, 'class="cal-views segmented"')
+        # The new-event button left the view switcher.
+        toolbar = response.content.decode().split('class="cal-toolbar"')[1].split("</div>\n\n")[0]
+        self.assertNotIn("data-cal-new", toolbar)
+
     def _event(self, **kwargs):
         defaults = {"text": "Skambutis", "due_at": self.start, "end_at": self.start + timedelta(hours=1),
                     "person": self.person, "created_by": self.user}

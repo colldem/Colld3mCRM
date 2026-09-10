@@ -395,8 +395,15 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 }
 /* --- Calendar --- */
 .cal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.cal-nav,.cal-views{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.cal-nav .btn,.cal-views .btn{min-height:32px;padding:6px 12px;font-size:13px}
+.cal-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+/* The three views are one control, not three buttons that happen to sit together. */
+.segmented{display:inline-flex;border:1px solid #bfc6cf;border-radius:var(--radius);overflow:hidden}
+.segmented>a,.segmented>button{display:inline-flex;align-items:center;min-height:var(--control-h-sm);padding:6px 14px;border:0;border-left:1px solid #bfc6cf;background:#fff;color:var(--ink);font:inherit;font-size:var(--fs-sm);font-weight:650;text-decoration:none;cursor:pointer}
+.segmented>:first-child{border-left:0}
+.segmented>a:hover,.segmented>button:hover{background:var(--soft)}
+.segmented>.is-on{background:var(--navy-950);color:#fff}
+.segmented>.is-on:hover{background:var(--navy-900)}
+.cal-nav .btn{min-height:var(--control-h-sm);padding:6px 12px;font-size:var(--fs-sm)}
 .cal-range{margin-left:6px;font-size:var(--fs-md)}
 .cal-grid{display:grid;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;overflow:hidden}
 .cal-head{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));border-bottom:1px solid var(--line);background:var(--soft)}

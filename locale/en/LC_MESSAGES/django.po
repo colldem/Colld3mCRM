@@ -1906,9 +1906,6 @@ msgstr "Week"
 msgid "Mėnuo"
 msgstr "Month"
 
-msgid "+ Naujas įvykis"
-msgstr "+ New event"
-
 msgid "Naujas įvykis"
 msgstr "New event"
 
@@ -3497,3 +3494,7 @@ msgstr "/ New"
 #: contacts/views.py
 msgid "Priminimas sukurtas."
 msgstr "Reminder created."
+
+#: templates/calendar/page.html
+msgid "Rodinys"
+msgstr "View"
