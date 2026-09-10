@@ -1,7 +1,35 @@
-{% load i18n %}
+{% load i18n %}{% comment %}Every bulk action for a selection, behind one control.
+Shared by the contact and company lists; `export_url` and `entity` differ.{% endcomment %}
 <details class="bulk-more">
-  <summary class="btn">{% translate 'Daugiau…' %}</summary>
+  <summary class="btn primary">{% translate 'Masiniai veiksmai' %} <b class="bulk-chev" aria-hidden="true">⌄</b></summary>
   <div class="bulk-panel">
+    {% if crm_caps.can_bulk_edit %}
+    <div class="bulk-panel-row">
+      <label>{% translate 'Žymos' %}</label>
+      <select name="tag" aria-label="{% translate 'Žyma' %}"><option value="">{% translate 'Žyma…' %}</option>{% for tag in tags %}<option value="{{ tag.pk }}">{{ tag.name }}</option>{% endfor %}</select>
+      <button class="btn" name="action" value="add_tag" type="submit">{% translate 'Priskirti' %}</button>
+      <button class="btn" name="action" value="remove_tag" type="submit">{% translate 'Nuimti' %}</button>
+    </div>
+    <div class="bulk-panel-row">
+      <label>{% translate 'Kategorijos' %}</label>
+      <select name="category" aria-label="{% translate 'Kategorija' %}"><option value="">{% translate 'Kategorija…' %}</option>{% for category in categories %}<option value="{{ category.pk }}">{{ category.name }}</option>{% endfor %}</select>
+      <button class="btn" name="action" value="add_category" type="submit">{% translate 'Priskirti' %}</button>
+      <button class="btn" name="action" value="remove_category" type="submit">{% translate 'Nuimti' %}</button>
+    </div>
+    {% endif %}
+    {% if can_assign_owner %}
+    <div class="bulk-panel-row">
+      <label>{% translate 'Atsakingas' %}</label>
+      <select name="owner" aria-label="{% translate 'Atsakingas' %}"><option value="">{% translate 'Atsakingas: pašalinti' %}</option>{% for member in owner_users %}<option value="{{ member.pk }}">{{ member.get_full_name|default:member.username }}</option>{% endfor %}</select>
+      <button class="btn" name="action" value="assign_owner" type="submit">{% translate 'Priskirti' %}</button>
+    </div>
+    <div class="bulk-panel-row">
+      <label>{% translate 'Papildomas atsakingas' %}</label>
+      <select name="responsible">{% for member in owner_users %}<option value="{{ member.pk }}">{{ member.get_full_name|default:member.username }}</option>{% endfor %}</select>
+      <button class="btn" name="action" value="add_responsible" type="submit">{% translate 'Pridėti' %}</button>
+      <button class="btn" name="action" value="remove_responsible" type="submit">{% translate 'Nuimti' %}</button>
+    </div>
+    {% endif %}
     {% if crm_caps.can_bulk_edit and custom_fields %}
     <div class="bulk-panel-row">
       <label>{% translate 'Nustatyti lauką' %}</label>
@@ -11,14 +39,6 @@
       </select>
       <input type="text" name="value" placeholder="{% translate 'Reikšmė' %}">
       <button class="btn" name="action" value="set_custom" type="submit">{% translate 'Nustatyti' %}</button>
-    </div>
-    {% endif %}
-    {% if can_assign_owner %}
-    <div class="bulk-panel-row">
-      <label>{% translate 'Papildomas atsakingas' %}</label>
-      <select name="responsible">{% for member in owner_users %}<option value="{{ member.pk }}">{{ member.get_full_name|default:member.username }}</option>{% endfor %}</select>
-      <button class="btn" name="action" value="add_responsible" type="submit">{% translate 'Pridėti' %}</button>
-      <button class="btn" name="action" value="remove_responsible" type="submit">{% translate 'Nuimti' %}</button>
     </div>
     {% endif %}
     {% if crm_caps.can_bulk_edit %}
@@ -34,6 +54,13 @@
       <select name="activity_type">{% for value, label in activity_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
       <input type="text" name="activity_text" placeholder="{% translate 'Tekstas' %}">
       <button class="btn" name="action" value="log_activity" type="submit">{% translate 'Įrašyti' %}</button>
+    </div>
+    {% endif %}
+    {% if crm_caps.can_export or crm_caps.can_delete %}
+    <div class="bulk-panel-row bulk-panel-final">
+      <label>{% translate 'Visas pasirinkimas' %}</label>
+      {% if crm_caps.can_export %}<button class="btn" formaction="{% url export_url %}" type="submit">{% translate 'Eksportuoti' %}</button>{% endif %}
+      {% if crm_caps.can_delete %}<button class="btn danger" name="action" value="archive" type="submit">{% translate 'Archyvuoti' %}</button>{% endif %}
     </div>
     {% endif %}
   </div>

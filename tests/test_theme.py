@@ -44,6 +44,27 @@ class ThemeTests(TestCase):
             self.assertContains(response, f'class="crm-label {original}"')
             self.assertContains(response, f'data-color-class="{original}"')
 
+    def test_toolbar_keeps_one_row_and_bulk_actions_behind_one_control(self):
+        """The selection bar used to live inside .record-actions, so as soon as
+        it appeared it pushed the filter buttons out of line with "+ Pridėti" —
+        and it laid seven controls across the row."""
+        for route in ("contacts:list", "contacts:company-list"):
+            with self.subTest(route=route):
+                html = self.client.get(reverse(route)).content.decode()
+                start = html.index('class="record-actions"')
+                actions = html[start:html.index("</div>", start)]
+                # Row one holds the primary action and nothing else; the selection
+                # bar is a row of its own, after the toolbar closes.
+                self.assertIn('class="btn primary"', actions)
+                self.assertNotIn("bulk-form", actions)
+                self.assertNotIn("bulk-bar", actions)
+                self.assertLess(html.index('class="list-actions'), html.index("bulk-form"))
+                # One trigger, not a row of selects.
+                self.assertIn("Masiniai veiksmai", html)
+                self.assertIn('class="bulk-panel"', html)
+                bar = html[html.index('class="bulk-bar"'):html.index('class="bulk-panel"')]
+                self.assertNotIn("<select", bar)
+
     def test_theme_on_other_screens(self):
         for route in ["contacts:settings", "contacts:import-export", "contacts:archive-list", "contacts:calendar", "contacts:create"]:
             response = self.client.get(reverse(route))

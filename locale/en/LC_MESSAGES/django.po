@@ -2641,9 +2641,6 @@ msgstr "Create new users automatically"
 msgid "Kada ir ar gauti priminimų laiškus. Tuščia = sistemos numatyta."
 msgstr "When and whether to get reminder emails. Blank = system default."
 
-msgid "Daugiau…"
-msgstr "More…"
-
 msgid "Nustatyti lauką"
 msgstr "Set a field"
 
@@ -3556,3 +3553,15 @@ msgid ""
 msgstr ""
 "Up to %(max_shortcuts)s shortcuts right under the main entries: a CRM page, a "
 "specific contact or company, or an action."
+
+#: templates/contacts/_bulk_panel.html
+msgid "Masiniai veiksmai"
+msgstr "Bulk actions"
+
+#: templates/contacts/_bulk_panel.html
+msgid "Visas pasirinkimas"
+msgstr "The whole selection"
+
+#: templates/contacts/list.html
+msgid "Pažymėta"
+msgstr "Selected"
