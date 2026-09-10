@@ -2052,7 +2052,9 @@ def company_list(request):
     ).order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
     custom_fields = list(CustomField.objects.filter(entity=CustomField.COMPANY))
     allowed_columns = ["company_code", "vat_code", "address", "city", "phone", "email", "contacts", "owner"] + [field.key for field in custom_fields]
-    default_columns = ["company_code", "vat_code", "phone", "email", "contacts"]
+    # Registry codes matter for invoices, not for scanning a list — they stay one
+    # click away in "Stulpeliai", and in full on the company card.
+    default_columns = ["city", "phone", "email", "contacts", "owner"]
     requested_columns = request.GET.getlist("columns")
     if requested_columns:
         columns = [column for column in requested_columns if column in allowed_columns]

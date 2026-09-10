@@ -1026,13 +1026,18 @@ class ContactViewTests(TestCase):
         second_tag = Tag.objects.create(name="B žyma")
         self.company.tags.add(first_tag, second_tag)
 
-        response = self.client.get(reverse("contacts:company-list"), {"sort": "id", "direction": "desc"})
+        # Ask for every data column, not just the default view — the registry
+        # codes are still sortable, they simply are not shown out of the box.
+        every_column = ["company_code", "vat_code", "address", "city", "phone", "email", "contacts", "owner"]
+        response = self.client.get(reverse("contacts:company-list"),
+                                   {"sort": "id", "direction": "desc", "columns": every_column})
 
         self.assertEqual(response.context["sort"], "id")
         self.assertEqual(list(response.context["page"])[0], other)
         self.assertEqual(response.context["page"].paginator.count, Company.objects.filter(deleted_at__isnull=True).count())
-        self.assertContains(response, 'class="sort-control"', count=8)
-        for key in ("name", "company_code", "vat_code", "phone", "email", "contacts", "category", "tags", "id"):
+        self.assertContains(response, 'class="sort-control"', count=11)
+        for key in ("name", "company_code", "vat_code", "address", "city", "phone", "email",
+                    "contacts", "owner", "category", "tags", "id"):
             with self.subTest(key=key):
                 self.assertContains(response, f"sort={key}&amp;direction=asc")
                 self.assertContains(response, f"sort={key}&amp;direction=desc")
@@ -1379,6 +1384,17 @@ class ContactViewTests(TestCase):
         self.assertContains(response, timezone.localtime(row.last_contact_at).strftime("%Y-%m-%d"))
         sorted_response = self.client.get(reverse("contacts:list"), {"sort": "last_contact", "direction": "desc"})
         self.assertEqual(sorted_response.context["sort"], "last_contact")
+
+    def test_company_list_defaults_to_columns_people_actually_scan(self):
+        """Registry codes belong on an invoice, not in the first screen of a
+        list — they stay one click away in "Stulpeliai" and in full on the card."""
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:company-list"))
+        self.assertEqual(response.context["columns"], ["city", "phone", "email", "contacts", "owner"])
+        self.assertNotContains(response, "sort=company_code")
+        # Still offered by the column picker, and still on the company card.
+        self.assertContains(response, 'value="company_code"')
+        self.assertContains(self.client.get(self.company.get_absolute_url()), "Įmonės kodas")
 
     def test_company_list_offers_address_column(self):
         self.client.force_login(self.user)
