@@ -92,6 +92,24 @@ class ThemeTests(TestCase):
             with self.subTest(fragment=path):
                 self.assertIn(path, js)
 
+    def test_base_stylesheet_stays_readable(self):
+        """app.css had grown to 40 lines, one of them 5,000 characters wide, with
+        overrides appended at the bottom. It is grouped by component now — keep
+        it that way: one rule per line, and a home for every rule."""
+        css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        lines = css.split("\n")
+        longest = max(len(line) for line in lines)
+        self.assertLess(longest, 700, "a rule ran onto a shared line — one rule per line")
+        for section in ("Design tokens and element defaults",
+                        "Application shell: sidebar, top bar, content",
+                        "Buttons, chips and small controls",
+                        "Lists: tables, row menus, filter drawers, bulk actions",
+                        "Forms", "Reminders", "Responsive"):
+            with self.subTest(section=section):
+                self.assertIn(f"/* --- {section}", css)
+        # The chevron rule must keep sitting after the shared input rule it narrows.
+        self.assertLess(css.index("input,select,textarea{"), css.index("select{-webkit-appearance"))
+
     def test_each_selector_is_defined_once_per_stylesheet(self):
         """The sheets had grown by appending overrides at the end, so .nav-item,
         .bulk-bar and .chart-legend were each declared two or three times and the
