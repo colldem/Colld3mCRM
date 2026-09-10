@@ -63,7 +63,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
   SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
-  darbastalis ir analitika; `calendar_views.py` — kalendorius;
+  darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys;
+  `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
   `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
   `permissions.py` — rolės, teisės ir įrašų matomumas; `charts.py` — SVG grafikai

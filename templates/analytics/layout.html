@@ -1,17 +1,11 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{% block analytics_title %}{% translate 'Analitika' %}{% endblock %} - CRM{% endblock %}
 {% block content %}
+<a class="analytics-back" href="{% url 'contacts:analytics-overview' %}">&larr; {% translate 'Analitikos apžvalga' %}</a>
 <div class="page-head">
   <div><h1>{% translate 'Analitika' %}</h1><p>{% translate 'Iš to, ką CRM jau kaupia.' %}</p></div>
   <div class="page-actions"><a class="btn" href="{% url 'contacts:home' %}">{% translate 'Darbastalis' %}</a></div>
 </div>
-<nav class="analytics-nav" aria-label="{% translate 'Analitikos skiltys' %}">
-  <a class="{% if section == 'care' %}active{% endif %}" href="{% url 'contacts:analytics-care' %}">{% translate 'Ryšių priežiūra' %}</a>
-  <a class="{% if section == 'communication' %}active{% endif %}" href="{% url 'contacts:analytics-communication' %}">{% translate 'Komunikacija' %}</a>
-  <a class="{% if section == 'reminders' %}active{% endif %}" href="{% url 'contacts:analytics-reminders' %}">{% translate 'Priminimų vykdymas' %}</a>
-  <a class="{% if section == 'growth' %}active{% endif %}" href="{% url 'contacts:analytics-growth' %}">{% translate 'Bazė ir augimas' %}</a>
-  {% if is_crm_admin %}<a class="{% if section == 'system' %}active{% endif %}" href="{% url 'contacts:analytics-system' %}">{% translate 'Sistemos naudojimas' %}</a>{% endif %}
-</nav>
 {% block period %}
   {% if periods %}
     <div class="filter-row">

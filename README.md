@@ -34,8 +34,10 @@ lives inside the app: **Settings → Documentation**.
 - **Dashboard and analytics.** Summary cards with 30-day trends, this month's
   activity by type, six months of growth, upcoming reminders split into
   today/tomorrow, and the latest contacts, companies and entries; plus
-  relationship care, communication, reminder follow-through and database growth
-  — all charted as inline SVG with no external libraries.
+  relationship care, communication, reminder follow-through and database growth.
+  Analytics opens as one overview page — a KPI strip and a condensed band per
+  section, each linking through to the full page — all charted as inline SVG
+  with no external libraries.
 - **Calendar.** Day, week and month views, recurring reminders, and an `.ics`
   subscription URL for Google, Outlook or Apple Calendar.
 - **Tasks.** Assign work to a colleague with a priority and a due date.

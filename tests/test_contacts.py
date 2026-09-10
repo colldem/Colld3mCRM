@@ -354,6 +354,60 @@ class AnalyticsTests(TestCase):
             self.assertNotIn(str(hidden), [str(p) for p in group["rows"]])
         self.assertEqual(self.client.get(reverse("contacts:home")).context["people_total"], 0)
 
+    def test_analytics_overview_shows_every_section(self):
+        person = self._person("Apžvalgai")
+        Activity.objects.create(person=person, activity_type="call", text="Skambinta", created_by=self.user)
+        Reminder.objects.create(person=person, text="Priminimas", created_by=self.user,
+                                due_at=timezone.now() + timedelta(days=1))
+        response = self.client.get(reverse("contacts:analytics-overview"))
+        self.assertEqual(response.status_code, 200)
+        for heading in ("Komunikacija", "Priminimų vykdymas", "Bazė ir augimas", "Ryšių priežiūra"):
+            self.assertContains(response, heading)
+        self.assertEqual(response.context["kpis"]["people_total"], 1)
+        self.assertEqual(response.context["comm"]["total"], 1)
+
+    def test_analytics_overview_system_band_is_admin_only(self):
+        self.assertNotContains(self.client.get(reverse("contacts:analytics-overview")),
+                               "Sistemos naudojimas")
+        self.user.is_superuser = True
+        self.user.save()
+        response = self.client.get(reverse("contacts:analytics-overview"))
+        self.assertContains(response, "Sistemos naudojimas")
+        self.assertIsNotNone(response.context["system"])
+
+    def test_analytics_overview_period_defaults_and_clamps(self):
+        self.assertEqual(self.client.get(reverse("contacts:analytics-overview"),
+                                         {"days": 30}).context["days"], 30)
+        self.assertEqual(self.client.get(reverse("contacts:analytics-overview"),
+                                         {"days": "abc"}).context["days"], 90)
+
+    def test_analytics_overview_respects_record_visibility(self):
+        from contacts.models import UserProfile
+
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_MEMBER,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        self._person("Slaptas", owner=self.mate)
+        self.assertEqual(self.client.get(reverse("contacts:analytics-overview"))
+                         .context["kpis"]["people_total"], 0)
+
+    @override_settings(LANGUAGE_CODE="lt")
+    def test_analytics_overview_svg_coordinates_keep_decimal_points_in_lithuanian(self):
+        person = self._person("Koordinatė")
+        Activity.objects.create(person=person, activity_type="call", text="x", created_by=self.user)
+        html = self.client.get(reverse("contacts:analytics-overview")).content.decode()
+        import re
+        for match in re.finditer(r"<svg\b.*?</svg>", html, re.S):
+            coordinates = re.findall(
+                r'(?:x|y|x1|y1|x2|y2|cx|cy|width|height)="([0-9][0-9.,]*)"', match.group(0))
+            for value in coordinates:
+                with self.subTest(value=value):
+                    self.assertNotIn(",", value)
+
+    def test_analytics_detail_pages_show_a_back_link_not_the_pill_nav(self):
+        response = self.client.get(reverse("contacts:analytics-communication"))
+        self.assertContains(response, "Analitikos apžvalga")
+        self.assertNotContains(response, 'class="analytics-nav"')
+
 
 class CalendarTests(TestCase):
     def setUp(self):

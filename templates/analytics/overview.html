@@ -1,0 +1,173 @@
+{% extends "base.html" %}{% load i18n l10n %}
+{% block title %}{% translate 'Analitika' %} - CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate 'Analitika' %}</h1><p>{% translate 'Kas svarbiausia — vienoje vietoje. „Plačiau“ atveria pilną skiltį.' %}</p></div>
+  <div class="page-actions"><a class="btn" href="{% url 'contacts:home' %}">{% translate 'Darbastalis' %}</a></div>
+</div>
+
+<div class="filter-row">
+  <span>{% translate 'Laikotarpis:' %}</span>
+  {% for option in periods %}
+    <a class="btn{% if option == days %} primary{% endif %}" href="?days={{ option }}">{{ option }} {% translate 'd.' %}</a>
+  {% endfor %}
+</div>
+
+<div class="kpi-row">
+  <a class="kpi-card tone-contacts" href="{% url 'contacts:list' %}">
+    <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="4"/></svg></span>
+    <span class="kpi-label">{% translate 'Kontaktai' %}</span>
+    <b class="kpi-number">{{ kpis.people_total }}</b>
+    <span class="kpi-foot"><span class="kpi-delta">↗ +{{ kpis.new_people }} {% translate 'per 30 d.' %}</span>{% include "analytics/_sparkline.html" with spark=kpis.spark_people %}</span>
+  </a>
+  <a class="kpi-card tone-companies" href="{% url 'contacts:company-list' %}">
+    <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V4h10v17M15 9h4v12M8 7h4M8 11h4M8 15h4"/></svg></span>
+    <span class="kpi-label">{% translate 'Įmonės' %}</span>
+    <b class="kpi-number">{{ kpis.companies_total }}</b>
+    <span class="kpi-foot"><span class="kpi-delta">↗ +{{ kpis.new_companies }} {% translate 'per 30 d.' %}</span>{% include "analytics/_sparkline.html" with spark=kpis.spark_companies %}</span>
+  </a>
+  <a class="kpi-card tone-activity" href="{% url 'contacts:analytics-communication' %}">
+    <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4"/></svg></span>
+    <span class="kpi-label">{% blocktranslate %}Veiklos · {{ days }} d.{% endblocktranslate %}</span>
+    <b class="kpi-number">{{ kpis.activity_total }}</b>
+    <span class="kpi-foot">{% include "analytics/_sparkline.html" with spark=kpis.spark_activity %}</span>
+  </a>
+  <a class="kpi-card tone-overdue{% if kpis.overdue_total %} is-warn{% endif %}" href="{% url 'contacts:reminder-list' %}">
+    <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+    <span class="kpi-label">{% translate 'Vėluojantys priminimai' %}</span>
+    <b class="kpi-number">{{ kpis.overdue_total }}</b>
+    <span class="kpi-foot">{% include "analytics/_sparkline.html" with spark=kpis.spark_overdue %}</span>
+  </a>
+</div>
+
+<section class="band">
+  <div class="band-head">
+    <h2>{% translate 'Komunikacija' %}</h2>
+    <a href="{% url 'contacts:analytics-communication' %}?days={{ days }}">{% translate 'Plačiau' %} →</a>
+  </div>
+  <div class="dash-grid">
+    <section class="dash-card span-2">
+      <div class="dash-card-head">
+        <div><h2>{% translate 'Veiklos laike' %}</h2><p>{% if comm.monthly %}{% translate 'Pagal tipą, mėnesiais' %}{% else %}{% translate 'Pagal tipą, savaitėmis' %}{% endif %}</p></div>
+        <span class="dash-more">{{ comm.total }} {% translate 'iš viso' %}</span>
+      </div>
+      {% if comm.chart %}
+        {% include "analytics/_chart.html" with chart=comm.chart chart_label=_('Veiklos pagal tipą laike') %}
+        <ul class="chart-legend">
+          {% for item in comm.legend %}<li><i style="background:{{ item.colour }}"></i>{{ item.label }} <b>{{ item.total }}</b></li>{% endfor %}
+        </ul>
+      {% else %}<p class="muted">{% translate 'Duomenų dar nėra.' %}</p>{% endif %}
+    </section>
+    <section class="dash-card">
+      <div class="dash-card-head"><div><h2>{% translate 'Pagal naudotoją' %}</h2></div></div>
+      {% include "analytics/_barlist.html" with rows=comm.by_user %}
+    </section>
+  </div>
+</section>
+
+<section class="band">
+  <div class="band-head">
+    <h2>{% translate 'Priminimų vykdymas' %}</h2>
+    <a href="{% url 'contacts:analytics-reminders' %}?days={{ days }}">{% translate 'Plačiau' %} →</a>
+  </div>
+  <div class="dash-grid">
+    <section class="dash-card">
+      <div class="dash-card-head"><div><h2>{% translate 'Atlikimo procentas' %}</h2><p>{% blocktranslate with total=rem.total %}{{ total }} suplanuota{% endblocktranslate %}</p></div></div>
+      {% localize off %}
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 {{ rem.ring.size }} {{ rem.ring.size }}" role="img"
+             aria-label="{% blocktranslate with percent=rem.ring.percent %}Atlikta {{ percent }} proc.{% endblocktranslate %}">
+          <circle cx="{{ rem.ring.centre }}" cy="{{ rem.ring.centre }}" r="{{ rem.ring.radius }}" class="ring-track" stroke-width="{{ rem.ring.stroke }}"/>
+          {% if rem.ring.percent %}<circle cx="{{ rem.ring.centre }}" cy="{{ rem.ring.centre }}" r="{{ rem.ring.radius }}" class="ring-value" stroke-width="{{ rem.ring.stroke }}"
+                  stroke-dasharray="{{ rem.ring.dash }} {{ rem.ring.circumference }}"
+                  transform="rotate(-90 {{ rem.ring.centre }} {{ rem.ring.centre }})"/>{% endif %}
+          <text x="50%" y="48%" class="ring-total">{{ rem.ring.percent }}%</text>
+          <text x="50%" y="62%" class="ring-caption">{% blocktranslate with done=rem.done total=rem.total %}{{ done }} iš {{ total }}{% endblocktranslate %}</text>
+        </svg>
+        <ul class="ring-legend">
+          <li><i style="background:#168a45"></i><span>{% translate 'Atlikta' %}</span><b>{{ rem.done }}</b><em>{{ rem.ring.percent }}%</em></li>
+          <li><i style="background:#c92a2a"></i><span>{% translate 'Vėluoja' %}</span><b>{{ rem.overdue }}</b></li>
+          <li><i style="background:#2f6fbe"></i><span>{% translate 'Būsimi' %}</span><b>{{ rem.upcoming }}</b></li>
+        </ul>
+      </div>
+      {% endlocalize %}
+    </section>
+    <section class="dash-card span-2">
+      <div class="dash-card-head"><div><h2>{% translate 'Pagal naudotoją' %}</h2></div></div>
+      <table class="mini-table">
+        <thead><tr><th>{% translate 'Naudotojas' %}</th><th>{% translate 'Suplanuota' %}</th><th>{% translate 'Atlikta' %}</th><th>%</th></tr></thead>
+        <tbody>
+          {% for row in rem.by_user %}
+            <tr><td>{{ row.label }}</td><td>{{ row.total }}</td><td>{{ row.finished }}</td><td>{{ row.percent }}%</td></tr>
+          {% empty %}<tr><td colspan="4" class="muted">{% translate 'Duomenų nėra.' %}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </div>
+</section>
+
+<section class="band">
+  <div class="band-head">
+    <h2>{% translate 'Bazė ir augimas' %}</h2>
+    <a href="{% url 'contacts:analytics-growth' %}">{% translate 'Plačiau' %} →</a>
+  </div>
+  <div class="dash-grid">
+    <section class="dash-card span-2">
+      <div class="dash-card-head">
+        <div><h2>{% translate 'Kontaktų skaičius' %}</h2><p>{% translate 'Paskutinių 12 mėn. dinamika' %}</p></div>
+        <span class="dash-more">{{ base.total_people }}</span>
+      </div>
+      {% if base.curve %}{% include "analytics/_chart.html" with chart=base.curve chart_label=_('Kontaktų augimas per 12 mėnesių') %}
+      {% else %}<p class="muted">{% translate 'Duomenų dar nėra.' %}</p>{% endif %}
+    </section>
+    <section class="dash-card">
+      <div class="dash-card-head"><div><h2>{% translate 'Duomenų kokybė' %}</h2><p>{% translate 'Įmonės' %}: {{ base.total_companies }}</p></div></div>
+      <ul class="bar-list">
+        {% for row in base.quality %}
+          <li><span class="bar-label">{{ row.label }}</span><span class="bar-track" aria-hidden="true">{% if row.percent %}<i style="width:{{ row.percent }}%"></i>{% endif %}</span><b>{{ row.percent }}%</b></li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
+</section>
+
+<section class="band">
+  <div class="band-head">
+    <h2>{% translate 'Ryšių priežiūra' %}</h2>
+    <a href="{% url 'contacts:analytics-care' %}">{% translate 'Plačiau' %} →</a>
+  </div>
+  <div class="dash-grid">
+    <section class="dash-card is-warn">
+      <div class="dash-card-head"><div><h2>{% translate 'Nutilę kontaktai' %}</h2><p>{% translate 'Nebendrauta ilgiau nei 60 d.' %}</p></div>
+        <span class="dash-more">{{ care.silent_total }}</span></div>
+      <ul class="record-list">
+        {% for row in care.silent %}{% include "analytics/_row_silent.html" %}{% empty %}<li class="muted">{% translate 'Nieko nerasta — puiku.' %}</li>{% endfor %}
+      </ul>
+    </section>
+    <section class="dash-card span-2">
+      <div class="dash-card-head"><div><h2>{% translate 'Reikia dėmesio' %}</h2></div></div>
+      {% include "analytics/_barlist.html" with rows=care.counts %}
+    </section>
+  </div>
+</section>
+
+{% if system %}
+<section class="band">
+  <div class="band-head">
+    <h2>{% translate 'Sistemos naudojimas' %}</h2>
+    <span class="band-eyebrow">{% translate 'tik administratoriui' %}</span>
+  </div>
+  <div class="dash-grid">
+    <section class="dash-card">
+      <div class="dash-card-head"><div><h2>{% blocktranslate %}Per {{ days }} d.{% endblocktranslate %}</h2></div>
+        <a class="dash-more" href="{% url 'contacts:analytics-system' %}?days={{ days }}">{% translate 'Plačiau' %} →</a></div>
+      {% include "analytics/_barlist.html" with rows=system.counts %}
+    </section>
+    <section class="dash-card span-2">
+      <div class="dash-card-head"><div><h2>{% translate 'Aktyviausi naudotojai' %}</h2><p>{% translate 'Pagal žurnalo įrašus' %}</p></div></div>
+      {% include "analytics/_barlist.html" with rows=system.by_actor %}
+    </section>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

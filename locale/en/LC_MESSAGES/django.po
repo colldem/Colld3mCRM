@@ -3395,3 +3395,67 @@ msgstr "Save settings"
 #: contacts/views.py
 msgid "CSV skaitymo nustatymai išsaugoti."
 msgstr "CSV reading settings saved."
+
+#: templates/analytics/overview.html
+msgid "Kas svarbiausia — vienoje vietoje. „Plačiau“ atveria pilną skiltį."
+msgstr "The essentials in one place. “See all” opens the full section."
+
+#: templates/analytics/overview.html
+msgid "Plačiau"
+msgstr "See all"
+
+#: templates/analytics/overview.html
+msgid "iš viso"
+msgstr "total"
+
+#: templates/analytics/overview.html
+msgid "Veiklos · %(days)s d."
+msgstr "Activity · %(days)s d."
+
+#: templates/analytics/overview.html
+msgid "Pagal tipą, savaitėmis"
+msgstr "By type, weekly"
+
+#: templates/analytics/overview.html
+msgid "Pagal tipą, mėnesiais"
+msgstr "By type, monthly"
+
+#: templates/analytics/overview.html
+msgid "%(total)s suplanuota"
+msgstr "%(total)s planned"
+
+#: templates/analytics/overview.html
+msgid "%(done)s iš %(total)s"
+msgstr "%(done)s of %(total)s"
+
+#: templates/analytics/overview.html
+msgid "Paskutinių 12 mėn. dinamika"
+msgstr "Over the last 12 months"
+
+#: templates/analytics/overview.html
+msgid "Nebendrauta ilgiau nei 60 d."
+msgstr "No contact for over 60 days"
+
+#: templates/analytics/overview.html
+msgid "Reikia dėmesio"
+msgstr "Needs attention"
+
+#: templates/analytics/overview.html
+msgid "Nutilę > 60 d."
+msgstr "Gone quiet > 60 d."
+
+#: templates/analytics/overview.html
+msgid "Per %(days)s d."
+msgstr "Over %(days)s d."
+
+#: templates/analytics/overview.html
+msgid "tik administratoriui"
+msgstr "administrator only"
+
+#: templates/analytics/overview.html
+msgid "Pagal žurnalo įrašus"
+msgstr "By audit-log entries"
+
+#: templates/analytics/layout.html
+msgid "Analitikos apžvalga"
+msgstr "Analytics overview"

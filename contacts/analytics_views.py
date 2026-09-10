@@ -432,3 +432,151 @@ def system_usage(request):
             for row in entries.exclude(actor__isnull=True).values("actor__username")
             .annotate(total=Count("id")).order_by("-total")[:10]]),
     })
+
+
+@login_required
+def analytics_overview(request):
+    """One scrolling page: a condensed band per detail section, dashboard styling.
+
+    Self-contained — it re-queries a teaser slice (top 5, no CSV, no per-tag
+    breakdowns) rather than calling the detail views. The period picker drives
+    the communication, reminder and system bands; relationship care keeps its
+    60-day window and growth its 12 months.
+    """
+    from .permissions import is_admin
+
+    days = _period(request)
+    now = timezone.now()
+    today = timezone.localdate()
+    since = now - timedelta(days=days)
+    month_ago = now - timedelta(days=30)
+    unknown = str(tr("Nežinomas"))
+
+    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
+    reminders = visible_reminders(request.user, Reminder.objects.filter(deleted_at__isnull=True))
+    activities = Activity.objects.filter(deleted_at__isnull=True).filter(
+        Q(person__in=people) | Q(company__in=companies))
+    recent_activities = activities.filter(created_at__gte=since)
+    overdue = reminders.filter(completed_at__isnull=True, due_at__lt=now)
+
+    people_total = people.count()
+    kpis = {
+        "people_total": people_total,
+        "companies_total": companies.count(),
+        "new_people": people.filter(created_at__gte=month_ago).count(),
+        "new_companies": companies.filter(created_at__gte=month_ago).count(),
+        "activity_total": recent_activities.count(),
+        "overdue_total": overdue.count(),
+        "spark_people": charts.sparkline(_daily_counts(people, today)),
+        "spark_companies": charts.sparkline(_daily_counts(companies, today)),
+        "spark_activity": charts.sparkline(_daily_counts(activities, today)),
+        "spark_overdue": charts.sparkline(_daily_counts(overdue, today)),
+    }
+
+    # --- Communication band ---------------------------------------------
+    monthly = days > 120
+    keys = [key for key, _label in Activity.TYPE_CHOICES]
+    slots = _buckets(since.date(), today, monthly)
+    tally = {key: {series: 0 for series in keys} for key, _label in slots}
+    for moment, kind in recent_activities.values_list("created_at", "activity_type"):
+        slot = tally.get(_bucket_key(moment, monthly))
+        if slot is not None:
+            slot[kind] = slot.get(kind, 0) + 1
+    comm_buckets = [{"label": label, "values": tally[key]} for key, label in slots]
+    comm_legend = [{"label": label,
+                    "colour": charts.SERIES_COLOURS[index % len(charts.SERIES_COLOURS)],
+                    "total": sum(bucket["values"].get(key, 0) for bucket in comm_buckets)}
+                   for index, (key, label) in enumerate(Activity.TYPE_CHOICES)]
+    comm = {
+        "chart": charts.stacked_bars(comm_buckets, keys),
+        "legend": comm_legend,
+        "total": sum(item["total"] for item in comm_legend),
+        "monthly": monthly,
+        "by_user": charts.share_rows([
+            {"label": row["created_by__username"] or unknown, "total": row["total"]}
+            for row in recent_activities.values("created_by__username")
+            .annotate(total=Count("id")).order_by("-total")[:5]]),
+    }
+
+    # --- Reminder band -------------------------------------------------
+    r_scope = reminders.filter(due_at__gte=since)
+    r_total = r_scope.count()
+    r_done = r_scope.filter(completed_at__isnull=False).count()
+    rem = {
+        "ring": charts.donut(r_done, r_total),
+        "total": r_total, "done": r_done,
+        "overdue": r_scope.filter(completed_at__isnull=True, due_at__lt=now).count(),
+        "upcoming": r_scope.filter(completed_at__isnull=True, due_at__gte=now).count(),
+        "by_user": [
+            {"label": entry["created_by__username"] or unknown,
+             "total": entry["total"], "finished": entry["finished"],
+             "percent": round(entry["finished"] * 100 / entry["total"]) if entry["total"] else 0}
+            for entry in (r_scope.values("created_by__username")
+                          .annotate(total=Count("id"),
+                                    finished=Count("id", filter=Q(completed_at__isnull=False)))
+                          .order_by("-total")[:5])],
+    }
+
+    # --- Growth band (fixed 12 months) --------------------------------
+    start = (today.replace(day=1) - timedelta(days=31 * 11)).replace(day=1)
+    month_slots = _buckets(start, today, monthly=True)
+    created = {key: 0 for key, _label in month_slots}
+    for moment in people.values_list("created_at", flat=True):
+        key = _bucket_key(moment, monthly=True)
+        if key in created:
+            created[key] += 1
+    running = people.filter(created_at__lt=timezone.make_aware(
+        datetime.combine(start, time.min), timezone.get_current_timezone())).count()
+    cumulative = []
+    for key, label in month_slots:
+        running += created[key]
+        cumulative.append({"label": label, "value": running})
+    quality = [
+        {"label": tr("Su el. paštu"), "total": people.filter(emails__isnull=False).distinct().count()},
+        {"label": tr("Su telefonu"), "total": people.filter(phones__isnull=False).distinct().count()},
+        {"label": tr("Su įmone"), "total": people.filter(company_links__isnull=False).distinct().count()},
+        {"label": tr("Su atsakingu"),
+         "total": people.exclude(owner__isnull=True, responsibles__isnull=True).distinct().count()},
+    ]
+    for row in quality:
+        row["percent"] = round(row["total"] * 100 / people_total) if people_total else 0
+    base = {"curve": charts.line_series(cumulative), "quality": quality,
+            "total_people": people_total, "total_companies": kpis["companies_total"]}
+
+    # --- Relationship care band (fixed 60-day window) -----------------
+    care_lists = _care_querysets(request.user, 60)
+    silent_total = care_lists["silent"].count()
+    care = {
+        "silent": care_lists["silent"][:5],
+        "silent_total": silent_total,
+        "counts": charts.share_rows([
+            {"label": tr("Nutilę > 60 d."), "total": silent_total},
+            {"label": tr("Niekada nebendrauta"), "total": care_lists["never"].count()},
+            {"label": tr("Be telefono ir el. pašto"), "total": care_lists["no_details"].count()},
+            {"label": tr("Be atsakingo"), "total": care_lists["no_owner"].count()},
+        ]),
+    }
+
+    # --- System band (admin only) ------------------------------------
+    system = None
+    if is_admin(request.user):
+        entries = AuditLog.objects.filter(created_at__gte=since)
+        system = {
+            "counts": charts.share_rows([
+                {"label": tr("Prisijungimai"), "total": entries.filter(action=AuditLog.LOGIN).count()},
+                {"label": tr("Eksportai"), "total": entries.filter(action=AuditLog.EXPORT).count()},
+                {"label": tr("Importai"), "total": entries.filter(action=AuditLog.IMPORT).count()},
+                {"label": tr("Nepavykę prisijungimai"),
+                 "total": entries.filter(action=AuditLog.LOGIN_FAILED).count()},
+            ]),
+            "by_actor": charts.share_rows([
+                {"label": row["actor__username"] or unknown, "total": row["total"]}
+                for row in entries.exclude(actor__isnull=True).values("actor__username")
+                .annotate(total=Count("id")).order_by("-total")[:5]]),
+        }
+
+    return render(request, "analytics/overview.html", {
+        "section": "overview", "days": days, "periods": PERIODS,
+        "kpis": kpis, "comm": comm, "rem": rem, "base": base, "care": care, "system": system,
+    })
