@@ -55,6 +55,34 @@ class ThemeTests(TestCase):
         response = self.client.get(reverse("contacts:settings-tags"))
         self.assertContains(response, f'class="crm-label {tag.color_class}"')
 
+    def test_file_pickers_wear_the_crm_button_not_the_browser_one(self):
+        """The browser's own file control was the one place the visual language
+        broke, and its "no file chosen" text ignored the app's language."""
+        theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
+        forms_js = (settings.BASE_DIR / "static" / "js" / "forms.js").read_text()
+        self.assertIn(".file-field{", theme_css)
+        self.assertIn(".file-btn{", theme_css)
+        # The native input stays in the form — it is only hidden, never replaced.
+        self.assertIn(".file-field input[type=file]{position:absolute", theme_css)
+        self.assertIn("input[type=file]", forms_js)
+        self.assertIn("field.append(input,", forms_js)
+
+    def test_file_picker_wording_is_translated_for_javascript(self):
+        """forms.js builds the label itself, so the wording has to live in the
+        JavaScript catalogue — not only in django.po."""
+        from django.urls import reverse
+
+        po = (settings.BASE_DIR / "locale" / "en" / "LC_MESSAGES" / "djangojs.po").read_text()
+        for source, english in (("Pasirinkti failą", "Choose a file"),
+                                ("Pasirinkti failus", "Choose files"),
+                                ("Failas nepasirinktas", "No file chosen"),
+                                ("Failai nepasirinkti", "No files chosen")):
+            with self.subTest(word=source):
+                self.assertIn(f'msgid "{source}"\nmsgstr "{english}"', po)
+        self.client.post(reverse("set_language"), {"language": "en", "next": "/contacts/"})
+        catalog = self.client.get(reverse("javascript-catalog")).content.decode()
+        self.assertIn("Choose a file", catalog)
+
     def test_list_rows_stay_dense_enough_to_scan(self):
         """Rows were 73px: a two-line name cell plus 15px padding and a 40px
         chip editor. Scannable lists sit near 48-52px, so the padding, the

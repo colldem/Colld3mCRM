@@ -632,6 +632,17 @@ body.has-env-banner{padding-bottom:28px}
 @media(max-width:1200px){.dash-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}.dash-card.span-2{grid-column:1/-1}}
 @media(max-width:720px){.dash-grid,.kpi-row{grid-template-columns:1fr}.ring-wrap{justify-content:center}}
 
+/* File pickers: the browser's own control is the one place the CRM's visual
+   language breaks, and its "no file chosen" text ignores the app's language.
+   static/js/forms.js wraps every input[type=file] in this shell. */
+.file-field{position:relative;display:inline-flex;align-items:center;gap:10px;max-width:100%}
+.file-field input[type=file]{position:absolute;width:1px;height:1px;padding:0;border:0;opacity:0;overflow:hidden;clip:rect(0,0,0,0)}
+.file-btn{display:inline-flex;min-height:var(--control-h-sm);align-items:center;padding:6px 12px;border:1px solid #bfc6cf;border-radius:var(--radius);background:#fff;color:var(--ink);font:inherit;font-size:var(--fs-xs);font-weight:650;white-space:nowrap;cursor:pointer}
+.file-btn:hover{border-color:var(--navy-950);background:var(--soft)}
+.file-field:focus-within .file-btn{outline:2px solid var(--blue-600);outline-offset:1px}
+.file-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:var(--fs-xs)}
+.file-field.has-file .file-name{color:var(--ink);font-weight:600}
+
 /* Settings forms: a single-column stack where every field, toggle and the
    action row line up on the same left edge and share one width. */
 .settings-form-grid{display:grid;gap:14px;max-width:480px}

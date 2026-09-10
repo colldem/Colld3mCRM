@@ -48,3 +48,19 @@ msgstr "New event"
 
 msgid "Redaguoti įvykį"
 msgstr "Edit event"
+
+#: static/js/forms.js
+msgid "Pasirinkti failą"
+msgstr "Choose a file"
+
+#: static/js/forms.js
+msgid "Pasirinkti failus"
+msgstr "Choose files"
+
+#: static/js/forms.js
+msgid "Failas nepasirinktas"
+msgstr "No file chosen"
+
+#: static/js/forms.js
+msgid "Failai nepasirinkti"
+msgstr "No files chosen"
