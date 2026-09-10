@@ -2,7 +2,7 @@
 {% block title %}{% translate 'Nustatymai - CRM' %}{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>{% translate 'Nustatymai' %}</h1><p>{% translate 'Tvarkykite profilį, klasifikatorius ir CRM informaciją.' %}</p></div></div>
-<div class="settings-layout">
+<div class="settings-layout{% if settings_wide %} is-wide{% endif %}">
   <nav class="settings-nav" aria-label="{% translate 'Nustatymų skyriai' %}">
 
     <div class="settings-nav-group">

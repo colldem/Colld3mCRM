@@ -1084,6 +1084,7 @@ def settings_audit(request):
     list_query.pop("page", None)
     return render(request, "settings/audit.html", {
         "settings_section": "audit",
+        "settings_wide": True,
         "page": page,
         "page_numbers": _elided_page_numbers(page),
         "actors": get_user_model().objects.filter(audit_entries__isnull=False).distinct().order_by("username"),

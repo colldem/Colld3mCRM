@@ -2209,6 +2209,19 @@ class ContactViewTests(TestCase):
         reminder.refresh_from_db()
         self.assertIsNotNone(reminder.completed_at)
 
+    def test_the_journal_gets_the_whole_page_width(self):
+        """Seven columns in a 680px form column left 29px each for Objektas, Buvo
+        and Tapo. It asks for the wide layout; every other settings page keeps
+        the narrow one, which is the right measure for a form."""
+        self.client.force_login(self.user)
+        self.user.is_superuser = True
+        self.user.save()
+        journal = self.client.get(reverse("contacts:settings-audit"))
+        self.assertTrue(journal.context["settings_wide"])
+        self.assertContains(journal, 'class="settings-layout is-wide"')
+        profile = self.client.get(reverse("contacts:settings"))
+        self.assertNotContains(profile, "is-wide")
+
     def test_each_user_shapes_their_own_side_menu(self):
         """Unticked entries fold under "Daugiau" instead of disappearing, and up
         to five shortcuts sit right after the core entries."""
