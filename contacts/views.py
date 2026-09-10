@@ -1562,6 +1562,9 @@ def documentation_page(request):
         crm_version = ""
     return render(request, "settings/documentation.html", {
         "settings_section": "documentation",
+        # Reference tables of environment variables and screens; they read badly
+        # in a column narrower than the prose around them.
+        "settings_wide": True,
         "documentation_topic": topic,
         "documentation_topics": topics,
         "crm_version": crm_version,

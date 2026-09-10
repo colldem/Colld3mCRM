@@ -103,8 +103,12 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   (be `crm-worker`, `serve-staging.json` be Funnel).
   `deploy/runner/` — self-hosted runner konteineris (`README.md` — sąranka).
 - `docs/DEPLOYMENT.md` — bendrinė diegimo procedūra (bet kuris Docker hostas,
-  nuosavas domenas per Caddy, Tailscale); prieš diegimą būtina DB ir
-  `runtime/media` atsarginė kopija.
+  nuosavas domenas per Caddy, Tailscale) ir visų aplinkos kintamųjų lentelės;
+  prieš diegimą būtina DB ir `runtime/media` atsarginė kopija.
+- `docs/ARCHITECTURE.md` § „Kur ką pridėti" — kur dedamas naujas puslapis,
+  nustatymų skiltis, meniu punktas, teisė, laukas, foninis darbas, grafikas,
+  stilius ar vertimas. Pridėjus naują aplinkos kintamąjį — įrašyti į
+  `.env.example` **ir** `docs/DEPLOYMENT.md` lentelę.
 - `deploy/helm/crm/` — Helm chart'as Kubernetes'ui (web Deployment, migracijų Job
   kaip `pre-upgrade` hook, 5 CronJob'ai vietoj `crm-worker`, nginx Ingress;
   DB ir failų saugykla — išorinės). Instrukcija: `docs/KUBERNETES.md`.

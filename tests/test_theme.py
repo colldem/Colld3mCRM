@@ -324,6 +324,27 @@ class DeploymentReadinessTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(expected, response.content.decode())
 
+    def test_every_setting_the_app_reads_is_written_down(self):
+        """A knob nobody documented is a knob nobody can turn.
+
+        Both files earn their place: `.env.example` is what an installer copies,
+        DEPLOYMENT.md is what they read when the default is wrong for them.
+        """
+        import re
+
+        settings_py = (settings.BASE_DIR / "config" / "settings.py").read_text()
+        entrypoint = (settings.BASE_DIR / "scripts" / "entrypoint.sh").read_text()
+        used = set(re.findall(r'os\.environ(?:\.get)?[\(\[]\s*["\'](CRM_[A-Z0-9_]+)', settings_py))
+        used |= set(re.findall(r"\$\{(CRM_[A-Z0-9_]+)", entrypoint))
+        self.assertGreater(len(used), 10, "the scan found almost nothing — it has stopped working")
+
+        example = (settings.BASE_DIR / ".env.example").read_text()
+        deployment = (settings.BASE_DIR / "docs" / "DEPLOYMENT.md").read_text()
+        for name in sorted(used):
+            with self.subTest(variable=name):
+                self.assertIn(name, example, f"{name} is missing from .env.example")
+                self.assertIn(name, deployment, f"{name} is missing from docs/DEPLOYMENT.md")
+
 
 class HelmChartTests(TestCase):
     """The chart is what makes several replicas safe; these are the parts that

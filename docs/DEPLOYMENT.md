@@ -12,6 +12,7 @@ a VPS, a home server, a NAS — and needs no account with any third party.
   - [B. Your own domain, certificates handled for you](#b-your-own-domain-certificates-handled-for-you)
   - [C. A private Tailscale network](#c-a-private-tailscale-network)
 - [First run](#first-run)
+- [The other settings](#the-other-settings)
 - [Upgrading](#upgrading)
 - [Backups and restore](#backups-and-restore)
 - [A second, isolated copy for testing](#a-second-isolated-copy-for-testing)
@@ -157,6 +158,50 @@ your own devices, delete the `AllowFunnel` line, or point `TS_SERVE_CONFIG` at
 
 Everything else — users, roles, teams, custom fields, email, incoming mail,
 single sign-on — is configured in **Settings** inside the app.
+
+## The other settings
+
+Nothing here needs touching for a normal install — every one of them already has
+the right default. `.env.example` carries them all with comments; this table is
+the summary.
+
+**Behaviour**
+
+| Variable | Default | What it does |
+|---|---|---|
+| `CRM_ENVIRONMENT` | `production` | anything else marks the instance an isolated copy: e-mail, IMAP, Entra and webhooks are forced off and a banner names the tier |
+| `DJANGO_SESSION_IDLE_MINUTES` | `480` | idle timeout before a session expires |
+| `WORKER_INTERVAL_SECONDS` | `300` | how often `crm-worker` runs the background commands |
+| `BACKUP_KEEP` / `BACKUP_INTERVAL_SECONDS` | `14` / `86400` | how many dumps `crm-backup` keeps, and how often it takes one |
+
+**Uploaded files**
+
+| Variable | Default | What it does |
+|---|---|---|
+| `CRM_MEDIA_BACKEND` | `filesystem` | `filesystem` keeps attachments in `runtime/media`; `s3` puts them in S3-compatible object storage |
+| `CRM_S3_BUCKET` | — | bucket name, with `s3` |
+| `CRM_S3_ENDPOINT` | — | e.g. `https://minio.example.com`; leave empty for AWS |
+| `CRM_S3_REGION` | — | region, where the provider needs one |
+| `CRM_S3_ACCESS_KEY` / `CRM_S3_SECRET_KEY` | — | credentials for the bucket |
+| `CRM_S3_ADDRESSING` | `path` | `path` for MinIO and most self-hosted gateways, `virtual` for AWS S3 |
+
+One host needs none of this: the default keeps files on disk. Object storage is
+what you need once **more than one web process** serves the app, because each one
+otherwise has its own disk — see [KUBERNETES.md](KUBERNETES.md).
+
+**Container start-up** (read by `scripts/entrypoint.sh`)
+
+| Variable | Default | What it does |
+|---|---|---|
+| `CRM_RUN_MIGRATIONS` | `1` | run `migrate` before starting. Kubernetes sets `0`: migrations run once per release, in a Job |
+| `CRM_COLLECTSTATIC` | `1` | run `collectstatic` before starting. `0` when the static files are already baked into the image |
+| `CRM_GUNICORN_PORT` | `8080` | port gunicorn binds |
+| `CRM_GUNICORN_WORKERS` | `2` | worker processes |
+| `CRM_GUNICORN_THREADS` | `2` | threads per worker |
+| `CRM_GUNICORN_TIMEOUT` | `60` | seconds before a stuck worker is killed |
+
+Raise the two gunicorn numbers only if the host has the cores and memory for it;
+each worker is a full copy of the app.
 
 ## Upgrading
 

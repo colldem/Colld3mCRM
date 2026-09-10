@@ -56,9 +56,10 @@ config/            Django projektas
 contacts/          vienintelė programa (app)
   models.py        visi modeliai
   views.py         pagrindiniai puslapiai ir CRUD
-  analytics_views.py   darbastalis + analitikos puslapiai
+  analytics_views.py   darbastalis + analitikos apžvalga ir detalūs puslapiai
   calendar_views.py    kalendorius ir įvykių API
   charts.py        SVG grafikų geometrija
+  menu.py          šoninis meniu: privalomi punktai, naudotojo nuorodos, „Daugiau"
   permissions.py   rolės, teisių lentelė, įrašų matomumo Q filtrai
   detail_editing.py / inline_views.py   inline (AJAX) laukų redagavimas
   duplicates.py / merging.py            dublikatų aptikimas ir sujungimas
@@ -80,15 +81,21 @@ contacts/          vienintelė programa (app)
   automation.py     „kai X -> daryk Y" taisyklės (H2)
   api.py / api_urls.py  rankomis rašytas JSON REST API (H3), /api/v1/
   webhooks.py       išeinantys webhookai (H4): emit() signaluose, worker POST’ina
-  management/commands/  send_notifications, extend_recurrences, fetch_mail, run_automations, deliver_webhooks, ensure_admin
+  translations.py / middleware.py  redaguojami sąsajos vertimai (DB override'ai
+                    įrašomi į gyvą gettext katalogą; middleware sinchronizuoja procesus)
+  templatetags/crm_format.py  šablonų filtrai (record_tone, record_initials, short_since …)
+  management/commands/  send_notifications, extend_recurrences, fetch_mail, run_automations, deliver_webhooks, ensure_admin, sanitize_staging
   migrations/      migracijos
 templates/         serverio pusėje renderinami šablonai (be JS karkaso)
-static/            css/ (app.css, theme.css), js/ (progresyvus enhancement), vendor/adminlte
+static/            css/ (app.css — žetonai ir bazė, theme.css — komponentai),
+                   js/ (progresyvus enhancement), vendor/adminlte
 locale/en/         .po / .mo (šaltinis — lietuviški msgid)
-tests/             test_contacts.py, test_theme.py (~250 iš viso)
-scripts/           entrypoint.sh, backup.sh, release-check.sh
-deploy/tailscale/  serve.json
-docs/              ši byla, DEPLOYMENT.md, REMAINING-WORK.md
+tests/             test_contacts.py, test_theme.py (~270 iš viso)
+scripts/           entrypoint.sh, backup.sh, release-check.sh, deploy*.sh, refresh-staging.sh
+deploy/tailscale/  serve.json          deploy/caddy/   Caddyfile
+deploy/runner/     self-hosted CI runner konteineris
+deploy/helm/crm/   Helm chart'as Kubernetes klasteriui (žr. docs/KUBERNETES.md)
+docs/              ši byla, DEPLOYMENT.md, KUBERNETES.md, REMAINING-WORK.md
 ```
 
 ---
@@ -261,12 +268,32 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 - Bendri env kintamieji laikomi `compose.yaml` YAML anchor'e `x-crm-env` ir
   įtraukiami į `crm-web` bei `crm-worker`.
 - `entrypoint.sh`: `migrate --noinput` → `collectstatic --noinput` → gunicorn.
+  Abu žingsnius galima išjungti (`CRM_RUN_MIGRATIONS=0`, `CRM_COLLECTSTATIC=0`),
+  o gunicorno parametrai imami iš `CRM_GUNICORN_PORT/WORKERS/THREADS/TIMEOUT`.
+  Visos numatytosios reikšmės atitinka ankstesnį elgesį, tad Compose diegimui
+  nieko nustatinėti nereikia — jungikliai skirti klasteriui.
+- Įkelti failai: `CRM_MEDIA_BACKEND=filesystem` (numatyta) rašo į `runtime/media`;
+  `s3` perjungia į `django-storages` S3 backend'ą (`CRM_S3_BUCKET`, `_ENDPOINT`,
+  `_REGION`, `_ACCESS_KEY`, `_SECRET_KEY`, `_ADDRESSING`). Daugiau nei vienam
+  web procesui reikia antrojo — pod'o diskas yra jo paties.
 - Healthcheck: `crm-web` — `GET /health/ready`; `crm-db` — `pg_isready`.
 - Funkcinis pakeitimas → `VERSION` + `compose.yaml` `image:` tag'as bumpinami kartu.
 - `.env` (negitinamas) laiko `POSTGRES_PASSWORD`, `DJANGO_SECRET_KEY`,
   `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `DJANGO_FORCE_HTTPS`,
   `TS_AUTHKEY`, `CRM_SETUP_TOKEN`, `CRM_SECRETS_KEY`, `CRM_BASE_URL`, taip pat
   neprivalomus `EMAIL_*`, `IMAP_*`, `OIDC_*` fallback'us (žr. `.env.example`).
+
+### Kubernetes (alternatyva)
+
+Tas pats atvaizdas veikia klasteryje per `deploy/helm/crm/`. Skiriasi tik tai, kas
+ką daro: migracijos — vienas `Job` per leidimą (Helm `pre-upgrade` hook'as, todėl
+nepavykusi migracija neišleidžia naujo kodo), statiniai failai įkepti į atvaizdą
+(`Dockerfile` leidžia `collectstatic` su `DJANGO_DEBUG=false` ir tikrina, ar
+atsirado `staticfiles.json`), įkelti failai — S3, o `crm-worker` ciklą pakeičia
+penki `CronJob`'ai su `concurrencyPolicy: Forbid`. DB ir failų saugykla —
+išorinės. Sesijos, `django-axes` ir vertimų override'ai jau buvo saugūs keliems
+procesams, todėl Redis ar bendro cache nereikia. Pilna instrukcija —
+`docs/KUBERNETES.md`.
 
 ---
 
@@ -284,22 +311,101 @@ Nėra vieno perkeliamo failo. Pilna kopija = PostgreSQL `pg_dump -Fc` +
 
 - `scripts/release-check.sh`: `makemigrations --check --dry-run` → visi testai →
   `check --deploy` (su prod-panašiais env) → `serve.json` JSON patikra.
-- ~250 testų `tests/`. `test_theme.py` sergsti dizaino žetonų skalę ir CSS
-  taisyklių korektiškumą.
+- ~270 testų `tests/`. `test_theme.py` sergsti dizaino žetonų skalę, CSS
+  taisyklių korektiškumą (pvz. kad selektorius vienoje byloje apibrėžtas vieną
+  kartą) ir diegimo paruoštumą (`Dockerfile`, Helm chart'as).
 - **CI** (`.github/workflows/ci.yml`, push/PR į `main`): `ruff check`,
-  `release-check.sh`, Docker image build + `/health/ready` smoke.
+  `release-check.sh`, Docker image build + `/health/ready` smoke, `chart` job'as
+  (`helm lint` + `helm template`).
+- **Staging** (`deploy-staging.yml`): kiekvienas push į `main` automatiškai
+  diegiamas į staging (`CRM_ENVIRONMENT=staging`, be `crm-worker`).
 - **CD** (`.github/workflows/deploy.yml`): paleidžiama version tag'u `vX.Y.Z`
   (arba rankiniu `workflow_dispatch`). `verify` job'as GitHub runner'yje pakartoja
   patikras; `deploy` job'as `runs-on: [self-hosted, crm-nas]` (ephemeral runner
-  konteineris ant NAS, `deploy/runner/`), gate'inamas `production` environment
-  patvirtinimu. `scripts/deploy.sh`: backup → `rsync` šaltinį į
-  `/opt/crm` → `compose build --pull` → `up -d` → sveikatos patikra.
+  konteineris ant NAS, `deploy/runner/`). Atskiro patvirtinimo mygtuko nėra —
+  sąmoningas veiksmas yra pati žymos įkėlimas. `scripts/deploy.sh`: backup →
+  `rsync` šaltinį į `/opt/crm` → `compose build --pull` → `up -d` → sveikatos
+  patikra. Ta pati žyma paleidžia ir `publish-image.yml`, kuris sudeda atvaizdą į
+  GHCR (klasteriui); jis atsisako publikuoti, jei žyma nesutampa su `VERSION`.
 - Kiekvienam pakeitimui: minimalus diff, žalias `release-check`, patikra
   naršyklėje (LT/EN, desktop/mobile). Žr. `CLAUDE.md`.
 
 ---
 
-## 13. Ką dar planuojama
+## 13. Kur ką pridėti
+
+Trumpas žemėlapis: „noriu pridėti X" → kuriuos failus liesti. Visais atvejais
+galioja `CLAUDE.md` taisyklės (minimalus diff, žalias `release-check.sh`, patikra
+naršyklėje, in-app žinyno atnaujinimas).
+
+**Naują puslapį.** View → `contacts/views.py` (arba teminė byla:
+`analytics_views.py`, `calendar_views.py`); `@login_required`, sąrašai visada per
+`visible_people()` / `visible_companies()` / `visible_reminders()`. Maršrutas →
+`contacts/urls.py` (vardas be prefikso, kviečiama kaip `contacts:vardas`).
+Šablonas → `templates/…`, `{% extends "base.html" %}`. Jei puslapis turi būti
+pasiekiamas iš šoninio meniu — `contacts/menu.py` `_PAGES` (ir `OPTIONAL_KEYS`,
+jei naudotojas turi galėti jį susiskleisti). Testas → `tests/test_contacts.py`.
+
+**Nustatymų skiltį.** View grąžina `settings_section` kontekste; šablonas
+`{% extends "settings/layout.html" %}` su `{% block settings_content %}`; nuoroda
+— `templates/settings/layout.html` atitinkamoje grupėje, apgaubta teisės sąlyga
+(`{% if is_crm_admin %}` arba `{% if crm_caps.can_… %}`). Į atskirą puslapį
+neišeinama — visas turinys renderinamas nustatymų karkase (žr. „Importas /
+eksportas").
+
+**Meniu punktą naudotojui.** Nauji punktai aprašomi `contacts/menu.py`
+(`_PAGES` puslapiams, `ACTIONS` veiksmams); ką naudotojas pasirinko, saugoma
+`UserProfile.menu_config` JSON lauke, redaguojama Nustatymai → Mano meniu
+(`contacts/forms.py` `MenuForm`). Punktų niekada netrinamas — nepasirinkti
+nukeliauja į „Daugiau" foldą.
+
+**Naują teisę (capability).** `contacts/permissions.py`: eilutė į `CAPABILITIES`
+(raktas + verčiama etiketė) ir numatytos reikšmės į `_CAPABILITY_DEFAULTS` abiem
+rolėms. View gale — `_require_capability(request, "can_…")`; šablone —
+`{% if crm_caps.can_… %}`. Nustatymai → Rolės ir teisės lentelę generuoja pats
+`CAPABILITIES`, tad ten keisti nieko nereikia.
+
+**Lauką modelyje.** `contacts/models.py` → `makemigrations` → forma
+`contacts/forms.py` → kortelės šablonas (`templates/contacts/_detail_layout.html`).
+Jei laukas turi būti rodomas sąraše — stulpelio raktas įrašomas į
+`contacts/views.py` sąrašo `allowed_columns`/`default_columns` ir į sąrašo
+šabloną; jei filtruojamas — `contacts/filters.py`. Adminui pakanka dinaminio
+lauko (Nustatymai → Dinaminiai laukai) — modelio keisti nereikia.
+
+**Foninį darbą.** `contacts/management/commands/<vardas>.py`, idempotentiškas
+(darbas pasiimamas DB žyma, ne užraktu — komanda gali būti paleista antrą kartą).
+Į ciklą įtraukiama `compose.yaml` `crm-worker` komandoje ir, klasteriui,
+`deploy/helm/crm/values.yaml` `worker.jobs` sąraše.
+
+**Grafiką.** `contacts/charts.py` grąžina geometriją (`stacked_bars`,
+`grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`,
+`share_rows`); šablonas ją renderina inline SVG. Bibliotekų nenaudojame.
+**Koordinatės privalo būti `{% localize off %}` viduje** — lietuvių lokalė
+`68.83` išveda kaip `68,83` ir SVG sugriūva.
+
+**Stilių.** Žetonai (spalvos, tipografijos skalė, tarpai, valdiklių aukščiai) —
+`static/css/app.css :root`; ten pat tik bazinė elementų tipografija, sugrupuota
+pagal komponentą (bylos pradžioje aprašyta tvarka). Komponentų taisyklės —
+`static/css/theme.css`. Naujos reikšmės imamos iš žetonų skalės;
+`tests/test_theme.py` neleidžia įvesti naujų dydžių už jos ribų ir reikalauja, kad
+tas pats selektorius vienoje byloje būtų apibrėžtas vieną kartą. Pakeitus
+`static/css` ar `static/js` — bumpinti `?v=` `templates/base.html`.
+
+**Vertimą.** Šaltinio tekstas rašomas **lietuviškai** (`{% translate '…' %}` /
+`gettext`), anglų vertimas ranka dedamas į `locale/en/LC_MESSAGES/django.po` (JS
+eilutės — `djangojs.po`) ir perkompiliuojamas `msgfmt`. **`makemessages` šiame
+projekte neleidžiama** — ji perkelia esamus vertimus į `#~` pasenusius. Jau
+įdiegtos sąsajos formuluotes naudotojas gali persivadinti Nustatymai → Vertimai,
+nekeičiant kodo.
+
+**Dokumentaciją.** Naudotojui matomas pakeitimas → `templates/settings/documentation.html`
+tame pačiame diff'e. Funkcijų sąrašas ar priklausomybės → `README.md`. Sandara ar
+diegimas → ši byla, `docs/DEPLOYMENT.md`, `docs/KUBERNETES.md`. Naujas aplinkos
+kintamasis → `.env.example` **ir** `docs/DEPLOYMENT.md` lentelė.
+
+---
+
+## 14. Ką dar planuojama
 
 „G" skyriaus darbai (`docs/REMAINING-WORK.md`) įgyvendinti: analitika, užduočių
 priskyrimas kolegoms, el. pašto pranešimai, pasikartojantys įvykiai, `.ics`

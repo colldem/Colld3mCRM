@@ -1,7 +1,16 @@
-# CRM — likę darbai (2026-09-07)
+# CRM — darbų žurnalas (istorinis)
+
+> **Ši byla nebeaprašo dabartinės būsenos.** Ji sudaryta 2026-09-07, kai versija
+> buvo 0.5.0, ir yra išsaugota kaip įrašas apie tai, kas ir kokia tvarka buvo
+> nuspręsta bei padaryta. Skyriai A–H įgyvendinti. Vėlesni darbai (analitikos
+> apžvalga, asmeninis meniu, Kubernetes) čia neatsispindi.
+>
+> Dabartinei būsenai skaityti: `README.md` (ką programa daro),
+> `docs/ARCHITECTURE.md` (sandara ir kur ką pridėti), `docs/DEPLOYMENT.md` ir
+> `docs/KUBERNETES.md` (diegimas), Nustatymai → Dokumentacija (kasdienis darbas).
 
 Sudaryta peržiūrėjus visą pradinį reikalavimų pokalbį (ChatGPT „Sukurti vietinį
-CRM Ziurek") ir palyginus su dabartiniu kodu (versija 0.5.0, commit `b669105`
+CRM Ziurek") ir palyginus su tuometiniu kodu (versija 0.5.0, commit `b669105`
 + „skip links" pataisa).
 
 Žymėjimas: ✅ padaryta · 🟡 iš dalies · ❌ nepadaryta
