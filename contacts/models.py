@@ -143,6 +143,9 @@ class UserProfile(models.Model):
     digest_sent_on = models.DateField(null=True, blank=True)
     unsubscribe_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
     calendar_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
+    # Personal side menu: which optional entries are folded away under "Daugiau",
+    # and up to five shortcuts of the user's own. See contacts/menu.py.
+    menu_config = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def new_calendar_token(self):

@@ -385,3 +385,69 @@ class SetupAdminForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = get_user_model()
         fields = ["username", "setup_token", "password1", "password2"]
+
+
+class MenuForm(forms.Form):
+    """The user's own side menu: which optional entries stay visible, and up to
+    five shortcuts of their own."""
+
+    def __init__(self, *args, user, capabilities, **kwargs):
+        from .menu import MAX_SHORTCUTS, OPTIONAL_KEYS, _PAGES, _allowed
+
+        super().__init__(*args, **kwargs)
+        self.user = user
+        self.max_shortcuts = MAX_SHORTCUTS
+        self.available = [(key, _PAGES[key][0]) for key in OPTIONAL_KEYS if _allowed(key, capabilities)]
+        profile = getattr(user, "crm_profile", None)
+        stored = (getattr(profile, "menu_config", None) or {})
+        hidden = set(stored.get("hidden", []))
+        self.fields["visible"] = forms.MultipleChoiceField(
+            choices=self.available, required=False,
+            label=tr("Rodyti meniu juostoje"),
+            initial=[key for key, _label in self.available if key not in hidden],
+            widget=forms.CheckboxSelectMultiple,
+        )
+        self.initial_shortcuts = stored.get("shortcuts", [])[:MAX_SHORTCUTS]
+
+    def clean(self):
+        """Shortcuts arrive as parallel `shortcut_kind` / `shortcut_value` lists."""
+        from .menu import ACTIONS, MAX_SHORTCUTS, _PAGES
+
+        data = super().clean()
+        kinds = self.data.getlist("shortcut_kind")
+        values = self.data.getlist("shortcut_value")
+        shortcuts, seen = [], set()
+        for kind, value in zip(kinds, values, strict=False):
+            value = (value or "").strip()
+            if not value:
+                continue
+            if kind == "page" and value not in _PAGES:
+                continue
+            if kind == "action" and value not in ACTIONS:
+                continue
+            if kind in ("person", "company") and not value.isdigit():
+                continue
+            if kind not in ("page", "action", "person", "company"):
+                continue
+            key = (kind, value)
+            if key in seen:
+                continue
+            seen.add(key)
+            shortcuts.append({"kind": kind, "value": value})
+        if len(shortcuts) > MAX_SHORTCUTS:
+            raise forms.ValidationError(tr("Galima pasirinkti ne daugiau kaip %(count)s nuorodas.")
+                                        % {"count": MAX_SHORTCUTS})
+        data["shortcuts"] = shortcuts
+        return data
+
+    def save(self):
+        from .models import UserProfile
+
+        profile, _ = UserProfile.objects.get_or_create(user=self.user)
+        visible = set(self.cleaned_data.get("visible") or [])
+        profile.menu_config = {
+            "hidden": [key for key, _label in self.available if key not in visible],
+            "shortcuts": self.cleaned_data.get("shortcuts", []),
+        }
+        profile.save(update_fields=["menu_config", "updated_at"])
+        return profile

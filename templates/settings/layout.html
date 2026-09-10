@@ -9,6 +9,7 @@
       <span class="settings-nav-label">{% translate 'Asmeniniai' %}</span>
       <a class="{% if settings_section == 'profile' %}active{% endif %}" href="{% url 'contacts:settings' %}">{% translate 'Profilis' %}</a>
       <a class="{% if settings_section == 'my-notifications' %}active{% endif %}" href="{% url 'contacts:settings-my-notifications' %}">{% translate 'Pranešimai man' %}</a>
+      <a class="{% if settings_section == 'menu' %}active{% endif %}" href="{% url 'contacts:settings-menu' %}">{% translate 'Mano meniu' %}</a>
     </div>
 
     {% if crm_caps.can_manage_taxonomy or crm_caps.can_manage_custom_fields or is_crm_admin %}

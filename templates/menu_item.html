@@ -1,0 +1,4 @@
+{% comment %}One side-menu row. `item` comes from contacts/menu.py.{% endcomment %}
+<a class="nav-item {% if item.active %}active{% endif %}" href="{{ item.url }}"{% if item.title %} title="{{ item.title }}"{% endif %}>
+  <svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="{{ item.icon }}"/></svg><span>{{ item.label }}</span>
+</a>

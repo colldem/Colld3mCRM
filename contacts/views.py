@@ -757,6 +757,30 @@ def settings_page(request):
 
 
 @login_required
+def settings_menu(request):
+    """Each user shapes their own side menu — nothing is hidden from them, only
+    folded away under "Daugiau"."""
+    from .forms import MenuForm
+    from .menu import ACTIONS, MAX_SHORTCUTS, page_choices
+    from .permissions import CAPABILITY_KEYS, has_capability
+
+    capabilities = {key: has_capability(request.user, key) for key in CAPABILITY_KEYS}
+    form = MenuForm(request.POST or None, user=request.user, capabilities=capabilities)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, tr("Meniu išsaugotas."))
+        return redirect("contacts:settings-menu")
+    return render(request, "settings/menu.html", {
+        "form": form,
+        "settings_section": "menu",
+        "max_shortcuts": MAX_SHORTCUTS,
+        "page_choices": page_choices(capabilities),
+        "action_choices": [(key, label) for key, (label, _url) in ACTIONS.items()],
+        "current_shortcuts": form.initial_shortcuts,
+    })
+
+
+@login_required
 def settings_my_notifications(request):
     """Every user's own daily-digest email settings."""
     from .forms import MyNotificationsForm

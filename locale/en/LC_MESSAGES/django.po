@@ -3468,3 +3468,91 @@ msgstr "View"
 #: templates/reminders/menu.html
 msgid "Atidaryti kalendorių"
 msgstr "Open the calendar"
+
+#: templates/base.html
+msgid "Mano nuorodos"
+msgstr "My shortcuts"
+
+#: templates/base.html
+msgid "Daugiau"
+msgstr "More"
+
+#: templates/settings/layout.html
+msgid "Mano meniu"
+msgstr "My menu"
+
+#: contacts/views.py
+msgid "Meniu išsaugotas."
+msgstr "Menu saved."
+
+#: contacts/forms.py
+msgid "Rodyti meniu juostoje"
+msgstr "Show in the side menu"
+
+#: contacts/menu.py
+msgid "Naujas kontaktas"
+msgstr "New contact"
+
+#: contacts/menu.py
+msgid "Nauja įmonė"
+msgstr "New company"
+
+#: templates/settings/menu.html
+msgid "Puslapis"
+msgstr "Page"
+
+#: templates/settings/menu.html
+msgid "Kontaktas"
+msgstr "Contact"
+
+#: templates/settings/menu.html
+msgid "Nuorodos tipas"
+msgstr "Shortcut type"
+
+#: templates/settings/menu.html
+msgid "Nuorodos reikšmė"
+msgstr "Shortcut value"
+
+#: templates/settings/menu.html
+msgid "Puslapio raktas arba įrašo ID"
+msgstr "Page key or record ID"
+
+#: templates/settings/menu.html
+msgid "Pridėti nuorodą"
+msgstr "Add a shortcut"
+
+#: templates/settings/menu.html
+msgid "Išsaugoti meniu"
+msgstr "Save menu"
+
+#: templates/settings/menu.html
+msgid "Kokias reikšmes rašyti?"
+msgstr "What goes in the value?"
+
+#: templates/settings/menu.html
+msgid "Kontaktas / Įmonė"
+msgstr "Contact / Company"
+
+#: templates/settings/menu.html
+msgid "įrašo numeris iš jo adreso, pvz. /contacts/"
+msgstr "the record number from its address, e.g. /contacts/"
+
+#: templates/settings/menu.html
+msgid "Kaip atrodo jūsų šoninė juosta. Neparinkti punktai nedingsta — jie susiskleidžia po „Daugiau“."
+msgstr "How your side menu looks. Unticked entries do not disappear — they fold away under “More”."
+
+#: templates/settings/menu.html
+msgid "Darbastalis, Kontaktai, Įmonės ir Nustatymai rodomi visada."
+msgstr "Dashboard, Contacts, Companies and Settings are always shown."
+
+#: contacts/forms.py
+msgid "Galima pasirinkti ne daugiau kaip %(count)s nuorodas."
+msgstr "You can pick at most %(count)s shortcuts."
+
+#: templates/settings/menu.html
+msgid ""
+"Iki %(max_shortcuts)s nuorodų iškart po pagrindiniais punktais: CRM puslapis, "
+"konkretus kontaktas ar įmonė, arba veiksmas."
+msgstr ""
+"Up to %(max_shortcuts)s shortcuts right under the main entries: a CRM page, a "
+"specific contact or company, or an action."

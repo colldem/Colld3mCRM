@@ -2209,6 +2209,58 @@ class ContactViewTests(TestCase):
         reminder.refresh_from_db()
         self.assertIsNotNone(reminder.completed_at)
 
+    def test_each_user_shapes_their_own_side_menu(self):
+        """Unticked entries fold under "Daugiau" instead of disappearing, and up
+        to five shortcuts sit right after the core entries."""
+        from contacts.models import UserProfile
+
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("contacts:settings-menu"))
+        self.assertEqual(page.status_code, 200)
+
+        response = self.client.post(reverse("contacts:settings-menu"), {
+            "visible": ["calendar", "analytics"],
+            "shortcut_kind": ["page", "person", "action"],
+            "shortcut_value": ["archive", str(self.person.pk), "person-create"],
+        })
+        self.assertRedirects(response, reverse("contacts:settings-menu"))
+        config = UserProfile.objects.get(user=self.user).menu_config
+        self.assertEqual(sorted(config["hidden"]), ["archive", "duplicates", "import-export"])
+        self.assertEqual(config["shortcuts"], [
+            {"kind": "page", "value": "archive"},
+            {"kind": "person", "value": str(self.person.pk)},
+            {"kind": "action", "value": "person-create"},
+        ])
+
+        menu = self.client.get(reverse("contacts:list")).context["crm_menu"]
+        self.assertEqual([item.key for item in menu["core"]],
+                         ["home", "contacts", "companies", "calendar", "analytics"])
+        # The record shortcut carries the record's own name and link.
+        self.assertEqual([item.label for item in menu["shortcuts"]][1], str(self.person))
+        self.assertEqual(menu["shortcuts"][1].url, self.person.get_absolute_url())
+        # Nothing vanished — the unticked entries moved into the fold.
+        self.assertEqual(sorted(item.key for item in menu["more"]),
+                         ["archive", "duplicates", "import-export"])
+
+    def test_menu_shortcuts_are_capped_and_drop_targets_that_disappeared(self):
+        from contacts.models import UserProfile
+
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("contacts:settings-menu"), {
+            "visible": ["calendar"],
+            "shortcut_kind": ["page"] * 6,
+            "shortcut_value": ["archive", "calendar", "analytics", "duplicates", "import-export", "companies"],
+        })
+        self.assertContains(response, "ne daugiau kaip")
+        # A shortcut whose record is archived simply stops being rendered.
+        profile, _ = UserProfile.objects.get_or_create(user=self.user)
+        profile.menu_config = {"hidden": [], "shortcuts": [{"kind": "person", "value": str(self.person.pk)}]}
+        profile.save()
+        self.assertEqual(len(self.client.get(reverse("contacts:list")).context["crm_menu"]["shortcuts"]), 1)
+        self.person.deleted_at = timezone.now()
+        self.person.save()
+        self.assertEqual(self.client.get(reverse("contacts:list")).context["crm_menu"]["shortcuts"], [])
+
     def test_the_reminder_list_page_is_gone_and_the_bell_leads_to_the_calendar(self):
         """Reminders live in the bell, the calendar and the record cards now."""
         from django.urls import NoReverseMatch

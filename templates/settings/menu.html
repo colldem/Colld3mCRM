@@ -1,0 +1,85 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Mano meniu' %}</h2>
+  <p>{% translate 'Kaip atrodo jūsų šoninė juosta. Neparinkti punktai nedingsta — jie susiskleidžia po „Daugiau“.' %}</p></div></div>
+
+<form method="post" class="menu-form">{% csrf_token %}
+  {{ form.non_field_errors }}
+
+  <section class="menu-block">
+    <h3>{{ form.visible.label }}</h3>
+    <p class="muted">{% translate 'Darbastalis, Kontaktai, Įmonės ir Nustatymai rodomi visada.' %}</p>
+    <ul class="menu-toggles">
+      {% for choice in form.visible %}<li><label>{{ choice.tag }} <span>{{ choice.choice_label }}</span></label></li>{% endfor %}
+    </ul>
+  </section>
+
+  <section class="menu-block">
+    <h3>{% translate 'Mano nuorodos' %}</h3>
+    <p class="muted">{% blocktranslate %}Iki {{ max_shortcuts }} nuorodų iškart po pagrindiniais punktais: CRM puslapis, konkretus kontaktas ar įmonė, arba veiksmas.{% endblocktranslate %}</p>
+    <ol class="shortcut-rows" data-shortcuts data-max="{{ max_shortcuts }}">
+      {% for entry in current_shortcuts %}
+        <li class="shortcut-row">
+          <select name="shortcut_kind" aria-label="{% translate 'Nuorodos tipas' %}">
+            <option value="page" {% if entry.kind == 'page' %}selected{% endif %}>{% translate 'Puslapis' %}</option>
+            <option value="person" {% if entry.kind == 'person' %}selected{% endif %}>{% translate 'Kontaktas' %}</option>
+            <option value="company" {% if entry.kind == 'company' %}selected{% endif %}>{% translate 'Įmonė' %}</option>
+            <option value="action" {% if entry.kind == 'action' %}selected{% endif %}>{% translate 'Veiksmas' %}</option>
+          </select>
+          <input name="shortcut_value" value="{{ entry.value }}" aria-label="{% translate 'Nuorodos reikšmė' %}"
+                 placeholder="{% translate 'Puslapio raktas arba įrašo ID' %}" list="menu-page-keys">
+          <button type="button" class="btn" data-remove-shortcut aria-label="{% translate 'Pašalinti' %}">×</button>
+        </li>
+      {% endfor %}
+    </ol>
+    <template id="shortcut-template"><li class="shortcut-row">
+      <select name="shortcut_kind" aria-label="{% translate 'Nuorodos tipas' %}">
+        <option value="page">{% translate 'Puslapis' %}</option>
+        <option value="person">{% translate 'Kontaktas' %}</option>
+        <option value="company">{% translate 'Įmonė' %}</option>
+        <option value="action">{% translate 'Veiksmas' %}</option>
+      </select>
+      <input name="shortcut_value" aria-label="{% translate 'Nuorodos reikšmė' %}"
+             placeholder="{% translate 'Puslapio raktas arba įrašo ID' %}" list="menu-page-keys">
+      <button type="button" class="btn" data-remove-shortcut aria-label="{% translate 'Pašalinti' %}">×</button>
+    </li></template>
+    <button type="button" class="btn" data-add-shortcut>＋ {% translate 'Pridėti nuorodą' %}</button>
+    <datalist id="menu-page-keys">
+      {% for key, label in page_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+      {% for key, label in action_choices %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+    </datalist>
+    <details class="menu-help">
+      <summary>{% translate 'Kokias reikšmes rašyti?' %}</summary>
+      <ul>
+        <li><b>{% translate 'Puslapis' %}</b> — {% for key, label in page_choices %}<code>{{ key }}</code> ({{ label }}){% if not forloop.last %}, {% endif %}{% endfor %}</li>
+        <li><b>{% translate 'Veiksmas' %}</b> — {% for key, label in action_choices %}<code>{{ key }}</code> ({{ label }}){% if not forloop.last %}, {% endif %}{% endfor %}</li>
+        <li><b>{% translate 'Kontaktas / Įmonė' %}</b> — {% translate 'įrašo numeris iš jo adreso, pvz. /contacts/' %}<b>19</b>/ → <code>19</code></li>
+      </ul>
+    </details>
+  </section>
+
+  <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti meniu' %}</button></div>
+</form>
+
+<script>
+(() => {
+  const list = document.querySelector('[data-shortcuts]');
+  if (!list) return;
+  const max = Number(list.dataset.max || 5);
+  const add = document.querySelector('[data-add-shortcut]');
+  const sync = () => { add.disabled = list.children.length >= max; };
+  add.addEventListener('click', () => {
+    if (list.children.length >= max) return;
+    const template = document.getElementById('shortcut-template');
+    list.append(template.content.cloneNode(true));
+    sync();
+  });
+  list.addEventListener('click', event => {
+    if (!event.target.closest('[data-remove-shortcut]')) return;
+    event.target.closest('.shortcut-row').remove();
+    sync();
+  });
+  sync();
+})();
+</script>
+{% endblock %}

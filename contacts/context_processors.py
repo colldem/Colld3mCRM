@@ -47,3 +47,12 @@ def crm_permissions(request):
         "is_crm_admin": is_admin(request.user),
         "crm_caps": {key: has_capability(request.user, key) for key in CAPABILITY_KEYS},
     }
+
+
+def crm_menu(request):
+    """The per-user side menu (contacts/menu.py)."""
+    if not request.user.is_authenticated:
+        return {"crm_menu": None}
+    from .menu import build
+
+    return {"crm_menu": build(request)}

@@ -58,6 +58,7 @@ TEMPLATES = [{
         "contacts.context_processors.user_profile",
         "contacts.context_processors.crm_permissions",
         "contacts.context_processors.system_settings",
+        "contacts.context_processors.crm_menu",
     ]},
 }]
 WSGI_APPLICATION = "config.wsgi.application"
