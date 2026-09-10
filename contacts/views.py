@@ -20,6 +20,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.views.decorators.http import require_POST
 
 from .forms import ActivityForm, CompanyForm, DuplicateSettingsForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
 from .duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
@@ -1852,33 +1853,7 @@ def reminder_complete(request, pk):
             from .webhooks import emit
             reminder.completed_at = now
             emit("reminder.completed", reminder)
-    return redirect(reminder.record or reverse("contacts:reminder-list"))
-
-
-@login_required
-def reminder_new(request):
-    """A reminder that is not tied to a record.
-
-    The reminders page has to be able to create one — until now they could only
-    be born on a contact card or in the calendar.
-    """
-    form = ReminderForm(request.POST or None, user=request.user)
-    if request.method == "POST" and form.is_valid():
-        reminder = form.save(commit=False)
-        reminder.created_by = request.user
-        reminder.assigned_to = reminder.assigned_to or request.user
-        reminder.save()
-        if reminder.is_recurring:
-            from .recurrence import extend
-            extend(reminder)
-        if reminder.assigned_to_id != request.user.pk:
-            _maybe_email_assignment(reminder, request.user)
-        audit_log(AuditLog.CREATE, request=request, target_type="reminder",
-                  target_label=reminder.text[:80], field=str(tr("Priminimas")),
-                  new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
-        messages.success(request, tr("Priminimas sukurtas."))
-        return redirect("contacts:reminder-list")
-    return render(request, "reminders/form.html", {"form": form, "creating": True})
+    return redirect(reminder.record or reverse("contacts:calendar"))
 
 
 @login_required
@@ -1919,7 +1894,7 @@ def reminder_edit(request, pk):
                 reminder.recurrence_children.filter(
                     due_at__gt=timezone.now(), completed_at__isnull=True, deleted_at__isnull=True).delete()
         messages.success(request, tr("Priminimas atnaujintas."))
-        return redirect("contacts:reminder-list")
+        return redirect("contacts:calendar")
     return render(request, "reminders/form.html", {"form": form, "reminder": reminder})
 
 
@@ -1938,10 +1913,7 @@ def reminder_delete(request, pk):
         audit_log(AuditLog.DELETE, request=request, target=reminder.record, field=str(tr("Priminimas")),
                   old=reminder.text[:150])
         messages.success(request, tr("Priminimas pašalintas."))
-    return redirect("contacts:reminder-list")
-
-
-REMINDER_SCOPES = ("assigned", "created", "all")
+    return redirect("contacts:calendar")
 
 
 def _maybe_email_assignment(reminder, assigned_by):
@@ -1956,30 +1928,15 @@ def _maybe_email_assignment(reminder, assigned_by):
 
 
 @login_required
-def reminder_list(request):
+@require_POST
+def reminder_mark_read(request):
+    """Opening the bell is what clears its badge now that there is no list page."""
     from .reminder_queries import mine_q, pending_reminders
-    now = timezone.now()
-    scope = request.GET.get("scope", "assigned")
-    if scope not in REMINDER_SCOPES:
-        scope = "assigned"
-    base = pending_reminders(request.user)
-    if scope == "assigned":
-        base = base.filter(mine_q(request.user))
-    elif scope == "created":
-        base = base.filter(created_by=request.user)
-    active = base.filter(due_at__lte=now)
-    scheduled = base.filter(due_at__gt=now)
-    # Opening the list clears the "unread" badge, but only for a genuine same-site
-    # visit — a cross-site link or <img> must not silently reset it.
-    if request.headers.get("Sec-Fetch-Site", "same-origin") in ("same-origin", "same-site", "none"):
-        base.filter(read_at__isnull=True).update(read_at=now)
-    return render(request, "reminders/list.html", {
-        "active_reminders": active, "scheduled_reminders": scheduled, "reminder_scope": scope,
-        "reminder_sections": [
-            ("active", active, tr("Aktyvių priminimų nėra.")),
-            ("scheduled", scheduled, tr("Suplanuotų priminimų nėra.")),
-        ],
-    })
+
+    pending_reminders(request.user).filter(
+        mine_q(request.user), read_at__isnull=True,
+    ).update(read_at=timezone.now())
+    return JsonResponse({"ok": True})
 
 
 @login_required

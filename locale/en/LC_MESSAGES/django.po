@@ -112,9 +112,6 @@ msgstr "No active reminders."
 msgid "Suplanuotų priminimų nėra."
 msgstr "No scheduled reminders."
 
-msgid "Peržiūrėti visus priminimus"
-msgstr "View all reminders"
-
 msgid "Pridėti priminimą"
 msgstr "Add reminder"
 
@@ -126,9 +123,6 @@ msgstr "Reminder"
 
 msgid "Data ir laikas"
 msgstr "Date and time"
-
-msgid "Artimiausi priminimai rodomi pirmiausia."
-msgstr "Reminders are sorted by earliest date."
 
 msgid "Kontaktiniai duomenys"
 msgstr "Contact details"
@@ -400,9 +394,6 @@ msgstr "Previous"
 
 msgid "Kitas"
 msgstr "Next"
-
-msgid "Priminimai - CRM"
-msgstr "Reminders - CRM"
 
 msgid "Redaguoti priminimą - CRM"
 msgstr "Edit reminder - CRM"
@@ -2158,15 +2149,6 @@ msgstr "Normal"
 msgid "Aukštas"
 msgstr "High"
 
-msgid "Man priskirtos"
-msgstr "Assigned to me"
-
-msgid "Mano sukurtos"
-msgstr "Created by me"
-
-msgid "Visos matomos"
-msgstr "All visible"
-
 msgid "priskirta:"
 msgstr "assigned to:"
 
@@ -3479,22 +3461,10 @@ msgstr "Active"
 msgid "Rodyti"
 msgstr "Show"
 
-#: templates/reminders/list.html
-msgid "Be įrašo"
-msgstr "No record"
-
-#: templates/reminders/form.html
-msgid "Naujas priminimas - CRM"
-msgstr "New reminder - CRM"
-
-#: templates/reminders/form.html
-msgid "/ Naujas"
-msgstr "/ New"
-
-#: contacts/views.py
-msgid "Priminimas sukurtas."
-msgstr "Reminder created."
-
 #: templates/calendar/page.html
 msgid "Rodinys"
 msgstr "View"
+
+#: templates/reminders/menu.html
+msgid "Atidaryti kalendorių"
+msgstr "Open the calendar"

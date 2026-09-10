@@ -32,7 +32,7 @@
     <b class="kpi-number">{{ kpis.activity_total }}</b>
     <span class="kpi-foot">{% include "analytics/_sparkline.html" with spark=kpis.spark_activity %}</span>
   </a>
-  <a class="kpi-card tone-overdue{% if kpis.overdue_total %} is-warn{% endif %}" href="{% url 'contacts:reminder-list' %}">
+  <a class="kpi-card tone-overdue{% if kpis.overdue_total %} is-warn{% endif %}" href="{% url 'contacts:calendar' %}">
     <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
     <span class="kpi-label">{% translate 'Vėluojantys priminimai' %}</span>
     <b class="kpi-number">{{ kpis.overdue_total }}</b>

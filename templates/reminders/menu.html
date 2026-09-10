@@ -9,4 +9,4 @@
 <div id="bell-scheduled" role="tabpanel" aria-labelledby="bell-scheduled-tab" class="bell-panel" hidden>
   {% for reminder in scheduled_reminders_menu %}<a class="reminder-menu-item" href="{% url 'contacts:reminder-edit' reminder.pk %}">{{ reminder.text }}<small>{{ reminder.due_at|date:datetime_format }}{% if reminder.record %} - {{ reminder.record }}{% endif %}</small></a>{% empty %}<p>{% translate 'Suplanuotų priminimų nėra.' %}</p>{% endfor %}
 </div>
-<a href="{% url 'contacts:reminder-list' %}">{% translate 'Peržiūrėti visus priminimus' %}</a>
+<a href="{% url 'contacts:calendar' %}">{% translate 'Atidaryti kalendorių' %}</a>

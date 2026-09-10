@@ -39,7 +39,9 @@ lives inside the app: **Settings → Documentation**.
   section, each linking through to the full page — all charted as inline SVG
   with no external libraries.
 - **Calendar.** Day, week and month views, recurring reminders, and an `.ics`
-  subscription URL for Google, Outlook or Apple Calendar.
+  subscription URL for Google, Outlook or Apple Calendar. Reminders are created
+  and browsed here, in the header bell, and on the record cards — there is no
+  separate reminders page.
 - **Tasks.** Assign work to a colleague with a priority and a due date.
 - **Email.** A daily digest each user controls themselves (time, weekends on or
   off), a pre-event reminder set per reminder, and a newly-assigned-task notice.

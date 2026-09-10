@@ -1,6 +1,6 @@
-{% extends "base.html" %}{% load i18n %}{% block title %}{% if creating %}{% translate 'Naujas priminimas - CRM' %}{% else %}{% translate 'Redaguoti priminimą - CRM' %}{% endif %}{% endblock %}{% block content %}
-<p class="breadcrumb"><a href="{% url 'contacts:reminder-list' %}">{% translate 'Priminimai' %}</a> {% if creating %}{% translate '/ Naujas' %}{% else %}{% translate '/ Redaguoti' %}{% endif %}</p>
-<div class="page-head"><h1>{% if creating %}{% translate 'Naujas priminimas' %}{% else %}{% translate 'Redaguoti priminimą' %}{% endif %}</h1></div>
+{% extends "base.html" %}{% load i18n %}{% block title %}{% translate 'Redaguoti priminimą - CRM' %}{% endblock %}{% block content %}
+<p class="breadcrumb"><a href="{% url 'contacts:calendar' %}">{% translate 'Kalendorius' %}</a> {% translate '/ Redaguoti' %}</p>
+<div class="page-head"><h1>{% translate 'Redaguoti priminimą' %}</h1></div>
 <form method="post" class="data-form">{% csrf_token %}
   {{ form.non_field_errors }}
   <p><label for="{{ form.text.id_for_label }}">{{ form.text.label }}</label>{{ form.text }}{{ form.text.errors }}</p>
@@ -17,6 +17,6 @@
     {% if reminder.is_recurring %}<p class="recurrence-apply"><label>{{ form.apply_future }} {{ form.apply_future.label }}</label></p>{% endif %}
   </fieldset>
   {% else %}<p class="muted">{% translate 'Redaguojate vieną pasikartojančios serijos įvykį.' %}</p>{% endif %}
-  <div class="form-actions"><button class="btn primary">{% translate 'Išsaugoti' %}</button><a class="btn" href="{% url 'contacts:reminder-list' %}">{% translate 'Atšaukti' %}</a></div>
+  <div class="form-actions"><button class="btn primary">{% translate 'Išsaugoti' %}</button><a class="btn" href="{% url 'contacts:calendar' %}">{% translate 'Atšaukti' %}</a></div>
 </form>
 {% endblock %}

@@ -71,7 +71,17 @@ document.querySelectorAll('.bell-tabs').forEach(tabs => {
     clearTimeout(timer); if (!document.hidden) refresh();
   });
   window.addEventListener('online', refresh);
-  menu.addEventListener('toggle', () => { if (menu.open) refresh(); });
+  // Opening the bell is what marks reminders read now that there is no list page.
+  menu.addEventListener('toggle', async () => {
+    if (!menu.open) return;
+    const url = menu.dataset.readUrl;
+    if (url) {
+      try {
+        await fetch(url, {method: 'POST', headers: {'X-CSRFToken': menu.dataset.csrf || ''}});
+      } catch (_) { /* the badge simply clears on the next visit */ }
+    }
+    refresh();
+  });
   window.addEventListener('pagehide', () => clearTimeout(timer));
   window.addEventListener('pageshow', refresh);
   timer = setTimeout(refresh, delay);

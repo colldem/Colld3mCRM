@@ -566,16 +566,6 @@ class ReminderAssignmentTests(TestCase):
              "created_by": self.user, "assigned_to": self.user}
         return Reminder.objects.create(**{**d, **kw})
 
-    def test_list_scopes_split_assigned_created_and_all(self):
-        self._reminder(text="Man")
-        self._reminder(text="Kolegai", assigned_to=self.mate)
-        self._reminder(text="Svetimas", created_by=self.mate, assigned_to=self.mate)
-        texts = lambda scope: {r.text for r in self.client.get(
-            reverse("contacts:reminder-list"), {"scope": scope}).context["scheduled_reminders"]}
-        self.assertEqual(texts("assigned"), {"Man"})
-        self.assertEqual(texts("created"), {"Man", "Kolegai"})
-        self.assertEqual(texts("all"), {"Man", "Kolegai", "Svetimas"})
-
     def test_a_handed_over_task_rings_the_recipients_bell_until_they_open_it(self):
         task = self._reminder(text="Perduota", assigned_to=self.user, created_by=self.mate)
         # It counts for the recipient even though it is two days out.
@@ -583,8 +573,8 @@ class ReminderAssignmentTests(TestCase):
         page = self.client.get(reverse("contacts:list"))
         self.assertEqual(page.context["active_reminder_count"], 1)
         self.assertIn(task, list(page.context["active_reminders_menu"]))
-        # Opening the reminder list marks it read and clears the bell.
-        self.client.get(reverse("contacts:reminder-list"), HTTP_SEC_FETCH_SITE="same-origin")
+        # Opening the bell marks it read and clears the badge.
+        self.client.post(reverse("contacts:reminder-mark-read"))
         self.assertEqual(self.client.get(reverse("contacts:list")).context["active_reminder_count"], 0)
 
     def test_reassigning_via_the_edit_form_resets_read_and_is_scoped_to_visible_users(self):
@@ -630,7 +620,7 @@ class ContactViewTests(TestCase):
     def test_english_pages_and_live_reminder_catalog(self):
         self.client.force_login(self.user)
         self.client.post(reverse('set_language'), {'language': 'en', 'next': '/contacts/'})
-        for route in ['contacts:list', 'contacts:company-list', 'contacts:reminder-list', 'contacts:settings', 'contacts:archive-list', 'contacts:import-export']:
+        for route in ['contacts:list', 'contacts:company-list', 'contacts:settings', 'contacts:archive-list', 'contacts:import-export']:
             response = self.client.get(reverse(route))
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, 'lang="en"')
@@ -725,7 +715,7 @@ class ContactViewTests(TestCase):
         self.assertEqual(self.client.get(reverse('contacts:list')).context['active_reminder_count'], 0)
         Reminder.objects.filter(pk=reminder.pk).update(due_at=timezone.now()-timedelta(minutes=1))
         self.assertEqual(self.client.get(reverse('contacts:list')).context['active_reminder_count'], 1)
-        self.client.get(reverse('contacts:reminder-list'))
+        self.client.post(reverse('contacts:reminder-mark-read'))
         self.assertEqual(self.client.get(reverse('contacts:list')).context['active_reminder_count'], 0)
 
     def test_reminder_menu_tabs_order_and_archived_people(self):
@@ -740,10 +730,10 @@ class ContactViewTests(TestCase):
         self.assertContains(response, 'id="bell-scheduled"')
         self.person.deleted_at = now
         self.person.save()
-        response = self.client.get(reverse('contacts:reminder-list'))
+        response = self.client.get(reverse('contacts:list'))
         self.assertEqual(response.context['active_reminder_count'], 0)
-        self.assertFalse(response.context['active_reminders'].exists())
-        self.assertFalse(response.context['scheduled_reminders'].exists())
+        self.assertFalse(response.context['active_reminders_menu'].exists())
+        self.assertFalse(response.context['scheduled_reminders_menu'].exists())
 
     def test_company_fields_edit_in_place_and_retry_is_noop(self):
         self.client.force_login(self.user)
@@ -790,7 +780,7 @@ class ContactViewTests(TestCase):
         reminder = Reminder.objects.create(person=self.person, text="Suplanuota",
             due_at=timezone.now() + timedelta(days=2), created_by=self.user)
         url = reverse("contacts:reminder-edit", args=[reminder.pk])
-        self.assertContains(self.client.get(reverse("contacts:reminder-list")), f'href="{url}"')
+        self.assertIn(url, self.client.get(reverse("contacts:reminder-snapshot")).json()["html"])
         date = timezone.localtime(timezone.now() + timedelta(days=3)).replace(second=0, microsecond=0)
         self.assertEqual(self.client.post(url, {"text": "Atnaujinta", "due_at": date.strftime("%Y-%m-%dT%H:%M")}).status_code, 302)
         reminder.refresh_from_db()
@@ -2219,38 +2209,36 @@ class ContactViewTests(TestCase):
         reminder.refresh_from_db()
         self.assertIsNotNone(reminder.completed_at)
 
-    def test_reminder_center_marks_active_reminders_read_and_lists_scheduled(self):
+    def test_the_reminder_list_page_is_gone_and_the_bell_leads_to_the_calendar(self):
+        """Reminders live in the bell, the calendar and the record cards now."""
+        from django.urls import NoReverseMatch
+
+        self.client.force_login(self.user)
+        with self.assertRaises(NoReverseMatch):
+            reverse("contacts:reminder-list")
+        self.assertEqual(self.client.get("/reminders/").status_code, 404)
+        page = self.client.get(reverse("contacts:list"))
+        self.assertNotContains(page, ">Priminimai</a>")
+        # The bell still opens them, and its footer now points at the calendar.
+        self.assertContains(page, 'id="reminders"')
+        self.assertContains(page, reverse("contacts:reminder-mark-read"))
+        self.assertIn(reverse("contacts:calendar"),
+                      self.client.get(reverse("contacts:reminder-snapshot")).json()["html"])
+
+    def test_the_bell_lists_both_tabs_and_opening_it_marks_them_read(self):
         self.client.force_login(self.user)
         active = Reminder.objects.create(person=self.person, text="Dabar", due_at=timezone.now() - timedelta(minutes=1), created_by=self.user)
         Reminder.objects.create(person=self.person, text="Rytoj", due_at=timezone.now() + timedelta(days=1), created_by=self.user)
-        response = self.client.get(reverse("contacts:reminder-list"))
-        self.assertContains(response, "Dabar")
-        self.assertContains(response, "Rytoj")
+        snapshot = self.client.get(reverse("contacts:reminder-snapshot")).json()
+        self.assertIn("Dabar", snapshot["html"])
+        self.assertIn("Rytoj", snapshot["html"])
+        self.assertEqual(snapshot["count"], 1)
+        # Reading the bell must not clear it; only opening it does.
+        active.refresh_from_db()
+        self.assertIsNone(active.read_at)
+        self.assertEqual(self.client.post(reverse("contacts:reminder-mark-read")).status_code, 200)
         active.refresh_from_db()
         self.assertIsNotNone(active.read_at)
-
-    def test_reminders_page_can_create_a_reminder_of_its_own(self):
-        """Until now a reminder could only be born on a card or in the calendar,
-        so the page devoted to reminders could not make one."""
-        self.client.force_login(self.user)
-        listing = self.client.get(reverse("contacts:reminder-list"))
-        self.assertContains(listing, reverse("contacts:reminder-new"))
-        # One control row: status tabs plus a single "show" select, not two rows of chips.
-        self.assertContains(listing, 'class="reminder-bar"')
-        self.assertContains(listing, 'id="reminder-scope"')
-
-        self.assertEqual(self.client.get(reverse("contacts:reminder-new")).status_code, 200)
-        due = timezone.now() + timedelta(days=2)
-        response = self.client.post(reverse("contacts:reminder-new"), {
-            "text": "Atskiras priminimas", "due_at": due.strftime("%Y-%m-%dT%H:%M"),
-            "priority": "", "recurrence_interval": 1,
-        })
-        self.assertRedirects(response, reverse("contacts:reminder-list"))
-        created = Reminder.objects.get(text="Atskiras priminimas")
-        self.assertIsNone(created.person)
-        self.assertIsNone(created.company)
-        self.assertEqual(created.created_by, self.user)
-        self.assertEqual(created.assigned_to, self.user)
 
     def test_csv_import_is_repeatable_and_export_is_utf8(self):
         self.client.force_login(self.user)
@@ -3289,13 +3277,15 @@ class SecurityHardeningTests(TestCase):
         self.assertIn("'=HYPERLINK(1)", body)
         self.assertNotIn("\n=HYPERLINK(1)", body)
 
-    def test_reminder_list_does_not_clear_unread_on_a_cross_site_get(self):
+    def test_only_a_post_can_clear_the_reminder_badge(self):
+        """Marking read used to ride on a GET, guarded by Sec-Fetch-Site. It is a
+        POST now, so Django's CSRF protection does that job instead."""
         self.client.force_login(self.member)
         Reminder.objects.create(person=self.person, text="Priminimas", created_by=self.member, assigned_to=self.member,
                                 due_at=timezone.now() - timedelta(hours=1))
-        self.client.get(reverse("contacts:reminder-list"), HTTP_SEC_FETCH_SITE="cross-site")
+        self.assertEqual(self.client.get(reverse("contacts:reminder-mark-read")).status_code, 405)
         self.assertTrue(Reminder.objects.filter(read_at__isnull=True).exists())
-        self.client.get(reverse("contacts:reminder-list"), HTTP_SEC_FETCH_SITE="same-origin")
+        self.client.post(reverse("contacts:reminder-mark-read"))
         self.assertFalse(Reminder.objects.filter(read_at__isnull=True).exists())
 
     def test_duplicate_check_does_not_surface_records_the_viewer_cannot_see(self):

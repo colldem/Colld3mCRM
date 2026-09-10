@@ -45,7 +45,7 @@ class ThemeTests(TestCase):
             self.assertContains(response, f'data-color-class="{original}"')
 
     def test_theme_on_other_screens(self):
-        for route in ["contacts:settings", "contacts:import-export", "contacts:archive-list", "contacts:reminder-list", "contacts:create"]:
+        for route in ["contacts:settings", "contacts:import-export", "contacts:archive-list", "contacts:calendar", "contacts:create"]:
             response = self.client.get(reverse(route))
             self.assertContains(response, "vendor/adminlte/adminlte.min.css")
             self.assertContains(response, "css/theme.css")

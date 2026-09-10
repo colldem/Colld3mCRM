@@ -71,7 +71,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);
   `notifications.py` + `management/commands/send_notifications.py` — el. pašto pranešimai;
   `recurrence.py` + `management/commands/extend_recurrences.py` — pasikartojantys priminimai;
-  `ical.py` — .ics kalendoriaus srautas; `sanitizers.py` — `safe_url` / `csv_safe`;
+  `ical.py` — .ics kalendoriaus srautas; atskiro priminimų sąrašo puslapio nėra —
+  priminimai gyvena varpelyje (`reminder_live.py`), kalendoriuje ir kortelėse;
+  varpelio atidarymas žymi juos skaitytais (`reminder_mark_read`); `sanitizers.py` — `safe_url` / `csv_safe`;
   `mailfetch.py` + `management/commands/fetch_mail.py` — IMAP gautų laiškų prisegimas;
   `oidc.py` — Microsoft Entra ID (OIDC) prisijungimo backend'as ir view'ai;
   `integrations.py` — efektyvi SMTP/IMAP/OIDC konfigūracija (DB + `.env` fallback);
