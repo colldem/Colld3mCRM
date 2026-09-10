@@ -949,9 +949,9 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "Eksportuoti kontaktus")
         self.assertContains(response, "Eksportuoti įmones")
         response = self.client.get(self.person.get_absolute_url())
-        self.assertContains(response, 'class="record-detail-actions"')
+        self.assertContains(response, 'class="rec-actions"')
         response = self.client.get(self.company.get_absolute_url())
-        self.assertContains(response, 'class="record-detail-actions"')
+        self.assertContains(response, 'class="rec-actions"')
         response = self.client.get(reverse("contacts:person-create"))
         self.assertContains(response, 'class="form-actions"')
         self.assertContains(response, "js/forms.js")
@@ -1400,7 +1400,7 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "Paskutinis kontaktas")
         self.assertContains(response, "Sekantis kontaktas")
         self.assertContains(response, "Perskambinti")
-        self.assertContains(response, "record-detail-warn")
+        self.assertContains(response, "rec-warn")
         self.assertEqual(response.context["overdue_reminder_count"], 1)
 
     def test_company_detail_summary_uses_linked_contact_activity_and_reminders(self):
@@ -1415,7 +1415,7 @@ class ContactViewTests(TestCase):
         other = Person.objects.create(first_name="Tuščias", last_name="Kontaktas")
         self.client.force_login(self.user)
         response = self.client.get(reverse("contacts:detail", args=[other.pk]))
-        self.assertNotContains(response, "record-detail-warn")
+        self.assertNotContains(response, "rec-warn")
 
     def test_data_export_zip_has_data_and_readme_for_staff(self):
         import io
@@ -1589,8 +1589,8 @@ class ContactViewTests(TestCase):
             "timezone": "Europe/Vilnius",
         })
 
-        self.assertContains(self.client.get(self.person.get_absolute_url()), "· Rasa Jonaitė")
-        self.assertContains(self.client.get(self.company.get_absolute_url()), "· Rasa Jonaitė")
+        self.assertContains(self.client.get(self.person.get_absolute_url()), "<b>Rasa Jonaitė</b>")
+        self.assertContains(self.client.get(self.company.get_absolute_url()), "<b>Rasa Jonaitė</b>")
 
     def test_profile_save_action_is_aligned_to_the_right(self):
         self.client.force_login(self.user)
@@ -2624,21 +2624,59 @@ class ContactViewTests(TestCase):
             page = self.client.get(url)
             self.assertContains(page, "Kontaktinė informacija")
             self.assertContains(page, "Papildomi laukai")
-            self.assertContains(page, "Papildoma informacija")
+            # Secondary context moved to the rail; audit metadata is the quiet card.
+            self.assertContains(page, 'class="rec-rail"')
+            self.assertContains(page, 'class="detail-card meta-card"')
+            self.assertContains(page, "Paskutinis kontaktas")
+            # One composer above the tabs; the tabs only filter the feed.
+            self.assertContains(page, 'id="composer"')
+            self.assertContains(page, 'data-tab="all"')
             self.assertContains(page, 'data-tab="comments"')
             self.assertContains(page, 'data-tab="reminders"')
             self.assertContains(page, 'data-tab="files"')
-            self.assertContains(page, 'data-tab="activity"')
-            self.assertNotContains(page, 'data-tab="log"')
-            self.assertNotContains(page, 'data-tab="related"')
+            self.assertNotContains(page, 'data-tab="activity"')
 
-    def test_comments_tab_shows_notes_and_activity_tab_shows_the_rest(self):
+    def test_record_header_carries_the_primary_actions_and_hides_archiving(self):
+        """Logging an entry or a reminder must not need a scroll; archiving must."""
+        self.client.force_login(self.user)
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertContains(page, "data-focus-composer")
+        self.assertContains(page, 'data-open-tab="reminders"')
+        # Archiving lives in the overflow menu, not beside the primary buttons.
+        self.assertContains(page, 'class="rec-menu-panel"')
+        head = page.content.decode().split('class="rec-menu-panel"')[0]
+        self.assertNotIn("Archyvuoti", head)
+
+    def test_feed_entry_shows_the_author_and_a_relative_time(self):
+        self.client.force_login(self.user)
+        Activity.objects.create(person=self.person, activity_type="call",
+                                text="Skambinta", created_by=self.user)
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertContains(page, 'class="feed-icon act-call"')
+        self.assertContains(page, 'class="feed-when"')
+
+    def test_short_since_uses_one_unit_from_the_crm_catalogue(self):
+        from django.utils import translation
+
+        from contacts.templatetags.crm_format import short_since
+
+        now = timezone.now()
+        self.assertEqual(short_since(None), "")
+        self.assertEqual(short_since(now - timedelta(seconds=5)), "ką tik")
+        self.assertEqual(short_since(now - timedelta(hours=2, minutes=30)), "prieš 2 val.")
+        self.assertEqual(short_since(now - timedelta(days=3, hours=4)), "prieš 3 d.")
+        # The wording is ours, not Django's, so it follows the active language.
+        with translation.override("en"):
+            self.assertEqual(short_since(now - timedelta(days=3)), "3 d ago")
+
+    def test_feed_shows_every_entry_and_the_comments_tab_only_notes(self):
         self.client.force_login(self.user)
         Activity.objects.create(person=self.person, activity_type="note", text="Vidinis komentaras", created_by=self.user)
         Activity.objects.create(person=self.person, activity_type="call", text="Skambučio įrašas", created_by=self.user)
         page = self.client.get(self.person.get_absolute_url())
+        self.assertEqual(sorted(a.text for a in page.context["all_entries"]),
+                         ["Skambučio įrašas", "Vidinis komentaras"])
         self.assertEqual([a.text for a in page.context["comment_entries"]], ["Vidinis komentaras"])
-        self.assertEqual([a.text for a in page.context["activity_entries"]], ["Skambučio įrašas"])
 
     def test_files_tab_lists_attachments_and_accepts_an_upload(self):
         from contacts.models import Attachment

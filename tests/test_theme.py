@@ -55,9 +55,14 @@ class ThemeTests(TestCase):
         response = self.client.get(reverse("contacts:settings-tags"))
         self.assertContains(response, f'class="crm-label {tag.color_class}"')
 
-    def test_crm_timeline_disables_conflicting_adminlte_line(self):
-        css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
-        self.assertIn(".timeline::before{display:none}", css)
+    def test_activity_feed_replaced_the_adminlte_timeline(self):
+        """The record page draws its own feed, so no AdminLTE `.timeline` is left
+        to fight with — and nothing may reintroduce that class by accident."""
+        app_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
+        self.assertIn(".feed-entry{display:grid", theme_css)
+        for sheet in (app_css, theme_css):
+            self.assertNotIn(".timeline", sheet)
 
     def test_native_form_controls_are_normalised_across_browsers(self):
         css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()

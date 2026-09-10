@@ -14,26 +14,36 @@
     });
   };
   tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.tab)));
+  // The one composer above the tabs writes every kind of entry.
+  const composer = document.getElementById('composer');
+  const openComposer = () => {
+    if (!composer) return;
+    composer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    composer.querySelector('textarea')?.focus({ preventScroll: true });
+  };
+  const openReminderForm = () => {
+    show('reminders');
+    const add = document.getElementById('reminder-add');
+    if (add) { add.open = true; add.querySelector('input:not([type=hidden])')?.focus({ preventScroll: true }); }
+  };
   // Deep links from the list row menu / quick actions.
   const fromHash = () => {
     const h = location.hash;
-    if (h === '#tab-comments' || h === '#composer') show('comments');
-    else if (h === '#tab-reminders' || h === '#reminder-add') {
-      show('reminders');
-      const add = document.getElementById('reminder-add');
-      if (add) add.open = true;
-    }
+    if (h === '#composer' || h === '#tab-comments') openComposer();
+    else if (h === '#reminder-add' || h === '#tab-reminders') openReminderForm();
+    else if (h.startsWith('#tab-')) show(h.slice(5));
   };
   fromHash();
   window.addEventListener('hashchange', fromHash);
   document.querySelectorAll('[data-open-tab]').forEach(el => el.addEventListener('click', event => {
     event.preventDefault();
+    if (el.dataset.openTab === 'reminders') { box.scrollIntoView({ behavior: 'smooth', block: 'start' }); openReminderForm(); return; }
     show(el.dataset.openTab);
     box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (el.dataset.openTab === 'reminders') {
-      const add = document.getElementById('reminder-add');
-      if (add) { add.open = true; add.querySelector('input:not([type=hidden])')?.focus({ preventScroll: true }); }
-    }
+  }));
+  document.querySelectorAll('[data-focus-composer]').forEach(el => el.addEventListener('click', event => {
+    event.preventDefault();
+    openComposer();
   }));
   document.querySelectorAll('.copy-link').forEach(btn => {
     const original = btn.textContent;

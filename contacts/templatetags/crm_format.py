@@ -60,3 +60,31 @@ def record_initials(record):
 def record_tone(record):
     """A stable 0-5 palette index, so a record keeps the same tile colour."""
     return sum(str(record).encode("utf-8")) % 6
+
+
+@register.filter
+def short_since(value):
+    """How long ago, in one unit — "prieš 3 d.", not "3 dienos, 4 valandos".
+
+    Activity feeds are scanned, not read: one unit is enough, and the exact
+    stamp stays in the element's title attribute. The wording goes through the
+    CRM's own catalogue (not Django's) so it stays editable in Settings →
+    Vertimai like every other string.
+    """
+    if not value:
+        return ""
+    from django.utils import timezone
+    from django.utils.translation import gettext
+
+    seconds = (timezone.now() - value).total_seconds()
+    if seconds < 60:
+        return gettext("ką tik")
+    for limit, divisor, phrase in (
+        (3600, 60, gettext("prieš %(count)s min.")),
+        (86400, 3600, gettext("prieš %(count)s val.")),
+        (2592000, 86400, gettext("prieš %(count)s d.")),
+        (31536000, 2592000, gettext("prieš %(count)s mėn.")),
+    ):
+        if seconds < limit:
+            return phrase % {"count": int(seconds // divisor)}
+    return gettext("prieš %(count)s m.") % {"count": int(seconds // 31536000)}

@@ -103,42 +103,62 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .permissions-table thead th:not(:first-child),.permissions-cell{text-align:center}
 .user-row-teams{display:block;color:var(--muted);font-weight:400;margin-top:4px}
 
-/* --- New contact/company detail card layout (compact) --- */
-.record-detail-head{margin-bottom:12px}
-.back-link{display:inline-block;margin-bottom:8px;color:var(--navy-950);font-weight:600;font-size:12px;text-decoration:none}
-.record-detail-titlebar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.record-detail-identity h1{font-size:var(--fs-lg);line-height:1.2;margin:0}
-.record-subtitle{margin:2px 0 0;color:var(--muted);font-size:13px}
-.record-detail-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.record-detail-actions .btn{min-height:32px;padding:6px 12px;font-size:13px}
-.record-detail-warn{margin:8px 0 0;color:var(--danger);font-weight:600;font-size:13px}
-.record-detail-head #field-save-status{margin:4px 0 0}
+/* --- Contact / company record page ------------------------------------
+   One wide main column for the facts you read and the feed you work in;
+   a 300px rail for secondary context. Primary actions sit in the header,
+   so logging an entry or a reminder never needs a scroll. */
+.rec-head{margin-bottom:14px}
+.back-link{display:inline-block;margin-bottom:8px;color:var(--navy-950);font-weight:600;font-size:var(--fs-xs);text-decoration:none}
+.rec-head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.rec-identity{flex:1;min-width:0}
+.rec-identity h1{font-size:var(--fs-xl);font-weight:800;line-height:1.15;margin:0}
+.rec-subtitle{display:flex;align-items:baseline;flex-wrap:wrap;gap:0 8px;margin:3px 0 0;color:var(--muted);font-size:var(--fs-sm)}
+.rec-subtitle>span+span::before{content:"·";margin-right:8px;color:#b8c4d2}
+.rec-subtitle a{color:var(--muted)}
+.rec-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rec-actions .btn{min-height:var(--control-h-sm);padding:6px 12px;font-size:var(--fs-sm)}
+.rec-head #field-save-status{margin:6px 0 0}
 
-.record-detail{display:grid;gap:12px}
-.detail-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}
-@media(max-width:1250px){.detail-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:640px){.detail-cards{grid-template-columns:1fr}}
-.detail-card{border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:14px 16px}
+/* Overflow menu — destructive actions live here, not in the primary row. */
+.rec-menu{position:relative}
+.rec-menu>summary{display:inline-flex;align-items:center;justify-content:center;min-height:var(--control-h-sm);padding:6px 12px;border:1px solid #bfc6cf;border-radius:var(--radius);background:#fff;color:var(--ink);font-size:var(--fs-md);line-height:1;cursor:pointer;list-style:none}
+.rec-menu>summary::-webkit-details-marker{display:none}
+.rec-menu-panel{position:absolute;z-index:5;right:0;top:calc(100% + 6px);display:grid;min-width:216px;padding:6px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:0 10px 24px rgba(6,43,99,.16)}
+.rec-menu-panel a,.rec-menu-panel button{padding:9px 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--ink);font:inherit;font-size:var(--fs-sm);text-align:left;text-decoration:none;cursor:pointer}
+.rec-menu-panel a:hover,.rec-menu-panel button:hover{background:var(--soft)}
+.rec-menu-panel form{display:grid;margin:0}
+.rec-menu-panel button.danger{color:var(--danger)}
+
+.rec-warn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;padding:9px 14px;border:1px solid #e8c9a0;border-radius:var(--radius);background:#fdf1e3;color:#96540f;font-size:var(--fs-sm);font-weight:600}
+.rec-warn button{padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
+
+.record-detail{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.rec-main{display:grid;gap:16px;min-width:0}
+.rec-rail{display:grid;gap:12px;align-content:start;min-width:0}
+@media(max-width:1100px){.record-detail{grid-template-columns:1fr}}
+
+.detail-card{border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:16px 18px}
 .detail-card>h2,.detail-card>summary h2{font-size:var(--fs-md);font-weight:700;margin:0 0 12px;color:var(--navy-950)}
 .detail-card h3{font-size:var(--fs-sm);font-weight:700;color:var(--navy-950);margin:16px 0 6px}
+.rec-rail .detail-card{padding:12px 14px}
+.rec-rail .detail-card>h2,.rec-rail .detail-card>summary h2{font-size:var(--fs-sm);margin-bottom:8px}
 .detail-card.collapsible>summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none}
 .detail-card.collapsible>summary::-webkit-details-marker{display:none}
 .detail-card.collapsible>summary h2{margin:0}
-.detail-card.collapsible:not([open])>summary h2{margin:0}
 .detail-card.collapsible[open]>summary{margin-bottom:12px}
 .detail-card.collapsible[open]>summary .chev{transform:rotate(180deg)}
 .detail-card.collapsible>summary .chev{transition:transform .15s;color:var(--muted)}
 .detail-card .edit-hint{display:none}
 
-/* Compact overrides for the shared inline-edit blocks inside the detail cards */
+/* Compact overrides for the shared inline-edit blocks inside the record cards */
 .record-detail .detail-field{border-bottom:0;padding:0;margin:0}
 .record-detail .field-display{padding:0}
 .record-detail .field-values>div{margin:0}
 
-/* Boxed field look — label above, value in a bordered box */
+/* Boxed field look — label above, value in a bordered box (rail cards) */
 .detail-card.boxed .field-display:not([hidden]){display:grid;gap:2px;cursor:pointer;padding:0}
 .detail-card.boxed .field-display>strong{font-size:var(--fs-xs);font-weight:500;letter-spacing:0;color:var(--muted)}
-.detail-card.boxed .field-values{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff;font-size:13px;min-height:32px;margin-top:0;overflow-wrap:anywhere}
+.detail-card.boxed .field-values{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff;font-size:var(--fs-sm);min-height:32px;margin-top:0;overflow-wrap:anywhere}
 .detail-card.boxed .field-values a{color:var(--navy-950)}
 .detail-card.boxed .field-display:hover{background:transparent;outline:0}
 .detail-card.boxed .field-display:hover .field-values{border-color:var(--navy-950)}
@@ -147,65 +167,105 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 
 .detail-fields-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px 12px}
 
-.contact-lines{min-width:0;display:grid;gap:6px}
-.contact-line{display:grid;grid-template-columns:15px minmax(0,1fr) 28px;align-items:end;gap:8px}
-.contact-line .ci-icon{width:14px;height:14px;margin-bottom:8px;fill:none;stroke:var(--muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* Contact info: one wide row per value, so an address or a long e-mail
+   never wraps mid-token the way it did in the old four-column grid. */
+.contact-lines{display:grid;min-width:0}
+.contact-line{display:grid;grid-template-columns:16px minmax(0,1fr) 26px;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}
+.contact-line:last-child{border-bottom:0}
+.contact-line .ci-icon{width:15px;height:15px;fill:none;stroke:var(--muted);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .contact-line-field{min-width:0}
-.contact-card .field-values{min-height:32px}
-.contact-line-copy{display:grid;place-items:center;width:28px;height:28px;align-self:end;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--muted);cursor:pointer}
+.contact-card .field-display:not([hidden]){display:grid;grid-template-columns:112px minmax(0,1fr);align-items:baseline;gap:12px;padding:0;cursor:pointer}
+.contact-card .field-display>strong{font-size:var(--fs-xs);font-weight:500;letter-spacing:0;color:var(--muted)}
+.contact-card .field-values{margin:0;min-height:0;font-size:var(--fs-sm);overflow-wrap:anywhere}
+.contact-card .field-values a{color:var(--ink)}
+.contact-card .field-display:hover{background:transparent;outline:0}
+.contact-card .field-display:hover .field-values{color:var(--navy-950)}
+.contact-line-copy{display:grid;place-items:center;width:26px;height:26px;padding:0;border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;color:var(--muted);cursor:pointer}
 .contact-line-copy svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .contact-line-copy:hover{background:var(--soft)}
 .contact-line-copy.copied{background:var(--soft);border-color:var(--navy-950);color:var(--navy-950)}
 
-/* Job title under the name — inline editable, no label chrome */
-.subtitle-field .detail-field{margin:0}
+/* Job title in the subtitle — inline editable, no label or border chrome */
+.subtitle-field{display:inline-block}
+/* Outside .record-detail, so the shared field border has to be cleared here too. */
+.subtitle-field .detail-field{margin:0;padding:0;border-bottom:0}
 .subtitle-field .field-display{padding:0;display:block}
 .subtitle-field .field-display:hover{background:transparent;outline:0}
 .subtitle-field .field-display>strong{display:none}
 .subtitle-field .field-values{border:0;padding:0;margin:0}
 .subtitle-field .field-values>div{margin:0}
-.subtitle-field .field-editor{margin-top:6px;font-size:13px}
-.subtitle-field .field-editor input{font-size:13px;padding:5px 8px;min-height:32px}
+.subtitle-field .field-editor{margin-top:6px;font-size:var(--fs-sm)}
+.subtitle-field .field-editor input{font-size:var(--fs-sm);padding:5px 8px;min-height:var(--control-h-sm)}
 
-.detail-tabs .tab-strip{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0 -4px 10px}
-.detail-tabs .tab{min-height:0;padding:6px 10px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
-.detail-tabs .tab.is-active{color:var(--navy-950);border-bottom-color:var(--navy-950)}
-.detail-tabs .tab-panel{display:none}
-.detail-tabs .tab-panel.is-active{display:block}
-.stack-form{display:grid;gap:8px;max-width:420px;margin-bottom:12px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}
-.stack-form label{display:grid;gap:4px;font-size:var(--fs-2xs);font-weight:600;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);margin:0}
-.stack-form input,.stack-form select,.stack-form textarea{font-size:13px;padding:6px 9px;min-height:32px;border:1px solid var(--line);border-radius:6px;background:#fff}
+/* One composer writes every kind of entry; the tabs below only filter. */
+.composer{display:grid;gap:10px;margin:0 0 18px}
+.composer textarea{width:100%;min-height:76px;padding:9px 11px;border:1px solid #cbd1d8;border-radius:var(--radius);font:inherit;font-size:var(--fs-sm);resize:vertical}
+.composer-foot{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.composer-foot .btn{min-height:var(--control-h-sm);padding:6px 14px}
+.composer-kind,.composer-file{display:flex;align-items:center;gap:6px;margin:0;font-size:var(--fs-xs);font-weight:600;color:var(--muted)}
+.composer-kind select{width:auto;min-height:var(--control-h-sm);padding:5px 30px 5px 9px;font-size:var(--fs-sm)}
+.composer-file input[type=file]{width:auto;max-width:180px;padding:0;border:0;background:transparent;font-size:var(--fs-xs)}
+
+.rec-activity .tab-strip{display:flex;gap:18px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0}
+.rec-activity .tab{min-height:0;padding:8px 0;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:inherit;font-size:var(--fs-sm);font-weight:650;cursor:pointer}
+.rec-activity .tab.is-active{color:var(--navy-950);border-bottom-color:var(--navy-950)}
+.rec-activity .tab span{display:inline-block;margin-left:3px;padding:0 6px;border-radius:var(--radius-pill);background:var(--soft);color:var(--muted);font-size:var(--fs-2xs);font-weight:700}
+.rec-activity .tab.is-active span{background:var(--selected);color:var(--navy-950)}
+.tab-panel{display:none}
+.tab-panel.is-active{display:block}
+
+/* Activity feed — scannable: type icon, author, relative time. */
+.feed{display:grid}
+.feed-month{margin:16px 0 0;font-size:var(--fs-2xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.feed-entry{display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.feed-entry:last-child{border-bottom:0}
+.feed-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:var(--radius);background:var(--soft);color:var(--navy-950)}
+.feed-icon svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.feed-icon.act-call{background:#e7f5ec;color:var(--success)}
+.feed-icon.act-email{background:var(--selected);color:var(--blue-600)}
+.feed-icon.act-meeting{background:#eef0ff;color:#4f46e5}
+.feed-icon.act-task{background:#fdf1e3;color:#b45309}
+.feed-body{min-width:0}
+.feed-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.feed-top b{font-size:var(--fs-sm);font-weight:650}
+.feed-kind{padding:1px 7px;border-radius:var(--radius-sm);background:var(--soft);color:var(--muted);font-size:var(--fs-2xs);font-weight:600}
+.feed-rec{font-size:var(--fs-xs)}
+.feed-when{margin-left:auto;color:var(--muted);font-size:var(--fs-2xs);white-space:nowrap}
+.feed-body p{margin:5px 0 0;font-size:var(--fs-sm);line-height:1.6;overflow-wrap:anywhere}
+.feed-edit{display:inline-block;margin-top:6px;color:var(--muted);font-size:var(--fs-xs)}
+.feed-edit:hover{color:var(--blue-600)}
+
+.stack-form{display:grid;gap:10px;max-width:440px;margin-bottom:12px;padding:14px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--soft)}
+.stack-form label{display:grid;gap:4px;margin:0;font-size:var(--fs-xs);font-weight:600;color:var(--ink)}
+.stack-form input,.stack-form select,.stack-form textarea{font-size:var(--fs-sm);padding:6px 9px;min-height:var(--control-h-sm);border:1px solid var(--line);border-radius:var(--radius);background:#fff}
 .stack-form textarea{min-height:60px;resize:vertical}
-.stack-form small{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)}
-.stack-form .btn{min-height:32px;padding:6px 12px}
-.timeline-entry{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
-.timeline-entry:last-child{border-bottom:0}
-.timeline-entry small{display:block;color:var(--muted);margin:1px 0 4px}
-.file-list,.related-list,.reminder-list{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}
-.file-list li,.related-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+.stack-form small{font-weight:400;color:var(--muted)}
+.stack-form .btn{min-height:var(--control-h-sm);padding:6px 12px}
+.file-list,.related-list,.reminder-list{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:var(--fs-sm)}
+.file-list li,.related-list li{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.file-list li:last-child,.related-list li:last-child{border-bottom:0}
 .file-list li small,.related-list li small{color:var(--muted)}
-.record-detail .reminder{padding:8px 0}
+.record-detail .reminder{padding:9px 0}
 .record-detail #reminder-add{margin-bottom:8px}
-.muted{color:var(--muted);font-size:13px}
+.muted{color:var(--muted);font-size:var(--fs-sm)}
 
-.aside-link{display:block;font-weight:600;font-size:13px;color:var(--navy-950);text-decoration:none}
-.aside-sub{display:block;margin-top:2px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
-.aside-meta{display:grid;grid-template-columns:1fr auto;gap:7px 12px;margin:0;font-size:var(--fs-sm)}
+/* Reference metadata — deliberately quiet, at the end of the rail. */
+.meta-card{background:var(--soft)}
+.aside-meta{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:0;font-size:var(--fs-xs)}
 .aside-meta dt{color:var(--muted)}
 .aside-meta dd{margin:0;text-align:right}
-/* "Organizacija" card: label-less inline fields for company / responsibles */
-.org-card>h3:first-of-type{margin-top:12px}
+/* Rail cards: label-less inline fields for company / responsibles */
 .org-card .related-list+h3{margin-top:12px}
 .org-card .org-field .detail-field{margin:0}
 .org-card .org-field .field-display{padding:0;cursor:pointer;display:block}
 .org-card .org-field .field-display:hover{background:transparent;outline:0}
 .org-card .org-field .field-display>strong{display:none}
-.org-card .org-field .field-values{font-size:13px;margin:0;border:0;padding:0;min-height:0}
+.org-card .org-field .field-values{font-size:var(--fs-sm);margin:0;border:0;padding:0;min-height:0}
 .org-card .org-field .field-values>div{margin:0}
 .org-card .org-field .field-values a{color:var(--navy-950);font-weight:600}
-.org-card .org-field .field-editor{margin-top:8px;font-size:13px}
+.org-card .org-field .field-editor{margin-top:8px;font-size:var(--fs-sm)}
 .org-card .org-field .field-editor .company-options,.org-card .org-field .field-editor select[multiple]{max-height:170px}
-.org-card .org-field .field-editor label{font-size:13px}
+.org-card .org-field .field-editor label{font-size:var(--fs-sm)}
 .org-card .choice-trigger{padding:2px 0}
 .org-card .related-list li{flex-direction:column;align-items:flex-start;gap:2px;border-bottom:0;padding:3px 0}
 .org-card .related-list li small{color:var(--muted)}
@@ -317,16 +377,18 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
  .page-head{margin-bottom:12px}
  th,td{padding:9px 8px;font-size:13px}
  .table-wrap table{min-width:640px}
- .record-detail{gap:10px}
- .detail-cards{gap:10px}
- .detail-card{padding:12px}
- .detail-tabs .tab{padding:6px 8px;font-size:12px}
- .stack-form{padding:10px}
+ .record-detail{gap:12px}
+ .detail-card{padding:12px 14px}
+ .rec-activity .tab{font-size:var(--fs-xs)}
+ .rec-activity .tab-strip{gap:12px}
+ .stack-form{padding:12px}
  .settings-content{padding:16px}
  .page-links,.pagination{flex-wrap:wrap;gap:8px}
- .record-detail-titlebar{gap:8px}
- .record-detail-actions{width:100%}
- .record-detail-actions .btn{flex:1}
+ .rec-head-row{gap:10px}
+ .rec-identity h1{font-size:var(--fs-lg)}
+ .rec-actions{width:100%}
+ .rec-actions .btn{flex:1}
+ .contact-card .field-display:not([hidden]){grid-template-columns:1fr;gap:1px}
 }
 /* --- Calendar --- */
 .cal-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}

@@ -1099,9 +1099,6 @@ msgstr "At least 12 characters. Not too similar to your username or email, not a
 msgid "Nepridėti failai (per dideli arba netinkamo tipo): %(names)s"
 msgstr "Files not added (too large or unsupported type): %(names)s"
 
-msgid "Iki 10 MB vienam failui."
-msgstr "Up to 10 MB per file."
-
 msgid "Atšaukti pasirinkimą"
 msgstr "Clear selection"
 
@@ -1715,9 +1712,6 @@ msgstr "Additional fields"
 msgid "Organizacija"
 msgstr "Organisation"
 
-msgid "Papildoma informacija"
-msgstr "Additional information"
-
 msgid "Komentarai"
 msgstr "Comments"
 
@@ -1726,12 +1720,6 @@ msgstr "Files"
 
 msgid "Susiję įrašai"
 msgstr "Related records"
-
-msgid "Grįžti į kontaktų sąrašą"
-msgstr "Back to the contact list"
-
-msgid "Grįžti į įmonių sąrašą"
-msgstr "Back to the company list"
 
 msgid "Naujas priminimas"
 msgstr "New reminder"
@@ -1760,9 +1748,6 @@ msgstr "Copied"
 msgid "Daugiau veiksmų"
 msgstr "More actions"
 
-msgid "Įrašykite komentarą..."
-msgstr "Write a comment..."
-
 msgid "Komentarų dar nėra."
 msgstr "No comments yet."
 
@@ -1777,12 +1762,6 @@ msgstr "Colleagues"
 
 msgid "Nėra duomenų."
 msgstr "No data."
-
-msgid "Sukūrimo data"
-msgstr "Created on"
-
-msgid "Paskutinį kartą atnaujinta"
-msgstr "Last updated"
 
 msgid "Dukart spustelėkite reikšmę, kad redaguotumėte vietoje."
 msgstr "Double-click a value to edit it in place."
@@ -1800,15 +1779,6 @@ msgstr "No dynamic fields. Create them in Settings → Dynamic fields."
 
 msgid "Failas"
 msgstr "File"
-
-msgid "Pastaba (nebūtina)"
-msgstr "Note (optional)"
-
-msgid "pvz. Pasirašyta sutartis"
-msgstr "e.g. Signed contract"
-
-msgid "Įkelti"
-msgstr "Upload"
 
 msgid "Įkeltas failas"
 msgstr "Uploaded file"
@@ -2199,12 +2169,6 @@ msgstr "Normal"
 
 msgid "Aukštas"
 msgstr "High"
-
-msgid "Failai (nebūtina)"
-msgstr "Files (optional)"
-
-msgid "Veiklos įrašų dar nėra."
-msgstr "No activity yet."
 
 msgid "Man priskirtos"
 msgstr "Assigned to me"
@@ -2598,9 +2562,6 @@ msgstr "Sign in and change the settings in your profile."
 
 msgid "Kopijuoti"
 msgstr "Copy"
-
-msgid "Komentaras"
-msgstr "Comment"
 
 msgid "Nesukonfigūruota — laiškai tik rašomi į konteinerio žurnalą. Užpildykite SMTP laukus žemiau."
 msgstr "Not configured - emails are only written to the container log. Fill in the SMTP fields below."
@@ -3459,3 +3420,65 @@ msgstr "By audit-log entries"
 #: templates/analytics/layout.html
 msgid "Analitikos apžvalga"
 msgstr "Analytics overview"
+
+#: templates/contacts/_detail_layout.html
+msgid "Redaguoti visus laukus"
+msgstr "Edit all fields"
+
+#: templates/contacts/_detail_layout.html
+msgid "Naujas įrašas"
+msgstr "New entry"
+
+#: templates/contacts/_detail_layout.html
+msgid "Ką aptarėte? Įrašykite pastabą, skambutį, susitikimą…"
+msgstr "What did you discuss? Log a note, a call, a meeting…"
+
+#: templates/contacts/_detail_layout.html
+msgid "Prisegti failą"
+msgstr "Attach a file"
+
+#: templates/contacts/_detail_layout.html
+msgid "Failų nėra. Prisekite juos prie įrašo aukščiau."
+msgstr "No files yet. Attach them to an entry above."
+
+#: templates/contacts/_detail_layout.html
+msgid "Įrašo informacija"
+msgstr "Record details"
+
+#: templates/contacts/_detail_layout.html
+msgid "Sukurta"
+msgstr "Created"
+
+#: templates/contacts/_detail_layout.html
+msgid "peržiūrėti"
+msgstr "review"
+
+#: contacts/templatetags/crm_format.py
+msgid "ką tik"
+msgstr "just now"
+
+#: contacts/templatetags/crm_format.py
+msgid "prieš %(count)s min."
+msgstr "%(count)s min ago"
+
+#: contacts/templatetags/crm_format.py
+msgid "prieš %(count)s val."
+msgstr "%(count)s h ago"
+
+#: contacts/templatetags/crm_format.py
+msgid "prieš %(count)s d."
+msgstr "%(count)s d ago"
+
+#: contacts/templatetags/crm_format.py
+msgid "prieš %(count)s mėn."
+msgstr "%(count)s mo ago"
+
+#: contacts/templatetags/crm_format.py
+msgid "prieš %(count)s m."
+msgstr "%(count)s y ago"
+
+#: templates/contacts/_detail_layout.html
+msgid "%(total)s vėluojantis priminimas"
+msgid_plural "%(total)s vėluojantys priminimai"
+msgstr[0] "%(total)s overdue reminder"
+msgstr[1] "%(total)s overdue reminders"
