@@ -20,12 +20,47 @@ document.querySelectorAll('[popovertarget]').forEach(button => {
     });
   });
 });
+// The filter drawer slides in from the right, so it has to slide back out too.
+// <details> cannot transition out of display:none, so closing plays an animation
+// first and drops the `open` attribute when it finishes.
+const closeDrawer = drawer => {
+  if (!drawer || !drawer.open || drawer.classList.contains('is-closing')) return;
+  const panel = drawer.querySelector('.filter-panel');
+  if (!panel || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    drawer?.removeAttribute('open');
+    return;
+  }
+  drawer.classList.add('is-closing');
+  // A background tab never paints, so animationend may never arrive — the
+  // timeout makes sure the drawer still closes.
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    drawer.classList.remove('is-closing');
+    drawer.removeAttribute('open');
+  };
+  panel.addEventListener('animationend', finish, { once: true });
+  setTimeout(finish, 300);
+};
+document.querySelectorAll('.filter-drawer > summary').forEach(summary => {
+  summary.addEventListener('click', event => {
+    const drawer = summary.parentElement;
+    if (drawer.open) { event.preventDefault(); closeDrawer(drawer); }
+  });
+});
 document.querySelectorAll('[data-close-filter]').forEach(button => {
-  button.addEventListener('click', () => button.closest('details')?.removeAttribute('open'));
+  button.addEventListener('click', () => {
+    const drawer = button.closest('details');
+    if (drawer?.classList.contains('filter-drawer')) closeDrawer(drawer);
+    else drawer?.removeAttribute('open');
+  });
 });
 document.addEventListener('pointerdown', event => {
   document.querySelectorAll('.drawer-control[open],.sort-control[open],.filter-multiselect[open],.reminder-menu[open],.profile-menu[open]').forEach(control => {
-    if (event.target === control || !control.contains(event.target)) control.removeAttribute('open');
+    if (event.target !== control && control.contains(event.target)) return;
+    if (control.classList.contains('filter-drawer')) closeDrawer(control);
+    else control.removeAttribute('open');
   });
 });
 document.querySelectorAll('.filter-panel').forEach(form => {
@@ -74,7 +109,7 @@ document.querySelectorAll('[data-filter-multiselect]').forEach(control => {
   control.addEventListener('change', updateSelectedValues);
 });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') document.querySelectorAll('.filter-drawer[open]').forEach(drawer => drawer.removeAttribute('open'));
+  if (event.key === 'Escape') document.querySelectorAll('.filter-drawer[open]').forEach(closeDrawer);
 });
 document.querySelectorAll('.inline-choices').forEach(form => {
   form.addEventListener('change', async event => {

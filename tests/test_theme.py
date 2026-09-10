@@ -55,6 +55,22 @@ class ThemeTests(TestCase):
         response = self.client.get(reverse("contacts:settings-tags"))
         self.assertContains(response, f'class="crm-label {tag.color_class}"')
 
+    def test_filter_drawer_slides_in_and_back_out(self):
+        """A <details> cannot transition out of display:none, so closing has to
+        play an animation first and drop `open` when it ends — with a timeout in
+        case the tab never paints."""
+        theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
+        js = (settings.BASE_DIR / "static" / "js" / "list-editing.js").read_text()
+        self.assertIn("@keyframes drawer-in{", theme_css)
+        self.assertIn("@keyframes drawer-out{", theme_css)
+        self.assertIn(".filter-drawer.is-closing .filter-panel{animation:drawer-out", theme_css)
+        # Motion stays behind the reduced-motion guard.
+        self.assertIn("@media(prefers-reduced-motion:no-preference){\n .filter-drawer[open]", theme_css)
+        self.assertIn("prefers-reduced-motion: reduce", js)
+        for path in ("closeDrawer", "is-closing", "animationend", "setTimeout(finish"):
+            with self.subTest(fragment=path):
+                self.assertIn(path, js)
+
     def test_each_selector_is_defined_once_per_stylesheet(self):
         """The sheets had grown by appending overrides at the end, so .nav-item,
         .bulk-bar and .chart-legend were each declared two or three times and the
