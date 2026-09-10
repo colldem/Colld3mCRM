@@ -3,7 +3,8 @@
 body{font-family:var(--bs-body-font-family);line-height:1.5;background:#f4f6f9}
 .skip-links{display:none!important}
 .app-sidebar{background:linear-gradient(165deg,#062b63,#052454)!important;color:#fff;position:sticky;top:0;height:100vh}
-.app-sidebar .brand{height:72px;font-size:var(--fs-2xl);border-bottom:1px solid #ffffff18}
+.app-sidebar /* Left edge lines up with the nav icons below: .crm-navigation 10px + .nav-item 15px. */
+.brand{height:72px;padding:0 25px;font-size:var(--fs-2xl);border-bottom:1px solid #ffffff18}
 .app-sidebar .sidebar-wrapper{padding:0;height:calc(100vh - 72px);overflow-y:auto}
 .crm-navigation{display:flex;flex-direction:column;min-height:100%;padding:12px 10px;gap:4px}
 .crm-navigation .nav-item{flex-shrink:0;font-size:12px;line-height:20px;min-height:48px;white-space:normal}.crm-navigation .nav-icon{width:20px;height:20px;flex-shrink:0;display:block}
@@ -626,7 +627,12 @@ body.has-env-banner{padding-bottom:28px}
    static/js/forms.js wraps every input[type=file] in this shell. */
 .file-field{position:relative;display:inline-flex;align-items:center;gap:10px;max-width:100%}
 .file-field input[type=file]{position:absolute;width:1px;height:1px;padding:0;border:0;opacity:0;overflow:hidden;clip:rect(0,0,0,0)}
-.file-btn{display:inline-flex;min-height:var(--control-h-sm);align-items:center;padding:6px 12px;border:1px solid #bfc6cf;border-radius:var(--radius);background:#fff;color:var(--ink);font:inherit;font-size:var(--fs-xs);font-weight:650;white-space:nowrap;cursor:pointer}
+.file-btn{display:inline-flex;min-height:var(--control-h);align-items:center;padding:8px 14px;border:1px solid #bfc6cf;border-radius:var(--radius);background:#fff;color:var(--ink);font:inherit;font-size:var(--fs-sm);font-weight:650;white-space:nowrap;cursor:pointer}
+/* The wrapper stands in for the input it hides, so it has to take the same
+   room in the layouts that sized that input. */
+.settings-form{flex-wrap:wrap}
+.settings-form .file-field{flex:1 1 220px;min-width:0}
+.composer-file .file-btn{min-height:var(--control-h-sm);padding:6px 12px;font-size:var(--fs-xs)}
 .file-btn:hover{border-color:var(--navy-950);background:var(--soft)}
 .file-field:focus-within .file-btn{outline:2px solid var(--blue-600);outline-offset:1px}
 .file-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:var(--fs-xs)}
