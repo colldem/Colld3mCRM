@@ -305,3 +305,68 @@ class DeploymentReadinessTests(TestCase):
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 200)
                 self.assertIn(expected, response.content.decode())
+
+
+class HelmChartTests(TestCase):
+    """The chart is what makes several replicas safe; these are the parts that
+    must not quietly regress. CI additionally runs `helm lint` and `helm template`."""
+
+    @property
+    def chart(self):
+        return settings.BASE_DIR / "deploy" / "helm" / "crm"
+
+    def test_chart_ships_every_object_the_deployment_needs(self):
+        for name in ("Chart.yaml", "values.yaml", "templates/_helpers.tpl",
+                     "templates/deployment.yaml", "templates/service.yaml",
+                     "templates/ingress.yaml", "templates/configmap.yaml",
+                     "templates/secret.yaml", "templates/job-migrate.yaml",
+                     "templates/cronjobs.yaml", "templates/NOTES.txt"):
+            with self.subTest(file=name):
+                self.assertTrue((self.chart / name).exists(), f"{name} is missing")
+
+    def test_chart_version_follows_the_release(self):
+        version = (settings.BASE_DIR / "VERSION").read_text().strip()
+        chart = (self.chart / "Chart.yaml").read_text()
+        self.assertIn(f'appVersion: "{version}"', chart)
+
+    def test_web_pods_never_migrate_and_never_collect(self):
+        """Several replicas booting together would race each other."""
+        helpers = (self.chart / "templates" / "_helpers.tpl").read_text()
+        self.assertIn('- name: CRM_RUN_MIGRATIONS\n  value: "0"', helpers)
+        self.assertIn('- name: CRM_COLLECTSTATIC\n  value: "0"', helpers)
+
+    def test_migrations_run_once_per_release_before_the_new_pods(self):
+        job = (self.chart / "templates" / "job-migrate.yaml").read_text()
+        self.assertIn("helm.sh/hook: pre-install,pre-upgrade", job)
+        self.assertIn('command: ["python", "manage.py", "migrate", "--noinput"]', job)
+
+    def test_background_commands_cannot_overlap_themselves(self):
+        values = (self.chart / "values.yaml").read_text()
+        cronjobs = (self.chart / "templates" / "cronjobs.yaml").read_text()
+        self.assertIn("concurrencyPolicy: Forbid", values)
+        self.assertIn("concurrencyPolicy: {{ $.Values.worker.concurrencyPolicy }}", cronjobs)
+        # Every command the crm-worker container used to loop through.
+        for command in ("send_notifications", "fetch_mail", "deliver_webhooks",
+                        "run_automations", "extend_recurrences"):
+            with self.subTest(command=command):
+                self.assertIn(f"command: {command}", values)
+
+    def test_probes_use_the_endpoints_the_app_actually_serves(self):
+        deployment = (self.chart / "templates" / "deployment.yaml").read_text()
+        for path in ("/health/live", "/health/ready"):
+            with self.subTest(path=path):
+                self.assertIn(path, deployment)
+                self.assertEqual(self.client.get(path).status_code, 200)
+
+    def test_the_secrets_key_survives_upgrades(self):
+        """Stored SMTP/IMAP/Entra passwords are encrypted with it; a regenerated
+        key would make every one of them unreadable."""
+        secret = (self.chart / "templates" / "secret.yaml").read_text()
+        self.assertIn("helm.sh/resource-policy: keep", secret)
+        self.assertIn("CRM_SECRETS_KEY", secret)
+
+    def test_publishing_the_image_checks_the_tag_against_version(self):
+        workflow = (settings.BASE_DIR / ".github" / "workflows" / "publish-image.yml").read_text()
+        self.assertIn("ghcr.io/${{ github.repository_owner }}/crm-web", workflow)
+        self.assertIn("Check the tag matches VERSION", workflow)
+        self.assertIn("github.repository == 'colldem/Colld3mCRM'", workflow)

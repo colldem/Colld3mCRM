@@ -1,0 +1,42 @@
+{{- if .Values.worker.enabled }}
+{{- range $name, $job := .Values.worker.jobs }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "crm.fullname" $ }}-{{ $name }}
+  labels: {{- include "crm.labels" $ | nindent 4 }}
+spec:
+  schedule: {{ $job.schedule | quote }}
+  # Forbid, because these commands claim work with database flags rather than a
+  # lock: two overlapping runs would be doing the same work twice.
+  concurrencyPolicy: {{ $.Values.worker.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ $.Values.worker.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ $.Values.worker.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels: {{- include "crm.selectorLabels" $ | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          serviceAccountName: {{ include "crm.serviceAccountName" $ }}
+          {{- with $.Values.image.pullSecrets }}
+          imagePullSecrets: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext: {{- toYaml $.Values.podSecurityContext | nindent 12 }}
+          containers:
+            - name: {{ $name }}
+              image: {{ include "crm.image" $ }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              securityContext: {{- toYaml $.Values.securityContext | nindent 16 }}
+              command: ["python", "manage.py", {{ $job.command | quote }}]
+              env: {{- include "crm.env" $ | nindent 16 }}
+              envFrom: {{- include "crm.envFrom" $ | nindent 16 }}
+              resources: {{- toYaml $.Values.resources | nindent 16 }}
+          {{- with $.Values.nodeSelector }}
+          nodeSelector: {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

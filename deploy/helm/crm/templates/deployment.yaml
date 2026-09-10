@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "crm.fullname" . }}
+  labels: {{- include "crm.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "crm.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "crm.selectorLabels" . | nindent 8 }}
+      annotations:
+        # Roll the pods when plain configuration changes, not only on a new image.
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
+    spec:
+      serviceAccountName: {{ include "crm.serviceAccountName" . }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: web
+          image: {{ include "crm.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env: {{- include "crm.env" . | nindent 12 }}
+          envFrom: {{- include "crm.envFrom" . | nindent 12 }}
+          # /health/live says the process is up; /health/ready also checks the
+          # database, so it is the one that decides whether traffic may arrive.
+          startupProbe:
+            httpGet: {path: /health/ready, port: http}
+            periodSeconds: 3
+            failureThreshold: 20
+          livenessProbe:
+            httpGet: {path: /health/live, port: http}
+            periodSeconds: 15
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet: {path: /health/ready, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity: {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -3,6 +3,9 @@
 The CRM ships as a Docker Compose project. It runs on anything that runs Docker —
 a VPS, a home server, a NAS — and needs no account with any third party.
 
+> Running it on **Kubernetes** instead? The same image, packaged as a Helm
+> chart: **[KUBERNETES.md](KUBERNETES.md)**. Nothing on this page changes.
+
 - [Quick start](#quick-start)
 - [Choosing how it is exposed](#choosing-how-it-is-exposed)
   - [A. Behind your own reverse proxy](#a-behind-your-own-reverse-proxy)
@@ -14,6 +17,7 @@ a VPS, a home server, a NAS — and needs no account with any third party.
 - [A second, isolated copy for testing](#a-second-isolated-copy-for-testing)
 - [Automated deployment](#automated-deployment)
 - [Security notes](#security-notes)
+- [Kubernetes](KUBERNETES.md)
 
 ## Quick start
 

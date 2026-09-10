@@ -1,0 +1,145 @@
+# Colld3m CRM — Helm values.
+#
+# The three things you must set before the first install are the image
+# repository, the ingress host, and the database connection. Everything else has
+# a working default. See docs/KUBERNETES.md.
+
+image:
+  repository: ghcr.io/colldem/crm-web
+  # Empty means "the chart's appVersion" — pin a digest for production if you can.
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# Uploaded files live in object storage, so the web pods are interchangeable.
+replicaCount: 2
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: crm.example.com
+  path: /
+  pathType: Prefix
+  annotations:
+    # Imports accept a 10 MB file; the default nginx body limit is 1 MB.
+    nginx.ingress.kubernetes.io/proxy-body-size: "12m"
+  tls:
+    enabled: true
+    secretName: crm-tls
+
+# An external PostgreSQL. The chart deliberately ships no database: use whatever
+# your platform already runs, and back it up the way it already backs things up.
+database:
+  host: ""
+  port: "5432"
+  name: crm
+  user: crm
+
+# Plain configuration. Anything secret belongs in `secrets` below.
+env:
+  DJANGO_DEBUG: "false"
+  DJANGO_FORCE_HTTPS: "true"
+  # Filled from ingress.host when left empty.
+  DJANGO_ALLOWED_HOSTS: ""
+  DJANGO_CSRF_TRUSTED_ORIGINS: ""
+  CRM_BASE_URL: ""
+  # Anything other than "production" forces e-mail, IMAP, Entra and webhooks off
+  # and paints a banner on every page — use it for a copy of live data.
+  CRM_ENVIRONMENT: production
+  # Files must not live on a pod's own disk once there is more than one replica.
+  CRM_MEDIA_BACKEND: s3
+  CRM_S3_BUCKET: crm-media
+  CRM_S3_ENDPOINT: ""
+  CRM_S3_REGION: ""
+  # "path" for MinIO and most self-hosted gateways, "virtual" for AWS S3.
+  CRM_S3_ADDRESSING: path
+
+# Bring your own Secret (recommended — External Secrets, Vault, sealed-secrets):
+#   existingSecret: crm-secrets
+# It must carry: DJANGO_SECRET_KEY, CRM_SECRETS_KEY, DB_PASSWORD,
+# CRM_S3_ACCESS_KEY, CRM_S3_SECRET_KEY.
+existingSecret: ""
+secrets:
+  # CRM_SECRETS_KEY must never change once integration passwords are stored:
+  # it is the key they were encrypted with.
+  djangoSecretKey: ""
+  crmSecretsKey: ""
+  databasePassword: ""
+  s3AccessKey: ""
+  s3SecretKey: ""
+  # Only needed to create the very first administrator; remove it afterwards.
+  setupToken: ""
+
+# Migrations run once per release, in a Job, never in the web pods.
+migrations:
+  enabled: true
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+
+# The background commands the crm-worker container used to loop through. Each is
+# its own CronJob so a slow run cannot delay the others; Forbid stops two runs of
+# the same command overlapping.
+worker:
+  enabled: true
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobs:
+    send-notifications:
+      command: send_notifications
+      schedule: "*/5 * * * *"
+    fetch-mail:
+      command: fetch_mail
+      schedule: "*/5 * * * *"
+    deliver-webhooks:
+      command: deliver_webhooks
+      schedule: "*/5 * * * *"
+    run-automations:
+      command: run_automations
+      schedule: "*/15 * * * *"
+    extend-recurrences:
+      command: extend_recurrences
+      schedule: "17 2 * * *"
+
+gunicorn:
+  workers: 2
+  threads: 2
+  timeout: 60
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+podAnnotations: {}
+podSecurityContext:
+  runAsNonRoot: true
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: ["ALL"]
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

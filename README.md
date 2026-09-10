@@ -15,7 +15,8 @@ docker compose up -d      # http://127.0.0.1:8080
 
 Then open `/setup/` and create the first administrator. Putting it on your own
 domain with HTTPS, or on a private network, is one line in `.env` —
-see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+see **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. For a cluster, the same image
+ships as a Helm chart: **[docs/KUBERNETES.md](docs/KUBERNETES.md)**.
 
 Current version: see [`VERSION`](VERSION). User and administrator documentation
 lives inside the app: **Settings → Documentation**.

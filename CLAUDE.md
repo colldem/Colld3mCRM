@@ -105,3 +105,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `docs/DEPLOYMENT.md` — bendrinė diegimo procedūra (bet kuris Docker hostas,
   nuosavas domenas per Caddy, Tailscale); prieš diegimą būtina DB ir
   `runtime/media` atsarginė kopija.
+- `deploy/helm/crm/` — Helm chart'as Kubernetes'ui (web Deployment, migracijų Job
+  kaip `pre-upgrade` hook, 5 CronJob'ai vietoj `crm-worker`, nginx Ingress;
+  DB ir failų saugykla — išorinės). Instrukcija: `docs/KUBERNETES.md`.
+  Atvaizdas į GHCR keliamas `publish-image.yml` uždėjus `v*` žymą.

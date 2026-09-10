@@ -50,3 +50,21 @@ jobs:
           done
           curl -fsS http://localhost:8080/health/ready
           docker rm -f crm-ci
+
+  chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v4
+      - name: Lint the chart
+        run: helm lint deploy/helm/crm --set database.host=db.example.internal --set secrets.djangoSecretKey=x --set secrets.crmSecretsKey=y
+      - name: Render the chart
+        run: |
+          helm template crm deploy/helm/crm \
+            --set database.host=db.example.internal \
+            --set secrets.djangoSecretKey=x \
+            --set secrets.crmSecretsKey=y > /tmp/rendered.yaml
+          # The web pods must never migrate, and the jobs must never overlap.
+          grep -q 'name: CRM_RUN_MIGRATIONS' /tmp/rendered.yaml
+          grep -q 'concurrencyPolicy: Forbid' /tmp/rendered.yaml
+          grep -q 'helm.sh/hook: pre-install,pre-upgrade' /tmp/rendered.yaml

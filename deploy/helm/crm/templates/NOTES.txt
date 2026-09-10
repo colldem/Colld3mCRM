@@ -1,0 +1,28 @@
+{{ .Chart.Name }} {{ .Values.image.tag | default .Chart.AppVersion }} is installed as "{{ .Release.Name }}".
+
+  URL:       https://{{ include "crm.host" . }}
+  Image:     {{ include "crm.image" . }}
+  Database:  {{ .Values.database.user }}@{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}
+  Replicas:  {{ if .Values.autoscaling.enabled }}{{ .Values.autoscaling.minReplicas }}–{{ .Values.autoscaling.maxReplicas }} (autoscaled){{ else }}{{ .Values.replicaCount }}{{ end }}
+
+Check it came up:
+
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "crm.fullname" . }}
+  kubectl -n {{ .Release.Namespace }} logs job/{{ include "crm.fullname" . }}-migrate-{{ .Release.Revision }}
+
+{{- if not .Values.existingSecret }}
+
+The chart created its own Secret ({{ include "crm.secretName" . }}) and keeps it
+across upgrades. CRM_SECRETS_KEY in it must never change: it is the key the
+stored SMTP, IMAP and Entra passwords were encrypted with.
+{{- end }}
+{{- if .Values.secrets.setupToken }}
+
+CRM_SETUP_TOKEN is set. Open https://{{ include "crm.host" . }}/setup/ to create
+the first administrator, then upgrade with secrets.setupToken="" to remove it.
+{{- end }}
+{{- if ne .Values.env.CRM_ENVIRONMENT "production" }}
+
+CRM_ENVIRONMENT is "{{ .Values.env.CRM_ENVIRONMENT }}": e-mail, IMAP, Entra and
+webhooks are forced off and every page carries a banner.
+{{- end }}

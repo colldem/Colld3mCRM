@@ -1,0 +1,12 @@
+apiVersion: v2
+name: crm
+description: Colld3m CRM — web, background jobs and the per-release migration job.
+type: application
+# version = the chart's own version; appVersion = the CRM release it ships by default.
+version: 1.0.0
+appVersion: "0.76.0"
+home: https://github.com/colldem/Colld3mCRM
+sources:
+  - https://github.com/colldem/Colld3mCRM
+maintainers:
+  - name: colldem
