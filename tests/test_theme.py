@@ -55,6 +55,34 @@ class ThemeTests(TestCase):
         response = self.client.get(reverse("contacts:settings-tags"))
         self.assertContains(response, f'class="crm-label {tag.color_class}"')
 
+    def test_each_selector_is_defined_once_per_stylesheet(self):
+        """The sheets had grown by appending overrides at the end, so .nav-item,
+        .bulk-bar and .chart-legend were each declared two or three times and the
+        real value could only be found by reading to the bottom of the file."""
+        import re
+
+        for name in ("app.css", "theme.css"):
+            css = (settings.BASE_DIR / "static" / "css" / name).read_text()
+            css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+            seen, duplicated, depth, buffer = set(), [], 0, ""
+            for char in css:
+                if char == "{":
+                    if depth == 0:
+                        selector = re.sub(r"\s+", " ", buffer).strip()
+                        if selector and not selector.startswith("@"):
+                            if selector in seen:
+                                duplicated.append(selector)
+                            seen.add(selector)
+                    depth += 1
+                    buffer = ""
+                elif char == "}":
+                    depth -= 1
+                    buffer = ""
+                elif depth == 0:
+                    buffer += char
+            with self.subTest(sheet=name):
+                self.assertEqual(duplicated, [], f"{name} declares these twice: {duplicated}")
+
     def test_file_pickers_wear_the_crm_button_not_the_browser_one(self):
         """The browser's own file control was the one place the visual language
         broke, and its "no file chosen" text ignored the app's language."""
