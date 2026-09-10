@@ -55,6 +55,28 @@ class ThemeTests(TestCase):
         response = self.client.get(reverse("contacts:settings-tags"))
         self.assertContains(response, f'class="crm-label {tag.color_class}"')
 
+    def test_list_rows_stay_dense_enough_to_scan(self):
+        """Rows were 73px: a two-line name cell plus 15px padding and a 40px
+        chip editor. Scannable lists sit near 48-52px, so the padding, the
+        subtitle and the chip editor all have to stay compact."""
+        app_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
+        self.assertIn("th,td{padding:10px 12px", app_css)
+        self.assertIn("table td{padding:10px 12px}", theme_css)
+        # Name and job title share one line.
+        self.assertIn(".row-link{display:flex", app_css)
+        self.assertIn(".row-link small{display:inline", app_css)
+        # The tag/category editor must not set a 40px floor under every row.
+        self.assertIn(".table-wrap .choice-trigger{min-height:0", theme_css)
+
+    def test_tags_are_called_zymos_everywhere_in_the_interface(self):
+        """One word for one thing — the list column said "Tagai", the rest of
+        the product says "Žymos"."""
+        for path in (settings.BASE_DIR / "templates" / "contacts" / "list.html",
+                     settings.BASE_DIR / "contacts" / "forms.py"):
+            with self.subTest(path=path.name):
+                self.assertNotIn("Tagai", path.read_text(encoding="utf-8"))
+
     def test_one_card_system_across_dashboard_analytics_and_settings(self):
         """`.dash-card` is the only card shell; the old `.panel` / AdminLTE
         `info-box` markup is gone, and no card title falls back to AdminLTE's
