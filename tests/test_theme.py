@@ -55,6 +55,39 @@ class ThemeTests(TestCase):
         response = self.client.get(reverse("contacts:settings-tags"))
         self.assertContains(response, f'class="crm-label {tag.color_class}"')
 
+    def test_one_card_system_across_dashboard_analytics_and_settings(self):
+        """`.dash-card` is the only card shell; the old `.panel` / AdminLTE
+        `info-box` markup is gone, and no card title falls back to AdminLTE's
+        32px <h2> — which was larger than the page's own <h1>."""
+        templates = settings.BASE_DIR / "templates"
+        for path in templates.rglob("*.html"):
+            markup = path.read_text(encoding="utf-8")
+            with self.subTest(template=path.name):
+                self.assertNotIn('class="panel', markup)
+                self.assertNotIn("crm-info-box", markup)
+                self.assertNotIn('class="row g-3"', markup)
+        theme_css = (settings.BASE_DIR / "static" / "css" / "theme.css").read_text()
+        app_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        self.assertNotIn(".panel{", theme_css)
+        # Every card title is the same step of the type scale.
+        self.assertIn(".dash-card-head h2{margin:0;font-size:var(--fs-md)", theme_css)
+        for rule in (".import-grid h2{", ".settings-card h2{"):
+            self.assertIn(rule + "margin:0 0 8px;font-size:var(--fs-md)", app_css)
+
+    def test_analytics_detail_pages_use_the_dashboard_cards(self):
+        from django.contrib.auth import get_user_model
+        from django.urls import reverse
+
+        user = get_user_model().objects.create_user("kortelės", password="very-secure-password",
+                                                    is_superuser=True)
+        self.client.force_login(user)
+        for name in ("analytics-care", "analytics-communication", "analytics-reminders",
+                     "analytics-growth", "analytics-system", "analytics-overview"):
+            with self.subTest(page=name):
+                response = self.client.get(reverse(f"contacts:{name}"))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "dash-card")
+
     def test_activity_feed_replaced_the_adminlte_timeline(self):
         """The record page draws its own feed, so no AdminLTE `.timeline` is left
         to fight with — and nothing may reintroduce that class by accident."""

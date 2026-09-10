@@ -10,10 +10,11 @@
 </div>
 
 {% for group in groups %}
-  <section class="panel">
-    <div class="panel-head">
-      <h2>{{ group.label }} <span>{{ group.total }}</span></h2>
-      {% if group.total %}<a class="btn" href="?days={{ days }}&amp;export={{ group.key }}">{% translate 'Eksportuoti CSV' %}</a>{% endif %}
+  <section class="dash-card care-group{% if group.key == 'silent' and group.total %} is-warn{% endif %}">
+    <div class="dash-card-head">
+      <div><h2>{{ group.label }}</h2>
+        {% if group.total > limit %}<p>{% blocktranslate with shown=limit total=group.total %}Rodoma {{ shown }} iš {{ total }} — visą sąrašą rasite CSV eksporte.{% endblocktranslate %}</p>{% endif %}</div>
+      <span class="dash-card-tools"><span class="dash-count">{{ group.total }}</span>{% if group.total %}<a class="btn" href="?days={{ days }}&amp;export={{ group.key }}">{% translate 'Eksportuoti CSV' %}</a>{% endif %}</span>
     </div>
     {% if group.rows %}
       <div class="table-wrap"><table>
@@ -38,11 +39,8 @@
           {% endfor %}
         </tbody>
       </table></div>
-      {% if group.total > limit %}
-        <p class="panel-note">{% blocktranslate with shown=limit total=group.total %}Rodoma {{ shown }} iš {{ total }} — visą sąrašą rasite CSV eksporte.{% endblocktranslate %}</p>
-      {% endif %}
     {% else %}
-      <p class="muted panel-note">{% translate 'Nieko nerasta — puiku.' %}</p>
+      <p class="muted">{% translate 'Nieko nerasta — puiku.' %}</p>
     {% endif %}
   </section>
 {% endfor %}

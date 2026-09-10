@@ -1,45 +1,33 @@
 {% extends "analytics/layout.html" %}{% load i18n %}
 {% block analytics_title %}{% translate 'Sistemos naudojimas' %}{% endblock %}
 {% block analytics_content %}
-<div class="row g-3">
-  <div class="col-lg-3 col-6">
-    <div class="info-box crm-info-box">
-      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></span>
-      <div class="info-box-content"><span class="info-box-text">{% translate 'Prisijungimai' %}</span><span class="info-box-number">{{ logins }}</span></div>
-    </div>
+<div class="kpi-row">
+  <div class="kpi-card">
+    <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></span>
+    <span class="kpi-label">{% translate 'Prisijungimai' %}</span><b class="kpi-number">{{ logins }}</b>
   </div>
-  <div class="col-lg-3 col-6">
-    <div class="info-box crm-info-box{% if failed %} is-warn{% endif %}">
-      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg></span>
-      <div class="info-box-content"><span class="info-box-text">{% translate 'Nepavykę prisijungimai' %}</span><span class="info-box-number">{{ failed }}</span></div>
-    </div>
+  <div class="kpi-card tone-overdue{% if failed %} is-warn{% endif %}">
+    <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg></span>
+    <span class="kpi-label">{% translate 'Nepavykę prisijungimai' %}</span><b class="kpi-number">{{ failed }}</b>
   </div>
-  <div class="col-lg-3 col-6">
-    <div class="info-box crm-info-box">
-      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v13M7 8l5-5 5 5M4 21h16"/></svg></span>
-      <div class="info-box-content"><span class="info-box-text">{% translate 'Importai' %}</span><span class="info-box-number">{{ imports }}</span></div>
-    </div>
+  <div class="kpi-card tone-companies">
+    <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v13M7 8l5-5 5 5M4 21h16"/></svg></span>
+    <span class="kpi-label">{% translate 'Importai' %}</span><b class="kpi-number">{{ imports }}</b>
   </div>
-  <div class="col-lg-3 col-6">
-    <div class="info-box crm-info-box">
-      <span class="info-box-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3M7 11l5 5 5-5M4 21h16"/></svg></span>
-      <div class="info-box-content"><span class="info-box-text">{% translate 'Eksportai' %}</span><span class="info-box-number">{{ exports }}</span></div>
-    </div>
+  <div class="kpi-card tone-activity">
+    <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V3M7 11l5 5 5-5M4 21h16"/></svg></span>
+    <span class="kpi-label">{% translate 'Eksportai' %}</span><b class="kpi-number">{{ exports }}</b>
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col-lg-6">
-    <section class="panel h-100">
-      <div class="panel-head"><h2>{% translate 'Pagal veiksmą' %}</h2></div>
-      {% include "analytics/_barlist.html" with rows=by_action %}
-    </section>
-  </div>
-  <div class="col-lg-6">
-    <section class="panel h-100">
-      <div class="panel-head"><h2>{% translate 'Aktyviausi naudotojai' %}</h2></div>
-      {% include "analytics/_barlist.html" with rows=by_actor %}
-    </section>
-  </div>
+<div class="dash-grid two">
+  <section class="dash-card">
+    <div class="dash-card-head"><div><h2>{% translate 'Pagal veiksmą' %}</h2></div></div>
+    {% include "analytics/_barlist.html" with rows=by_action %}
+  </section>
+  <section class="dash-card">
+    <div class="dash-card-head"><div><h2>{% translate 'Aktyviausi naudotojai' %}</h2><p>{% translate 'Pagal žurnalo įrašus' %}</p></div></div>
+    {% include "analytics/_barlist.html" with rows=by_actor %}
+  </section>
 </div>
 {% endblock %}

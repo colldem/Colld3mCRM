@@ -1,40 +1,35 @@
 {% extends "analytics/layout.html" %}{% load i18n %}
 {% block analytics_title %}{% translate 'Komunikacija' %}{% endblock %}
 {% block analytics_content %}
-<div class="row g-3">
-  <div class="col-xl-8">
-    <section class="panel h-100">
-      <div class="panel-head"><h2>{% translate 'Veiklos laike' %} <span>{{ total }}</span></h2></div>
-      {% if chart %}
-        {% include "analytics/_chart.html" with chart=chart chart_label=_('Veiklos pagal tipą laike') %}
-        <ul class="chart-legend">
-          {% for item in legend %}<li><i style="background:{{ item.colour }}"></i>{{ item.label }} <b>{{ item.total }}</b></li>{% endfor %}
-        </ul>
-        <p class="panel-note">{% if monthly %}{% translate 'Sugrupuota pagal mėnesius.' %}{% else %}{% translate 'Sugrupuota pagal savaites.' %}{% endif %}
-          {% if average_gap %} · {% blocktranslate %}Vidutinis tarpas tarp veiklų: {{ average_gap }} d.{% endblocktranslate %}{% endif %}</p>
-      {% else %}<p class="muted panel-note">{% translate 'Duomenų nėra.' %}</p>{% endif %}
-    </section>
-  </div>
-  <div class="col-xl-4">
-    <section class="panel h-100">
-      <div class="panel-head"><h2>{% translate 'Pagal naudotoją' %}</h2></div>
-      {% include "analytics/_barlist.html" with rows=by_user %}
-    </section>
-  </div>
+<div class="dash-grid">
+  <section class="dash-card span-2">
+    <div class="dash-card-head">
+      <div><h2>{% translate 'Veiklos laike' %}</h2>
+        <p>{% if monthly %}{% translate 'Sugrupuota pagal mėnesius.' %}{% else %}{% translate 'Sugrupuota pagal savaites.' %}{% endif %}
+          {% if average_gap %} · {% blocktranslate %}Vidutinis tarpas tarp veiklų: {{ average_gap }} d.{% endblocktranslate %}{% endif %}</p></div>
+      <span class="dash-more">{{ total }} {% translate 'iš viso' %}</span>
+    </div>
+    {% if chart %}
+      {% include "analytics/_chart.html" with chart=chart chart_label=_('Veiklos pagal tipą laike') %}
+      <ul class="chart-legend">
+        {% for item in legend %}<li><i style="background:{{ item.colour }}"></i>{{ item.label }} <b>{{ item.total }}</b></li>{% endfor %}
+      </ul>
+    {% else %}<p class="muted">{% translate 'Duomenų nėra.' %}</p>{% endif %}
+  </section>
+  <section class="dash-card">
+    <div class="dash-card-head"><div><h2>{% translate 'Pagal naudotoją' %}</h2></div></div>
+    {% include "analytics/_barlist.html" with rows=by_user %}
+  </section>
 </div>
 
-<div class="row g-3">
-  <div class="col-lg-6">
-    <section class="panel h-100">
-      <div class="panel-head"><h2>{% translate 'Aktyviausi kontaktai' %}</h2></div>
-      {% include "analytics/_barlist.html" with rows=top_people %}
-    </section>
-  </div>
-  <div class="col-lg-6">
-    <section class="panel h-100">
-      <div class="panel-head"><h2>{% translate 'Aktyviausios įmonės' %}</h2></div>
-      {% include "analytics/_barlist.html" with rows=top_companies %}
-    </section>
-  </div>
+<div class="dash-grid two">
+  <section class="dash-card">
+    <div class="dash-card-head"><div><h2>{% translate 'Aktyviausi kontaktai' %}</h2></div></div>
+    {% include "analytics/_barlist.html" with rows=top_people %}
+  </section>
+  <section class="dash-card">
+    <div class="dash-card-head"><div><h2>{% translate 'Aktyviausios įmonės' %}</h2></div></div>
+    {% include "analytics/_barlist.html" with rows=top_companies %}
+  </section>
 </div>
 {% endblock %}

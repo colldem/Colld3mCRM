@@ -90,6 +90,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `run_automations`, `deliver_webhooks`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
+  Vienas kortelių apvalkalas visame produkte — `.dash-card` (+ `.dash-grid`,
+  `.dash-card-head`, `.kpi-card`); kortelės antraštė visada `--fs-md`/700.
 - `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
   `deploy.yml` (tag `v*`), abu `runs-on: self-hosted crm-nas`.
   `scripts/deploy.sh` / `deploy-staging.sh` — diegimas; `refresh-staging.sh` —

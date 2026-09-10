@@ -30,8 +30,8 @@
 <div class="settings-subsection">
   <div class="settings-section-head"><div><h2>{% translate 'Nepriskirti laiškai' %}</h2></div></div>
 {% for mail in mails %}
-<section class="panel" style="margin-bottom:10px">
-  <div class="panel-head"><h2>{{ mail.subject|default:'(be temos)' }}</h2><span>{{ mail.received_at|date:datetime_format }}</span></div>
+<section class="dash-card mail-card">
+  <div class="dash-card-head"><div><h2>{{ mail.subject|default:'(be temos)' }}</h2></div><span class="dash-more">{{ mail.received_at|date:datetime_format }}</span></div>
   <p class="muted" style="margin:0 0 8px">{% translate 'Nuo' %}: {{ mail.from_addr }} · {% translate 'Kam' %}: {{ mail.to_addrs }}</p>
   <p style="white-space:pre-wrap;max-height:120px;overflow:auto;margin:0 0 10px">{{ mail.body|truncatechars:600 }}</p>
   <form method="post" class="filter-row">{% csrf_token %}

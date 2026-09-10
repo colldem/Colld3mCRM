@@ -464,46 +464,12 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
  .cal-times{grid-template-columns:1fr}
  .cal-toolbar{align-items:stretch}
 }
-/* --- Dashboard + analytics: one panel system for both --- */
-/* Panels: every block on the dashboard and the analytics pages is one of these. */
-.panel{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:14px 16px}
-.panel>h2{margin:0 0 10px;font-size:14px;line-height:1.3;color:var(--navy-950)}
-.panel.is-warn{border-color:#f0c2c2;background:#fff8f8}
-.panel.is-warn>h2,.panel.is-warn .panel-head h2{color:var(--danger)}
-.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-.panel-head h2{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;line-height:1.3;color:var(--navy-950)}
-.panel-head h2 span{padding:1px 8px;border-radius:var(--radius-pill);background:var(--soft);color:#5d6776;font-size:12px;font-weight:600}
-.panel-head .btn{flex:0 0 auto;min-height:32px;padding:6px 12px;font-size:12px}
-.panel-note{margin:9px 0 0;color:var(--muted);font-size:12px}
-/* Panels stack full-width (relationship care) or sit in Bootstrap columns
-   (dashboard, statistics); h-100 keeps columns level, .row handles the gap. */
-.panel+.panel{margin-top:12px}
-[class*="col-"]>.panel{margin-top:0}
-/* AdminLTE info-box, toned to the CRM palette: white card, navy number,
-   colour only on the icon and on the overdue variant. */
-.crm-info-box{min-height:74px;padding:8px;margin-bottom:0;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;box-shadow:none;color:var(--ink);text-decoration:none}
-a.crm-info-box:hover{border-color:#9bbbe0;background:#f7faff;text-decoration:none}
-.crm-info-box .info-box-icon{display:flex;align-items:center;justify-content:center;flex:0 0 52px;width:52px;border-radius:8px;background:var(--soft);color:var(--navy-950)}
-.crm-info-box .info-box-icon svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.crm-info-box .info-box-content{justify-content:center;padding:0 0 0 11px;line-height:1.3}
-.crm-info-box .info-box-text{font-size:12px;color:var(--muted);white-space:normal}
-.crm-info-box .info-box-number{margin-top:1px;font-size:24px;font-weight:700;line-height:1.15;color:var(--navy-950)}
-.crm-info-box .progress-description{margin-top:1px;font-size:11px;color:var(--muted)}
-.crm-info-box.is-warn .info-box-icon{background:#fdeaea;color:var(--danger)}
-.crm-info-box.is-warn .info-box-number{color:var(--danger)}
-.crm-info-box.is-done .info-box-icon{background:#e6f4ec;color:var(--success)}
-.panel-sub{margin:2px 0 7px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
-.panel-sub+.dash-list{margin-bottom:12px}
-.row+.row{margin-top:12px}
-/* Lists inside panels */
-.dash-list{display:grid;align-content:start;gap:8px;margin:0;padding:0;list-style:none;font-size:13px}
-.dash-list li{display:flex;align-items:baseline;gap:8px}
-.dash-list form{margin:0 0 0 auto}
-.dash-list .btn{min-height:32px;padding:6px 12px;font-size:12px}
-.dash-time{flex:0 0 auto;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
-.dash-main{min-width:0;overflow-wrap:anywhere}
-.dash-more{display:inline-block;margin-top:8px;font-size:12px;font-weight:650}
-.bar-list{display:grid;align-content:start;gap:8px;margin:0;padding:0;list-style:none;font-size:13px}
+/* --- Analytics + dashboard shared pieces ------------------------------
+   The card shell itself is .dash-card (below); these are the contents that
+   sit inside one: bar lists, inline SVG charts, the completion ring and the
+   period picker. One card system, one card-title size, product-wide. */
+.dash-more{display:inline-block;font-size:var(--fs-xs);font-weight:650}
+.bar-list{display:grid;align-content:start;gap:8px;margin:0;padding:0;list-style:none;font-size:var(--fs-sm)}
 .bar-list li{display:grid;grid-template-columns:minmax(90px,1fr) minmax(60px,1.3fr) 40px;align-items:center;gap:10px}
 .bar-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar-track{display:block;height:8px;border-radius:4px;background:var(--soft)}
@@ -517,30 +483,24 @@ a.crm-info-box:hover{border-color:#9bbbe0;background:#f7faff;text-decoration:non
 .chart-area{fill:rgba(47,111,190,.14)}
 .chart-line{fill:none;stroke:var(--navy-950);stroke-width:2;stroke-linejoin:round}
 .chart-dot{fill:var(--navy-950)}
-.chart-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0 0;padding:0;list-style:none;font-size:12px;color:var(--muted)}
+.chart-legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:10px 0 0;padding:0;list-style:none;font-size:var(--fs-xs);color:var(--muted)}
 .chart-legend li{display:flex;align-items:center;gap:6px}
 .chart-legend i{width:10px;height:10px;border-radius:var(--radius-sm)}
 .chart-legend b{color:var(--ink)}
-.ring-wrap{position:relative;display:grid;place-items:center;width:132px;margin:2px 0 4px}
-.ring{width:132px;height:132px}
 .ring-track{fill:none;stroke:var(--soft)}
 .ring-value{fill:none;stroke:var(--navy-950);stroke-linecap:round}
-.ring-text{position:absolute;display:grid;justify-items:center;gap:1px;text-align:center}
-.ring-text b{font-size:var(--fs-xl);line-height:1.1;color:var(--navy-950)}
-.ring-text span{font-size:11px;color:var(--muted)}
 /* Analytics: back link to the overview + period picker */
-.filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--muted)}
-.filter-row .btn{min-height:32px;padding:6px 12px;font-size:12px}
-.panel .table-wrap{border:0;border-top:1px solid var(--line);border-radius:0;margin:0 -16px -14px;width:calc(100% + 32px)}
-.panel .table-wrap th,.panel .table-wrap td{padding:9px 16px;font-size:13px}
+.filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:var(--fs-sm);color:var(--muted)}
+.filter-row .btn{min-height:var(--control-h-sm);padding:6px 12px;font-size:var(--fs-xs)}
+/* A table that fills a card: bleed to the card's edges, keep its own scroll. */
+.dash-card .table-wrap{border:0;border-top:1px solid var(--line);border-radius:0;margin:0 -18px -18px;width:calc(100% + 36px)}
+.dash-card .table-wrap th,.dash-card .table-wrap td{padding:9px 18px;font-size:var(--fs-sm)}
+.dash-card .table-wrap .btn{min-height:var(--control-h-sm);padding:5px 10px;font-size:var(--fs-xs)}
 @media(max-width:640px){
  .bar-list li{grid-template-columns:minmax(70px,1fr) minmax(40px,1fr) 34px}
  .chart{min-width:640px}
- .crm-info-box{min-height:64px;padding:8px}
- .crm-info-box .info-box-icon{flex:0 0 40px;width:40px}
- .crm-info-box .info-box-icon svg{width:20px;height:20px}
- .crm-info-box .info-box-number{font-size:20px}
- .crm-info-box .info-box-content{padding-left:8px}
+ .dash-card .table-wrap{margin:0 -14px -12px;width:calc(100% + 28px)}
+ .dash-card .table-wrap th,.dash-card .table-wrap td{padding:9px 14px}
 }
 
 .recurrence-fields{border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:8px 0 0}
@@ -584,6 +544,12 @@ body.has-env-banner{padding-bottom:28px}
 /* Cards in a row share the tallest one's height (grid stretches by default),
    and each is a column so its list can grow and its footer sit at the bottom. */
 .dash-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.dash-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.dash-grid+.dash-grid,.dash-grid+.dash-card,.dash-card+.dash-card,.kpi-row+.dash-card{margin-top:16px}
+.dash-card-tools{display:flex;align-items:center;gap:10px;flex:0 0 auto}
+.dash-count{padding:1px 9px;border-radius:var(--radius-pill);background:var(--soft);color:var(--muted);font-size:var(--fs-xs);font-weight:700}
+.dash-card-tools .btn{min-height:var(--control-h-sm);padding:6px 12px;font-size:var(--fs-xs)}
+.dash-card.is-warn .dash-card-head h2{color:var(--danger)}
 .dash-card{display:flex;flex-direction:column;padding:20px;border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;min-width:0}
 .dash-card>.event-list,.dash-card>.record-list{flex:1}
 .more-rows{margin-top:auto;border-top:1px solid var(--line)}
