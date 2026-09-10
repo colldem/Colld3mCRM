@@ -38,6 +38,7 @@ urlpatterns = [
     path("contacts/<int:person_pk>/activities/<int:pk>/edit/", views.activity_edit, name="activity-edit"),
     path("attachments/<int:pk>/download/", views.attachment_download, name="attachment-download"),
     path("contacts/<int:pk>/reminders/new/", views.reminder_create, name="reminder-create"),
+    path("reminders/new/", views.reminder_new, name="reminder-new"),
     path("reminders/<int:pk>/complete/", views.reminder_complete, name="reminder-complete"),
     path("reminders/<int:pk>/edit/", views.reminder_edit, name="reminder-edit"),
     path("reminders/<int:pk>/delete/", views.reminder_delete, name="reminder-delete"),

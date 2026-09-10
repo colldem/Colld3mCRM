@@ -103,9 +103,6 @@ msgstr "Done"
 msgid "Visi suplanuoti"
 msgstr "All scheduled"
 
-msgid "Visi suplanuoti priminimai"
-msgstr "All scheduled reminders"
-
 msgid "Aktyvūs priminimai"
 msgstr "Active reminders"
 
@@ -406,12 +403,6 @@ msgstr "Next"
 
 msgid "Priminimai - CRM"
 msgstr "Reminders - CRM"
-
-msgid "Aktyvūs ("
-msgstr "Active ("
-
-msgid "Visi suplanuoti ("
-msgstr "All scheduled ("
 
 msgid "Redaguoti priminimą - CRM"
 msgstr "Edit reminder - CRM"
@@ -3482,3 +3473,27 @@ msgid "%(total)s vėluojantis priminimas"
 msgid_plural "%(total)s vėluojantys priminimai"
 msgstr[0] "%(total)s overdue reminder"
 msgstr[1] "%(total)s overdue reminders"
+
+#: templates/reminders/list.html
+msgid "Aktyvūs"
+msgstr "Active"
+
+#: templates/reminders/list.html
+msgid "Rodyti"
+msgstr "Show"
+
+#: templates/reminders/list.html
+msgid "Be įrašo"
+msgstr "No record"
+
+#: templates/reminders/form.html
+msgid "Naujas priminimas - CRM"
+msgstr "New reminder - CRM"
+
+#: templates/reminders/form.html
+msgid "/ Naujas"
+msgstr "/ New"
+
+#: contacts/views.py
+msgid "Priminimas sukurtas."
+msgstr "Reminder created."

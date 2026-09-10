@@ -1863,6 +1863,32 @@ def reminder_complete(request, pk):
 
 
 @login_required
+def reminder_new(request):
+    """A reminder that is not tied to a record.
+
+    The reminders page has to be able to create one — until now they could only
+    be born on a contact card or in the calendar.
+    """
+    form = ReminderForm(request.POST or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        reminder = form.save(commit=False)
+        reminder.created_by = request.user
+        reminder.assigned_to = reminder.assigned_to or request.user
+        reminder.save()
+        if reminder.is_recurring:
+            from .recurrence import extend
+            extend(reminder)
+        if reminder.assigned_to_id != request.user.pk:
+            _maybe_email_assignment(reminder, request.user)
+        audit_log(AuditLog.CREATE, request=request, target_type="reminder",
+                  target_label=reminder.text[:80], field=str(tr("Priminimas")),
+                  new=f"{reminder.text[:150]} · {timezone.localtime(reminder.due_at):%Y-%m-%d %H:%M}")
+        messages.success(request, tr("Priminimas sukurtas."))
+        return redirect("contacts:reminder-list")
+    return render(request, "reminders/form.html", {"form": form, "creating": True})
+
+
+@login_required
 def reminder_edit(request, pk):
     from .permissions import user_label
 
@@ -1956,6 +1982,10 @@ def reminder_list(request):
         base.filter(read_at__isnull=True).update(read_at=now)
     return render(request, "reminders/list.html", {
         "active_reminders": active, "scheduled_reminders": scheduled, "reminder_scope": scope,
+        "reminder_sections": [
+            ("active", active, tr("Aktyvių priminimų nėra.")),
+            ("scheduled", scheduled, tr("Suplanuotų priminimų nėra.")),
+        ],
     })
 
 

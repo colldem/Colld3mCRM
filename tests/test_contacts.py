@@ -2201,6 +2201,29 @@ class ContactViewTests(TestCase):
         active.refresh_from_db()
         self.assertIsNotNone(active.read_at)
 
+    def test_reminders_page_can_create_a_reminder_of_its_own(self):
+        """Until now a reminder could only be born on a card or in the calendar,
+        so the page devoted to reminders could not make one."""
+        self.client.force_login(self.user)
+        listing = self.client.get(reverse("contacts:reminder-list"))
+        self.assertContains(listing, reverse("contacts:reminder-new"))
+        # One control row: status tabs plus a single "show" select, not two rows of chips.
+        self.assertContains(listing, 'class="reminder-bar"')
+        self.assertContains(listing, 'id="reminder-scope"')
+
+        self.assertEqual(self.client.get(reverse("contacts:reminder-new")).status_code, 200)
+        due = timezone.now() + timedelta(days=2)
+        response = self.client.post(reverse("contacts:reminder-new"), {
+            "text": "Atskiras priminimas", "due_at": due.strftime("%Y-%m-%dT%H:%M"),
+            "priority": "", "recurrence_interval": 1,
+        })
+        self.assertRedirects(response, reverse("contacts:reminder-list"))
+        created = Reminder.objects.get(text="Atskiras priminimas")
+        self.assertIsNone(created.person)
+        self.assertIsNone(created.company)
+        self.assertEqual(created.created_by, self.user)
+        self.assertEqual(created.assigned_to, self.user)
+
     def test_csv_import_is_repeatable_and_export_is_utf8(self):
         self.client.force_login(self.user)
         content = "Vardas,Pavardė,Įmonė,Telefonai,El. paštai\nJonas,Jonauskas,Nauja įmonė,+37060000000,jonas@example.lt\n"

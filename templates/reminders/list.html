@@ -1,14 +1,45 @@
 {% extends "base.html" %}{% load i18n %}
 {% block title %}{% translate 'Priminimai - CRM' %}{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>{% translate 'Priminimai' %}</h1><p>{% translate 'Artimiausi priminimai rodomi pirmiausia.' %}</p></div></div>
-<div class="filter-row">
-  <a class="btn{% if reminder_scope == 'assigned' %} primary{% endif %}" href="?scope=assigned">{% translate 'Man priskirtos' %}</a>
-  <a class="btn{% if reminder_scope == 'created' %} primary{% endif %}" href="?scope=created">{% translate 'Mano sukurtos' %}</a>
-  <a class="btn{% if reminder_scope == 'all' %} primary{% endif %}" href="?scope=all">{% translate 'Visos matomos' %}</a>
+<div class="page-head">
+  <div><h1>{% translate 'Priminimai' %}</h1><p>{% translate 'Artimiausi priminimai rodomi pirmiausia.' %}</p></div>
+  <div class="page-actions"><a class="btn primary" href="{% url 'contacts:reminder-new' %}">＋ {% translate 'Naujas priminimas' %}</a></div>
 </div>
-<div class="reminder-tabs" role="tablist"><button class="tab active" role="tab" data-tab="active">{% translate 'Aktyvūs (' %}{{ active_reminders|length }})</button><button class="tab" role="tab" data-tab="scheduled">{% translate 'Visi suplanuoti (' %}{{ scheduled_reminders|length }})</button></div>
-<section id="active" class="reminder-list" role="tabpanel"><h2>{% translate 'Aktyvūs priminimai' %}</h2>{% for reminder in active_reminders %}<article><div><strong>{% if reminder.priority == 'high' %}<span class="prio-flag" title="{% translate 'Aukštas prioritetas' %}">▲</span> {% endif %}{% if reminder.recurrence_parent_id or reminder.recurrence_freq %}<span class="prio-flag" title="{% translate 'Pasikartojantis' %}">↻</span> {% endif %}{{ reminder.text }}</strong><small>{{ reminder.due_at|date:datetime_format }}{% if reminder.record %} · <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}{% if reminder.assigned_to and reminder.assigned_to_id != request.user.pk %} · {% translate 'priskirta:' %} {{ reminder.assigned_to.get_full_name|default:reminder.assigned_to.username }}{% endif %}</small></div><div class="page-actions"><a class="btn" href="{% url 'contacts:reminder-edit' reminder.pk %}">{% translate 'Redaguoti' %}</a><form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn primary">{% translate 'Atlikta' %}</button></form></div></article>{% empty %}<p>{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}</section>
-<section id="scheduled" class="reminder-list" role="tabpanel" hidden><h2>{% translate 'Visi suplanuoti priminimai' %}</h2>{% for reminder in scheduled_reminders %}<article><div><strong>{% if reminder.priority == 'high' %}<span class="prio-flag" title="{% translate 'Aukštas prioritetas' %}">▲</span> {% endif %}{% if reminder.recurrence_parent_id or reminder.recurrence_freq %}<span class="prio-flag" title="{% translate 'Pasikartojantis' %}">↻</span> {% endif %}{{ reminder.text }}</strong><small>{{ reminder.due_at|date:datetime_format }}{% if reminder.record %} · <a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% endif %}{% if reminder.assigned_to and reminder.assigned_to_id != request.user.pk %} · {% translate 'priskirta:' %} {{ reminder.assigned_to.get_full_name|default:reminder.assigned_to.username }}{% endif %}</small></div><div class="page-actions"><a class="btn" href="{% url 'contacts:reminder-edit' reminder.pk %}">{% translate 'Redaguoti' %}</a><form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn primary">{% translate 'Atlikta' %}</button></form></div></article>{% empty %}<p>{% translate 'Suplanuotų priminimų nėra.' %}</p>{% endfor %}</section>
-<script>document.querySelectorAll('.reminder-tabs .tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.reminder-list[role=tabpanel]').forEach(x=>x.hidden=x.id!==b.dataset.tab)})</script>
+
+{% comment %}One row of controls: what to show on the left, whose on the right.{% endcomment %}
+<div class="reminder-bar">
+  <div class="reminder-tabs" role="tablist">
+    <button class="tab active" role="tab" data-tab="active">{% translate 'Aktyvūs' %} <span>{{ active_reminders|length }}</span></button>
+    <button class="tab" role="tab" data-tab="scheduled">{% translate 'Visi suplanuoti' %} <span>{{ scheduled_reminders|length }}</span></button>
+  </div>
+  <form method="get" class="reminder-scope">
+    <label for="reminder-scope">{% translate 'Rodyti' %}</label>
+    <select id="reminder-scope" name="scope" onchange="this.form.submit()">
+      <option value="assigned" {% if reminder_scope == 'assigned' %}selected{% endif %}>{% translate 'Man priskirtos' %}</option>
+      <option value="created" {% if reminder_scope == 'created' %}selected{% endif %}>{% translate 'Mano sukurtos' %}</option>
+      <option value="all" {% if reminder_scope == 'all' %}selected{% endif %}>{% translate 'Visos matomos' %}</option>
+    </select>
+    <noscript><button class="btn" type="submit">{% translate 'Rodyti' %}</button></noscript>
+  </form>
+</div>
+
+{% for section, rows, empty_text in reminder_sections %}
+  <section id="{{ section }}" class="reminder-board" role="tabpanel"{% if not forloop.first %} hidden{% endif %}>
+    {% for reminder in rows %}
+      <article>
+        <div class="reminder-main">
+          <strong>{% if reminder.priority == 'high' %}<span class="prio-flag" title="{% translate 'Aukštas prioritetas' %}">▲</span> {% endif %}{% if reminder.recurrence_parent_id or reminder.recurrence_freq %}<span class="prio-flag" title="{% translate 'Pasikartojantis' %}">↻</span> {% endif %}{{ reminder.text }}</strong>
+          <small>{% if reminder.record %}<a href="{{ reminder.record_url }}">{{ reminder.record }}</a>{% else %}{% translate 'Be įrašo' %}{% endif %}{% if reminder.assigned_to and reminder.assigned_to_id != request.user.pk %} · {% translate 'priskirta:' %} {{ reminder.assigned_to.get_full_name|default:reminder.assigned_to.username }}{% endif %}</small>
+        </div>
+        <span class="reminder-due{% if section == 'active' %} is-overdue{% endif %}">{{ reminder.due_at|date:datetime_format }}</span>
+        <div class="reminder-actions">
+          <a class="btn" href="{% url 'contacts:reminder-edit' reminder.pk %}">{% translate 'Redaguoti' %}</a>
+          <form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn primary" type="submit">{% translate 'Atlikta' %}</button></form>
+        </div>
+      </article>
+    {% empty %}<p class="muted">{{ empty_text }}</p>{% endfor %}
+  </section>
+{% endfor %}
+
+<script>document.querySelectorAll('.reminder-tabs .tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.reminder-tabs .tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.reminder-board[role=tabpanel]').forEach(x=>x.hidden=x.id!==b.dataset.tab)})</script>
 {% endblock %}
