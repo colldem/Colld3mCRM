@@ -1,7 +1,6 @@
-{% extends "base.html" %}{% load i18n crm_format %}
-{% block title %}{% translate 'Importas / eksportas - CRM' %}{% endblock %}
-{% block content %}
-<div class="page-head"><div><h1>{% translate 'Importas / eksportas' %}</h1><p>{% translate 'CSV failams naudokite UTF-8 koduotę ir kablelius.' %}</p></div></div>
+{% extends "settings/layout.html" %}{% load i18n crm_format %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Importas / eksportas' %}</h2><p>{% translate 'Kontaktų ir įmonių įkėlimas bei atsisiuntimas. CSV failams naudokite UTF-8 koduotę ir kablelius.' %}</p></div></div>
 <div class="import-grid">
   {% if crm_caps.can_import %}
   <section class="import-card">

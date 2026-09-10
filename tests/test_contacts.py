@@ -2112,12 +2112,12 @@ class ContactViewTests(TestCase):
         self.client.force_login(self.user)
         self.user.is_superuser = True
         self.user.save()
-        # The old settings URL now redirects to the merged Import / export page,
-        # where the read settings live in a fold.
-        self.assertRedirects(self.client.get(reverse("contacts:settings-import")),
-                             reverse("contacts:import-export"))
+        # Import and export are one settings section, and the read settings live
+        # in a fold on it.
         page = self.client.get(reverse("contacts:import-export"))
         self.assertContains(page, "CSV skaitymo nustatymai")
+        self.assertTrue(reverse("contacts:import-export").startswith("/settings/"))
+        self.assertContains(page, 'class="settings-nav"')
         self.client.post(reverse("contacts:import-export"),
                          {"op": "read_settings", "import_delimiter": "auto", "import_encoding": "auto"})
         system = SystemSettings.load()

@@ -1516,13 +1516,6 @@ def calendar_feed(request, token):
 
 
 @login_required
-def settings_import(request):
-    # The CSV read settings moved onto the Import / export page itself; keep the
-    # old URL working for bookmarks.
-    return redirect("contacts:import-export")
-
-
-@login_required
 def documentation_page(request):
     topics = (
         ("overview", tr("Pradžia")),
@@ -2566,6 +2559,7 @@ def contacts_import(request):
         request.session.pop("import_mapping", None)
     context["has_error_report"] = bool(request.session.get("import_errors"))
     context["read_form"] = read_form
+    context["settings_section"] = "import-export"
     return render(request, "import_export.html", context)
 
 

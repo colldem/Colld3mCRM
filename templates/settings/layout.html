@@ -52,7 +52,7 @@
         <a class="{% if settings_section == 'system' %}active{% endif %}" href="{% url 'contacts:settings-system' %}">{% translate 'Bendri nustatymai' %}</a>
         <a class="{% if settings_section == 'translations' %}active{% endif %}" href="{% url 'contacts:settings-translations' %}">{% translate 'Vertimai' %}</a>
       {% endif %}
-      {% if crm_caps.can_import or crm_caps.can_export %}<a href="{% url 'contacts:import-export' %}">{% translate 'Importas / eksportas' %}</a>{% endif %}
+      {% if crm_caps.can_import or crm_caps.can_export %}<a class="{% if settings_section == 'import-export' %}active{% endif %}" href="{% url 'contacts:import-export' %}">{% translate 'Importas / eksportas' %}</a>{% endif %}
       {% if request.user.is_staff %}<a class="{% if settings_section == 'data-export' %}active{% endif %}" href="{% url 'contacts:settings-data-export' %}">{% translate 'Duomenų eksportas' %}</a>{% endif %}
       {% if crm_caps.can_view_audit %}<a class="{% if settings_section == 'audit' %}active{% endif %}" href="{% url 'contacts:settings-audit' %}">{% translate 'Žurnalas' %}</a>{% endif %}
     </div>
