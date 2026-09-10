@@ -7,3 +7,4 @@ whitenoise==6.12.0
 openpyxl==3.1.5
 mozilla-django-oidc==5.0.2
 cryptography==50.0.1
+django-storages[s3]==1.14.6

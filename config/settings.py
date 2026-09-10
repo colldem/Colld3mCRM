@@ -111,8 +111,33 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "runtime" / "media"
+# Uploaded files live on local disk by default — that is what a single-host
+# Docker install wants. Point CRM_MEDIA_BACKEND at "s3" to keep them in
+# S3-compatible object storage instead, which is what more than one web replica
+# (Kubernetes) needs: a pod that is rescheduled must not take the files with it.
+MEDIA_BACKEND = os.environ.get("CRM_MEDIA_BACKEND", "filesystem").strip().lower()
+if MEDIA_BACKEND == "s3":
+    _default_storage = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": os.environ["CRM_S3_BUCKET"],
+            "endpoint_url": os.environ.get("CRM_S3_ENDPOINT") or None,
+            "region_name": os.environ.get("CRM_S3_REGION", "") or None,
+            "access_key": os.environ.get("CRM_S3_ACCESS_KEY") or None,
+            "secret_key": os.environ.get("CRM_S3_SECRET_KEY") or None,
+            # Uploads are private: they are served through the CRM, which checks
+            # who may see the record the file hangs off.
+            "default_acl": None,
+            "querystring_auth": True,
+            "file_overwrite": False,
+            "addressing_style": os.environ.get("CRM_S3_ADDRESSING", "virtual"),
+        },
+    }
+else:
+    _default_storage = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": _default_storage,
     "staticfiles": {
         "BACKEND": (
             "django.contrib.staticfiles.storage.StaticFilesStorage"

@@ -231,3 +231,56 @@ class ThemeTests(TestCase):
             offenders |= set(re.findall(r"font-size:(10|15|17|21|23|27|30|32)px", sheet))
             offenders |= set(re.findall(r"font-size:[0-9.]+em", sheet))
         self.assertEqual(offenders, set())
+
+
+class DeploymentReadinessTests(TestCase):
+    """The app has to run unchanged on one Docker host and on Kubernetes."""
+
+    def test_media_backend_switches_between_disk_and_object_storage(self):
+        import importlib
+        import os
+        from unittest import mock
+
+        from django.conf import settings as live
+
+        # The default is the local disk, which is what a Compose install wants.
+        self.assertEqual(live.STORAGES["default"]["BACKEND"],
+                         "django.core.files.storage.FileSystemStorage")
+
+        env = {"CRM_MEDIA_BACKEND": "s3", "CRM_S3_BUCKET": "crm-media",
+               "CRM_S3_ENDPOINT": "https://minio.example.com",
+               "CRM_S3_ACCESS_KEY": "key", "CRM_S3_SECRET_KEY": "secret",
+               "CRM_S3_ADDRESSING": "path"}
+        with mock.patch.dict(os.environ, env):
+            module = importlib.reload(importlib.import_module("config.settings"))
+        try:
+            storage = module.STORAGES["default"]
+            self.assertEqual(storage["BACKEND"], "storages.backends.s3.S3Storage")
+            self.assertEqual(storage["OPTIONS"]["bucket_name"], "crm-media")
+            self.assertEqual(storage["OPTIONS"]["endpoint_url"], "https://minio.example.com")
+            self.assertEqual(storage["OPTIONS"]["addressing_style"], "path")
+            # Uploads stay private — the CRM checks who may see the record first.
+            self.assertIsNone(storage["OPTIONS"]["default_acl"])
+            self.assertTrue(storage["OPTIONS"]["querystring_auth"])
+        finally:
+            importlib.reload(importlib.import_module("config.settings"))
+
+    def test_startup_steps_are_switchable_for_kubernetes(self):
+        """Several replicas must not race each other into `migrate`."""
+        entrypoint = (settings.BASE_DIR / "scripts" / "entrypoint.sh").read_text()
+        dockerfile = (settings.BASE_DIR / "Dockerfile").read_text()
+        self.assertIn('if [ "${CRM_RUN_MIGRATIONS:-1}" = "1" ]', entrypoint)
+        self.assertIn('if [ "${CRM_COLLECTSTATIC:-1}" = "1" ]', entrypoint)
+        # The static files ship inside the image, so a pod starts without them —
+        # and the build must not run in debug, or WhiteNoise writes no manifest
+        # and a non-debug runtime cannot resolve a single hashed asset.
+        self.assertIn("manage.py collectstatic --noinput", dockerfile)
+        self.assertIn("DJANGO_DEBUG=false", dockerfile)
+        self.assertIn("test -f /app/staticfiles/staticfiles.json", dockerfile)
+
+    def test_health_endpoints_answer_without_a_session(self):
+        for path, expected in (("/health/live", "live"), ("/health/ready", "ready")):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(expected, response.content.decode())
