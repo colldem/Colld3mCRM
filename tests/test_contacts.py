@@ -1,3 +1,5 @@
+import json
+import os
 from datetime import timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
@@ -5,14 +7,17 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from contacts.models import Activity, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, Tag, WebLink
+from contacts import crypto
+from contacts.models import Activity, ApiToken, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, RolePermissions, SavedFilter, Tag, Team, UserProfile, WebLink
 from contacts.duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
+from contacts import permissions as perm
 
 
 @override_settings(CRM_SETUP_TOKEN="one-time-setup-token")
@@ -4140,3 +4145,508 @@ class TranslationOverrideTests(TestCase):
         self.client.force_login(get_user_model().objects.create_user(
             "eilinis", password="very-secure-password"))
         self.assertEqual(self.client.get(self.url).status_code, 404)
+
+
+class SecretsEncryptionTests(TestCase):
+    """contacts/crypto.py — the Fernet wrapper around integration passwords.
+
+    CRM_SECRETS_KEY lives only in the environment (never the database), so
+    every path here is exercised through os.environ, not Django settings.
+    """
+
+    def test_roundtrip_when_a_key_is_configured(self):
+        token = crypto.encrypt("s3cret-imap-password")
+        self.assertTrue(token.startswith("enc:v1:"))
+        self.assertNotIn("s3cret-imap-password", token)
+        self.assertEqual(crypto.decrypt(token), "s3cret-imap-password")
+
+    def test_encrypting_an_empty_value_returns_empty_not_a_token(self):
+        self.assertEqual(crypto.encrypt(""), "")
+        self.assertEqual(crypto.encrypt(None), "")
+
+    def test_encrypt_without_a_key_raises_so_the_caller_cannot_silently_lose_the_password(self):
+        with patch.dict(os.environ, {"CRM_SECRETS_KEY": ""}):
+            with self.assertRaises(RuntimeError):
+                crypto.encrypt("would be lost")
+
+    def test_decrypt_without_a_key_returns_empty_rather_than_raising(self):
+        """The real scenario: a value was encrypted, then CRM_SECRETS_KEY was
+        unset (or lost) before it was read back — the UI must show "not set",
+        not a 500."""
+        token = crypto.encrypt("stored-earlier")
+        with patch.dict(os.environ, {"CRM_SECRETS_KEY": ""}):
+            self.assertEqual(crypto.decrypt(token), "")
+
+    def test_decrypt_of_a_tampered_token_returns_empty_rather_than_raising(self):
+        token = crypto.encrypt("original")
+        tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+        self.assertEqual(crypto.decrypt(tampered), "")
+
+    def test_decrypt_ignores_a_value_that_was_never_encrypted(self):
+        self.assertEqual(crypto.decrypt("plain-text-password"), "")
+        self.assertEqual(crypto.decrypt(""), "")
+        self.assertEqual(crypto.decrypt(None), "")
+
+    def test_a_malformed_key_is_treated_as_no_key_configured(self):
+        with patch.dict(os.environ, {"CRM_SECRETS_KEY": "not-a-valid-fernet-key"}):
+            self.assertFalse(crypto.secrets_available())
+            with self.assertRaises(RuntimeError):
+                crypto.encrypt("x")
+
+    def test_secrets_available_reflects_whether_a_key_is_set(self):
+        self.assertTrue(crypto.secrets_available())
+        with patch.dict(os.environ, {"CRM_SECRETS_KEY": ""}):
+            self.assertFalse(crypto.secrets_available())
+
+    def test_looks_encrypted_detects_the_prefix_only(self):
+        self.assertTrue(crypto.looks_encrypted(crypto.encrypt("x")))
+        self.assertFalse(crypto.looks_encrypted("x"))
+        self.assertFalse(crypto.looks_encrypted(""))
+        self.assertFalse(crypto.looks_encrypted(None))
+
+
+class RecordVisibilityTests(TestCase):
+    """contacts/permissions.py — role, capability and record-visibility rules.
+
+    These gate what a user (and, through the same functions, an API token)
+    may see and do, so a mistake here is a data leak, not a cosmetic bug.
+    """
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user("admin", password="x", is_superuser=True)
+        self.staff_no_profile = get_user_model().objects.create_user("staffer", password="x", is_staff=True)
+        self.member = get_user_model().objects.create_user("member", password="x")
+        self.restricted = get_user_model().objects.create_user("restricted", password="x")
+        UserProfile.objects.create(user=self.member, role=UserProfile.ROLE_MEMBER)
+        UserProfile.objects.create(user=self.restricted, role=UserProfile.ROLE_RESTRICTED)
+
+    # --- role_of / is_admin -------------------------------------------------
+
+    def test_role_of_anonymous_user_is_none(self):
+        self.assertIsNone(perm.role_of(AnonymousUser()))
+        self.assertFalse(perm.is_admin(AnonymousUser()))
+
+    def test_role_of_superuser_is_admin_even_without_a_profile(self):
+        self.assertEqual(perm.role_of(self.admin), UserProfile.ROLE_ADMIN)
+        self.assertTrue(perm.is_admin(self.admin))
+
+    def test_role_of_staff_without_a_profile_falls_back_to_admin(self):
+        self.assertEqual(perm.role_of(self.staff_no_profile), UserProfile.ROLE_ADMIN)
+
+    def test_role_of_plain_user_without_a_profile_falls_back_to_member(self):
+        plain = get_user_model().objects.create_user("plain", password="x")
+        self.assertEqual(perm.role_of(plain), UserProfile.ROLE_MEMBER)
+
+    def test_role_of_honours_the_stored_profile_role(self):
+        self.assertEqual(perm.role_of(self.restricted), UserProfile.ROLE_RESTRICTED)
+
+    # --- has_capability / capability_matrix ---------------------------------
+
+    def test_admin_has_every_capability_regardless_of_role_defaults(self):
+        for key, _label in perm.CAPABILITIES:
+            self.assertTrue(perm.has_capability(self.admin, key))
+
+    def test_anonymous_user_has_no_capability(self):
+        for key, _label in perm.CAPABILITIES:
+            self.assertFalse(perm.has_capability(AnonymousUser(), key))
+
+    def test_member_and_restricted_defaults_differ_on_import(self):
+        self.assertTrue(perm.has_capability(self.member, "can_import"))
+        self.assertFalse(perm.has_capability(self.restricted, "can_import"))
+
+    def test_a_stored_role_permission_overrides_the_default(self):
+        RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER, permissions={"can_delete": False})
+        self.assertFalse(perm.has_capability(self.member, "can_delete"))
+        # Untouched capabilities on the same role keep their default.
+        self.assertTrue(perm.has_capability(self.member, "can_export"))
+
+    def test_capability_matrix_reflects_defaults_and_overrides(self):
+        RolePermissions.objects.create(role=UserProfile.ROLE_RESTRICTED, permissions={"can_export": False})
+        matrix = perm.capability_matrix()
+        self.assertFalse(matrix[UserProfile.ROLE_RESTRICTED]["can_export"])
+        self.assertTrue(matrix[UserProfile.ROLE_MEMBER]["can_import"])
+        self.assertFalse(matrix[UserProfile.ROLE_RESTRICTED]["can_import"])
+
+    # --- record_visibility ---------------------------------------------------
+
+    def test_anonymous_and_admin_see_everything(self):
+        self.assertEqual(perm.record_visibility(AnonymousUser()), UserProfile.VISIBILITY_ALL)
+        self.assertEqual(perm.record_visibility(self.admin), UserProfile.VISIBILITY_ALL)
+        self.assertTrue(perm.sees_all_records(self.admin))
+
+    def test_own_profile_setting_is_honoured(self):
+        self.member.crm_profile.record_visibility = UserProfile.VISIBILITY_OWN
+        self.member.crm_profile.save()
+        self.assertEqual(perm.record_visibility(self.member), UserProfile.VISIBILITY_OWN)
+        self.assertFalse(perm.sees_all_records(self.member))
+
+    def test_restricted_role_floors_visibility_at_own_even_if_profile_says_all(self):
+        self.restricted.crm_profile.record_visibility = UserProfile.VISIBILITY_ALL
+        self.restricted.crm_profile.save()
+        self.assertEqual(perm.record_visibility(self.restricted), UserProfile.VISIBILITY_OWN)
+
+    def test_team_marked_team_only_narrows_a_members_all_setting(self):
+        team = Team.objects.create(name="Pardavimai", visibility=Team.VISIBILITY_TEAM)
+        team.members.add(self.member)
+        self.assertEqual(perm.record_visibility(self.member), UserProfile.VISIBILITY_TEAM)
+
+    def test_membership_in_an_all_visibility_team_does_not_narrow_anything(self):
+        team = Team.objects.create(name="Visi", visibility=Team.VISIBILITY_TEAM)
+        team.members.add(self.member)
+        team2 = Team.objects.create(name="Rinkodara", visibility=Team.VISIBILITY_ALL)
+        team2.members.add(self.member)
+        # Still team-restricted: one team-only membership is enough to narrow it.
+        self.assertEqual(perm.record_visibility(self.member), UserProfile.VISIBILITY_TEAM)
+
+    def test_restricted_role_stays_own_even_inside_a_team(self):
+        """own is stricter than team, so it must win regardless of order."""
+        team = Team.objects.create(name="Aptarnavimas", visibility=Team.VISIBILITY_TEAM)
+        team.members.add(self.restricted)
+        self.assertEqual(perm.record_visibility(self.restricted), UserProfile.VISIBILITY_OWN)
+
+    # --- teammate_ids / responsible_*_ids -------------------------------------
+
+    def test_teammate_ids_includes_self_and_shared_team_members_only(self):
+        team = Team.objects.create(name="A")
+        team.members.add(self.member, self.restricted)
+        outsider = get_user_model().objects.create_user("outsider", password="x")
+        ids = perm.teammate_ids(self.member)
+        self.assertIn(self.member.pk, ids)
+        self.assertIn(self.restricted.pk, ids)
+        self.assertNotIn(outsider.pk, ids)
+
+    def test_responsible_person_ids_accepts_a_single_id_or_a_list(self):
+        person = Person.objects.create(first_name="R", last_name="P")
+        person.responsibles.add(self.member)
+        self.assertIn(person.pk, list(perm.responsible_person_ids(self.member.pk)))
+        self.assertIn(person.pk, list(perm.responsible_person_ids([self.member.pk])))
+
+    # --- visible_people / visible_companies / visible_reminders ---------------
+
+    def test_visible_people_none_user_returns_the_queryset_unfiltered(self):
+        Person.objects.create(first_name="A", last_name="B")
+        self.assertEqual(perm.visible_people(None).count(), 1)
+
+    def test_visible_companies_none_user_returns_the_queryset_unfiltered(self):
+        Company.objects.create(name="X")
+        self.assertEqual(perm.visible_companies(None).count(), 1)
+
+    def test_own_visibility_sees_owned_responsible_and_ownerless_but_not_others(self):
+        self.member.crm_profile.record_visibility = UserProfile.VISIBILITY_OWN
+        self.member.crm_profile.save()
+        mine = Person.objects.create(first_name="Mano", last_name="K", owner=self.member)
+        responsible_for = Person.objects.create(first_name="Atsak", last_name="K")
+        responsible_for.responsibles.add(self.member)
+        ownerless = Person.objects.create(first_name="Niekieno", last_name="K")
+        someone_elses = Person.objects.create(first_name="Kito", last_name="K", owner=self.restricted)
+
+        visible_ids = set(perm.visible_people(self.member).values_list("pk", flat=True))
+        self.assertEqual(visible_ids, {mine.pk, responsible_for.pk, ownerless.pk})
+        self.assertNotIn(someone_elses.pk, visible_ids)
+
+    def test_team_visibility_sees_teammates_records_but_not_outsiders(self):
+        team = Team.objects.create(name="B", visibility=Team.VISIBILITY_TEAM)
+        team.members.add(self.member, self.restricted)
+        teammates_company = Company.objects.create(name="Komandos", owner=self.restricted)
+        outsider = get_user_model().objects.create_user("outsider2", password="x")
+        outsiders_company = Company.objects.create(name="Svetima", owner=outsider)
+
+        visible_ids = set(perm.visible_companies(self.member).values_list("pk", flat=True))
+        self.assertIn(teammates_company.pk, visible_ids)
+        self.assertNotIn(outsiders_company.pk, visible_ids)
+
+    def test_visible_reminders_follows_the_linked_records_visibility(self):
+        self.restricted.crm_profile.record_visibility = UserProfile.VISIBILITY_OWN
+        self.restricted.crm_profile.save()
+        mine = Person.objects.create(first_name="M", last_name="N", owner=self.restricted)
+        someone_elses = Person.objects.create(first_name="O", last_name="P", owner=self.member)
+        r_mine = Reminder.objects.create(person=mine, text="a", due_at=timezone.now(), created_by=self.admin)
+        r_other = Reminder.objects.create(person=someone_elses, text="b", due_at=timezone.now(), created_by=self.admin)
+
+        visible_ids = set(perm.visible_reminders(self.restricted).values_list("pk", flat=True))
+        self.assertIn(r_mine.pk, visible_ids)
+        self.assertNotIn(r_other.pk, visible_ids)
+
+    def test_visible_reminders_with_no_record_is_private_to_creator_or_assignee(self):
+        self.restricted.crm_profile.record_visibility = UserProfile.VISIBILITY_OWN
+        self.restricted.crm_profile.save()
+        own_calendar_entry = Reminder.objects.create(text="calendar", due_at=timezone.now(), created_by=self.restricted)
+        someone_elses_entry = Reminder.objects.create(text="calendar2", due_at=timezone.now(), created_by=self.member)
+        assigned_to_me = Reminder.objects.create(text="calendar3", due_at=timezone.now(), created_by=self.member, assigned_to=self.restricted)
+
+        visible_ids = set(perm.visible_reminders(self.restricted).values_list("pk", flat=True))
+        self.assertIn(own_calendar_entry.pk, visible_ids)
+        self.assertIn(assigned_to_me.pk, visible_ids)
+        self.assertNotIn(someone_elses_entry.pk, visible_ids)
+
+    def test_visible_reminders_none_user_returns_the_queryset_unfiltered(self):
+        Reminder.objects.create(text="x", due_at=timezone.now(), created_by=self.admin)
+        self.assertEqual(perm.visible_reminders(None).count(), 1)
+
+    # --- can_see_person / can_see_company -------------------------------------
+
+    def test_can_see_person_and_company_respect_own_visibility(self):
+        self.restricted.crm_profile.record_visibility = UserProfile.VISIBILITY_OWN
+        self.restricted.crm_profile.save()
+        mine = Person.objects.create(first_name="M", last_name="N", owner=self.restricted)
+        someone_elses = Person.objects.create(first_name="O", last_name="P", owner=self.member)
+        self.assertTrue(perm.can_see_person(self.restricted, mine))
+        self.assertFalse(perm.can_see_person(self.restricted, someone_elses))
+
+        mine_co = Company.objects.create(name="Mano įmonė", owner=self.restricted)
+        others_co = Company.objects.create(name="Kito įmonė", owner=self.member)
+        self.assertTrue(perm.can_see_company(self.restricted, mine_co))
+        self.assertFalse(perm.can_see_company(self.restricted, others_co))
+
+    def test_admin_can_see_any_record(self):
+        someone_elses = Person.objects.create(first_name="O", last_name="P", owner=self.member)
+        self.assertTrue(perm.can_see_person(self.admin, someone_elses))
+
+    # --- user_label / assignable_users(_for) ----------------------------------
+
+    def test_user_label_prefers_full_name_over_username(self):
+        self.member.first_name, self.member.last_name = "Jonas", "Jonaitis"
+        self.member.save()
+        self.assertEqual(perm.user_label(self.member), "Jonas Jonaitis")
+        self.assertEqual(perm.user_label(self.restricted), "restricted")
+        self.assertEqual(perm.user_label(None), "")
+
+    def test_assignable_users_excludes_inactive_accounts(self):
+        inactive = get_user_model().objects.create_user("gone", password="x", is_active=False)
+        names = {u.username for u in perm.assignable_users()}
+        self.assertNotIn(inactive.username, names)
+        self.assertIn(self.member.username, names)
+
+    def test_assignable_users_for_a_restricted_viewer_is_limited_to_teammates(self):
+        self.restricted.crm_profile.record_visibility = UserProfile.VISIBILITY_OWN
+        self.restricted.crm_profile.save()
+        team = Team.objects.create(name="C")
+        team.members.add(self.restricted, self.member)
+        outsider = get_user_model().objects.create_user("outsider3", password="x")
+        names = {u.username for u in perm.assignable_users_for(self.restricted)}
+        self.assertIn(self.member.username, names)
+        self.assertNotIn(outsider.username, names)
+
+    def test_assignable_users_for_an_admin_is_everyone(self):
+        names = {u.username for u in perm.assignable_users_for(self.admin)}
+        self.assertIn(self.member.username, names)
+        self.assertIn(self.restricted.username, names)
+
+    # --- active_admin_ids -------------------------------------------------
+
+    def test_active_admin_ids_includes_superusers_and_excludes_members(self):
+        ids = perm.active_admin_ids()
+        self.assertIn(self.admin.pk, ids)
+        self.assertIn(self.staff_no_profile.pk, ids)
+        self.assertNotIn(self.member.pk, ids)
+
+
+class ApiTests(TestCase):
+    """The hand-rolled JSON API (contacts/api.py), /api/v1/ — bearer-token
+    auth, scope enforcement and the same record visibility as the UI."""
+
+    def setUp(self):
+        self.owner = get_user_model().objects.create_user("api-owner", password="x")
+        self.raw_write_token, write_hash = ApiToken.new()
+        self.write_token = ApiToken.objects.create(
+            name="write", token_hash=write_hash, prefix=self.raw_write_token[:12],
+            scope=ApiToken.READ_WRITE, created_by=self.owner)
+        self.raw_read_token, read_hash = ApiToken.new()
+        self.read_token = ApiToken.objects.create(
+            name="read", token_hash=read_hash, prefix=self.raw_read_token[:12],
+            scope=ApiToken.READ, created_by=self.owner)
+
+    def _auth(self, raw):
+        return {"HTTP_AUTHORIZATION": f"Bearer {raw}"}
+
+    def _post_json(self, url, payload, raw_token, **extra):
+        return self.client.post(url, data=json.dumps(payload), content_type="application/json",
+                                 **self._auth(raw_token), **extra)
+
+    # --- authentication -----------------------------------------------------
+
+    def test_missing_authorization_header_is_rejected(self):
+        response = self.client.get(reverse("api:me"))
+        self.assertEqual(response.status_code, 401)
+
+    def test_garbage_bearer_token_is_rejected(self):
+        response = self.client.get(reverse("api:me"), **self._auth("not-a-real-token"))
+        self.assertEqual(response.status_code, 401)
+
+    def test_revoked_token_is_rejected(self):
+        self.write_token.revoked_at = timezone.now()
+        self.write_token.save()
+        response = self.client.get(reverse("api:me"), **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 401)
+
+    def test_token_of_a_deactivated_user_is_rejected(self):
+        self.owner.is_active = False
+        self.owner.save()
+        response = self.client.get(reverse("api:me"), **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 401)
+
+    def test_me_reports_the_token_owner_and_scope(self):
+        response = self.client.get(reverse("api:me"), **self._auth(self.raw_read_token))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["username"], "api-owner")
+        self.assertEqual(data["scope"], ApiToken.READ)
+
+    # --- scope enforcement ----------------------------------------------------
+
+    def test_a_read_only_token_cannot_create_a_contact(self):
+        response = self._post_json(reverse("api:contacts"), {"first_name": "X"}, self.raw_read_token)
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Person.objects.exists())
+
+    def test_a_read_only_token_cannot_delete_a_contact(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        response = self.client.delete(
+            reverse("api:contact", args=[person.pk]), **self._auth(self.raw_read_token))
+        self.assertEqual(response.status_code, 403)
+        person.refresh_from_db()
+        self.assertIsNone(person.deleted_at)
+
+    # --- contacts collection --------------------------------------------------
+
+    def test_creating_a_contact_requires_a_name(self):
+        response = self._post_json(reverse("api:contacts"), {}, self.raw_write_token)
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_then_fetch_a_contact_round_trips_through_the_api(self):
+        response = self._post_json(reverse("api:contacts"),
+                                    {"first_name": "Jonas", "last_name": "Jonaitis", "emails": ["j@example.lt"]},
+                                    self.raw_write_token)
+        self.assertEqual(response.status_code, 201)
+        created = response.json()
+        self.assertEqual(created["first_name"], "Jonas")
+        self.assertEqual(created["emails"], ["j@example.lt"])
+
+        fetched = self.client.get(reverse("api:contact", args=[created["id"]]), **self._auth(self.raw_read_token))
+        self.assertEqual(fetched.status_code, 200)
+        self.assertEqual(fetched.json()["last_name"], "Jonaitis")
+
+    def test_creating_a_likely_duplicate_is_refused_unless_forced(self):
+        Person.objects.create(first_name="Ona", last_name="Onaitė")
+        EmailAddress.objects.create(person=Person.objects.get(first_name="Ona"), email="ona@example.lt", is_primary=True)
+        response = self._post_json(reverse("api:contacts"),
+                                    {"first_name": "Ona", "last_name": "Onaitė", "emails": ["ona@example.lt"]},
+                                    self.raw_write_token)
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(Person.objects.count(), 1)
+
+        forced = self._post_json(reverse("api:contacts") + "?force=1",
+                                  {"first_name": "Ona", "last_name": "Onaitė", "emails": ["ona@example.lt"]},
+                                  self.raw_write_token)
+        self.assertEqual(forced.status_code, 201)
+        self.assertEqual(Person.objects.count(), 2)
+
+    def test_fetching_an_unknown_contact_is_a_404(self):
+        response = self.client.get(reverse("api:contact", args=[999999]), **self._auth(self.raw_read_token))
+        self.assertEqual(response.status_code, 404)
+
+    def test_a_restricted_tokens_owner_cannot_reach_someone_elses_contact(self):
+        restricted_user = get_user_model().objects.create_user("api-restricted", password="x")
+        UserProfile.objects.create(user=restricted_user, role=UserProfile.ROLE_RESTRICTED)
+        raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="r", token_hash=digest, prefix=raw[:12],
+                                 scope=ApiToken.READ_WRITE, created_by=restricted_user)
+        someone_elses = Person.objects.create(first_name="Kito", last_name="Kontaktas", owner=self.owner)
+
+        response = self.client.get(reverse("api:contact", args=[someone_elses.pk]), **self._auth(raw))
+        self.assertEqual(response.status_code, 404)
+
+        listing = self.client.get(reverse("api:contacts"), **self._auth(raw))
+        self.assertEqual(listing.json()["count"], 0)
+
+    def test_deleting_a_contact_requires_the_can_delete_capability(self):
+        RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER, permissions={"can_delete": False})
+        UserProfile.objects.create(user=self.owner, role=UserProfile.ROLE_MEMBER)
+        person = Person.objects.create(first_name="A", last_name="B")
+
+        response = self.client.delete(reverse("api:contact", args=[person.pk]), **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 403)
+        person.refresh_from_db()
+        self.assertIsNone(person.deleted_at)
+
+    def test_patching_a_contact_updates_it(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        response = self._patch_json(reverse("api:contact", args=[person.pk]), {"job_title": "Vadovė"})
+        self.assertEqual(response.status_code, 200)
+        person.refresh_from_db()
+        self.assertEqual(person.job_title, "Vadovė")
+
+    def _patch_json(self, url, payload):
+        return self.client.patch(url, data=json.dumps(payload), content_type="application/json",
+                                  **self._auth(self.raw_write_token))
+
+    def test_deleting_a_contact_archives_rather_than_erases_it(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        response = self.client.delete(reverse("api:contact", args=[person.pk]), **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 200)
+        person.refresh_from_db()
+        self.assertIsNotNone(person.deleted_at)
+        # Archived records drop out of both the API and the (deleted_at-filtered) UI queryset.
+        self.assertEqual(self.client.get(reverse("api:contact", args=[person.pk]), **self._auth(self.raw_read_token)).status_code, 404)
+
+    # --- companies --------------------------------------------------------
+
+    def test_creating_a_company_requires_a_name(self):
+        response = self._post_json(reverse("api:companies"), {}, self.raw_write_token)
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_then_patch_a_company(self):
+        created = self._post_json(reverse("api:companies"), {"name": "UAB Bandymas", "website": "example.lt"},
+                                   self.raw_write_token).json()
+        self.assertEqual(created["website"], "https://example.lt")
+        response = self.client.patch(reverse("api:company", args=[created["id"]]),
+                                      data=json.dumps({"city": "Vilnius"}), content_type="application/json",
+                                      **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["city"], "Vilnius")
+
+    # --- activities ---------------------------------------------------------
+
+    def test_creating_an_activity_requires_a_valid_type_and_a_linked_record(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        missing_record = self._post_json(reverse("api:activities"),
+                                          {"activity_type": "note", "text": "x"}, self.raw_write_token)
+        self.assertEqual(missing_record.status_code, 400)
+
+        bad_type = self._post_json(reverse("api:activities"),
+                                    {"activity_type": "not-a-type", "text": "x", "person_id": person.pk},
+                                    self.raw_write_token)
+        self.assertEqual(bad_type.status_code, 400)
+
+        ok = self._post_json(reverse("api:activities"),
+                              {"activity_type": "note", "text": "Skambinta", "person_id": person.pk},
+                              self.raw_write_token)
+        self.assertEqual(ok.status_code, 201)
+        self.assertEqual(person.activities.count(), 1)
+
+    # --- reminders ------------------------------------------------------------
+
+    def test_creating_a_reminder_requires_text_and_a_valid_due_at(self):
+        bad = self._post_json(reverse("api:reminders"), {"text": "x", "due_at": "not-a-date"}, self.raw_write_token)
+        self.assertEqual(bad.status_code, 400)
+
+        ok = self._post_json(reverse("api:reminders"),
+                              {"text": "Paskambinti", "due_at": "2030-01-01T10:00:00Z"}, self.raw_write_token)
+        self.assertEqual(ok.status_code, 201)
+        self.assertEqual(ok.json()["assigned_to_id"], self.owner.pk)
+
+    # --- pagination -----------------------------------------------------------
+
+    def test_pagination_limit_is_capped_and_offset_is_respected(self):
+        for i in range(3):
+            Person.objects.create(first_name=f"P{i}", last_name="Test")
+        response = self.client.get(reverse("api:contacts") + "?limit=500", **self._auth(self.raw_read_token))
+        self.assertEqual(response.json()["limit"], 100)  # MAX_PAGE
+
+        page = self.client.get(reverse("api:contacts") + "?limit=1&offset=1", **self._auth(self.raw_read_token))
+        self.assertEqual(len(page.json()["results"]), 1)
+        self.assertEqual(page.json()["count"], 3)
+
+    def test_bad_pagination_params_are_a_400_not_a_500(self):
+        response = self.client.get(reverse("api:contacts") + "?limit=abc", **self._auth(self.raw_read_token))
+        self.assertEqual(response.status_code, 400)
