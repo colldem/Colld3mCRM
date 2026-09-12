@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -3600,6 +3600,98 @@ class RecurringReminderTests(TestCase):
         self.assertGreaterEqual(Reminder.objects.filter(recurrence_parent=root).count(), before)
 
 
+class RecurrenceHelpersTests(TestCase):
+    """contacts/recurrence.py at the function level. The view-level tests
+    above only ever exercise weekly and daily; monthly/yearly rely on
+    _add_months's month-length clamping, which is real date arithmetic —
+    easy to get subtly wrong and easy to miss without a direct test."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("recur", password="very-secure-password")
+        self.person = Person.objects.create(first_name="R", last_name="S")
+
+    def test_add_months_clamps_to_the_shorter_target_month(self):
+        from contacts.recurrence import _add_months
+        jan31 = timezone.make_aware(datetime(2027, 1, 31, 9, 0))
+        result = _add_months(jan31, 1)
+        self.assertEqual((result.month, result.day), (2, 28))  # 2027: not a leap year
+
+    def test_add_months_handles_a_leap_february(self):
+        from contacts.recurrence import _add_months
+        jan31 = timezone.make_aware(datetime(2028, 1, 31, 9, 0))
+        result = _add_months(jan31, 1)
+        self.assertEqual((result.month, result.day), (2, 29))  # 2028: a leap year
+
+    def test_add_months_rolls_the_year_over(self):
+        from contacts.recurrence import _add_months
+        december = timezone.make_aware(datetime(2027, 12, 15, 9, 0))
+        result = _add_months(december, 1)
+        self.assertEqual((result.year, result.month, result.day), (2028, 1, 15))
+
+    def test_step_covers_every_frequency_and_rejects_an_unknown_one(self):
+        from contacts.recurrence import _step
+        start = timezone.make_aware(datetime(2027, 1, 31, 9, 0))
+        self.assertEqual(_step(start, "daily", 2), start + timedelta(days=2))
+        self.assertEqual(_step(start, "weekly", 1), start + timedelta(weeks=1))
+        monthly = _step(start, "monthly", 1)
+        self.assertEqual((monthly.month, monthly.day), (2, 28))
+        yearly = _step(start, "yearly", 1)
+        self.assertEqual((yearly.year, yearly.month, yearly.day), (2028, 1, 31))
+        self.assertIsNone(_step(start, "not-a-real-frequency", 1))
+
+    def test_occurrences_yields_nothing_without_a_frequency(self):
+        from contacts.recurrence import occurrences
+        root = Reminder(due_at=timezone.now(), recurrence_freq="")
+        self.assertEqual(list(occurrences(root)), [])
+
+    def test_occurrences_stops_at_the_recurrence_count(self):
+        from contacts.recurrence import occurrences
+        now = timezone.now()
+        root = Reminder(due_at=now, recurrence_freq="daily", recurrence_interval=1, recurrence_count=3)
+        self.assertEqual(len(list(occurrences(root, now=now))), 3)
+
+    def test_occurrences_stops_at_the_until_date(self):
+        from contacts.recurrence import occurrences
+        now = timezone.now()
+        until = (now + timedelta(days=5)).date()
+        root = Reminder(due_at=now, recurrence_freq="daily", recurrence_interval=1, recurrence_until=until)
+        results = list(occurrences(root, now=now))
+        self.assertTrue(all(dt.date() <= until for dt in results))
+        self.assertGreaterEqual(len(results), 1)
+
+    def test_extend_does_nothing_for_a_non_recurring_reminder(self):
+        from contacts.recurrence import extend
+        plain = Reminder.objects.create(
+            person=self.person, text="Vienkartinis", due_at=timezone.now(), created_by=self.user)
+        self.assertEqual(extend(plain), 0)
+        self.assertEqual(plain.recurrence_children.count(), 0)
+
+    def test_extend_does_nothing_for_a_child_occurrence(self):
+        from contacts.recurrence import extend
+        root = Reminder.objects.create(
+            person=self.person, text="Serija", due_at=timezone.now(), created_by=self.user,
+            recurrence_freq="daily", recurrence_count=3)
+        extend(root)
+        child = root.recurrence_children.first()
+        self.assertIsNotNone(child)
+        self.assertEqual(extend(child), 0)
+
+    def test_a_monthly_series_started_on_the_31st_lands_on_valid_dates(self):
+        """Each occurrence steps from the *previous* one, so a short month's
+        clamp carries forward — Feb 28 stays 28 in March, it does not jump
+        back to 31. That is the current, deliberate behaviour; this test is
+        here so a future change to it is a conscious decision, not a surprise."""
+        from contacts.recurrence import extend
+        due = timezone.make_aware(datetime(2027, 1, 31, 10, 0))
+        root = Reminder.objects.create(
+            person=self.person, text="Mėnesinis", due_at=due, created_by=self.user,
+            recurrence_freq="monthly", recurrence_interval=1, recurrence_count=4)
+        created = extend(root)
+        children = list(root.recurrence_children.order_by("due_at"))
+        self.assertEqual(created, 3)
+        self.assertEqual([(c.due_at.month, c.due_at.day) for c in children], [(2, 28), (3, 28), (4, 28)])
+
+
 class CalendarFeedTests(TestCase):
     def setUp(self):
         from contacts.models import UserProfile
@@ -3695,6 +3787,244 @@ class IncomingMailTests(TestCase):
     def test_fetch_does_nothing_without_imap_host(self):
         from contacts.mailfetch import fetch
         self.assertEqual(fetch(), {})
+
+    # --- header decoding --------------------------------------------------
+
+    def test_dec_falls_back_to_the_raw_value_when_header_decoding_fails(self):
+        from contacts.mailfetch import _dec
+        garbled = "=?utf-8?B?%%%not-base64%%%?="
+        self.assertEqual(_dec(garbled), garbled)
+        self.assertEqual(_dec(None), "")
+
+    # --- body extraction ----------------------------------------------------
+
+    def test_body_prefers_plain_text_and_skips_attachment_parts(self):
+        from email.mime.application import MIMEApplication
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        from contacts.mailfetch import _body
+        msg = MIMEMultipart()
+        attachment = MIMEApplication(b"%PDF-1.4", _subtype="pdf")
+        attachment.add_header("Content-Disposition", "attachment", filename="failas.pdf")
+        msg.attach(attachment)  # walked first — must be skipped, not mistaken for the body
+        msg.attach(MIMEText("<p>Nesvarbu</p>", "html"))
+        msg.attach(MIMEText("Grynas tekstas", "plain"))
+        self.assertEqual(_body(msg), "Grynas tekstas")
+
+    def test_body_falls_back_to_stripped_html_when_there_is_no_plain_text(self):
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        from contacts.mailfetch import _body
+        msg = MIMEMultipart()
+        msg.attach(MIMEText("<p>Sveiki <b>visi</b></p>", "html"))
+        body = _body(msg)
+        self.assertIn("Sveiki", body)
+        self.assertIn("visi", body)
+        self.assertNotIn("<p>", body)
+        self.assertNotIn("<b>", body)
+
+    def test_body_skips_a_part_with_an_unreadable_charset_and_uses_the_next(self):
+        from email.message import Message
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        from contacts.mailfetch import _body
+        unreadable = Message()
+        unreadable.set_type("text/plain")
+        unreadable.set_param("charset", "totally-bogus-charset")
+        unreadable.set_payload("nebus perskaityta")
+        msg = MIMEMultipart()
+        msg.attach(unreadable)
+        msg.attach(MIMEText("Geras tekstas", "plain"))
+        self.assertEqual(_body(msg), "Geras tekstas")
+
+    def test_body_of_a_non_multipart_message_reads_the_message_itself(self):
+        from email.message import EmailMessage
+
+        from contacts.mailfetch import _body
+        m = EmailMessage()
+        m.set_content("Paprastas laiškas")
+        self.assertEqual(_body(m).strip(), "Paprastas laiškas")
+
+    # --- default author fallback chain -----------------------------------
+
+    def test_default_author_falls_back_from_superuser_to_any_active_user(self):
+        from contacts.mailfetch import _default_author
+        get_user_model().objects.all().delete()
+        self.assertIsNone(_default_author())
+        only_member = get_user_model().objects.create_user("tik-narys", password="very-secure-password")
+        self.assertEqual(_default_author(), only_member)
+        admin = get_user_model().objects.create_user(
+            "admin2", password="very-secure-password", is_superuser=True)
+        self.assertEqual(_default_author(), admin)
+
+    # --- attachments ---------------------------------------------------------
+
+    def test_save_attachments_keeps_only_allowed_small_named_attachments(self):
+        from email.mime.application import MIMEApplication
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        from contacts.mailfetch import _save_attachments
+        msg = MIMEMultipart()
+        msg.attach(MIMEText("tekstas", "plain"))
+
+        good = MIMEApplication(b"%PDF-1.4 mazas", _subtype="pdf")
+        good.add_header("Content-Disposition", "attachment", filename="sutartis.pdf")
+        msg.attach(good)
+
+        unnamed = MIMEApplication(b"data", _subtype="pdf")
+        unnamed.add_header("Content-Disposition", "attachment")  # no filename
+        msg.attach(unnamed)
+
+        inline_image = MIMEApplication(b"inline-not-an-attachment", _subtype="pdf")
+        inline_image.add_header("Content-Disposition", "inline", filename="logo.pdf")
+        msg.attach(inline_image)
+
+        disallowed_ext = MIMEApplication(b"#!/bin/sh\n", _subtype="octet-stream")
+        disallowed_ext.add_header("Content-Disposition", "attachment", filename="skriptas.sh")
+        msg.attach(disallowed_ext)
+
+        empty = MIMEApplication(b"", _subtype="pdf")
+        empty.add_header("Content-Disposition", "attachment", filename="tuscias.pdf")
+        msg.attach(empty)
+
+        too_big = MIMEApplication(b"x" * (10 * 1024 * 1024 + 1), _subtype="pdf")
+        too_big.add_header("Content-Disposition", "attachment", filename="didelis.pdf")
+        msg.attach(too_big)
+
+        activity = Activity.objects.create(person=self.person, text="su priedais", created_by=self.staffer)
+        _save_attachments(msg, activity)
+
+        self.assertEqual(list(activity.attachments.values_list("original_name", flat=True)), ["sutartis.pdf"])
+
+    def test_save_attachments_does_nothing_for_a_non_multipart_message(self):
+        from email.message import EmailMessage
+
+        from contacts.mailfetch import _save_attachments
+        m = EmailMessage()
+        m.set_content("be priedų")
+        activity = Activity.objects.create(person=self.person, text="be priedų", created_by=self.staffer)
+        _save_attachments(m, activity)
+        self.assertEqual(activity.attachments.count(), 0)
+
+    # --- process_message edge cases -------------------------------------------
+
+    def test_a_message_with_no_message_id_is_skipped(self):
+        from contacts.mailfetch import process_message
+        from email.message import EmailMessage
+        m = EmailMessage()
+        m["From"] = "darbuotojas@imone.lt"
+        m["To"] = "klientas@example.lt"
+        m.set_content("Be Message-ID")
+        self.assertEqual(process_message(m.as_bytes()), "skipped")
+        self.assertFalse(Activity.objects.exists())
+
+    def test_an_unparseable_date_header_falls_back_to_now_without_raising(self):
+        from contacts.mailfetch import process_message
+        from email.message import EmailMessage
+        m = EmailMessage()
+        m["Message-ID"] = "<bad-date@x>"
+        m["From"] = "nezinomas@x.lt"
+        m["To"] = "nezinomas-adresatas@x.lt"
+        m["Date"] = "this is not a date"
+        m.set_content("Turinys")
+        self.assertEqual(process_message(m.as_bytes()), "unmatched")
+        from contacts.models import IncomingMail
+        mail = IncomingMail.objects.get(message_id="<bad-date@x>")
+        self.assertIsNotNone(mail.received_at)
+
+    # --- fetch(): the real IMAP loop, against a fake connection ---------------
+
+    class _FakeImapConnection:
+        def __init__(self, raw_messages, fail_on=None, empty_fetch_on=None, logout_raises=False):
+            self._raw = raw_messages
+            self._fail_on = fail_on
+            self._empty_fetch_on = empty_fetch_on
+            self._logout_raises = logout_raises
+            self.logged_out = False
+            self.stored = []
+
+        def login(self, user, password):
+            pass
+
+        def select(self, folder):
+            pass
+
+        def search(self, charset, criteria):
+            ids = [str(i + 1).encode() for i in range(len(self._raw))]
+            return "OK", [b" ".join(ids)]
+
+        def fetch(self, num, parts):
+            index = int(num) - 1
+            if index == self._fail_on:
+                raise OSError("connection reset")
+            if index == self._empty_fetch_on:
+                return "OK", [b"no message data, just a status line"]
+            return "OK", [(b"1 (RFC822 {%d}" % index, self._raw[index])]
+
+        def store(self, num, flag, value):
+            self.stored.append((num, flag, value))
+
+        def logout(self):
+            self.logged_out = True
+            if self._logout_raises:
+                raise OSError("already disconnected")
+
+    def _enable_imap(self, user="crm@example.lt"):
+        from contacts.crypto import encrypt
+        from contacts.models import SystemSettings
+        system = SystemSettings.load()
+        system.imap_enabled = True
+        system.imap_host = "imap.example.lt"
+        system.imap_user = user
+        system.imap_password = encrypt("s3cret")
+        system.save()
+
+    def test_fetch_processes_every_unseen_message_and_marks_it_seen(self):
+        from contacts import mailfetch
+        self._enable_imap()
+        fake = self._FakeImapConnection([
+            self._raw(mid="<f1@x>"),
+            self._raw(mid="<f2@x>", to="nezinomas@x.lt"),
+        ])
+        with patch("imaplib.IMAP4_SSL", return_value=fake):
+            counts = mailfetch.fetch()
+        self.assertEqual(counts, {"activity": 1, "unmatched": 1})
+        self.assertEqual(len(fake.stored), 2)
+        self.assertTrue(fake.logged_out)
+
+    def test_fetch_logs_out_even_when_a_message_fetch_fails(self):
+        from contacts import mailfetch
+        self._enable_imap()
+        fake = self._FakeImapConnection([self._raw(mid="<f3@x>")], fail_on=0)
+        with patch("imaplib.IMAP4_SSL", return_value=fake):
+            with self.assertRaises(OSError):
+                mailfetch.fetch()
+        self.assertTrue(fake.logged_out)
+
+    def test_fetch_skips_a_message_whose_fetch_response_carries_no_data(self):
+        from contacts import mailfetch
+        self._enable_imap()
+        fake = self._FakeImapConnection([
+            self._raw(mid="<empty@x>"),
+            self._raw(mid="<f4@x>"),
+        ], empty_fetch_on=0)
+        with patch("imaplib.IMAP4_SSL", return_value=fake):
+            counts = mailfetch.fetch()
+        self.assertEqual(counts, {"activity": 1})
+        self.assertFalse(Activity.objects.filter(message_id="<empty@x>").exists())
+
+    def test_fetch_swallows_a_failure_to_log_out(self):
+        from contacts import mailfetch
+        self._enable_imap()
+        fake = self._FakeImapConnection([self._raw(mid="<f5@x>")], logout_raises=True)
+        with patch("imaplib.IMAP4_SSL", return_value=fake):
+            counts = mailfetch.fetch()  # must not raise, even though logout() did
+        self.assertEqual(counts, {"activity": 1})
+        self.assertTrue(fake.logged_out)
 
 
 class EntraLoginTests(TestCase):
