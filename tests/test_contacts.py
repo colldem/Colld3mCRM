@@ -3699,10 +3699,12 @@ class IncomingMailTests(TestCase):
 
 class EntraLoginTests(TestCase):
     def test_username_helper_prefers_upn_then_email(self):
+        # Called the way mozilla-django-oidc's get_username() actually calls a
+        # two-argument OIDC_USERNAME_ALGO: (claims["email"], claims).
         from contacts.oidc import username_from_claims
-        self.assertEqual(username_from_claims({"preferred_username": "A@B.LT"}), "a@b.lt")
-        self.assertEqual(username_from_claims({"email": "c@d.lt"}), "c@d.lt")
-        self.assertEqual(username_from_claims({}), "")
+        self.assertEqual(username_from_claims("a@b.lt", {"preferred_username": "A@B.LT"}), "a@b.lt")
+        self.assertEqual(username_from_claims("c@d.lt", {"email": "c@d.lt"}), "c@d.lt")
+        self.assertEqual(username_from_claims("", {}), "")
 
     def test_login_page_hides_the_microsoft_button_when_oidc_is_off(self):
         response = self.client.get(reverse("login"))
@@ -3715,6 +3717,57 @@ class EntraLoginTests(TestCase):
         backend = EntraOIDCBackend()
         self.assertEqual(list(backend.filter_users_by_claims({"email": "ESAMAS@imone.lt"})), [user])
         self.assertIsNone(backend.create_user({"email": "naujas@imone.lt"}))
+
+    def test_filter_users_by_claims_with_no_email_matches_nobody(self):
+        from contacts.oidc import EntraOIDCBackend
+        self.assertEqual(list(EntraOIDCBackend().filter_users_by_claims({})), [])
+
+    def test_filter_users_by_claims_excludes_deactivated_accounts(self):
+        from contacts.oidc import EntraOIDCBackend
+        get_user_model().objects.create_user(
+            "neaktyvus", email="neaktyvus@imone.lt", password="very-secure-password", is_active=False)
+        self.assertEqual(
+            list(EntraOIDCBackend().filter_users_by_claims({"email": "neaktyvus@imone.lt"})), [])
+
+    def test_verify_claims_requires_an_email(self):
+        from contacts.oidc import EntraOIDCBackend
+        backend = EntraOIDCBackend()
+        self.assertTrue(backend.verify_claims({"email": "a@b.lt"}))
+        self.assertTrue(backend.verify_claims({"upn": "a@b.lt"}))
+        self.assertFalse(backend.verify_claims({}))
+
+    def test_create_user_provisions_an_account_only_when_the_switch_is_on(self):
+        from contacts.models import SystemSettings, UserProfile
+        from contacts.oidc import EntraOIDCBackend
+        system = SystemSettings.load()
+        system.oidc_create_users = True
+        system.save()
+
+        user = EntraOIDCBackend().create_user(
+            {"email": "naujas2@imone.lt", "given_name": "Jonas", "family_name": "Jonaitis"})
+        self.assertEqual(user.email, "naujas2@imone.lt")
+        self.assertEqual((user.first_name, user.last_name), ("Jonas", "Jonaitis"))
+        self.assertFalse(user.has_usable_password())
+        self.assertTrue(UserProfile.objects.filter(user=user).exists())
+
+    def test_update_user_overwrites_only_changed_non_blank_claims(self):
+        from contacts.oidc import EntraOIDCBackend
+        user = get_user_model().objects.create_user(
+            "keiciamas", email="k@imone.lt", first_name="Sena", last_name="Pavardė",
+            password="very-secure-password")
+        EntraOIDCBackend().update_user(user, {"given_name": "Nauja", "family_name": ""})
+        user.refresh_from_db()
+        self.assertEqual(user.first_name, "Nauja")
+        self.assertEqual(user.last_name, "Pavardė")  # blank claim never overwrites an existing value
+
+    def test_update_user_does_not_write_when_nothing_changed(self):
+        from contacts.oidc import EntraOIDCBackend
+        user = get_user_model().objects.create_user(
+            "nekeiciamas", email="n@imone.lt", first_name="Ana", last_name="Anaitė",
+            password="very-secure-password")
+        with patch("django.contrib.auth.models.User.save") as mock_save:
+            EntraOIDCBackend().update_user(user, {"given_name": "Ana", "family_name": "Anaitė"})
+            mock_save.assert_not_called()
 
 
 class IntegrationConfigTests(TestCase):
@@ -4650,3 +4703,259 @@ class ApiTests(TestCase):
     def test_bad_pagination_params_are_a_400_not_a_500(self):
         response = self.client.get(reverse("api:contacts") + "?limit=abc", **self._auth(self.raw_read_token))
         self.assertEqual(response.status_code, 400)
+
+
+class MergeRecordsTests(TestCase):
+    """contacts/merging.py's guard rails and data movement, at the function
+    level — the view-level tests already cover the label-limit rollback and
+    the happy path with history; these target what was still unexercised:
+    the self-merge/missing/already-merged/deleted guards, and whether a
+    person's phones, emails, addresses and links actually survive a merge."""
+
+    def setUp(self):
+        self.actor = get_user_model().objects.create_user("merger", password="very-secure-password")
+
+    # --- guard rails, shared shape between people and companies ---------------
+
+    def test_cannot_merge_a_person_with_itself(self):
+        from contacts.merging import merge_people
+        person = Person.objects.create(first_name="A", last_name="B")
+        with self.assertRaises(ValidationError):
+            merge_people(person.pk, person.pk)
+
+    def test_merging_a_missing_person_raises(self):
+        from contacts.merging import merge_people
+        person = Person.objects.create(first_name="A", last_name="B")
+        with self.assertRaises(ValidationError):
+            merge_people(person.pk, 999999)
+
+    def test_merging_an_already_merged_source_into_the_same_target_is_a_noop(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="S", last_name="1")
+        target = Person.objects.create(first_name="T", last_name="1")
+        source.merged_into = target
+        source.save()
+        self.assertEqual(merge_people(source.pk, target.pk), target)
+
+    def test_merging_an_already_merged_source_into_a_different_target_raises(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="S", last_name="2")
+        first_target = Person.objects.create(first_name="T", last_name="2")
+        other_target = Person.objects.create(first_name="T", last_name="3")
+        source.merged_into = first_target
+        source.save()
+        with self.assertRaises(ValidationError):
+            merge_people(source.pk, other_target.pk)
+
+    def test_cannot_merge_a_deleted_source_or_target_person(self):
+        from contacts.merging import merge_people
+        deleted_source = Person.objects.create(first_name="S", last_name="3", deleted_at=timezone.now())
+        target = Person.objects.create(first_name="T", last_name="4")
+        with self.assertRaises(ValidationError):
+            merge_people(deleted_source.pk, target.pk)
+
+        source = Person.objects.create(first_name="S", last_name="4")
+        deleted_target = Person.objects.create(first_name="T", last_name="5", deleted_at=timezone.now())
+        with self.assertRaises(ValidationError):
+            merge_people(source.pk, deleted_target.pk)
+
+    def test_cannot_merge_into_a_target_that_is_itself_already_merged_away(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="S", last_name="5")
+        target = Person.objects.create(first_name="T", last_name="6")
+        elsewhere = Person.objects.create(first_name="T", last_name="7")
+        target.merged_into = elsewhere
+        target.save()
+        with self.assertRaises(ValidationError):
+            merge_people(source.pk, target.pk)
+
+    def test_company_merge_has_the_same_self_and_missing_record_guards(self):
+        from contacts.merging import merge_companies
+        company = Company.objects.create(name="Solo")
+        with self.assertRaises(ValidationError):
+            merge_companies(company.pk, company.pk)
+        with self.assertRaises(ValidationError):
+            merge_companies(company.pk, 999999)
+
+    # --- person merge: field fill-in, favourite, ownership --------------------
+
+    def test_merge_fills_blank_target_fields_from_source(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="Rūta", last_name="Latecka", job_title="Vadovė", description="Apie ją")
+        target = Person.objects.create(first_name="Rūta", last_name="Latecka")
+        merge_people(source.pk, target.pk)
+        target.refresh_from_db()
+        self.assertEqual(target.job_title, "Vadovė")
+        self.assertEqual(target.description, "Apie ją")
+
+    def test_merge_does_not_overwrite_a_target_field_that_is_already_set(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="B", job_title="Šaltinio pareigos")
+        target = Person.objects.create(first_name="A", last_name="B", job_title="Tikslo pareigos")
+        merge_people(source.pk, target.pk)
+        target.refresh_from_db()
+        self.assertEqual(target.job_title, "Tikslo pareigos")
+
+    def test_merge_propagates_a_favourite_flag_but_never_clears_one(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="C", favourite=True)
+        target = Person.objects.create(first_name="A", last_name="C", favourite=False)
+        merge_people(source.pk, target.pk)
+        target.refresh_from_db()
+        self.assertTrue(target.favourite)
+
+    def test_merge_keeps_targets_owner_and_folds_source_owner_in_as_responsible(self):
+        from contacts.merging import merge_people
+        owner_a = get_user_model().objects.create_user("owner-a", password="very-secure-password")
+        owner_b = get_user_model().objects.create_user("owner-b", password="very-secure-password")
+        source = Person.objects.create(first_name="A", last_name="D", owner=owner_b)
+        target = Person.objects.create(first_name="A", last_name="D", owner=owner_a)
+        merge_people(source.pk, target.pk)
+        target.refresh_from_db()
+        self.assertEqual(target.owner_id, owner_a.pk)
+        self.assertIn(owner_b, target.responsibles.all())
+
+    def test_merge_gives_the_target_the_sources_owner_when_target_has_none(self):
+        from contacts.merging import merge_people
+        owner = get_user_model().objects.create_user("owner-c", password="very-secure-password")
+        source = Person.objects.create(first_name="A", last_name="E", owner=owner)
+        target = Person.objects.create(first_name="A", last_name="E")
+        merge_people(source.pk, target.pk)
+        target.refresh_from_db()
+        self.assertEqual(target.owner_id, owner.pk)
+
+    # --- person merge: phones/emails/addresses/links/activities/reminders -----
+
+    def test_merge_moves_the_sources_unique_contact_details_onto_the_target(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="F")
+        target = Person.objects.create(first_name="A", last_name="F")
+        PhoneNumber.objects.create(person=source, number="+370 611 22333", is_primary=True)
+        EmailAddress.objects.create(person=source, email="rusva@example.lt", is_primary=True)
+        PostalAddress.objects.create(person=source, address="Gedimino pr. 1")
+        WebLink.objects.create(person=source, url="https://example.lt")
+        # Already on the target, same number in different spacing — must not duplicate.
+        PhoneNumber.objects.create(person=target, number="370-611-22333", is_primary=True)
+
+        merge_people(source.pk, target.pk)
+
+        self.assertEqual(list(target.phones.values_list("number", flat=True)), ["370-611-22333"])
+        self.assertEqual(list(target.emails.values_list("email", flat=True)), ["rusva@example.lt"])
+        self.assertEqual(list(target.addresses.values_list("address", flat=True)), ["Gedimino pr. 1"])
+        self.assertEqual(list(target.web_links.values_list("url", flat=True)), ["https://example.lt"])
+
+    def test_merge_reassigns_the_sources_activities_and_reminders_to_the_target(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="G")
+        target = Person.objects.create(first_name="A", last_name="G")
+        activity = Activity.objects.create(person=source, text="Skambutis", created_by=self.actor)
+        reminder = Reminder.objects.create(person=source, text="Perskambinti", due_at=timezone.now(), created_by=self.actor)
+
+        merge_people(source.pk, target.pk)
+
+        activity.refresh_from_db()
+        reminder.refresh_from_db()
+        self.assertEqual(activity.person_id, target.pk)
+        self.assertEqual(reminder.person_id, target.pk)
+
+    def test_merge_moves_the_sources_company_links_onto_the_target(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="H")
+        target = Person.objects.create(first_name="A", last_name="H")
+        company = Company.objects.create(name="Bendra įmonė")
+        PersonCompanyLink.objects.create(person=source, company=company, role="Analitikas", is_primary=True)
+
+        merge_people(source.pk, target.pk)
+
+        link = target.company_links.get(company=company)
+        self.assertEqual(link.role, "Analitikas")
+        self.assertTrue(link.is_primary)
+
+    def test_merge_folds_a_shared_company_link_instead_of_duplicating_it(self):
+        """Both source and target already work at the same company: the link
+        must be merged in place (role/primary filled in), not duplicated."""
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="H2")
+        target = Person.objects.create(first_name="A", last_name="H2")
+        company = Company.objects.create(name="Abi dirba čia")
+        PersonCompanyLink.objects.create(person=source, company=company, role="Vadovė", is_primary=True)
+        target_link = PersonCompanyLink.objects.create(person=target, company=company, role="", is_primary=False)
+
+        merge_people(source.pk, target.pk)
+
+        self.assertEqual(target.company_links.filter(company=company).count(), 1)
+        target_link.refresh_from_db()
+        self.assertEqual(target_link.role, "Vadovė")
+        self.assertTrue(target_link.is_primary)
+
+    def test_merged_source_is_archived_and_points_at_the_target(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="I")
+        target = Person.objects.create(first_name="A", last_name="I")
+        merge_people(source.pk, target.pk)
+        source.refresh_from_db()
+        self.assertEqual(source.merged_into_id, target.pk)
+        self.assertIsNotNone(source.deleted_at)
+
+    # --- company merge: fields, links, activities ------------------------------
+
+    def test_company_merge_fills_blank_fields_and_moves_activities(self):
+        from contacts.merging import merge_companies
+        source = Company.objects.create(name="UAB Šaltinis", company_code="123", phone="+37060000000")
+        target = Company.objects.create(name="UAB Šaltinis")
+        activity = Activity.objects.create(company=source, text="Susitikimas", created_by=self.actor)
+
+        merge_companies(source.pk, target.pk)
+
+        target.refresh_from_db()
+        activity.refresh_from_db()
+        self.assertEqual(target.company_code, "123")
+        self.assertEqual(target.phone, "+37060000000")
+        self.assertEqual(activity.company_id, target.pk)
+
+    def test_company_merge_moves_the_sources_people_links(self):
+        from contacts.merging import merge_companies
+        source = Company.objects.create(name="UAB Perkeliama")
+        target = Company.objects.create(name="UAB Perkeliama")
+        person = Person.objects.create(first_name="A", last_name="J")
+        PersonCompanyLink.objects.create(person=person, company=source, role="Vadovas")
+
+        merge_companies(source.pk, target.pk)
+
+        self.assertTrue(target.person_links.filter(person=person, role="Vadovas").exists())
+
+    def test_company_merge_folds_a_shared_person_link_instead_of_duplicating_it(self):
+        from contacts.merging import merge_companies
+        source = Company.objects.create(name="UAB Bendra1")
+        target = Company.objects.create(name="UAB Bendra2")
+        person = Person.objects.create(first_name="A", last_name="K")
+        PersonCompanyLink.objects.create(person=person, company=source, role="Buhalterė", is_primary=True)
+        target_link = PersonCompanyLink.objects.create(person=person, company=target, role="", is_primary=False)
+
+        merge_companies(source.pk, target.pk)
+
+        self.assertEqual(target.person_links.filter(person=person).count(), 1)
+        target_link.refresh_from_db()
+        self.assertEqual(target_link.role, "Buhalterė")
+        self.assertTrue(target_link.is_primary)
+
+    def test_company_merge_refuses_deleted_records_and_already_merged_chains(self):
+        from contacts.merging import merge_companies
+        deleted_source = Company.objects.create(name="A", deleted_at=timezone.now())
+        target = Company.objects.create(name="B")
+        with self.assertRaises(ValidationError):
+            merge_companies(deleted_source.pk, target.pk)
+
+        source = Company.objects.create(name="C")
+        deleted_target = Company.objects.create(name="D", deleted_at=timezone.now())
+        with self.assertRaises(ValidationError):
+            merge_companies(source.pk, deleted_target.pk)
+
+        already_merged_source = Company.objects.create(name="E")
+        first_target = Company.objects.create(name="F")
+        other_target = Company.objects.create(name="G")
+        already_merged_source.merged_into = first_target
+        already_merged_source.save()
+        self.assertEqual(merge_companies(already_merged_source.pk, first_target.pk), first_target)
+        with self.assertRaises(ValidationError):
+            merge_companies(already_merged_source.pk, other_target.pk)

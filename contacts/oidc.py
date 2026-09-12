@@ -19,8 +19,17 @@ from mozilla_django_oidc.utils import import_from_settings
 from .integrations import oidc_config
 
 
-def username_from_claims(claims):
-    return (claims.get("preferred_username") or claims.get("email") or claims.get("upn") or "").lower()[:150]
+def username_from_claims(email, claims=None):
+    """Wired in as ``OIDC_USERNAME_ALGO`` (settings.py).
+
+    mozilla-django-oidc inspects this function's signature to decide how to
+    call it: a single-argument callable is treated as the *old* style and
+    called with just the email string, a two-argument one gets
+    ``(email, claims)`` — the modern convention, and the one this must match
+    or ``get_username()`` hands it a plain string where a dict is expected.
+    """
+    claims = claims or {}
+    return (claims.get("preferred_username") or email or claims.get("upn") or "").lower()[:150]
 
 
 def _resolve(attr, *args):
