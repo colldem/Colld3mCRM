@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -3532,6 +3532,60 @@ class NotificationTests(TestCase):
         reminder = Reminder.objects.get(text="Su priminimu")
         self.assertEqual(reminder.notify_before, 60)
 
+    # --- contacts/notifications.py at the function level -------------------
+
+    def test_effective_digest_time_prefers_the_users_own_setting(self):
+        from contacts.models import SystemSettings, UserProfile
+        from contacts.notifications import effective_digest_time
+        sys = SystemSettings.load()
+        sys.digest_default_time = time(7, 0)
+        sys.save()
+        UserProfile.objects.filter(user=self.admin).update(digest_time=time(9, 30))
+        self.admin.refresh_from_db()  # clear the cached crm_profile from setUp's own create()
+        self.assertEqual(effective_digest_time(self.admin, sys), time(9, 30))
+
+    def test_effective_digest_time_falls_back_to_the_system_default(self):
+        from contacts.models import SystemSettings
+        from contacts.notifications import effective_digest_time
+        sys = SystemSettings.load()
+        sys.digest_default_time = time(7, 0)
+        sys.save()
+        self.assertEqual(effective_digest_time(self.mate, sys), time(7, 0))  # no digest_time on the profile
+        no_profile = get_user_model().objects.create_user("bepr", password="very-secure-password")
+        self.assertEqual(effective_digest_time(no_profile, sys), time(7, 0))  # no profile at all
+
+    def test_send_returns_false_immediately_when_the_user_has_no_email(self):
+        from contacts.notifications import _send
+        no_email = get_user_model().objects.create_user("bepr2", password="very-secure-password")
+        self.assertFalse(_send("digest", "Tema", no_email, {"overdue": [], "today": []}, audit_label="x"))
+
+    def test_send_logs_to_the_audit_trail_and_returns_false_on_smtp_failure(self):
+        from contacts.models import AuditLog
+        from contacts.notifications import _send
+        with patch("django.core.mail.EmailMultiAlternatives.send", side_effect=OSError("smtp down")):
+            result = _send("digest", "Tema", self.admin, {"overdue": [], "today": []}, audit_label="siusti-nepavyko")
+        self.assertFalse(result)
+        entry = AuditLog.objects.get(target_label="siusti-nepavyko")
+        self.assertIn("smtp down", entry.new_value)
+
+    @override_settings(RUNNING_TESTS=False)
+    def test_connection_picks_the_smtp_backend_when_email_is_configured(self):
+        from contacts.integrations import EmailConfig
+        from contacts.notifications import _connection
+        cfg = EmailConfig(host="smtp.example.lt", port=587, user="a@b.lt", password="s3cret",
+                          use_tls=True, use_ssl=False, from_email="a@b.lt", enabled=True)
+        conn = _connection(cfg)
+        self.assertEqual((conn.host, conn.port), ("smtp.example.lt", 587))
+
+    @override_settings(RUNNING_TESTS=False)
+    def test_connection_falls_back_to_the_console_backend_when_unconfigured(self):
+        from contacts.integrations import EmailConfig
+        from contacts.notifications import _connection
+        cfg = EmailConfig(host="", port=0, user="", password="", use_tls=False, use_ssl=False,
+                          from_email="crm@example.lt", enabled=False)
+        conn = _connection(cfg)
+        self.assertIn("console", type(conn).__module__)
+
 
 class RecurringReminderTests(TestCase):
     def setUp(self):
@@ -4422,6 +4476,73 @@ class AutomationTests(TestCase):
         })
         self.assertFalse(form.is_valid())
         self.assertIn("action", form.errors)
+
+    def test_never_contacted_trigger_matches_a_contact_with_no_activity(self):
+        from contacts.models import AutomationRule
+        self._rule(trigger=AutomationRule.NEVER, threshold=5)
+        self.assertEqual(self._run(), 1)
+
+    def test_overdue_reminder_trigger_matches_and_notifies(self):
+        from contacts.models import AutomationRule
+        from django.core import mail
+        Reminder.objects.create(person=self.person, text="Vėluoja", due_at=timezone.now() - timedelta(days=10),
+                                created_by=self.admin)
+        self._rule(trigger=AutomationRule.OVERDUE, threshold=3, action=AutomationRule.NOTIFY, action_user=self.admin)
+        self.assertEqual(self._run(), 1)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_notify_action_is_logged_as_an_error_when_sending_fails(self):
+        from contacts.models import AutomationLog
+        self._rule()
+        with patch("contacts.notifications.send_rule_notice", return_value=False):
+            self._run()
+        self.assertTrue(AutomationLog.objects.filter(status="error", detail__error="email not sent").exists())
+
+    def test_assign_owner_action_errors_on_a_target_that_is_not_a_contact(self):
+        from contacts.models import AutomationLog, AutomationRule
+        Reminder.objects.create(person=self.person, text="Vėluoja", due_at=timezone.now() - timedelta(days=10),
+                                created_by=self.admin)
+        self._rule(trigger=AutomationRule.OVERDUE, threshold=3, action=AutomationRule.ASSIGN, action_user=self.admin)
+        self._run()
+        self.assertTrue(AutomationLog.objects.filter(status="error").exists())
+
+    def test_add_tag_action_adds_the_tag_once_and_stops_re_adding_it(self):
+        from contacts.models import AuditLog, AutomationRule
+        tag = Tag.objects.create(name="Rizika")
+        self._rule(action=AutomationRule.ADD_TAG, action_user=None, action_tag=tag)
+        self._run()
+        self.assertIn(tag, self.person.tags.all())
+        self.assertTrue(AuditLog.objects.filter(
+            target_id=str(self.person.pk), field="Žyma", detail__automation="Taisyklė").exists())
+
+        audits_before = AuditLog.objects.filter(field="Žyma").count()
+        self._run()  # tag already there — no duplicate add, no new audit entry
+        self.assertEqual(self.person.tags.filter(pk=tag.pk).count(), 1)
+        self.assertEqual(AuditLog.objects.filter(field="Žyma").count(), audits_before)
+
+    def test_add_tag_action_fails_without_a_configured_tag(self):
+        from contacts.models import AutomationLog, AutomationRule
+        self._rule(action=AutomationRule.ADD_TAG, action_user=None, action_tag=None)
+        self._run()
+        self.assertTrue(AutomationLog.objects.filter(status="error").exists())
+
+    def test_add_tag_action_fails_once_the_contact_already_has_three_tags(self):
+        from contacts.models import AutomationLog, AutomationRule
+        for name in ("A", "B", "C"):
+            self.person.tags.add(Tag.objects.create(name=name))
+        fourth = Tag.objects.create(name="Ketvirta")
+        self._rule(action=AutomationRule.ADD_TAG, action_user=None, action_tag=fourth)
+        self._run()
+        self.assertTrue(AutomationLog.objects.filter(status="error").exists())
+        self.assertNotIn(fourth, self.person.tags.all())
+
+    def test_run_all_skips_a_rule_whose_trigger_is_not_registered(self):
+        """Defence in depth: the form blocks this, but a rule already in the
+        database (an old trigger, a hand-edited row) must not crash the loop."""
+        from contacts.models import AutomationRule
+        rule = self._rule()
+        AutomationRule.objects.filter(pk=rule.pk).update(trigger="not-a-real-trigger")
+        self.assertEqual(self._run(), 0)
 
 
 class TranslationOverrideTests(TestCase):
