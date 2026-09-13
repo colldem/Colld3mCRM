@@ -7048,3 +7048,62 @@ class AntivirusTests(TestCase):
         from contacts.antivirus import check_upload
         with override_settings(CRM_CLAMAV_HOST=""):
             self.assertTrue(check_upload(BytesIO(FakeClamd.EICAR), name="e.txt", source="test"))
+
+
+from django.test import TransactionTestCase  # noqa: E402
+
+
+class PostgresReportingRoleTests(TransactionTestCase):
+    """The reporting role reads the reporting views and nothing else (PostgreSQL only)."""
+
+    ROLE = "crm_reporting_test"
+    PASSWORD = "reporting-password-0123456789"
+
+    def setUp(self):
+        from django.db import connection
+        if connection.vendor != "postgresql":
+            self.skipTest("the reporting schema exists on PostgreSQL only")
+        user = get_user_model().objects.create_user("reporter", password="very-secure-password")
+        Person.objects.create(first_name="Ataskaitų", last_name="Asmuo", created_by=user, description="slapta pastaba")
+
+    def tearDown(self):
+        from django.db import connection
+        if connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", [self.ROLE])
+                if cursor.fetchone():
+                    cursor.execute("DROP OWNED BY %s" % self.ROLE)
+                    cursor.execute("DROP ROLE %s" % self.ROLE)
+
+    def connect_as_role(self):
+        import psycopg
+        from django.db import connection
+        params = connection.settings_dict
+        return psycopg.connect(host=params["HOST"], port=params["PORT"] or 5432, dbname=params["NAME"],
+                               user=self.ROLE, password=self.PASSWORD, autocommit=True)
+
+    def test_role_reads_views_but_not_application_tables(self):
+        import psycopg
+        from io import StringIO
+        from django.core.management import call_command
+        with patch.dict(os.environ, {"REPORTING_PASSWORD": self.PASSWORD}):
+            out = StringIO()
+            call_command("create_reporting_role", "--name", self.ROLE, stdout=out)
+            self.assertIn("created role", out.getvalue())
+            call_command("create_reporting_role", "--name", self.ROLE, stdout=out)  # idempotent
+        with self.connect_as_role() as conn:
+            self.assertEqual(conn.execute("SELECT last_name FROM reporting.people").fetchall(), [("Asmuo",)])
+            columns = [d.name for d in conn.execute("SELECT * FROM reporting.people LIMIT 0").description]
+            self.assertNotIn("description", columns)
+            for query in ("SELECT * FROM contacts_person", "SELECT password FROM auth_user",
+                          "SELECT * FROM django_session", "SELECT * FROM contacts_apitoken",
+                          "SELECT * FROM contacts_systemsettings"):
+                with self.subTest(query=query), self.assertRaises(psycopg.errors.InsufficientPrivilege):
+                    conn.execute(query)
+            with self.assertRaises((psycopg.errors.ReadOnlySqlTransaction, psycopg.errors.InsufficientPrivilege)):
+                conn.execute("DELETE FROM reporting.tags")
+
+    def test_weak_password_is_refused(self):
+        from django.core.management import CommandError, call_command
+        with patch.dict(os.environ, {"REPORTING_PASSWORD": "short"}), self.assertRaises(CommandError):
+            call_command("create_reporting_role", "--name", self.ROLE)
