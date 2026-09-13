@@ -15,7 +15,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
    ```bash
    PYTHON_BIN=.venv/bin/python sh scripts/release-check.sh
    ```
-   (leidžia `makemigrations --check`, 96+ testus ir `manage.py check --deploy`).
+   (leidžia `makemigrations --check`, visus testus ir `manage.py check --deploy`) **ir**
+   `PYTHON_BIN=.venv/bin/python sh scripts/security-check.sh` (pip-audit, bandit) — commit tik abiem praėjus.
    Naujai logikai — pridėti testą į `tests/test_contacts.py` ar `tests/test_theme.py`.
 3. **Patikra naršyklėje.** Paleisti lokalų serverį ir realiai patikrinti
    pakeitimą naršyklėje (LT ir, jei liečia sąsają, EN; desktop ir mobilus vaizdas):

@@ -138,20 +138,22 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 | 6.6 | Oracle suderinamumo patikra CI; **ištaisyta**: unikalus indeksas ant teksto (lūžtų ir PostgreSQL); likę darbai ir įvertinimas `ORACLE.md` | ✅ (patikra) |
 | 6.7 | Integracijų aprašas, `reporting` schema ir tik skaitymo rolė (tikrinta PostgreSQL) | ✅ |
 
-### 7 etapas — Dokumentų paketas (LT)
+### 7 etapas — Dokumentų paketas (LT) — ✅ atlikta 2026-09-13 (`docs/paketas/`)
 
 | # | Dokumentas | Būsena |
 |---|---|---|
-| 7.1 | Sistemos aprašas (1–2 psl.: paskirtis, funkcijos, technologijos) | ❌ |
-| 7.2 | Architektūros ir diegimo schemos (loginė, aplinkų, duomenų srautų) | ❌ |
-| 7.3 | Saugumo priemonių aprašas | ❌ |
-| 7.4 | Duomenų žodynas (generuojamas iš modelių: laukai, asmens duomenys, terminai) | ❌ |
-| 7.5 | DAPV juodraštis | ❌ |
-| 7.6 | Kopijavimo ir atkūrimo planas (RPO/RTO) | ❌ |
-| 7.7 | Priežiūros modelis ir perdavimo planas | ❌ |
-| 7.8 | Pilotinio projekto planas | ❌ |
-| 7.9 | Žinomi apribojimai ir rizikų registras | ❌ |
-| 7.10 | Klausimų sąrašas infrastruktūrai ir saugai | ❌ |
+| 7.1 | `01-sistemos-aprasas.md` | ✅ |
+| 7.2 | `02-architektura-ir-schemos.md` (Mermaid: loginė, prisijungimas, aplinkos, duomenų srautai) | ✅ |
+| 7.3 | `03-saugumo-priemones.md` (priemonė → įgyvendinimas → patikra → organizacijos dalis) | ✅ |
+| 7.4 | `04-duomenu-zodynas.md` — **generuojamas iš kodo**, testai neleidžia pasenti | ✅ |
+| 7.5 | `05-dapv-juodrastis.md` (su [ORGANIZACIJA]/[DAP] laukais) | ✅ |
+| 7.6 | `06-kopijavimo-ir-atkurimo-planas.md` (RPO/RTO, raktai, pratybos) | ✅ |
+| 7.7 | `07-prieziura-ir-perdavimas.md` (RACI, apimtis, perdavimo planas, incidentai) | ✅ |
+| 7.8 | `08-pilotinis-projektas.md` (etapai, sėkmės kriterijai, išėjimas) | ✅ |
+| 7.9 | `09-apribojimai-ir-rizikos.md` (rizikų registras) | ✅ |
+| 7.10 | `10-klausimai.md` (užsakovui, infrastruktūrai, tapatybei, saugai, DAP, pirkimams) | ✅ |
+
+> Rengiant dokumentus rasta ir įgyvendinta: kalendoriaus prenumeratos nuorodų išjungimo nustatymas.
 
 ### 8 etapas — Tik jūs (ne kodas)
 
