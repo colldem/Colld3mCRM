@@ -28,21 +28,25 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | API raktai | ✅ sha256, scope, atšaukimas, galiojimo terminas, užklausų ribojimas (429) | `api.py` |
 | Webhook'ai | ✅ HMAC-SHA256, pristatymų žurnalas 30 d. | `webhooks.py` |
 | Paslaptys DB | ✅ Fernet (`CRM_SECRETS_KEY`) | `crypto.py` |
-| Priedai | 🟡 dydis 10 MB ir plėtinių sąrašas; **nėra antivirusinio skenavimo** | `views.py` |
+| Priedai | ✅ dydis, tipas, ClamAV visiems įkeliamiems failams (tikrinta su tikru ClamAV) | `antivirus.py` |
 | Atsarginės kopijos | ✅ age šifravimas, SHA256SUMS, būsenos patikra, kopija už hosto ribų (rclone), pre-deploy dump'ai šifruojami | `backup.sh`, `deploy/backup` |
 | Atkūrimas | ✅ `restore.sh` + avarinio atkūrimo pratybos CI kiekvieno pakeitimo metu | `restore.sh`, `ci.yml` |
 | Failų katalogo teisės | ✅ fiksuotas UID 10001, `crm-init`, paleidimo patikra, Helm fsGroup | `compose.yaml` |
 | Aplinkų izoliacija | ✅ ne-production aplinkoje SMTP/IMAP/Entra/webhook'ai priverstinai išjungti | `integrations.py` |
 | Staging duomenys | ✅ nuasmeninami (struktūra išlieka) | `anonymize.py` |
 | Žurnalai (logging) | ✅ JSON į stdout (programa, `crm.security`, Gunicorn), request-id, be asmens duomenų | `observability.py` |
-| Stebėsena | 🟡 `/health/live`, `/health/ready`; nėra metrikų | `config/urls.py` |
+| Stebėsena | ✅ health, `/metrics` (Prometheus), foninių darbų heartbeat, įspėjimų pavyzdžiai | `metrics.py` |
 | Asmens duomenų saugojimo terminai | ✅ archyvuoti įrašai, gauti laiškai, auditas — su peržiūra | `privacy.py` |
 | Duomenų subjekto teisės | ✅ vieno asmens ZIP eksportas ir ištrynimas su žurnalo nuasmeninimu | `privacy.py` |
 | Naudotojų išjungimas | ✅ AD išjungtas → atjungiamas per ≤15 min.; neaktyvūs išjungiami automatiškai; katalogo naudotojai be vietinio slaptažodžio | `oidc.py`, `accounts.py` |
 | Vien SSO režimas | ✅ su avarinėmis paskyromis (`CRM_BREAK_GLASS_USERS`) | `oidc.py` |
 | Pažeidžiamumų skenavimas | ✅ pip-audit, bandit, Trivy CI (žr. 5 etapą) | `ci.yml`, `security-check.sh` |
 | SBOM | ✅ CycloneDX (Python + image), GHCR atestacijos | `ci.yml`, `publish-image.yml` |
-| Kubernetes | ✅ Helm chart, migracijų Job, CronJob'ai, S3 saugykla | `deploy/helm` |
+| Kubernetes | ✅ Helm chart; read-only root, seccomp, PDB, NetworkPolicy, kubeconform; ištaisytas Service selektorius | `deploy/helm` |
+| Našumas | ✅ apkrovos testas CI (50 naudotojų, 5 000 kontaktų): p95 1,7 s, 0 klaidų; ištaisyti N+1 ir varpelis | `scripts/loadtest` |
+| Kliento IP už proxy | ✅ `CRM_TRUSTED_PROXIES`; ištaisyta: blokavimas palietė visus už proxy | `audit.py` |
+| Integracijos / DWH | ✅ `reporting` schema, tik skaitymo rolė, `INTEGRACIJOS.md` | migracija 0051 |
+| Oracle | 🟡 migracijos praeina, 515/644 testų; darbų įvertinimas `ORACLE.md` | CI `oracle-compatibility` |
 | Dokumentacija | 🟡 techninė EN/LT gera; **nėra saugumo aprašo, duomenų žodyno, DAPV, priežiūros modelio** | `docs/` |
 
 ---
@@ -116,23 +120,23 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 | 5.2 | `bandit` statinė kodo saugumo analizė | S | ✅ 8 radiniai peržiūrėti, realių spragų nėra; `rich_text` XSS regresijos testai |
 | 5.3 | Trivy image skenavimas CI | S | ✅ rado 2 HIGH (libpcre2) — pataisyta Dockerfile; PostgreSQL image skenuojamas informaciniu režimu |
 | 5.4 | SBOM (CycloneDX) kaip leidimo artefaktas + licencijų sąrašas | S | ✅ Python ir image SBOM CI artefaktai; GHCR image su SBOM ir provenance atestacijomis |
-| 5.5 | Priedų antivirusinis skenavimas per ClamAV (neprivaloma, įjungiama env) | M | ❌ |
+| 5.5 | Priedų antivirusinis skenavimas per ClamAV (neprivaloma, įjungiama env) | M | ✅ visi įkėlimo keliai; CI su tikru ClamAV |
 
 > Žinomas apribojimas: oficialus `postgres:17.11-bookworm` (naujausias) turi
 > neištaisytų upstream CVE (libpcre2, `gosu` Go stdlib). Keičiama tik atnaujinus
 > digest, kai upstream išleis; organizacijos nuosavas PostgreSQL šios rizikos neturi.
 
-### 6 etapas — Diegimas svetimoje infrastruktūroje
+### 6 etapas — Diegimas organizacijos infrastruktūroje — ✅ atlikta 2026-09-13
 
-| # | Darbas | Dydis | Būsena |
-|---|---|---|---|
-| 6.1 | Helm: `readOnlyRootFilesystem`, `NetworkPolicy`, resursų limitai | S | ❌ |
-| 6.2 | Diegimo už įmonės reverse proxy aprašas (be Tailscale/NAS), tinklo prievadų ir srautų lentelė | S | ❌ |
-| 6.3 | Apkrovos testas (locust), rezultatai ir resursų rekomendacija | M | ❌ |
-| 6.4 | Metrikos `/metrics` (Prometheus, neprivaloma) | S | ❌ |
-| 6.5 | Atnaujinimo ir atšaukimo (rollback) runbook | S | ❌ |
-| 6.6 | **Oracle suderinamumo patikra**: CI darbas su Oracle Free, radinių sąrašas, darbų įvertinimas (jei infrastruktūra reikalautų Oracle) | M | ❌ |
-| 6.7 | **Integracijos su kitomis sistemomis** aprašas (API, webhook'ai, DWH) ir tik skaitymo DB rolė ataskaitoms | S | ❌ |
+| # | Darbas | Būsena |
+|---|---|---|
+| 6.1 | Helm: read-only root + `/tmp` emptyDir, seccomp, be SA žetono, PDB, NetworkPolicy, darbų resursai; **ištaisyta**: Service siuntė srautą į CronJob podus; kubeconform ir read-only paleidimas CI | ✅ |
+| 6.2 | Diegimas už organizacijos proxy, tinklo srautai, `.env` — `DIEGIMAS-ORGANIZACIJOJE.md`; **ištaisyta**: axes blokavimas ir auditas už proxy (`CRM_TRUSTED_PROXIES`) | ✅ |
+| 6.3 | Apkrovos testas CI su slenksčiais; **ištaisyta**: varpelis (visi priminimai kiekviename puslapyje), N+1, sąrašų agregatai, keep-alive; resursų rekomendacijos | ✅ |
+| 6.4 | `/metrics` (Prometheus) su žetonu, foninių darbų heartbeat, įspėjimų lentelė | ✅ |
+| 6.5 | Atnaujinimo ir atšaukimo runbook | ✅ |
+| 6.6 | Oracle suderinamumo patikra CI; **ištaisyta**: unikalus indeksas ant teksto (lūžtų ir PostgreSQL); likę darbai ir įvertinimas `ORACLE.md` | ✅ (patikra) |
+| 6.7 | Integracijų aprašas, `reporting` schema ir tik skaitymo rolė (tikrinta PostgreSQL) | ✅ |
 
 ### 7 etapas — Dokumentų paketas (LT)
 
