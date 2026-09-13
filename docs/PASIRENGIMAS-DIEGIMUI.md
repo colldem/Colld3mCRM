@@ -167,6 +167,21 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 
 ---
 
+## D. Atidėta: diegimas ir programos žinynas
+
+Sutarta atlikti vėliau (2026-09-13):
+
+- **Produkcija:** šiandienos pakeitimai įdiegti tik į staging. Produkcijoje veikia `v0.77.0`.
+  Reikia: `VERSION` ir `image: crm-web/crm-backup` žymų pakėlimas, žyma `v*`, patikra pagal
+  `DIEGIMAS-ORGANIZACIJOJE.md` 5 sk. Atkreipti dėmesį NAS'e: migracijos 0041–0053 (audito
+  trigeris, `msgid_hash`), `crm-init` perims `runtime/media` savininką (UID 10001), `crm-backup`
+  dabar kuriamas iš `deploy/backup/Dockerfile`, Tailscale perdangoje `CRM_TRUSTED_PROXIES`.
+- **Programos žinynas (Nustatymai → Dokumentacija)** — trūksta: `/metrics` ir `CRM_METRICS_TOKEN`;
+  `reporting` schema ir `create_reporting_role`; `CRM_TRUSTED_PROXIES`; `CRM_LOG_FORMAT`/`CRM_LOG_LEVEL`;
+  `CRM_GUNICORN_KEEPALIVE`; kintamųjų lentelėje — `CRM_API_RATE_LIMIT`, `BACKUP_*`, `CRM_CLAMAV_*`,
+  `CRM_BREAK_GLASS_USERS`, `CRM_CSP_REPORT_ONLY`; nustatymų sąraše — „Duomenų apsauga";
+  varpelio riba (25 įrašai); technologijų sąraše — ClamAV, age, rclone.
+
 ## C. Revizija (pildoma pabaigus)
 
 - [ ] Visi A lentelės ❌ ir 🟡 punktai arba padaryti, arba sąmoningai įrašyti į 7.9 kaip žinomi apribojimai
