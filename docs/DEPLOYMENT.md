@@ -222,32 +222,77 @@ none were missed. Take a backup first (below).
 
 ## Backups and restore
 
-The `crm-backup` service dumps the database on a timer to `runtime/backups/`,
-keeping `BACKUP_KEEP` files (default 14, daily). Attachments live in
-`runtime/media/`; back that up with your normal file backups.
+The `crm-backup` service (image built from `deploy/backup/Dockerfile`) writes one
+**backup set** per `BACKUP_INTERVAL_SECONDS` (default daily) to `runtime/backups/`
+and keeps the newest `BACKUP_KEEP` (default 14):
 
-Take one now:
+| File | Content |
+|---|---|
+| `db-<UTC timestamp>.dump.age` | `pg_dump` custom format, encrypted |
+| `media-<timestamp>.tar.gz.age` | uploaded files, encrypted |
+| `SHA256SUMS-<timestamp>` | checksums of both |
+| `manifest-<timestamp>.json` | what the set is |
+| `last-success` | time of the last complete set; the container turns *unhealthy* when it is older than two intervals |
+
+**Encryption.** Generate an [age](https://age-encryption.org) key pair *off* the
+CRM host and keep the private key in the organisation's secret store:
 
 ```sh
-docker compose exec -T crm-db pg_dump -U crm -d crm -Fc > crm-$(date +%F).dump
+docker compose run --rm --no-deps --entrypoint age-keygen crm-backup > crm-backup-key.txt
+grep 'public key' crm-backup-key.txt      # age1...  -> BACKUP_AGE_RECIPIENTS
 ```
 
-Restore into a running stack:
+Put the public key(s) in `.env` as `BACKUP_AGE_RECIPIENTS` (space separated — add a
+second key for a colleague or the DR vault) or in `runtime/backup-config/age-recipients.txt`,
+and set `BACKUP_REQUIRE_ENCRYPTION=true` so the service refuses to write plain
+backups. The CRM host can create backups but cannot read them. Without recipients
+the sets are plain `.dump` / `.tar.gz` and every run logs a warning. The
+pre-deploy dumps `scripts/deploy.sh` takes are encrypted with the same recipients.
+
+**Off-host copy.** RAID is not a backup. Set `BACKUP_REMOTE` to an
+[rclone](https://rclone.org) destination (`s3:bucket/crm`, `sftp:backup/crm`, …),
+put its `rclone.conf` in `runtime/backup-config/`, and each set is copied there;
+copies older than `BACKUP_REMOTE_KEEP_DAYS` (default 30) are pruned. A failed copy
+fails the run, so the health check shows it.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BACKUP_KEEP` | `14` | sets kept on the host |
+| `BACKUP_INTERVAL_SECONDS` | `86400` | time between sets |
+| `BACKUP_AGE_RECIPIENTS` | *(empty)* | age public keys to encrypt for |
+| `BACKUP_REQUIRE_ENCRYPTION` | `false` | `true` refuses to run without recipients |
+| `BACKUP_REMOTE` | *(empty)* | rclone destination for the off-host copy |
+| `BACKUP_REMOTE_KEEP_DAYS` | `30` | age after which remote copies are deleted |
+
+Take a set now: `docker compose run --rm -e BACKUP_ONCE=true crm-backup`.
+
+**Restore** — verifies checksums, stops the app, decrypts inside a container (no
+plaintext on the host disk), restores the database in one transaction (a failed
+restore changes nothing), replaces the uploaded files, starts the CRM and prints
+record counts:
 
 ```sh
-docker compose stop crm-web crm-worker
-docker compose exec -T crm-db pg_restore --clean --if-exists --no-owner \
-  --no-privileges -U crm -d crm < crm-2026-01-31.dump
-docker compose up -d
+bash scripts/restore.sh \
+  --db runtime/backups/db-20260913-020000.dump.age \
+  --media runtime/backups/media-20260913-020000.tar.gz.age \
+  --identity /secure/crm-backup-key.txt
 ```
+
+**Tested on every change.** The `backup-restore` CI job builds the stack, creates
+a contact with an attachment, takes an encrypted set, deletes the database and the
+uploads, checks that a tampered dump is refused, restores, and verifies the contact
+and the file content. Still restore once on your own infrastructure — a drill proves
+the procedure, not your storage.
+
+Recovery point: at most one `BACKUP_INTERVAL_SECONDS` (24 h by default; shorten it,
+or rely on the database platform's point-in-time recovery). Recovery time: minutes
+for a typical CRM database — measure it in your drill.
+
+Kubernetes: the chart uses an external PostgreSQL and S3 storage, so backups there
+are the platform's (database PITR, bucket versioning); this service is Compose-only.
 
 Users can also download a complete ZIP — every record, attachments and restore
 instructions — from *Settings → Data export*.
-
-Two things worth doing before you put real contacts in: copy `runtime/backups/`
-somewhere off this machine on a schedule (RAID is not a backup), and actually
-perform a restore once to confirm the dumps are usable. A restore is only as good
-as its test — *Settings → Documentation* in the app has the procedure.
 
 ## A second, isolated copy for testing
 

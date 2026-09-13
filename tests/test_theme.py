@@ -582,7 +582,7 @@ class BackupAndRuntimeLayoutTests(TestCase):
         for needle in ("age ", "BACKUP_REQUIRE_ENCRYPTION", "sha256sum", "last-success", "rclone copy", "set -euo pipefail"):
             with self.subTest(backup=needle):
                 self.assertIn(needle, backup)
-        for needle in ("sha256sum -c", "--single-transaction", "--exit-on-error", "age -d", "health/ready"):
+        for needle in ("sha256sum -c", "--single-transaction", "--exit-on-error", "-d -i /identity", "health/ready"):
             with self.subTest(restore=needle):
                 self.assertIn(needle, restore)
         self.assertIn("dockerfile: deploy/backup/Dockerfile", compose)

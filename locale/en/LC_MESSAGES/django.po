@@ -3871,3 +3871,9 @@ msgstr "Incoming e-mails (days)"
 
 msgid "Pagal dabartinius terminus kitą kartą būtų ištrinta: %(people)s kontaktų, %(companies)s įmonių, %(mail)s laiškų."
 msgstr "With the current periods the next run would delete: %(people)s contacts, %(companies)s companies, %(mail)s e-mails."
+
+msgid "Automatinės šifruotos kopijos"
+msgstr "Automatic encrypted backups"
+
+msgid "Automatinės atkūrimo pratybos"
+msgstr "Automatic restore drill"

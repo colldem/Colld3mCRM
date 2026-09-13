@@ -258,7 +258,8 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 | Servisas | Image | Paskirtis | Nuolatinis tomas |
 |---|---|---|---|
 | `crm-db` | `postgres:17` | duomenų bazė | `runtime/postgres` |
-| `crm-backup` | `postgres:17` | periodinis `pg_dump` (`scripts/backup.sh`) | `runtime/backups` |
+| `crm-init` | `crm-backup:X.Y.Z` | vienkartinis: `runtime/media` savininkas UID 10001 prieš paleidžiant programą | `runtime/media` |
+| `crm-backup` | `crm-backup:X.Y.Z` (`deploy/backup/Dockerfile`: postgres 17 + age + rclone) | šifruoti (age) kopijų rinkiniai su SHA256SUMS, būsenos patikra, kopija už hosto ribų (rclone) — `scripts/backup.sh`; atkūrimas — `scripts/restore.sh` | `runtime/backups`, `runtime/backup-config` |
 | `crm-tailscale` | `tailscale/tailscale` | TLS/tinklas, Tailscale Serve | `runtime/tailscale-state` |
 | `crm-web` | `crm-web:X.Y.Z` (vietinis build) | Django + Gunicorn | `runtime/media` |
 | `crm-worker` | `crm-web:X.Y.Z` (tas pats image) | foninis ciklas: `extend_recurrences`, `send_notifications`, `fetch_mail`, `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` | `runtime/media` |

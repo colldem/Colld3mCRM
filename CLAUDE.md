@@ -33,7 +33,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
    nėra `crm-worker`. Duomenis atnaujinti: `scripts/refresh-staging.sh` (rankiniu
    būdu ant NAS). Į produkciją — tik po patikros staging'e.
    Jei keitėsi funkcionalumas — bumpinti `VERSION` ir
-   `image: crm-web:X.Y.Z` `compose.yaml`. Diegimas: `git tag vX.Y.Z && git push
+   `image: crm-web:X.Y.Z` bei `crm-backup:X.Y.Z` `compose.yaml`. Diegimas: `git tag vX.Y.Z && git push
    origin vX.Y.Z` → GitHub Actions „Deploy" praeina patikras → runner ant NAS
    daro backup → build → `up -d` → health check. Patvirtinimo mygtuko **nėra**
    („Required reviewers" reikalauja mokamo plano privačiam repo), tad sąmoningas
@@ -106,7 +106,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `.dash-card-head`, `.kpi-card`); kortelės antraštė visada `--fs-md`/700.
 - `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
   `deploy.yml` (tag `v*`), abu `runs-on: self-hosted crm-nas`.
-  `scripts/security-check.sh` — pip-audit + bandit (CI `security` darbas; Trivy ir SBOM — `image` darbe);
+  `scripts/backup.sh` (crm-backup image, `deploy/backup/Dockerfile`) — šifruotos kopijos; `scripts/restore.sh` — atkūrimas
+  (CI `backup-restore` darbas atlieka avarinio atkūrimo pratybas); `scripts/security-check.sh` — pip-audit + bandit (CI `security` darbas; Trivy ir SBOM — `image` darbe);
   `scripts/deploy.sh` / `deploy-staging.sh` — diegimas; `refresh-staging.sh` —
   produkcijos duomenų kopija į staging. `compose.staging.yaml` — staging stack'as
   (be `crm-worker`, `serve-staging.json` be Funnel).
