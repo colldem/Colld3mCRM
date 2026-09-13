@@ -114,6 +114,9 @@ worker:
     extend-recurrences:
       command: extend_recurrences
       schedule: "17 2 * * *"
+    deactivate-inactive-users:
+      command: deactivate_inactive_users
+      schedule: "37 2 * * *"
 
 gunicorn:
   workers: 2

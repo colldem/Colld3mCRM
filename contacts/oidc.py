@@ -116,13 +116,18 @@ class EntraOIDCBackend(OIDCAuthenticationBackend):
         Groups, tenant and object id live only in the ID token (neither Entra's
         nor AD FS's userinfo returns them), so the token's claims take precedence.
         """
+        cached = getattr(self, "_claims_cache", None)
+        if cached and cached[0] == access_token:
+            return cached[1]
         userinfo = {}
         if oidc_config().user_endpoint:
             try:
                 userinfo = super().get_userinfo(access_token, id_token, payload) or {}
             except Exception:  # nosec B110
                 userinfo = {}
-        return {**userinfo, **(payload or {})}
+        claims = {**userinfo, **(payload or {})}
+        self._claims_cache = (access_token, claims)  # one userinfo call per sign-in
+        return claims
 
     def _refuse(self, message):
         request = getattr(self, "request", None)
@@ -130,8 +135,24 @@ class EntraOIDCBackend(OIDCAuthenticationBackend):
             messages.error(request, message)
         return None
 
+    def _reactivate_if_only_inactive(self, claims, config):
+        """A directory user switched off for inactivity comes back at the next
+        sign-in the directory still allows; a manual switch-off stays."""
+        from .accounts import reactivate_after_inactivity
+
+        if not config.sync_groups or directory.evaluate(claims, config).denied:
+            return
+        subject = directory.subject_of(claims, config)
+        email = self._email(claims)
+        users = self.UserModel.objects.filter(is_active=False, crm_profile__deactivated_reason="inactivity")
+        match = users.filter(crm_profile__directory_subject=subject).first() if subject else None
+        match = match or (users.filter(email__iexact=email).first() if email else None)
+        if match:
+            reactivate_after_inactivity(match, request=getattr(self, "request", None))
+
     def get_or_create_user(self, access_token, id_token, payload):
         try:
+            self._reactivate_if_only_inactive(self.get_userinfo(access_token, id_token, payload), oidc_config())
             user = super().get_or_create_user(access_token, id_token, payload)
             if user is None:
                 return None

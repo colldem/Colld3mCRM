@@ -906,7 +906,14 @@ def _update_crm_user(request, target):
     target.is_active = active
     target.is_staff = role == UserProfile.ROLE_ADMIN
     target.save(update_fields=["is_active", "is_staff"])
-    UserProfile.objects.update_or_create(user=target, defaults={"role": role, "record_visibility": visibility})
+    profile_values = {"role": role, "record_visibility": visibility}
+    if not active:
+        # Saving an account as switched off is an administrator's decision, even
+        # when the worker switched it off first: the directory will not undo it.
+        profile_values["deactivated_reason"] = "manual"
+    elif old_active != active:
+        profile_values["deactivated_reason"] = ""
+    UserProfile.objects.update_or_create(user=target, defaults=profile_values)
     labels = dict(UserProfile.ROLE_CHOICES)
     vis_labels = dict(UserProfile.VISIBILITY_CHOICES)
     if old_role != role:

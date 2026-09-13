@@ -95,7 +95,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   per Nustatymai → Vertimai; override'ai DB, įrašomi tiesiai į Django katalogą veikiant,
   middleware sinchronizuoja procesus per versijos žymą).
 - Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`,
-  `run_automations`, `deliver_webhooks`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
+  `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` — `accounts.py`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
   Vienas kortelių apvalkalas visame produkte — `.dash-card` (+ `.dash-grid`,
@@ -115,6 +115,6 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   stilius ar vertimas. Pridėjus naują aplinkos kintamąjį — įrašyti į
   `.env.example` **ir** `docs/DEPLOYMENT.md` lentelę.
 - `deploy/helm/crm/` — Helm chart'as Kubernetes'ui (web Deployment, migracijų Job
-  kaip `pre-upgrade` hook, 5 CronJob'ai vietoj `crm-worker`, nginx Ingress;
+  kaip `pre-upgrade` hook, 6 CronJob'ai vietoj `crm-worker`, nginx Ingress;
   DB ir failų saugykla — išorinės). Instrukcija: `docs/KUBERNETES.md`.
   Atvaizdas į GHCR keliamas `publish-image.yml` uždėjus `v*` žymą.

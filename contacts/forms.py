@@ -193,7 +193,7 @@ class LoginSettingsForm(_SecretFieldsMixin, forms.ModelForm):
         model = SystemSettings
         fields = ["oidc_enabled", "oidc_provider", "oidc_tenant_id", "oidc_issuer", "oidc_client_id",
                   "oidc_client_secret", "oidc_create_users", "oidc_groups_claim", "oidc_sync_groups",
-                  "sso_only", "oidc_session_check_minutes"]
+                  "sso_only", "oidc_session_check_minutes", "deactivate_inactive_days"]
         labels = {
             "oidc_enabled": tr("Leisti prisijungti per organizacijos katalogą"),
             "oidc_provider": tr("Tapatybės teikėjas"),
@@ -202,6 +202,7 @@ class LoginSettingsForm(_SecretFieldsMixin, forms.ModelForm):
             "oidc_sync_groups": tr("Roles ir komandas valdyti per katalogo grupes"),
             "sso_only": tr("Tik organizacijos prisijungimas"),
             "oidc_session_check_minutes": tr("Sesijos pakartotinio tikrinimo intervalas (min.)"),
+            "deactivate_inactive_days": tr("Išjungti paskyras, nenaudotas ilgiau nei (d.)"),
             "oidc_tenant_id": tr("Katalogo (nuomininko) ID"),
             "oidc_client_id": tr("Programos (kliento) ID"),
             "oidc_client_secret": tr("Kliento paslaptis (secret)"),
@@ -213,13 +214,16 @@ class LoginSettingsForm(_SecretFieldsMixin, forms.ModelForm):
         self.fields["oidc_provider"].required = False
         self.fields["oidc_session_check_minutes"].required = False
         self.fields["oidc_session_check_minutes"].widget.attrs.update({"min": 0, "max": 1440})
+        self.fields["deactivate_inactive_days"].required = False
+        self.fields["deactivate_inactive_days"].widget.attrs.update({"min": 0, "max": 3650})
 
     def clean(self):
         cleaned = super().clean()
         cleaned["oidc_provider"] = cleaned.get("oidc_provider") or "entra"
         cleaned["oidc_groups_claim"] = (cleaned.get("oidc_groups_claim") or "groups").strip()
-        if cleaned.get("oidc_session_check_minutes") is None:
-            cleaned["oidc_session_check_minutes"] = self.instance.oidc_session_check_minutes
+        for name in ("oidc_session_check_minutes", "deactivate_inactive_days"):
+            if cleaned.get(name) is None:
+                cleaned[name] = getattr(self.instance, name)
         if cleaned.get("sso_only") and not self.instance.sso_only:
             from django.conf import settings as dj_settings
             from django.contrib.auth import get_user_model

@@ -3736,3 +3736,9 @@ msgstr "A reader changes nothing"
 
 msgid "Jūsų rolė leidžia tik peržiūrėti duomenis."
 msgstr "Your role only allows viewing data."
+
+msgid "Išjungti paskyras, nenaudotas ilgiau nei (d.)"
+msgstr "Switch off accounts unused for more than (days)"
+
+msgid "Paskyra, prie kurios nebuvo prisijungta tiek dienų, išjungiama automatiškai (kartu nustoja veikti jos API raktai). Avarinės paskyros neišjungiamos. Katalogo naudotojas, kurį AD vis dar leidžia, grąžinamas kitu prisijungimu. 0 — neišjunginėti."
+msgstr "An account nobody has signed in to for this many days is switched off automatically (its API tokens stop working too). Break-glass accounts are never switched off. A directory user AD still allows is let back in at the next sign-in. 0 - never."

@@ -155,6 +155,9 @@ class UserProfile(models.Model):
     directory_subject = models.CharField(max_length=255, blank=True, default="")
     directory_groups = models.JSONField(default=list, blank=True)
     directory_synced_at = models.DateTimeField(null=True, blank=True)
+    # Why the account was switched off: "inactivity" (automatic, undone by the
+    # next successful directory sign-in) or "manual" (an administrator's call).
+    deactivated_reason = models.CharField(max_length=12, blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
 
     def new_calendar_token(self):
@@ -325,6 +328,8 @@ class SystemSettings(models.Model):
     # How often a directory session is silently re-checked with the identity
     # provider (disabled account, changed groups). 0 = only at sign-in.
     oidc_session_check_minutes = models.PositiveSmallIntegerField(default=15)
+    # Accounts unused for this many days are switched off by the worker. 0 = never.
+    deactivate_inactive_days = models.PositiveSmallIntegerField(default=0)
 
     # Automation rules master switch (Settings -> Automatika).
     automations_enabled = models.BooleanField(default=False)

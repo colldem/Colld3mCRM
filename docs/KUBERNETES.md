@@ -172,7 +172,7 @@ yours.
 |---|---|
 | `Deployment` (web) | gunicorn, `replicaCount` pods, `CRM_RUN_MIGRATIONS=0` |
 | `Job` (migrate) | Helm `pre-install,pre-upgrade` hook, once per release |
-| `CronJob` × 5 | `send_notifications`, `fetch_mail`, `deliver_webhooks`, `run_automations`, `extend_recurrences` |
+| `CronJob` × 6 | `send_notifications`, `fetch_mail`, `deliver_webhooks`, `run_automations`, `extend_recurrences`, `deactivate_inactive_users` |
 | `Service` | ClusterIP on port 80 → container 8080 |
 | `Ingress` | nginx, TLS, 12 MB body limit so a 10 MB import fits |
 | `ConfigMap` | non-secret settings; the pods roll when it changes |

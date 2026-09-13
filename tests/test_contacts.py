@@ -6367,3 +6367,124 @@ class ReadOnlyRoleTests(TestCase):
         own = DirectoryGroupMapping(group="CRM-Own", role=UserProfile.ROLE_RESTRICTED)
         self.assertEqual(evaluate({"groups": ["CRM-Readers"]}, config, [readers, own]).role, UserProfile.ROLE_READONLY)
         self.assertEqual(evaluate({"groups": ["CRM-Readers", "CRM-Own"]}, config, [readers, own]).role, UserProfile.ROLE_RESTRICTED)
+
+
+class InactiveAccountTests(TestCase):
+    """Unused accounts are switched off; directory users come back when AD still allows them."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from contacts.models import SystemSettings
+        User = get_user_model()
+        old = timezone.now() - timedelta(days=120)
+        recent = timezone.now() - timedelta(days=5)
+        self.stale = User.objects.create_user("stale", email="stale@imone.lt", last_login=old)
+        self.fresh = User.objects.create_user("fresh", last_login=recent)
+        self.never = User.objects.create_user("never")
+        User.objects.filter(pk=self.never.pk).update(date_joined=old)
+        self.root = User.objects.create_superuser("root", email="root@local", password="very-secure-password", last_login=old)
+        system = SystemSettings.load()
+        system.deactivate_inactive_days = 90
+        system.save()
+
+    def run_command(self):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command("deactivate_inactive_users", stdout=out)
+        return out.getvalue()
+
+    def active(self, user):
+        user.refresh_from_db()
+        return user.is_active
+
+    def test_unused_accounts_are_switched_off_and_audited(self):
+        from contacts.models import AuditLog
+        output = self.run_command()
+        self.assertIn("deactivated 2", output)
+        self.assertFalse(self.active(self.stale))
+        self.assertFalse(self.active(self.never))
+        self.assertTrue(self.active(self.fresh))
+        self.assertEqual(self.stale.crm_profile.deactivated_reason, "inactivity")
+        self.assertTrue(AuditLog.objects.filter(target_type="user", target_id=str(self.stale.pk), detail__reason="inactivity").exists())
+
+    def test_break_glass_accounts_are_never_switched_off(self):
+        self.run_command()
+        self.assertTrue(self.active(self.root))
+        with override_settings(CRM_BREAK_GLASS_USERS=["fresh"]):
+            self.run_command()
+        self.assertFalse(self.active(self.root))
+
+    def test_zero_days_disables_it(self):
+        from contacts.models import SystemSettings
+        system = SystemSettings.load()
+        system.deactivate_inactive_days = 0
+        system.save()
+        self.assertIn("deactivated 0", self.run_command())
+        self.assertTrue(self.active(self.stale))
+
+    def test_deactivated_users_api_tokens_stop_working(self):
+        raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="t", token_hash=digest, prefix=raw[:13], scope=ApiToken.READ, created_by=self.stale)
+        self.assertEqual(self.client.get("/api/v1/contacts", HTTP_AUTHORIZATION="Bearer " + raw).status_code, 200)
+        self.run_command()
+        self.assertEqual(self.client.get("/api/v1/contacts", HTTP_AUTHORIZATION="Bearer " + raw).status_code, 401)
+
+    def directory_sign_in(self, groups):
+        from contacts.crypto import encrypt
+        from contacts.models import DirectoryGroupMapping, SystemSettings
+        from contacts.oidc import EntraOIDCBackend
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+        system = SystemSettings.load()
+        system.oidc_enabled, system.oidc_tenant_id = True, DirectoryAccessTests.TENANT
+        system.oidc_client_id, system.oidc_client_secret = "cid", encrypt("csecret")
+        system.oidc_sync_groups = True
+        system.save()
+        DirectoryGroupMapping.objects.get_or_create(group="CRM-Users", defaults={"role": UserProfile.ROLE_MEMBER})
+        request = RequestFactory().get("/oidc/callback/")
+        request.session = self.client.session
+        request._messages = FallbackStorage(request)
+        backend = EntraOIDCBackend()
+        backend.request = request
+        claims = {"email": "stale@imone.lt", "tid": DirectoryAccessTests.TENANT, "oid": "o1", "groups": groups}
+        with patch("mozilla_django_oidc.auth.OIDCAuthenticationBackend.get_userinfo", return_value={}) as userinfo:
+            user = backend.get_or_create_user("access", "id", claims)
+        return user, userinfo
+
+    def test_directory_sign_in_brings_back_an_account_switched_off_for_inactivity(self):
+        self.run_command()
+        user, userinfo = self.directory_sign_in(["CRM-Users"])
+        self.assertEqual(user.pk, self.stale.pk)
+        self.assertTrue(self.active(self.stale))
+        self.assertEqual(self.stale.crm_profile.deactivated_reason, "")
+        self.assertLessEqual(userinfo.call_count, 1)
+
+    def test_directory_does_not_bring_back_without_groups_or_after_manual_switch_off(self):
+        self.run_command()
+        self.assertIsNone(self.directory_sign_in([])[0])
+        self.assertFalse(self.active(self.stale))
+        admin = self.root
+        admin.last_login = timezone.now()
+        admin.save()
+        self.client.force_login(admin)
+        self.client.post(reverse("contacts:settings-users"), {"action": "update", "user_id": self.stale.pk, "role": UserProfile.ROLE_MEMBER})
+        self.stale.crm_profile.refresh_from_db()
+        self.assertEqual(self.stale.crm_profile.deactivated_reason, "manual")
+        self.assertIsNone(self.directory_sign_in(["CRM-Users"])[0])
+        self.assertFalse(self.active(self.stale))
+
+    def test_admin_reactivation_clears_the_reason(self):
+        self.run_command()
+        self.client.force_login(self.root)
+        self.client.post(reverse("contacts:settings-users"), {"action": "update", "user_id": self.stale.pk,
+                                                               "role": UserProfile.ROLE_MEMBER, "active": "1"})
+        self.assertTrue(self.active(self.stale))
+        self.stale.crm_profile.refresh_from_db()
+        self.assertEqual(self.stale.crm_profile.deactivated_reason, "")
+
+    def test_worker_and_kubernetes_run_it(self):
+        compose = (settings.BASE_DIR / "compose.yaml").read_text()
+        values = (settings.BASE_DIR / "deploy" / "helm" / "crm" / "values.yaml").read_text()
+        self.assertIn("manage.py deactivate_inactive_users", compose)
+        self.assertIn("command: deactivate_inactive_users", values)

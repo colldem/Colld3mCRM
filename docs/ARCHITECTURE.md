@@ -85,7 +85,7 @@ contacts/          vienintelė programa (app)
   translations.py / middleware.py  redaguojami sąsajos vertimai (DB override'ai
                     įrašomi į gyvą gettext katalogą; middleware sinchronizuoja procesus)
   templatetags/crm_format.py  šablonų filtrai (record_tone, record_initials, short_since …)
-  management/commands/  send_notifications, extend_recurrences, fetch_mail, run_automations, deliver_webhooks, ensure_admin, sanitize_staging
+  management/commands/  send_notifications, extend_recurrences, fetch_mail, run_automations, deliver_webhooks, deactivate_inactive_users, ensure_admin, sanitize_staging
   migrations/      migracijos
 templates/         serverio pusėje renderinami šablonai (be JS karkaso)
 static/            css/ (app.css — žetonai ir bazė, theme.css — komponentai),
@@ -260,7 +260,7 @@ Teisės tikrinamos view lygyje (`_require_capability`) ir šablonuose per
 | `crm-backup` | `postgres:17` | periodinis `pg_dump` (`scripts/backup.sh`) | `runtime/backups` |
 | `crm-tailscale` | `tailscale/tailscale` | TLS/tinklas, Tailscale Serve | `runtime/tailscale-state` |
 | `crm-web` | `crm-web:X.Y.Z` (vietinis build) | Django + Gunicorn | `runtime/media` |
-| `crm-worker` | `crm-web:X.Y.Z` (tas pats image) | foninis ciklas: `extend_recurrences`, `send_notifications`, `fetch_mail`, `run_automations`, `deliver_webhooks` | `runtime/media` |
+| `crm-worker` | `crm-web:X.Y.Z` (tas pats image) | foninis ciklas: `extend_recurrences`, `send_notifications`, `fetch_mail`, `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` | `runtime/media` |
 
 - `crm-web` naudoja `network_mode: service:crm-tailscale` — dalijasi Tailscale
   konteinerio tinklu, todėl klausosi `:8080` už Tailscale Serve.
