@@ -32,11 +32,11 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | Atsarginės kopijos | 🟡 kasdien `pg_dump` + media, 14 vnt.; **nešifruotos, tame pačiame hoste, atkūrimas neautomatizuotas ir netestuotas** | `backup.sh` |
 | Atkūrimo instrukcija | 🟡 komandos aprašytos, nėra RPO/RTO ir testo | `DEPLOYMENT.md` |
 | Aplinkų izoliacija | ✅ ne-production aplinkoje SMTP/IMAP/Entra/webhook'ai priverstinai išjungti | `integrations.py` |
-| Staging duomenys | ❌ **`sanitize_staging` išvalo tik integracijas — asmens duomenys lieka tikri** | `sanitize_staging.py` |
+| Staging duomenys | ✅ nuasmeninami (struktūra išlieka) | `anonymize.py` |
 | Žurnalai (logging) | ✅ JSON į stdout (programa, `crm.security`, Gunicorn), request-id, be asmens duomenų | `observability.py` |
 | Stebėsena | 🟡 `/health/live`, `/health/ready`; nėra metrikų | `config/urls.py` |
-| Asmens duomenų saugojimo terminai | ❌ automatiškai valomi tik automatizacijų (90 d.) ir webhook (30 d.) žurnalai | — |
-| Duomenų subjekto teisės | 🟡 pilnas ZIP ir CSV eksportas; nėra vieno asmens duomenų eksporto ar galutinio ištrynimo procedūros | — |
+| Asmens duomenų saugojimo terminai | ✅ archyvuoti įrašai, gauti laiškai, auditas — su peržiūra | `privacy.py` |
+| Duomenų subjekto teisės | ✅ vieno asmens ZIP eksportas ir ištrynimas su žurnalo nuasmeninimu | `privacy.py` |
 | Naudotojų išjungimas | ✅ AD išjungtas → atjungiamas per ≤15 min.; neaktyvūs išjungiami automatiškai; katalogo naudotojai be vietinio slaptažodžio | `oidc.py`, `accounts.py` |
 | Vien SSO režimas | ✅ su avarinėmis paskyromis (`CRM_BREAK_GLASS_USERS`) | `oidc.py` |
 | Pažeidžiamumų skenavimas | ✅ pip-audit, bandit, Trivy CI (žr. 5 etapą) | `ci.yml`, `security-check.sh` |
@@ -84,13 +84,16 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 > Žinomas apribojimas: DB superuser gali apeiti trigerį — nekeičiama kopija turi būti SIEM'e.
 > Gunicorn paleidimo pranešimai (kelios eilutės starto metu) lieka tekstiniai.
 
-### 3 etapas — Asmens duomenys (BDAR)
+### 3 etapas — Asmens duomenys (BDAR) — ✅ atlikta 2026-09-13
 
-| # | Darbas | Dydis | Būsena |
-|---|---|---|---|
-| 3.1 | **Staging nuasmeninimas**: `sanitize_staging --anonymize` pakeičia vardus, kontaktus, pastabas, laiškus, priedus fiktyviais | M | ❌ |
-| 3.2 | **Saugojimo terminai**: nustatymai archyvuotiems įrašams, gautiems laiškams, priedams; foninis valymas su auditu ir peržiūra prieš trynimą | M | ❌ |
-| 3.3 | **Duomenų subjekto užklausos**: vieno asmens visų duomenų eksportas (JSON) ir galutinis ištrynimas su audito įrašu | M | ❌ |
+| # | Darbas | Būsena |
+|---|---|---|
+| 3.1 | **Staging nuasmeninimas** pagal nutylėjimą (`--keep-personal-data` išimčiai); priedai kopijuojami prieš valymą | ✅ |
+| 3.2 | **Saugojimo terminai**: archyvuoti kontaktai/įmonės, gauti laiškai; kasdienis `apply_retention` su peržiūra ir `--dry-run` | ✅ |
+| 3.3 | **Duomenų subjekto užklausos**: ZIP eksportas (15, 20 str.), ištrynimas (17 str.) su failais, laiškais ir žurnalo nuasmeninimu (PostgreSQL trigeris leidžia keisti tik vertes) | ✅ |
+
+> Žinomi apribojimai: atsarginėse kopijose ištrinti duomenys lieka iki kopijų galiojimo pabaigos;
+> įmonė kaip duomenų subjektas (individuali veikla) — tik per saugojimo terminą, ne per užklausų langą.
 
 ### 4 etapas — Kopijos ir atkūrimas
 
@@ -123,6 +126,8 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 | 6.3 | Apkrovos testas (locust), rezultatai ir resursų rekomendacija | M | ❌ |
 | 6.4 | Metrikos `/metrics` (Prometheus, neprivaloma) | S | ❌ |
 | 6.5 | Atnaujinimo ir atšaukimo (rollback) runbook | S | ❌ |
+| 6.6 | **Oracle suderinamumo patikra**: CI darbas su Oracle Free, radinių sąrašas, darbų įvertinimas (jei infrastruktūra reikalautų Oracle) | M | ❌ |
+| 6.7 | **Integracijos su kitomis sistemomis** aprašas (API, webhook'ai, DWH) ir tik skaitymo DB rolė ataskaitoms | S | ❌ |
 
 ### 7 etapas — Dokumentų paketas (LT)
 
