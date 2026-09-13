@@ -52,19 +52,21 @@ MODELS = {
     "Translation": ("Redaguoti sąsajos tekstai", "kol naudojami", "T"),
 }
 
+# Values are category codes; bandit mistakes the ones next to *_token names for
+# hardcoded passwords, hence the reviewed nosec markers below.
 FIELDS = {
     "Person.first_name": "A", "Person.last_name": "A", "Person.job_title": "A", "Person.description": "L",
     "PhoneNumber.number": "A", "EmailAddress.email": "A", "PostalAddress.address": "A", "WebLink.url": "A",
     "Company.name": "A", "Company.company_code": "A", "Company.vat_code": "A", "Company.address": "A",
     "Company.phone": "A", "Company.email": "A", "Company.url": "A", "Company.description": "L",
     "PersonCompanyLink.role": "A",
-    "Activity.text": "L", "Activity.submission_token": "T", "Activity.message_id": "T",
+    "Activity.text": "L", "Activity.submission_token": "T", "Activity.message_id": "T",  # nosec B105
     "Attachment.file": "L", "Attachment.original_name": "L",
-    "Reminder.text": "L", "Reminder.submission_token": "T",
+    "Reminder.text": "L", "Reminder.submission_token": "T",  # nosec B105
     "CustomValue.value": "L",
     "SavedFilter.filters": "L", "SavedFilter.name": "L",
     "UserProfile.avatar": "D", "UserProfile.directory_subject": "D", "UserProfile.directory_groups": "D",
-    "UserProfile.unsubscribe_token": "S", "UserProfile.calendar_token": "S", "UserProfile.user": "D",
+    "UserProfile.unsubscribe_token": "S", "UserProfile.calendar_token": "S", "UserProfile.user": "D",  # nosec B105
     "SystemSettings.email_host_password": "S", "SystemSettings.imap_password": "S",
     "SystemSettings.oidc_client_secret": "S", "SystemSettings.email_host_user": "D", "SystemSettings.imap_user": "D",
     "AuditLog.actor": "D", "AuditLog.actor_label": "D", "AuditLog.ip": "D", "AuditLog.target_label": "L",
