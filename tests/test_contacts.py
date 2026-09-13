@@ -5798,3 +5798,277 @@ class RichTextEscapingTests(TestCase):
         self.assertIn("<em>it</em>", html)
         self.assertIn('<a href="https://example.lt"', html)
         self.assertIn("<br>", html)
+
+
+class DirectoryAccessTests(TestCase):
+    """AD / Entra group based access: token validation, group mapping, UI locks."""
+
+    TENANT = "11111111-2222-3333-4444-555555555555"
+
+    def setUp(self):
+        from contacts.crypto import encrypt
+        from contacts.models import DirectoryGroupMapping, SystemSettings
+        system = SystemSettings.load()
+        system.oidc_enabled, system.oidc_tenant_id = True, self.TENANT
+        system.oidc_client_id, system.oidc_client_secret = "cid", encrypt("csecret")
+        system.oidc_create_users = True
+        system.oidc_sync_groups = True
+        system.save()
+        self.sales = Team.objects.create(name="Pardavimai")
+        self.support = Team.objects.create(name="Aptarnavimas")
+        self.manual = Team.objects.create(name="Rankinė")
+        DirectoryGroupMapping.objects.create(group="CRM-Admins", role=UserProfile.ROLE_ADMIN)
+        DirectoryGroupMapping.objects.create(group="CRM-Users", role=UserProfile.ROLE_MEMBER)
+        DirectoryGroupMapping.objects.create(group="CRM-Own", role=UserProfile.ROLE_RESTRICTED)
+        DirectoryGroupMapping.objects.create(group="CRM-Sales", team=self.sales)
+        DirectoryGroupMapping.objects.create(group="CRM-Support", team=self.support)
+
+    def claims(self, groups, email="jonas@imone.lt", oid="oid-1", **extra):
+        return {"email": email, "preferred_username": email, "tid": self.TENANT, "oid": oid,
+                "given_name": "Jonas", "family_name": "Jonaitis", "groups": groups, **extra}
+
+    def backend(self):
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+        from contacts.oidc import EntraOIDCBackend
+        request = RequestFactory().get("/oidc/callback/")
+        request.session = self.client.session
+        request._messages = FallbackStorage(request)
+        backend = EntraOIDCBackend()
+        backend.request = request
+        return backend
+
+    def sign_in(self, claims):
+        backend = self.backend()
+        with patch("mozilla_django_oidc.auth.OIDCAuthenticationBackend.get_userinfo", return_value={}):
+            user = backend.get_or_create_user("access", "id", claims)
+        return user, [str(m) for m in backend.request._messages]
+
+    # --- ID token validation
+    def payload(self, **overrides):
+        import time as _time
+        payload = {"aud": "cid", "exp": _time.time() + 600, "tid": self.TENANT,
+                   "iss": "https://login.microsoftonline.com/%s/v2.0" % self.TENANT}
+        payload.update(overrides)
+        return payload
+
+    def test_id_token_claims_are_validated(self):
+        from django.core.exceptions import SuspiciousOperation
+        from contacts.integrations import oidc_config
+        from contacts.oidc import validate_id_token_claims
+        config = oidc_config()
+        self.assertTrue(validate_id_token_claims(self.payload(), config))
+        self.assertTrue(validate_id_token_claims(self.payload(aud=["other", "cid"]), config))
+        other = "99999999-2222-3333-4444-555555555555"
+        for bad in (self.payload(aud="other"), self.payload(exp=1), self.payload(exp=None),
+                    self.payload(iss="https://evil.example/v2.0"),
+                    self.payload(tid=other, iss="https://login.microsoftonline.com/%s/v2.0" % other)):
+            with self.subTest(bad=bad), self.assertRaises(SuspiciousOperation):
+                validate_id_token_claims(bad, config)
+
+    def test_generic_provider_checks_the_configured_issuer(self):
+        from django.core.exceptions import SuspiciousOperation
+        from contacts.integrations import OIDCConfig
+        from contacts.oidc import validate_id_token_claims
+        config = OIDCConfig(enabled=True, tenant_id="", client_id="cid", client_secret="s", create_users=False,
+                            provider="generic", issuer="https://adfs.imone.lt/adfs")
+        self.assertTrue(validate_id_token_claims(self.payload(iss="https://adfs.imone.lt/adfs"), config))
+        with self.assertRaises(SuspiciousOperation):
+            validate_id_token_claims(self.payload(iss="https://adfs.kita.lt/adfs"), config)
+
+    def test_multi_tenant_entra_authority_is_not_usable(self):
+        from contacts.integrations import OIDCConfig
+        for tenant in ("", "common", "organizations"):
+            config = OIDCConfig(enabled=True, tenant_id=tenant, client_id="c", client_secret="s", create_users=False)
+            self.assertFalse(config.usable)
+
+    def test_userinfo_is_completed_by_the_verified_token_claims(self):
+        with patch("mozilla_django_oidc.auth.OIDCAuthenticationBackend.get_userinfo",
+                   return_value={"email": "from-userinfo@imone.lt", "name": "Jonas"}):
+            merged = self.backend().get_userinfo("a", "i", {"email": "jonas@imone.lt", "groups": ["CRM-Users"]})
+        self.assertEqual(merged["email"], "jonas@imone.lt")
+        self.assertEqual(merged["groups"], ["CRM-Users"])
+        self.assertEqual(merged["name"], "Jonas")
+
+    # --- group evaluation
+    def test_strongest_role_wins_and_teams_add_up(self):
+        from contacts.directory import evaluate
+        from contacts.integrations import oidc_config
+        result = evaluate(self.claims(["crm-own", "CRM-USERS", "CRM-Sales", "CRM-Support", "Unrelated"]), oidc_config())
+        self.assertEqual(result.role, UserProfile.ROLE_MEMBER)
+        self.assertEqual(result.teams, [self.support, self.sales])
+        self.assertEqual(result.denied, "")
+
+    def test_single_string_group_claim_is_accepted(self):
+        from contacts.directory import evaluate
+        from contacts.integrations import oidc_config
+        self.assertEqual(evaluate({"groups": "CRM-Admins"}, oidc_config()).role, UserProfile.ROLE_ADMIN)
+
+    def test_no_role_group_or_group_overage_is_refused(self):
+        from contacts.directory import evaluate
+        from contacts.integrations import oidc_config
+        self.assertTrue(evaluate(self.claims(["CRM-Sales"]), oidc_config()).denied)
+        overage = self.claims([], _claim_names={"groups": "src1"})
+        self.assertTrue(evaluate(overage, oidc_config()).denied)
+
+    # --- sign-in
+    def test_first_sign_in_creates_the_user_with_role_teams_and_no_local_password(self):
+        from contacts.models import AuditLog
+        user, notes = self.sign_in(self.claims(["CRM-Admins", "CRM-Sales"]))
+        self.assertEqual(notes, [])
+        profile = user.crm_profile
+        self.assertEqual(profile.role, UserProfile.ROLE_ADMIN)
+        self.assertTrue(profile.directory_managed)
+        self.assertEqual(profile.directory_subject, "%s:oid-1" % self.TENANT)
+        self.assertTrue(user.is_staff)
+        self.assertFalse(user.has_usable_password())
+        self.assertEqual(list(user.crm_teams.all()), [self.sales])
+        self.assertTrue(AuditLog.objects.filter(target_type="user", field="Rolė").exists())
+
+    def test_group_changes_follow_at_next_sign_in_and_manual_teams_are_kept(self):
+        user, _ = self.sign_in(self.claims(["CRM-Admins", "CRM-Sales"]))
+        self.manual.members.add(user)
+        user, _ = self.sign_in(self.claims(["CRM-Own", "CRM-Support"]))
+        user.refresh_from_db()
+        self.assertEqual(user.crm_profile.role, UserProfile.ROLE_RESTRICTED)
+        self.assertFalse(user.is_staff)
+        self.assertEqual(set(user.crm_teams.all()), {self.support, self.manual})
+
+    def test_existing_local_user_loses_the_local_password_when_linked(self):
+        local = get_user_model().objects.create_user("jonas", email="jonas@imone.lt", password="very-secure-password")
+        user, _ = self.sign_in(self.claims(["CRM-Users"]))
+        self.assertEqual(user.pk, local.pk)
+        local.refresh_from_db()
+        self.assertFalse(local.has_usable_password())
+
+    def test_user_without_a_role_group_is_refused_and_not_created(self):
+        user, notes = self.sign_in(self.claims(["CRM-Sales"], email="be-grupes@imone.lt"))
+        self.assertIsNone(user)
+        self.assertTrue(notes)
+        self.assertFalse(get_user_model().objects.filter(email="be-grupes@imone.lt").exists())
+
+    def test_removed_from_groups_is_refused_for_an_existing_user(self):
+        user, _ = self.sign_in(self.claims(["CRM-Users"]))
+        refused, notes = self.sign_in(self.claims([]))
+        self.assertIsNone(refused)
+        self.assertTrue(notes)
+
+    def test_local_superuser_cannot_be_taken_over_through_the_directory(self):
+        get_user_model().objects.create_superuser("root", email="jonas@imone.lt", password="very-secure-password")
+        user, notes = self.sign_in(self.claims(["CRM-Users"]))
+        self.assertIsNone(user)
+        self.assertTrue(notes)
+
+    def test_reassigned_email_with_another_directory_identity_is_refused(self):
+        self.sign_in(self.claims(["CRM-Users"], oid="oid-1"))
+        user, notes = self.sign_in(self.claims(["CRM-Users"], oid="oid-2"))
+        self.assertIsNone(user)
+        self.assertTrue(notes)
+
+    def test_linked_identity_survives_an_email_change(self):
+        first, _ = self.sign_in(self.claims(["CRM-Users"], oid="oid-1"))
+        again, _ = self.sign_in(self.claims(["CRM-Users"], email="jonas.naujas@imone.lt", oid="oid-1"))
+        self.assertEqual(first.pk, again.pk)
+
+    def test_deactivated_user_is_refused_instead_of_crashing_on_create(self):
+        get_user_model().objects.create_user("jonas@imone.lt", email="jonas@imone.lt", is_active=False)
+        user, notes = self.sign_in(self.claims(["CRM-Users"]))
+        self.assertIsNone(user)
+        self.assertTrue(notes)
+
+    # --- settings UI
+    def admin_client(self):
+        admin = get_user_model().objects.create_superuser("root", email="root@local", password="very-secure-password")
+        self.client.force_login(admin)
+
+    def test_mappings_are_added_deduplicated_and_removed_from_settings(self):
+        from contacts.models import DirectoryGroupMapping
+        self.admin_client()
+        url = reverse("contacts:settings-login")
+        self.client.post(url, {"op": "add_mapping", "group": " CRM-Readers ", "role": UserProfile.ROLE_RESTRICTED})
+        mapping = DirectoryGroupMapping.objects.get(group="CRM-Readers")
+        response = self.client.post(url, {"op": "add_mapping", "group": "crm-readers", "role": UserProfile.ROLE_MEMBER})
+        self.assertContains(response, "Ši grupė jau susieta.")
+        response = self.client.post(url, {"op": "add_mapping", "group": "CRM-Nothing"})
+        self.assertContains(response, "Grupei priskirkite rolę, komandą arba abi.")
+        self.client.post(url, {"op": "delete_mapping", "mapping_id": mapping.pk})
+        self.assertFalse(DirectoryGroupMapping.objects.filter(pk=mapping.pk).exists())
+
+    def test_claims_tester_shows_the_resulting_access(self):
+        self.admin_client()
+        url = reverse("contacts:settings-login")
+        response = self.client.post(url, {"op": "test_claims", "claims": json.dumps(self.claims(["CRM-Users", "CRM-Sales"]))})
+        self.assertContains(response, "Naudotojas (visi įrašai)")
+        self.assertContains(response, "Pardavimai")
+        response = self.client.post(url, {"op": "test_claims", "claims": json.dumps(self.claims(["Kita"]))})
+        self.assertContains(response, "Prisijungti neleidžiama")
+        self.assertContains(self.client.post(url, {"op": "test_claims", "claims": "ne json"}), "JSON")
+
+    def test_generic_provider_reads_endpoints_from_discovery(self):
+        from unittest.mock import MagicMock
+        from contacts.integrations import oidc_config
+        from contacts.models import SystemSettings
+        self.admin_client()
+        document = {"issuer": "https://adfs.imone.lt/adfs",
+                    "authorization_endpoint": "https://adfs.imone.lt/adfs/oauth2/authorize/",
+                    "token_endpoint": "https://adfs.imone.lt/adfs/oauth2/token/",
+                    "userinfo_endpoint": "https://adfs.imone.lt/adfs/userinfo",
+                    "jwks_uri": "https://adfs.imone.lt/adfs/discovery/keys"}
+        response_mock = MagicMock(json=MagicMock(return_value=document))
+        form = {"op": "save", "oidc_enabled": "on", "oidc_provider": "generic", "oidc_issuer": "https://adfs.imone.lt/adfs/",
+                "oidc_client_id": "cid", "oidc_groups_claim": "group"}
+        with patch("requests.get", return_value=response_mock) as get:
+            self.client.post(reverse("contacts:settings-login"), form)
+        get.assert_called_once_with("https://adfs.imone.lt/adfs/.well-known/openid-configuration", timeout=10)
+        config = oidc_config(SystemSettings.load())
+        self.assertEqual(config.token_endpoint, document["token_endpoint"])
+        self.assertEqual(config.expected_issuer, "https://adfs.imone.lt/adfs")
+        self.assertEqual(config.groups_claim, "group")
+        self.assertTrue(config.usable)
+
+        document["issuer"] = "https://kitas.lt/adfs"
+        form["oidc_issuer"] = "https://adfs2.imone.lt/adfs"
+        with patch("requests.get", return_value=response_mock):
+            response = self.client.post(reverse("contacts:settings-login"), form)
+        self.assertContains(response, "nesutampa")
+        self.assertEqual(SystemSettings.load().oidc_issuer, "https://adfs.imone.lt/adfs")
+
+    def test_role_of_a_directory_managed_user_cannot_be_changed_locally(self):
+        user, _ = self.sign_in(self.claims(["CRM-Own"]))
+        self.admin_client()
+        response = self.client.get(reverse("contacts:settings-users"))
+        self.assertContains(response, "Valdoma per katalogo grupę")
+        self.client.post(reverse("contacts:settings-users"), {
+            "action": "update", "user_id": user.pk, "role": UserProfile.ROLE_ADMIN, "active": "1"})
+        user.refresh_from_db()
+        self.assertEqual(user.crm_profile.role, UserProfile.ROLE_RESTRICTED)
+        self.client.post(reverse("contacts:settings-users"), {
+            "action": "update", "user_id": user.pk, "role": UserProfile.ROLE_RESTRICTED})
+        user.refresh_from_db()
+        self.assertFalse(user.is_active)
+
+    def test_team_page_keeps_directory_memberships_of_mapped_teams(self):
+        user, _ = self.sign_in(self.claims(["CRM-Users", "CRM-Sales"]))
+        self.admin_client()
+        self.client.post(reverse("contacts:settings-teams"), {
+            "action": "update", "team_id": self.sales.pk, "name": "Pardavimai", "visibility": "all", "members": []})
+        self.assertIn(user, self.sales.members.all())
+        self.client.post(reverse("contacts:settings-teams"), {
+            "action": "update", "team_id": self.manual.pk, "name": "Rankinė", "visibility": "all", "members": [user.pk]})
+        self.assertIn(user, self.manual.members.all())
+
+    def test_refused_sign_in_reason_is_shown_on_the_login_page(self):
+        from django.contrib import messages as django_messages
+
+        def refuse(backend, request, **kwargs):
+            django_messages.error(request, "Nepriklausote CRM grupei")
+            return None
+
+        session = self.client.session
+        session["oidc_states"] = {"state-1": {"nonce": "n", "code_verifier": None}}
+        session.save()
+        with patch("contacts.oidc.EntraOIDCBackend.authenticate", autospec=True, side_effect=refuse):
+            response = self.client.get("/oidc/callback/?code=c&state=state-1", follow=True)
+        self.assertEqual(response.request["PATH_INFO"], reverse("login"))
+        self.assertContains(response, "Nepriklausote CRM grupei")
+        self.assertContains(response, "Prisijungti su Microsoft")

@@ -55,7 +55,8 @@ lives inside the app: **Settings → Documentation**.
   webhooks signed with HMAC-SHA256.
 - **Access control.** Roles (administrator / all records / own records only), a
   role-permission table, teams, and per-record visibility. Sign-in rate limiting
-  and lockout. Microsoft Entra ID (OIDC) single sign-on alongside local accounts.
+  and lockout. Single sign-on through Microsoft Entra ID or AD FS (OIDC), with roles and
+  teams driven by directory (AD) groups, alongside local accounts.
   A full audit log.
 - **Import and export.** CSV and XLSX contact import, CSV export, and a complete
   ZIP backup.

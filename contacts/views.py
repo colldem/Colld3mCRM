@@ -880,9 +880,14 @@ def _create_crm_user(request):
 def _update_crm_user(request, target):
     from .permissions import active_admin_ids, is_admin, role_of
 
+    from .integrations import oidc_config
+
     role = request.POST.get("role", UserProfile.ROLE_MEMBER)
     if role not in dict(UserProfile.ROLE_CHOICES):
         role = UserProfile.ROLE_MEMBER
+    if oidc_config().sync_groups and UserProfile.objects.filter(user=target, directory_managed=True).exists():
+        # The directory decides the role; only switching the account off stays local.
+        role = role_of(target)
     active = request.POST.get("active") == "1"
     admins = active_admin_ids()
     losing_admin = is_admin(target) and (role != UserProfile.ROLE_ADMIN or not active)
@@ -957,7 +962,9 @@ def settings_users(request):
             elif target:
                 _reset_crm_user_password(request, target)
         return redirect("contacts:settings-users")
+    from .integrations import oidc_config
     from .permissions import record_visibility as effective_visibility
+    sync_groups = oidc_config().sync_groups
     rows = [{
         "user": user,
         "name": user.get_full_name().strip() or user.get_username(),
@@ -967,6 +974,7 @@ def settings_users(request):
         "teams": ", ".join(user.crm_teams.values_list("name", flat=True)),
         "is_self": user.pk == request.user.pk,
         "protected": user.is_superuser,
+        "directory_managed": sync_groups and getattr(getattr(user, "crm_profile", None), "directory_managed", False),
     } for user in User.objects.select_related("crm_profile").prefetch_related("crm_teams").order_by("username")]
     return render(request, "settings/users.html", {
         "settings_section": "users", "rows": rows, "role_choices": UserProfile.ROLE_CHOICES,
@@ -980,7 +988,15 @@ def settings_teams(request):
 
     if not is_admin(request.user):
         raise Http404
+    from .integrations import oidc_config
+    from .models import DirectoryGroupMapping
+
     User = get_user_model()
+    if oidc_config().sync_groups:
+        directory_team_ids = set(DirectoryGroupMapping.objects.exclude(team=None).values_list("team_id", flat=True))
+        directory_user_ids = set(UserProfile.objects.filter(directory_managed=True).values_list("user_id", flat=True))
+    else:
+        directory_team_ids, directory_user_ids = set(), set()
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "create":
@@ -1006,6 +1022,10 @@ def settings_teams(request):
                 visibility = request.POST.get("visibility") if request.POST.get("visibility") in dict(Team.VISIBILITY_CHOICES) else team.visibility
                 member_ids = [int(v) for v in request.POST.getlist("members") if v.isdigit()]
                 new_members = list(User.objects.filter(pk__in=member_ids, is_active=True))
+                if team.pk in directory_team_ids:
+                    # Directory-managed users' membership of a mapped team follows their groups.
+                    new_members = [m for m in new_members if m.pk not in directory_user_ids]
+                    new_members += list(team.members.filter(pk__in=directory_user_ids))
                 old = {"name": team.name, "visibility": team.visibility, "members": sorted(team.members.values_list("username", flat=True))}
                 if name and name.lower() != team.name.lower() and Team.objects.filter(name__iexact=name).exclude(pk=team.pk).exists():
                     messages.error(request, tr("Tokia komanda jau yra."))
@@ -1029,6 +1049,7 @@ def settings_teams(request):
     return render(request, "settings/teams.html", {
         "settings_section": "teams", "rows": rows, "users": users,
         "visibility_choices": Team.VISIBILITY_CHOICES,
+        "directory_team_ids": directory_team_ids, "directory_user_ids": directory_user_ids,
     })
 
 
@@ -1380,9 +1401,44 @@ def settings_login(request):
 
     if not is_admin(request.user):
         raise Http404
+    from .directory import evaluate
+    from .forms import DirectoryGroupMappingForm
+    from .models import DirectoryGroupMapping
+
     system = SystemSettings.load()
-    form = LoginSettingsForm(request.POST or None, instance=system)
-    if request.method == "POST" and form.is_valid():
+    op = request.POST.get("op", "save")
+    mapping_form = DirectoryGroupMappingForm(request.POST if op == "add_mapping" else None)
+    if request.method == "POST" and op == "add_mapping":
+        if mapping_form.is_valid():
+            mapping = mapping_form.save()
+            audit_log(AuditLog.CREATE, request=request, target_type="directory_group", target_id=mapping.pk,
+                      target_label=mapping.group, new="%s / %s" % (mapping.role or "-", mapping.team or "-"))
+            messages.success(request, tr("Grupė susieta."))
+            return redirect("contacts:settings-login")
+    elif request.method == "POST" and op == "delete_mapping":
+        mapping = DirectoryGroupMapping.objects.filter(pk=request.POST.get("mapping_id")).first()
+        if mapping:
+            audit_log(AuditLog.DELETE, request=request, target_type="directory_group", target_id=mapping.pk,
+                      target_label=mapping.group)
+            mapping.delete()
+            messages.success(request, tr("Grupės susiejimas pašalintas."))
+        return redirect("contacts:settings-login")
+    claims_test = None
+    if request.method == "POST" and op == "test_claims":
+        import json
+
+        try:
+            claims = json.loads(request.POST.get("claims", ""))
+            if not isinstance(claims, dict):
+                raise ValueError
+        except ValueError:
+            claims_test = {"error": tr("Įklijuokite žetono turinį (claims) JSON objekto pavidalu.")}
+        else:
+            config = oidc_config(system)
+            claims_test = {"result": evaluate(claims, config), "email": claims.get("email") or claims.get("upn")
+                           or claims.get("preferred_username") or ""}
+    form = LoginSettingsForm(request.POST if op == "save" else None, instance=system)
+    if request.method == "POST" and op == "save" and form.is_valid():
         changed = [f for f in form.changed_data if not f.endswith("_clear")]
         form.save()
         if changed:
@@ -1393,6 +1449,9 @@ def settings_login(request):
     return render(request, "settings/login.html", {
         "form": form, "settings_section": "login",
         "oidc_usable": oidc_config(system).usable,
+        "mapping_form": mapping_form, "claims_test": claims_test, "claims_input": request.POST.get("claims", ""),
+        "mappings": DirectoryGroupMapping.objects.select_related("team"),
+        "role_labels": dict(UserProfile.ROLE_CHOICES),
         "redirect_uri": (site_base_url(system) or request.build_absolute_uri("/").rstrip("/")) + "/oidc/callback/",
         "secrets_available": secrets_available(),
     })

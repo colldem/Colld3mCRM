@@ -1,29 +1,76 @@
-{% extends "settings/layout.html" %}{% load i18n %}
+{% extends "settings/layout.html" %}{% load i18n crm_format %}
 {% block settings_content %}
 <div class="settings-section-head">
-  <div><h2>{% translate 'Prisijungimas' %}</h2><p>{% translate 'Prisijungimas per Microsoft Entra ID (OpenID Connect). Vietinis naudotojo vardas ir slaptažodis lieka.' %}</p></div>
+  <div><h2>{% translate 'Prisijungimas' %}</h2><p>{% translate 'Prisijungimas per organizacijos katalogą (OpenID Connect): Microsoft Entra ID arba AD FS. Vietinis naudotojo vardas ir slaptažodis lieka.' %}</p></div>
 </div>
 
 <div class="setting-toggle" style="margin-bottom:20px">
   <span><strong>{% translate 'Būsena' %}</strong>
-  <small>{% if oidc_usable %}{% translate 'Įjungta — prisijungimo puslapyje rodomas „Prisijungti su Microsoft".' %}{% else %}{% translate 'Išjungta arba nepilnai sukonfigūruota.' %}{% endif %}</small></span>
+  <small>{% if oidc_usable %}{% translate 'Įjungta — prisijungimo puslapyje rodomas organizacijos prisijungimo mygtukas.' %}{% else %}{% translate 'Išjungta arba nepilnai sukonfigūruota.' %}{% endif %}</small></span>
 </div>
 
 {% if not secrets_available %}
 <p class="message" style="border-left-color:var(--danger)">{% translate 'Nustatykite CRM_SECRETS_KEY faile .env, kad galėtumėte išsaugoti kliento paslaptį.' %}</p>
 {% endif %}
 
-<p class="message">{% translate 'Entra programos peradresavimo URI (redirect URI):' %} <code>{{ redirect_uri }}</code></p>
+<p class="message">{% translate 'Programos peradresavimo URI (redirect URI):' %} <code>{{ redirect_uri }}</code></p>
 
 <form method="post" class="profile-form">
-  {% csrf_token %}
+  {% csrf_token %}<input type="hidden" name="op" value="save">
   {{ form.non_field_errors }}
   <label class="setting-toggle">{{ form.oidc_enabled }}<span><strong>{{ form.oidc_enabled.label }}</strong><small>{% translate 'Įsigalioja iškart, be konteinerio perkrovimo.' %}</small></span></label>
-  <label class="duplicate-level-field"><strong>{{ form.oidc_tenant_id.label }}</strong>{{ form.oidc_tenant_id.errors }}{{ form.oidc_tenant_id }}<small>{% translate 'Iš Entra: Directory (tenant) ID.' %}</small></label>
-  <label class="duplicate-level-field"><strong>{{ form.oidc_client_id.label }}</strong>{{ form.oidc_client_id.errors }}{{ form.oidc_client_id }}<small>{% translate 'Iš Entra: Application (client) ID.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.oidc_provider.label }}</strong>{{ form.oidc_provider.errors }}{{ form.oidc_provider }}<small>{% translate 'Entra ID — kai AD sinchronizuojamas į Microsoft 365. AD FS — kai naudojamas vietinis federavimo serveris.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.oidc_tenant_id.label }}</strong>{{ form.oidc_tenant_id.errors }}{{ form.oidc_tenant_id }}<small>{% translate 'Tik Entra ID: Directory (tenant) ID. Bendras „common" neleidžiamas.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.oidc_issuer.label }}</strong>{{ form.oidc_issuer.errors }}{{ form.oidc_issuer }}<small>{% translate 'Tik AD FS / OpenID Connect, pvz. https://adfs.imone.lt/adfs. Adresai nuskaitomi automatiškai išsaugant.' %}</small></label>
+  <label class="duplicate-level-field"><strong>{{ form.oidc_client_id.label }}</strong>{{ form.oidc_client_id.errors }}{{ form.oidc_client_id }}<small>{% translate 'Application (client) ID.' %}</small></label>
   <label class="duplicate-level-field"><strong>{{ form.oidc_client_secret.label }}</strong>{{ form.oidc_client_secret.errors }}{{ form.oidc_client_secret }}<small>{% translate 'Palikite tuščią, kad liktų dabartinė.' %}</small></label>
   <label class="setting-toggle">{{ form.oidc_client_secret_clear }}<span>{{ form.oidc_client_secret_clear.label }}</span></label>
-  <label class="setting-toggle">{{ form.oidc_create_users }}<span><strong>{{ form.oidc_create_users.label }}</strong><small>{% translate 'Įjungus, nežinomas Entra naudotojas sukuriamas automatiškai. Išjungus, prisijungti gali tik jau esami CRM naudotojai (pagal el. paštą).' %}</small></span></label>
+  <label class="setting-toggle">{{ form.oidc_create_users }}<span><strong>{{ form.oidc_create_users.label }}</strong><small>{% translate 'Įjungus, nežinomas katalogo naudotojas sukuriamas automatiškai. Išjungus, prisijungti gali tik jau esami CRM naudotojai (pagal el. paštą).' %}</small></span></label>
+  <label class="setting-toggle">{{ form.oidc_sync_groups }}<span><strong>{{ form.oidc_sync_groups.label }}</strong><small>{% translate 'Kiekvieno prisijungimo metu rolė ir komandos nustatomos pagal žemiau susietas grupes. Naudotojas be rolę suteikiančios grupės neįleidžiamas, jo vietinis slaptažodis išjungiamas.' %}</small></span></label>
+  <label class="duplicate-level-field"><strong>{{ form.oidc_groups_claim.label }}</strong>{{ form.oidc_groups_claim.errors }}{{ form.oidc_groups_claim }}<small>{% translate 'Entra ID: groups. AD FS: tas laukas, kurį siunčia jūsų taisyklė (pvz. group).' %}</small></label>
   <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
 </form>
+
+<div class="settings-section-head" style="margin-top:28px">
+  <div><h2>{% translate 'Katalogo grupės' %}</h2><p>{% translate 'Kuri AD grupė kokią rolę ir komandą suteikia. Kai naudotojas yra keliose grupėse, galioja stipriausia rolė; komandos sumuojamos.' %}</p></div>
+</div>
+<ul class="settings-list custom-field-list">
+  {% for mapping in mappings %}
+  <li><form method="post" class="user-row">{% csrf_token %}<input type="hidden" name="op" value="delete_mapping"><input type="hidden" name="mapping_id" value="{{ mapping.pk }}">
+    <div class="user-row-info"><strong>{{ mapping.label|default:mapping.group }}</strong><small><code>{{ mapping.group }}</code> · {% translate 'Rolė' %}: {{ role_labels|get_item:mapping.role|default:"—" }} · {% translate 'Komanda' %}: {{ mapping.team|default:"—" }}</small></div>
+    <div class="user-row-actions"><button class="btn danger" type="submit">{% translate 'Pašalinti' %}</button></div>
+  </form></li>
+  {% empty %}<li><small>{% translate 'Grupių dar nesusieta.' %}</small></li>{% endfor %}
+</ul>
+<form method="post" class="custom-field-create">{% csrf_token %}<input type="hidden" name="op" value="add_mapping">
+  {{ mapping_form.non_field_errors }}
+  <div class="profile-fields">
+    <label>{{ mapping_form.group.label }}{{ mapping_form.group.errors }}{{ mapping_form.group }}</label>
+    <label>{{ mapping_form.label.label }}{{ mapping_form.label }}</label>
+    <label>{{ mapping_form.role.label }}{{ mapping_form.role }}</label>
+    <label>{{ mapping_form.team.label }}{{ mapping_form.team }}</label>
+  </div>
+  <small>{% translate 'Entra ID siunčia grupės Object ID (pvz. 3f2c…), jei nenustatyta siųsti pavadinimų (sAMAccountName). AD FS — tokią reikšmę, kokią grąžina taisyklė.' %}</small>
+  <button class="btn primary" type="submit">{% translate 'Susieti grupę' %}</button>
+</form>
+
+<div class="settings-section-head" style="margin-top:28px">
+  <div><h2>{% translate 'Patikrinti žetoną' %}</h2><p>{% translate 'Įklijuokite ID žetono turinį (claims, JSON) — pvz. iš jwt.ms — ir pamatysite, kokią prieigą naudotojas gautų. Niekas neišsaugoma.' %}</p></div>
+</div>
+<form method="post" class="profile-form">{% csrf_token %}<input type="hidden" name="op" value="test_claims">
+  <textarea name="claims" rows="6" spellcheck="false" placeholder='{"email": "vardenis@imone.lt", "groups": ["CRM-Admins"]}'>{{ claims_input }}</textarea>
+  <div class="form-actions"><button class="btn" type="submit">{% translate 'Patikrinti' %}</button></div>
+</form>
+{% if claims_test %}
+<div class="message" role="status"{% if claims_test.error or claims_test.result.denied %} style="border-left-color:var(--danger)"{% endif %}>
+  {% if claims_test.error %}{{ claims_test.error }}{% else %}
+  <p><strong>{% translate 'Naudotojas' %}:</strong> {{ claims_test.email|default:"—" }}</p>
+  <p><strong>{% translate 'Rastos grupės' %}:</strong> {{ claims_test.result.groups|join:", "|default:"—" }}</p>
+  <p><strong>{% translate 'Susietos grupės' %}:</strong> {% for m in claims_test.result.matched %}{{ m }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</p>
+  {% if claims_test.result.denied %}<p><strong>{% translate 'Prisijungti neleidžiama' %}:</strong> {{ claims_test.result.denied }}</p>
+  {% else %}<p><strong>{% translate 'Rolė' %}:</strong> {{ role_labels|get_item:claims_test.result.role }}</p>
+  <p><strong>{% translate 'Komandos' %}:</strong> {{ claims_test.result.teams|join:", "|default:"—" }}</p>{% endif %}
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}

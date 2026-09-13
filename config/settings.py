@@ -230,5 +230,7 @@ OIDC_CALLBACK_CLASS = "contacts.oidc.EntraCallbackView"
 OIDC_USERNAME_ALGO = "contacts.oidc.username_from_claims"
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_RP_SCOPES = "openid email profile"
+# A refused directory sign-in lands on the login page, where the reason is shown.
+LOGIN_REDIRECT_URL_FAILURE = "/login/"
 LOGIN_REDIRECT_URL = "contacts:list"
 LOGOUT_REDIRECT_URL = "login"

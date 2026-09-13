@@ -32,7 +32,7 @@ redaguojami; „tik skaityti" prieiga yra tik per API raktą.
 | DB draiveris | `psycopg` 3 (binary) | — |
 | Slaptažodžiai | Argon2 (`argon2-cffi`), min. 12 simbolių, 4 validatoriai | `PASSWORD_HASHERS` |
 | Prisijungimų ribojimas | `django-axes` 8 | 5 klaidos → 30 min blokada pagal (username, ip), HTTP 429 |
-| SSO (neprivalomas) | `mozilla-django-oidc` | Microsoft Entra ID prisijungimas, įjungiamas Nustatymuose |
+| SSO (neprivalomas) | `mozilla-django-oidc` | Entra ID arba AD FS prisijungimas, AD grupių susiejimas su rolėmis; įjungiama Nustatymuose |
 | REST API | rankomis rašytas JSON (`contacts/api.py`), be DRF | `/api/v1/`, „Bearer" token'ai, ta pati matomumo apsauga |
 | El. paštas | Django SMTP backend + `imaplib` (gauti laiškai) | konfigūruojama Nustatymuose; be jos — laiškai į žurnalą, IMAP išjungtas |
 | Paslaptys | `cryptography` (Fernet) | Nustatymuose suvesti integracijų slaptažodžiai šifruojami raktu `CRM_SECRETS_KEY` |
@@ -74,7 +74,8 @@ contacts/          vienintelė programa (app)
   recurrence.py     pasikartojančių priminimų materializavimas
   ical.py           .ics kalendoriaus srautas (be bibliotekos)
   mailfetch.py      IMAP gautų laiškų parsisiuntimas ir priskyrimas
-  oidc.py           Microsoft Entra ID (OIDC) backend'as + gate'inti view'ai
+  oidc.py           OIDC backend'as (Entra ID / AD FS), žetono tikrinimas + gate'inti view'ai
+  directory.py      AD grupių → rolės ir komandos (DirectoryGroupMapping), taikoma prisijungiant
   integrations.py   efektyvi SMTP / IMAP / OIDC konfigūracija (DB + .env fallback)
   crypto.py         integracijų slaptažodžių šifravimas (Fernet, CRM_SECRETS_KEY)
   sanitizers.py     safe_url / csv_safe

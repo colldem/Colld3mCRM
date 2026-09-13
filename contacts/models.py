@@ -146,6 +146,13 @@ class UserProfile(models.Model):
     # Personal side menu: which optional entries are folded away under "Daugiau",
     # and up to five shortcuts of the user's own. See contacts/menu.py.
     menu_config = models.JSONField(default=dict, blank=True)
+    # Directory (AD) access, see contacts/directory.py. While `directory_managed`
+    # is set, role and mapped teams follow the user's directory groups at every
+    # sign-in and cannot be edited in the CRM.
+    directory_managed = models.BooleanField(default=False)
+    directory_subject = models.CharField(max_length=255, blank=True, default="")
+    directory_groups = models.JSONField(default=list, blank=True)
+    directory_synced_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def new_calendar_token(self):
@@ -175,6 +182,25 @@ class Team(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class DirectoryGroupMapping(models.Model):
+    """A directory (AD / Entra) group and the CRM access its members get."""
+    group = models.CharField(max_length=256, unique=True)
+    label = models.CharField(max_length=120, blank=True, default="")
+    role = models.CharField(max_length=12, blank=True, default="", choices=UserProfile.ROLE_CHOICES)
+    team = models.ForeignKey("Team", null=True, blank=True, on_delete=models.CASCADE, related_name="directory_groups")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["group"]
+
+    def __str__(self):
+        return self.label or self.group
+
+    def save(self, *args, **kwargs):
+        self.group = self.group.strip()
+        return super().save(*args, **kwargs)
 
 
 class RolePermissions(models.Model):
@@ -281,6 +307,17 @@ class SystemSettings(models.Model):
     oidc_client_id = models.CharField(max_length=255, blank=True, default="")
     oidc_client_secret = models.CharField(max_length=500, blank=True, default="")
     oidc_create_users = models.BooleanField(default=False)
+    # "entra" builds the endpoints from the tenant id; "generic" (AD FS, Keycloak …)
+    # stores the ones read from the issuer's discovery document.
+    oidc_provider = models.CharField(max_length=8, default="entra",
+                                     choices=(("entra", "Microsoft Entra ID"), ("generic", "AD FS / OpenID Connect")))
+    oidc_issuer = models.CharField(max_length=500, blank=True, default="")
+    oidc_authorization_endpoint = models.CharField(max_length=500, blank=True, default="")
+    oidc_token_endpoint = models.CharField(max_length=500, blank=True, default="")
+    oidc_userinfo_endpoint = models.CharField(max_length=500, blank=True, default="")
+    oidc_jwks_endpoint = models.CharField(max_length=500, blank=True, default="")
+    oidc_groups_claim = models.CharField(max_length=200, blank=True, default="groups")
+    oidc_sync_groups = models.BooleanField(default=False)
 
     # Automation rules master switch (Settings -> Automatika).
     automations_enabled = models.BooleanField(default=False)

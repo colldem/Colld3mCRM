@@ -61,7 +61,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
-  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException.
+  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DirectoryGroupMapping.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
   darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys;
   `calendar_views.py` — kalendorius;
@@ -77,7 +77,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   priminimai gyvena varpelyje (`reminder_live.py`), kalendoriuje ir kortelėse;
   varpelio atidarymas žymi juos skaitytais (`reminder_mark_read`); `sanitizers.py` — `safe_url` / `csv_safe`;
   `mailfetch.py` + `management/commands/fetch_mail.py` — IMAP gautų laiškų prisegimas;
-  `oidc.py` — Microsoft Entra ID (OIDC) prisijungimo backend'as ir view'ai;
+  `oidc.py` — OIDC prisijungimo backend'as (Entra ID arba AD FS; iss/aud/exp/tid tikrinimas) ir view'ai;
+  `directory.py` — AD grupių susiejimas su rolėmis ir komandomis, taikomas kiekvieno prisijungimo metu;
   `integrations.py` — efektyvi SMTP/IMAP/OIDC konfigūracija (DB + `.env` fallback);
   izoliacija: kai `CRM_ENVIRONMENT` ≠ `production`, visi trys akcesoriai grąžina
   inertišką konfigūraciją, o `webhooks.emit`/`post_once` atsisako siųsti — kad

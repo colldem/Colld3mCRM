@@ -3565,3 +3565,141 @@ msgstr "The whole selection"
 #: templates/contacts/list.html
 msgid "Pažymėta"
 msgstr "Selected"
+
+msgid "Naudotojas priklauso per daug grupių, todėl jos neįtrauktos į prisijungimo žetoną. Entra programoje nustatykite, kad būtų siunčiamos tik programai priskirtos grupės."
+msgstr "The user belongs to too many groups, so they were left out of the sign-in token. In the Entra app, emit only the groups assigned to the application."
+
+msgid "Naudotojas nepriklauso nė vienai CRM prieigą suteikiančiai katalogo grupei."
+msgstr "The user is not in any directory group that grants CRM access."
+
+msgid "Šis el. pašto adresas susietas su kita katalogo paskyra. Kreipkitės į administratorių."
+msgstr "This email address is linked to a different directory account. Contact an administrator."
+
+msgid "Vietinė pagrindinio administratoriaus paskyra per katalogą neprisijungia. Naudokite vietinį prisijungimą."
+msgstr "The local main administrator account does not sign in through the directory. Use local sign-in."
+
+msgid "Nepavyko nuskaityti %s."
+msgstr "Could not read %s."
+
+msgid "Aprašo issuer (%s) nesutampa su nurodytu."
+msgstr "The document's issuer (%s) does not match the one entered."
+
+msgid "Apraše trūksta HTTPS authorization, token arba jwks adreso."
+msgstr "The document lacks an HTTPS authorization, token or jwks address."
+
+msgid "Jūsų CRM paskyra išjungta. Kreipkitės į administratorių."
+msgstr "Your CRM account is disabled. Contact an administrator."
+
+msgid "Entra ID — kai AD sinchronizuojamas į Microsoft 365. AD FS — kai naudojamas vietinis federavimo serveris."
+msgstr "Entra ID - when AD is synchronised to Microsoft 365. AD FS - when an on-premises federation server is used."
+
+msgid "Tik Entra ID: Directory (tenant) ID. Bendras „common\" neleidžiamas."
+msgstr "Entra ID only: Directory (tenant) ID. The shared \"common\" is not allowed."
+
+msgid "Tik AD FS / OpenID Connect, pvz. https://adfs.imone.lt/adfs. Adresai nuskaitomi automatiškai išsaugant."
+msgstr "AD FS / OpenID Connect only, e.g. https://adfs.company.com/adfs. Endpoints are read automatically on save."
+
+msgid "Kiekvieno prisijungimo metu rolė ir komandos nustatomos pagal žemiau susietas grupes. Naudotojas be rolę suteikiančios grupės neįleidžiamas, jo vietinis slaptažodis išjungiamas."
+msgstr "At every sign-in the role and teams are set from the groups mapped below. A user without a role-granting group is refused, and their local password is disabled."
+
+msgid "Entra ID: groups. AD FS: tas laukas, kurį siunčia jūsų taisyklė (pvz. group)."
+msgstr "Entra ID: groups. AD FS: the claim your rule sends (e.g. group)."
+
+msgid "Katalogo grupės"
+msgstr "Directory groups"
+
+msgid "Kuri AD grupė kokią rolę ir komandą suteikia. Kai naudotojas yra keliose grupėse, galioja stipriausia rolė; komandos sumuojamos."
+msgstr "Which AD group grants which role and team. For a user in several groups the strongest role applies; teams add up."
+
+msgid "Grupių dar nesusieta."
+msgstr "No groups mapped yet."
+
+msgid "Entra ID siunčia grupės Object ID (pvz. 3f2c…), jei nenustatyta siųsti pavadinimų (sAMAccountName). AD FS — tokią reikšmę, kokią grąžina taisyklė."
+msgstr "Entra ID sends the group Object ID (e.g. 3f2c...) unless set to send names (sAMAccountName). AD FS - whatever value its rule returns."
+
+msgid "Susieti grupę"
+msgstr "Map group"
+
+msgid "Įklijuokite ID žetono turinį (claims, JSON) — pvz. iš jwt.ms — ir pamatysite, kokią prieigą naudotojas gautų. Niekas neišsaugoma."
+msgstr "Paste the ID token contents (claims, JSON) - e.g. from jwt.ms - to see what access the user would get. Nothing is saved."
+
+msgid "Rastos grupės"
+msgstr "Groups found"
+
+msgid "Susietos grupės"
+msgstr "Mapped groups"
+
+msgid "Valdoma per katalogo grupę"
+msgstr "Managed by a directory group"
+
+msgid "Rolė ir komandos valdomos per katalogo grupes"
+msgstr "Role and teams are managed by directory groups"
+
+msgid "Prisijungimas per organizacijos katalogą (OpenID Connect): Microsoft Entra ID arba AD FS. Vietinis naudotojo vardas ir slaptažodis lieka."
+msgstr "Sign-in through the organisation directory (OpenID Connect): Microsoft Entra ID or AD FS. Local username and password still work."
+
+msgid "Įjungta — prisijungimo puslapyje rodomas organizacijos prisijungimo mygtukas."
+msgstr "On - the login page shows the organisation sign-in button."
+
+msgid "Programos peradresavimo URI (redirect URI):"
+msgstr "Application redirect URI:"
+
+msgid "Application (client) ID."
+msgstr "Application (client) ID."
+
+msgid "Įjungus, nežinomas katalogo naudotojas sukuriamas automatiškai. Išjungus, prisijungti gali tik jau esami CRM naudotojai (pagal el. paštą)."
+msgstr "When on, an unknown directory user is created automatically. When off, only existing CRM users (matched by email) can sign in."
+
+msgid "Patikrinti žetoną"
+msgstr "Test a token"
+
+msgid "Patikrinti"
+msgstr "Test"
+
+msgid "Prisijungti neleidžiama"
+msgstr "Sign-in refused"
+
+msgid "Komanda"
+msgstr "Team"
+
+msgid "Prisijungti su organizacijos paskyra"
+msgstr "Sign in with your organisation account"
+
+msgid "Leisti prisijungti per organizacijos katalogą"
+msgstr "Allow sign-in through the organisation directory"
+
+msgid "Tapatybės teikėjas"
+msgstr "Identity provider"
+
+msgid "Išdavėjo (issuer) URL"
+msgstr "Issuer URL"
+
+msgid "Grupių laukas (claim) žetone"
+msgstr "Groups claim in the token"
+
+msgid "Roles ir komandas valdyti per katalogo grupes"
+msgstr "Manage roles and teams through directory groups"
+
+msgid "Nurodykite išdavėjo HTTPS adresą, pvz. https://adfs.imone.lt/adfs."
+msgstr "Enter the issuer's HTTPS address, e.g. https://adfs.company.com/adfs."
+
+msgid "Grupė (ID arba pavadinimas)"
+msgstr "Group (ID or name)"
+
+msgid "Ši grupė jau susieta."
+msgstr "This group is already mapped."
+
+msgid "Grupei priskirkite rolę, komandą arba abi."
+msgstr "Give the group a role, a team or both."
+
+msgid "Grupė susieta."
+msgstr "Group mapped."
+
+msgid "Grupės susiejimas pašalintas."
+msgstr "Group mapping removed."
+
+msgid "Įklijuokite žetono turinį (claims) JSON objekto pavidalu."
+msgstr "Paste the token contents (claims) as a JSON object."
+
+msgid "Prisijungimas per organizacijos katalogą (AD)"
+msgstr "Sign-in through the organisation directory (AD)"

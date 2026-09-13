@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
 from . import permissions
-from .models import Activity, AutomationRule, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
+from .models import DirectoryGroupMapping, Activity, AutomationRule, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
 
 
 class UserProfileForm(forms.Form):
@@ -191,14 +191,73 @@ class LoginSettingsForm(_SecretFieldsMixin, forms.ModelForm):
 
     class Meta:
         model = SystemSettings
-        fields = ["oidc_enabled", "oidc_tenant_id", "oidc_client_id", "oidc_client_secret", "oidc_create_users"]
+        fields = ["oidc_enabled", "oidc_provider", "oidc_tenant_id", "oidc_issuer", "oidc_client_id",
+                  "oidc_client_secret", "oidc_create_users", "oidc_groups_claim", "oidc_sync_groups"]
         labels = {
-            "oidc_enabled": tr("Leisti prisijungti per Microsoft Entra ID"),
+            "oidc_enabled": tr("Leisti prisijungti per organizacijos katalogą"),
+            "oidc_provider": tr("Tapatybės teikėjas"),
+            "oidc_issuer": tr("Išdavėjo (issuer) URL"),
+            "oidc_groups_claim": tr("Grupių laukas (claim) žetone"),
+            "oidc_sync_groups": tr("Roles ir komandas valdyti per katalogo grupes"),
             "oidc_tenant_id": tr("Katalogo (nuomininko) ID"),
             "oidc_client_id": tr("Programos (kliento) ID"),
             "oidc_client_secret": tr("Kliento paslaptis (secret)"),
             "oidc_create_users": tr("Kurti naujus naudotojus automatiškai"),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["oidc_provider"].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        cleaned["oidc_provider"] = cleaned.get("oidc_provider") or "entra"
+        cleaned["oidc_groups_claim"] = (cleaned.get("oidc_groups_claim") or "groups").strip()
+        if cleaned["oidc_provider"] == "generic" and cleaned.get("oidc_enabled"):
+            issuer = (cleaned.get("oidc_issuer") or "").strip().rstrip("/")
+            if not issuer.startswith("https://"):
+                self.add_error("oidc_issuer", tr("Nurodykite išdavėjo HTTPS adresą, pvz. https://adfs.imone.lt/adfs."))
+            elif issuer != (self.instance.oidc_issuer or "").rstrip("/") or not self.instance.oidc_jwks_endpoint:
+                from .integrations import discover_oidc
+
+                try:
+                    self.discovered = discover_oidc(issuer)
+                except ValueError as error:
+                    self.add_error("oidc_issuer", str(error))
+            cleaned["oidc_issuer"] = issuer
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        for name, value in getattr(self, "discovered", {}).items():
+            setattr(instance, "oidc_%s_endpoint" % name, value)
+        if commit:
+            instance.save()
+        return instance
+
+
+class DirectoryGroupMappingForm(forms.ModelForm):
+    class Meta:
+        model = DirectoryGroupMapping
+        fields = ["group", "label", "role", "team"]
+        labels = {
+            "group": tr("Grupė (ID arba pavadinimas)"),
+            "label": tr("Aprašymas"),
+            "role": tr("Rolė"),
+            "team": tr("Komanda"),
+        }
+
+    def clean_group(self):
+        group = self.cleaned_data["group"].strip()
+        if DirectoryGroupMapping.objects.filter(group__iexact=group).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError(tr("Ši grupė jau susieta."))
+        return group
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get("role") and not cleaned.get("team"):
+            raise forms.ValidationError(tr("Grupei priskirkite rolę, komandą arba abi."))
+        return cleaned
 
 
 class ImportSettingsForm(forms.ModelForm):

@@ -5,7 +5,7 @@ matching ``.env`` fallback, so the rest of the app never reads ``os.environ`` or
 ``django.conf.settings`` for SMTP / IMAP / Entra directly. The database wins when
 a value is filled in; otherwise the environment value is used.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from django.conf import settings as dj
 
@@ -50,31 +50,55 @@ class OIDCConfig:
     client_id: str
     client_secret: str
     create_users: bool
+    provider: str = "entra"
+    issuer: str = ""
+    endpoints: dict = field(default_factory=dict)
+    groups_claim: str = "groups"
+    sync_groups: bool = False
+
+    @property
+    def is_entra(self):
+        return self.provider != "generic"
 
     @property
     def authority(self):
-        return "https://login.microsoftonline.com/%s/v2.0" % (self.tenant_id or "common")
+        return "https://login.microsoftonline.com/%s/v2.0" % self.tenant_id
+
+    @property
+    def expected_issuer(self):
+        return self.authority if self.is_entra else self.issuer.rstrip("/")
+
+    def _endpoint(self, name, entra_value):
+        return entra_value if self.is_entra else self.endpoints.get(name, "")
 
     @property
     def authorization_endpoint(self):
-        return self.authority + "/authorize"
+        return self._endpoint("authorization", self.authority + "/authorize")
 
     @property
     def token_endpoint(self):
-        return self.authority + "/token"
+        return self._endpoint("token", self.authority + "/token")
 
     @property
     def user_endpoint(self):
-        return self.authority.replace("/v2.0", "") + "/openid/userinfo"
+        return self._endpoint("userinfo", "https://graph.microsoft.com/oidc/userinfo")
 
     @property
     def jwks_endpoint(self):
-        return self.authority + "/keys"
+        return self._endpoint("jwks", "https://login.microsoftonline.com/%s/discovery/v2.0/keys" % self.tenant_id)
 
     @property
     def usable(self):
-        """True when login through Entra should be offered and accepted."""
-        return bool(self.enabled and self.client_id and self.client_secret)
+        """True when login through the identity provider should be offered and accepted.
+
+        Entra needs a concrete tenant: the multi-tenant "common" authority would
+        accept accounts from any Microsoft tenant and link them by email.
+        """
+        if not (self.enabled and self.client_id and self.client_secret):
+            return False
+        if self.is_entra:
+            return bool(self.tenant_id and self.tenant_id.lower() not in ("common", "organizations", "consumers"))
+        return bool(self.issuer and self.authorization_endpoint and self.token_endpoint and self.jwks_endpoint)
 
 
 def _load(system):
@@ -138,7 +162,42 @@ def oidc_config(system=None):
         client_id=system.oidc_client_id or dj.OIDC_RP_CLIENT_ID,
         client_secret=decrypt(system.oidc_client_secret) or (dj.OIDC_RP_CLIENT_SECRET if not from_db else ""),
         create_users=system.oidc_create_users or (dj.OIDC_CREATE_USERS and not from_db),
+        provider=system.oidc_provider or "entra",
+        issuer=system.oidc_issuer,
+        endpoints={
+            "authorization": system.oidc_authorization_endpoint,
+            "token": system.oidc_token_endpoint,
+            "userinfo": system.oidc_userinfo_endpoint,
+            "jwks": system.oidc_jwks_endpoint,
+        },
+        groups_claim=(system.oidc_groups_claim or "groups").strip(),
+        sync_groups=system.oidc_sync_groups,
     )
+
+
+def discover_oidc(issuer):
+    """Endpoints from ``<issuer>/.well-known/openid-configuration``; ValueError on failure."""
+    import requests
+    from django.utils.translation import gettext
+
+    url = issuer.rstrip("/") + "/.well-known/openid-configuration"
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        document = response.json()
+    except (requests.RequestException, ValueError):
+        raise ValueError(gettext("Nepavyko nuskaityti %s.") % url) from None
+    if str(document.get("issuer", "")).rstrip("/") != issuer.rstrip("/"):
+        raise ValueError(gettext("Aprašo issuer (%s) nesutampa su nurodytu.") % document.get("issuer", ""))
+    endpoints = {
+        "authorization": document.get("authorization_endpoint", ""),
+        "token": document.get("token_endpoint", ""),
+        "userinfo": document.get("userinfo_endpoint", ""),
+        "jwks": document.get("jwks_uri", ""),
+    }
+    if not all(endpoints[name].startswith("https://") for name in ("authorization", "token", "jwks")):
+        raise ValueError(gettext("Apraše trūksta HTTPS authorization, token arba jwks adreso."))
+    return endpoints
 
 
 def site_base_url(system=None):

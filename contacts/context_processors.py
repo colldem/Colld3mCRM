@@ -32,6 +32,7 @@ def system_settings(request):
     system = SystemSettings.load()
     return {"date_format": system.date_format, "datetime_format": system.datetime_format,
             "oidc_enabled": oidc_config(system).usable,
+            "oidc_is_entra": oidc_config(system).is_entra,
             # Names the tier in the top banner so a clone holding real data is
             # never mistaken for production.
             "crm_environment": dj_settings.CRM_ENVIRONMENT,
