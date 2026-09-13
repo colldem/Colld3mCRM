@@ -3,8 +3,9 @@
 **Išvada:** CRM palaikoma ir testuojama su PostgreSQL. Oracle nėra palaikoma
 produkcijos platforma, bet atstumas iki jos išmatuotas ir nedidelis. CI darbas
 `oracle-compatibility` kiekvieno pakeitimo metu paleidžia visus testus su
-Oracle Database Free 23 ir įkelia ataskaitą (`oracle-report`); build'o jis
-nesustabdo.
+Oracle Database Free 23, rezultatų suvestinę rodo CI puslapyje ir įkelia pilną
+ataskaitą (`oracle-report`). Build'ą jis sustabdo tik tada, jei Oracle nebepavyksta
+pritaikyti migracijų — tai būtų naujas regresas.
 
 ## Būklė (2026-09-13)
 

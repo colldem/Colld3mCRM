@@ -182,7 +182,6 @@ jobs:
   # (docs/ORACLE.md). It never fails the build — the report is the output.
   oracle-compatibility:
     runs-on: ubuntu-latest
-    continue-on-error: true
     services:
       oracle:
         image: gvenzl/oracle-free:23-slim-faststart
@@ -205,15 +204,18 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: python -m pip install -r requirements.txt -r requirements-oracle.txt
-      - name: Migrations and the test suite on Oracle
+      - name: Migrations and the test suite on Oracle (report)
         run: |
           set +e
           python manage.py test --noinput -v 2 > oracle-report.txt 2>&1
-          status=$?
-          grep -E "^(Ran|OK|FAILED)" oracle-report.txt
-          grep -E "^(ERROR|FAIL):" oracle-report.txt | sort | uniq -c | sort -rn | head -60
-          grep -hoE "(ORA-[0-9]{5}|DPY-[0-9]{4})[^\n]{0,90}" oracle-report.txt | sort | uniq -c | sort -rn | head -20
-          exit $status
+          {
+            echo "### Oracle compatibility (report only, see docs/ORACLE.md)"
+            echo '```'
+            grep -E "^(Ran|OK|FAILED)" oracle-report.txt
+            grep -hoE "(ORA-[0-9]{5}|DPY-[0-9]{4})[^\n]{0,90}" oracle-report.txt | sort | uniq -c | sort -rn | head -10
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -q "^Applying contacts\.[0-9]*_.*OK" oracle-report.txt || { echo "migrations did not run on Oracle"; exit 1; }
       - uses: actions/upload-artifact@v5
         if: always()
         with:
