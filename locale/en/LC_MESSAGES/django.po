@@ -3850,3 +3850,24 @@ msgstr "Personal data erased: %(activities)s activities, %(attachments)s attachm
 
 msgid "Duomenų apsauga (BDAR)"
 msgstr "Data protection (GDPR)"
+
+msgid "Terminas turi būti 0 (saugoti) arba bent %(days)s d."
+msgstr "The period must be 0 (keep) or at least %(days)s days."
+
+msgid "Saugojimo terminai išsaugoti."
+msgstr "Retention periods saved."
+
+msgid "Saugojimo terminai"
+msgstr "Retention periods"
+
+msgid "Kasdien ištrinama tai, kas senesnė už nurodytą terminą, tuo pačiu būdu kaip ištrynimas pagal užklausą (su failais ir žurnalo nuasmeninimu). 0 — saugoti; kitaip bent %(retention_minimum)s d."
+msgstr "Every day, whatever is older than the period is deleted the same way as an erasure request (with files and audit redaction). 0 - keep; otherwise at least %(retention_minimum)s days."
+
+msgid "Archyvuoti kontaktai ir įmonės (dienų po archyvavimo)"
+msgstr "Archived contacts and companies (days after archiving)"
+
+msgid "Gauti el. laiškai (dienų)"
+msgstr "Incoming e-mails (days)"
+
+msgid "Pagal dabartinius terminus kitą kartą būtų ištrinta: %(people)s kontaktų, %(companies)s įmonių, %(mail)s laiškų."
+msgstr "With the current periods the next run would delete: %(people)s contacts, %(companies)s companies, %(mail)s e-mails."

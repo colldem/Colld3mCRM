@@ -19,23 +19,34 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .audit import REDACTED, log as audit_log, sanctioned_redact
-from .models import (Activity, Attachment, AuditLog, AutomationLog, CustomValue, DuplicateException, IncomingMail,
-                     Person, Reminder, WebhookDelivery)
+from .models import (Activity, Attachment, AuditLog, AutomationLog, Company, CustomValue, DuplicateException,
+                     IncomingMail, Person, Reminder, SystemSettings, WebhookDelivery)
 
 
-def _identifiers(person):
-    """Strings that identify the person inside free text of other rows."""
-    values = {str(person).strip()}
-    values |= {email.lower() for email in person.emails.values_list("email", flat=True)}
-    values |= set(person.phones.values_list("number", flat=True))
+def _kind(record):
+    return "company" if isinstance(record, Company) else "person"
+
+
+def _identifiers(record):
+    """Strings that identify the record inside free text of other rows."""
+    values = {str(record).strip()}
+    if isinstance(record, Company):
+        values |= {record.email.lower(), record.phone}
+    else:
+        values |= {email.lower() for email in record.emails.values_list("email", flat=True)}
+        values |= set(record.phones.values_list("number", flat=True))
     return {value for value in values if len(value) >= 5}
 
 
 def _related(person):
-    activities = Activity.objects.filter(person=person)
+    owner = {_kind(person): person}
+    activities = Activity.objects.filter(**owner)
     activity_ids = list(activities.values_list("pk", flat=True))
-    reminder_ids = list(Reminder.objects.filter(person=person).values_list("pk", flat=True))
-    emails = [email.lower() for email in person.emails.values_list("email", flat=True)]
+    reminder_ids = list(Reminder.objects.filter(**owner).values_list("pk", flat=True))
+    if isinstance(person, Company):
+        emails = [person.email.lower()] if person.email else []
+    else:
+        emails = [email.lower() for email in person.emails.values_list("email", flat=True)]
     mail_filter = Q(resolved_activity_id__in=activity_ids)
     for email in emails:
         mail_filter |= Q(from_addr__icontains=email)
@@ -49,7 +60,7 @@ def _related(person):
 
 
 def _audit_rows(person, related):
-    targets = Q(target_type="person", target_id=str(person.pk))
+    targets = Q(target_type=_kind(person), target_id=str(person.pk))
     if related["activity_ids"]:
         targets |= Q(target_type="activity", target_id__in=[str(pk) for pk in related["activity_ids"]])
     if related["reminder_ids"]:
@@ -127,8 +138,9 @@ def export_person(person, request):
     return buffer.getvalue()
 
 
-def erase_person(person, request):
-    """Erase ``person`` for a data subject request; returns what was removed."""
+def erase_person(person, request, reason="data_subject_erasure"):
+    """Erase a person (or, for retention, a company); returns what was removed."""
+    kind = _kind(person)
     related = _related(person)
     person_id = person.pk
     files = [attachment.file.name for attachment in related["attachments"] if attachment.file]
@@ -138,16 +150,15 @@ def erase_person(person, request):
         counts = summary(person)
         counts["audit_rows"] = sanctioned_redact(_audit_rows(person, related))
         counts["incoming_mail"] = related["mail"].delete()[0]
-        counts["automation_log"] = AutomationLog.objects.filter(target_type="person", target_id=str(person_id)).delete()[0]
+        counts["automation_log"] = AutomationLog.objects.filter(target_type=kind, target_id=str(person_id)).delete()[0]
         deliveries = [d.pk for d in WebhookDelivery.objects.all().iterator()
                       if any(value.lower() in json.dumps(d.payload, ensure_ascii=False).lower() for value in identifiers)]
         counts["webhook_deliveries"] = WebhookDelivery.objects.filter(pk__in=deliveries).delete()[0]
-        DuplicateException.objects.filter(kind=DuplicateException.PERSON).filter(
-            Q(left_id=person_id) | Q(right_id=person_id)).delete()
+        DuplicateException.objects.filter(kind=kind).filter(Q(left_id=person_id) | Q(right_id=person_id)).delete()
         person.delete()
         transaction.on_commit(lambda: [storage.delete(name) for name in files])
-        audit_log(AuditLog.DELETE, request=request, target_type="person", target_id=str(person_id),
-                  target_label=REDACTED, detail={"reason": "data_subject_erasure", **counts})
+        audit_log(AuditLog.DELETE, request=request, target_type=kind, target_id=str(person_id),
+                  target_label=REDACTED, detail={"reason": reason, **counts})
     return counts
 
 
@@ -162,3 +173,40 @@ def find_people(query):
         by_name &= Q(first_name__icontains=part) | Q(last_name__icontains=part)
     return (Person.objects.filter(by_name | Q(emails__email__icontains=query) | Q(phones__number__icontains=query))
             .distinct().order_by("last_name", "first_name")[:50])
+
+
+# --- retention -------------------------------------------------------------
+
+RETENTION_MINIMUM_DAYS = 30
+
+
+def retention_candidates(now=None):
+    """What the retention settings would delete right now (querysets)."""
+    from datetime import timedelta
+
+    now = now or timezone.now()
+    system = SystemSettings.load()
+    empty = {"people": Person.objects.none(), "companies": Company.objects.none(), "mail": IncomingMail.objects.none()}
+    if system.archived_retention_days:
+        cutoff = now - timedelta(days=max(system.archived_retention_days, RETENTION_MINIMUM_DAYS))
+        empty["people"] = Person.objects.filter(deleted_at__lt=cutoff)
+        empty["companies"] = Company.objects.filter(deleted_at__lt=cutoff)
+    if system.incoming_mail_retention_days:
+        cutoff = now - timedelta(days=max(system.incoming_mail_retention_days, RETENTION_MINIMUM_DAYS))
+        empty["mail"] = IncomingMail.objects.filter(received_at__lt=cutoff)
+    return empty
+
+
+def apply_retention(now=None):
+    """Delete what is past retention; each record goes through the erasure path."""
+    candidates = retention_candidates(now)
+    done = {"people": 0, "companies": 0, "mail": 0}
+    for key in ("people", "companies"):
+        for record in candidates[key].iterator(chunk_size=100):
+            erase_person(record, request=None, reason="retention")
+            done[key] += 1
+    done["mail"] = candidates["mail"].delete()[0]
+    if done["mail"]:
+        audit_log(AuditLog.DELETE, target_type="incoming_mail", target_label="retention",
+                  detail={"reason": "retention", "deleted": done["mail"]})
+    return done

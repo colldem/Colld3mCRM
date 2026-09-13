@@ -6850,3 +6850,80 @@ class PostgresAuditRedactionGuardTests(TestCase):
             cursor.execute("UPDATE contacts_auditlog SET action = 'login' WHERE id = %s", [self.entry.pk])
         with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
             cursor.execute("UPDATE contacts_auditlog SET old_value = 'x' WHERE id = %s", [self.entry.pk])
+
+
+class RetentionTests(TestCase):
+    """Archived records and incoming mail past retention are erased like a data subject request."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from contacts.models import IncomingMail
+        self.admin = get_user_model().objects.create_superuser("root", email="r@local", password="very-secure-password")
+        now = timezone.now()
+        self.old_person = Person.objects.create(first_name="Senas", last_name="Archyvas", created_by=self.admin,
+                                                deleted_at=now - timedelta(days=400))
+        Activity.objects.create(person=self.old_person, text="sena veikla", created_by=self.admin)
+        self.new_person = Person.objects.create(first_name="Naujas", last_name="Archyvas", created_by=self.admin,
+                                                deleted_at=now - timedelta(days=10))
+        self.active = Person.objects.create(first_name="Aktyvus", last_name="Asmuo", created_by=self.admin)
+        self.old_company = Company.objects.create(name="UAB Sena", created_by=self.admin, deleted_at=now - timedelta(days=400))
+        Activity.objects.create(company=self.old_company, text="įmonės veikla", created_by=self.admin)
+        IncomingMail.objects.create(message_id="<old>", from_addr="a@b.lt", received_at=now - timedelta(days=200))
+        IncomingMail.objects.create(message_id="<new>", from_addr="a@b.lt", received_at=now - timedelta(days=2))
+
+    def configure(self, archived=0, mail=0):
+        from contacts.models import SystemSettings
+        system = SystemSettings.load()
+        system.archived_retention_days, system.incoming_mail_retention_days = archived, mail
+        system.save()
+
+    def run_command(self, *args):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command("apply_retention", *args, stdout=out)
+        return out.getvalue()
+
+    def test_nothing_happens_while_retention_is_off(self):
+        self.assertIn("people=0, companies=0, mail=0", self.run_command())
+        self.assertTrue(Person.objects.filter(pk=self.old_person.pk).exists())
+
+    def test_dry_run_reports_without_deleting(self):
+        self.configure(archived=365, mail=90)
+        self.assertIn("people=1, companies=1, mail=1", self.run_command("--dry-run"))
+        self.assertTrue(Person.objects.filter(pk=self.old_person.pk).exists())
+
+    def test_expired_records_and_mail_are_erased_and_audited(self):
+        from contacts.models import AuditLog, IncomingMail
+        self.configure(archived=365, mail=90)
+        self.assertIn("people=1, companies=1, mail=1", self.run_command())
+        self.assertFalse(Person.objects.filter(pk=self.old_person.pk).exists())
+        self.assertFalse(Company.objects.filter(pk=self.old_company.pk).exists())
+        self.assertFalse(Activity.objects.filter(text__in=["sena veikla", "įmonės veikla"]).exists())
+        self.assertTrue(Person.objects.filter(pk=self.new_person.pk).exists())
+        self.assertTrue(Person.objects.filter(pk=self.active.pk).exists())
+        self.assertEqual(list(IncomingMail.objects.values_list("message_id", flat=True)), ["<new>"])
+        self.assertEqual(AuditLog.objects.filter(action=AuditLog.DELETE, detail__reason="retention").count(), 3)
+
+    def test_short_periods_are_raised_to_the_minimum(self):
+        from datetime import timedelta
+        self.new_person.deleted_at = timezone.now() - timedelta(days=20)
+        self.new_person.save()
+        self.configure(archived=1)  # e.g. written straight to the database
+        self.run_command()
+        self.assertTrue(Person.objects.filter(pk=self.new_person.pk).exists())
+
+    def test_settings_page_saves_validates_and_previews(self):
+        from contacts.models import SystemSettings
+        self.client.force_login(self.admin)
+        url = reverse("contacts:settings-privacy")
+        response = self.client.post(url, {"archived_retention_days": "5", "incoming_mail_retention_days": "0"}, follow=True)
+        self.assertContains(response, "bent 30")
+        self.client.post(url, {"archived_retention_days": "365", "incoming_mail_retention_days": "90"})
+        system = SystemSettings.load()
+        self.assertEqual((system.archived_retention_days, system.incoming_mail_retention_days), (365, 90))
+        self.assertContains(self.client.get(url), "1 kontaktų, 1 įmonių, 1 laiškų")
+
+    def test_worker_and_kubernetes_run_it(self):
+        self.assertIn("manage.py apply_retention", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("command: apply_retention", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())

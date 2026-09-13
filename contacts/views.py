@@ -1227,9 +1227,31 @@ def settings_privacy(request):
 
     if not is_admin(request.user):
         raise Http404
+    from .privacy import RETENTION_MINIMUM_DAYS, retention_candidates
+
+    system = SystemSettings.load()
+    if request.method == "POST":
+        values = {}
+        for name in ("archived_retention_days", "incoming_mail_retention_days"):
+            raw = request.POST.get(name, "").strip()
+            days = int(raw) if raw.isdigit() else -1
+            if days != 0 and days < RETENTION_MINIMUM_DAYS:
+                messages.error(request, tr("Terminas turi būti 0 (saugoti) arba bent %(days)s d.") % {"days": RETENTION_MINIMUM_DAYS})
+                return redirect("contacts:settings-privacy")
+            values[name] = days
+        for name, days in values.items():
+            if getattr(system, name) != days:
+                audit_log(AuditLog.SETTING, request=request, target_type="setting", target_label=name,
+                          old=getattr(system, name), new=days)
+                setattr(system, name, days)
+        system.save(update_fields=list(values) + ["updated_at"])
+        messages.success(request, tr("Saugojimo terminai išsaugoti."))
+        return redirect("contacts:settings-privacy")
     query = request.GET.get("q", "")
     return render(request, "settings/privacy.html", {
-        "settings_section": "privacy", "query": query, "people": find_people(query),
+        "settings_section": "privacy", "query": query, "people": find_people(query), "system": system,
+        "retention_minimum": RETENTION_MINIMUM_DAYS,
+        "pending": {key: queryset.count() for key, queryset in retention_candidates().items()},
     })
 
 

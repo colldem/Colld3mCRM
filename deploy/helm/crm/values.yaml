@@ -122,6 +122,9 @@ worker:
     purge-audit-log:
       command: purge_audit_log
       schedule: "47 2 * * *"
+    apply-retention:
+      command: apply_retention
+      schedule: "57 2 * * *"
 
 gunicorn:
   workers: 2

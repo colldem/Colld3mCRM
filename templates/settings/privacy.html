@@ -15,4 +15,14 @@
   {% empty %}<li><small>{% translate 'Nieko nerasta.' %}</small></li>{% endfor %}
 </ul>
 {% endif %}
+
+<div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% translate 'Saugojimo terminai' %}</h2><p>{% blocktranslate %}Kasdien ištrinama tai, kas senesnė už nurodytą terminą, tuo pačiu būdu kaip ištrynimas pagal užklausą (su failais ir žurnalo nuasmeninimu). 0 — saugoti; kitaip bent {{ retention_minimum }} d.{% endblocktranslate %}</p></div></div>
+  <form method="post" class="audit-retention">{% csrf_token %}
+    <label>{% translate 'Archyvuoti kontaktai ir įmonės (dienų po archyvavimo)' %}<input type="number" min="0" name="archived_retention_days" value="{{ system.archived_retention_days }}"></label>
+    <label>{% translate 'Gauti el. laiškai (dienų)' %}<input type="number" min="0" name="incoming_mail_retention_days" value="{{ system.incoming_mail_retention_days }}"></label>
+    <div class="filter-actions"><button class="btn" type="submit">{% translate 'Išsaugoti' %}</button></div>
+    <small>{% blocktranslate with people=pending.people companies=pending.companies mail=pending.mail %}Pagal dabartinius terminus kitą kartą būtų ištrinta: {{ people }} kontaktų, {{ companies }} įmonių, {{ mail }} laiškų.{% endblocktranslate %}</small>
+  </form>
+</div>
 {% endblock %}

@@ -332,6 +332,9 @@ class SystemSettings(models.Model):
     deactivate_inactive_days = models.PositiveSmallIntegerField(default=0)
     # Audit rows older than this many days are purged by the worker. 0 = keep forever.
     audit_retention_days = models.PositiveIntegerField(default=0)
+    # Personal data retention (Settings -> Duomenų apsauga). 0 = keep.
+    archived_retention_days = models.PositiveIntegerField(default=0)
+    incoming_mail_retention_days = models.PositiveIntegerField(default=0)
 
     # Automation rules master switch (Settings -> Automatika).
     automations_enabled = models.BooleanField(default=False)
