@@ -7,7 +7,9 @@ WORKDIR /app
 RUN apt-get update \
  && apt-get upgrade -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
-RUN groupadd --system crm && useradd --system --gid crm --home-dir /app --shell /usr/sbin/nologin crm
+# A fixed UID/GID, so host directories (runtime/media) and Kubernetes fsGroup can be
+# granted to it explicitly; compose.yaml's crm-init does that on every start.
+RUN groupadd --system --gid 10001 crm && useradd --system --uid 10001 --gid crm --home-dir /app --shell /usr/sbin/nologin crm
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt
 COPY . /app

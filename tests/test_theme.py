@@ -559,3 +559,32 @@ class ContentSecurityPolicyTests(TestCase):
             response = self.client.get(reverse("login"))
         self.assertIn("Content-Security-Policy-Report-Only", response)
         self.assertNotIn("Content-Security-Policy", response)
+
+
+class BackupAndRuntimeLayoutTests(TestCase):
+    """Guards for the backup service, the restore script and the upload directory."""
+
+    root = settings.BASE_DIR
+
+    def test_app_runs_as_a_fixed_uid_that_crm_init_grants_the_upload_directory(self):
+        dockerfile = (self.root / "Dockerfile").read_text()
+        compose = (self.root / "compose.yaml").read_text()
+        self.assertIn("--uid 10001", dockerfile)
+        self.assertIn("chown -R 10001:10001 /media", compose)
+        self.assertEqual(compose.count("crm-init: {condition: service_completed_successfully}"), 2)
+        self.assertIn("fsGroup: 10001", (self.root / "deploy/helm/crm/values.yaml").read_text())
+        self.assertIn("is not writable by uid", (self.root / "scripts/entrypoint.sh").read_text())
+
+    def test_backups_are_encrypted_checksummed_monitored_and_restorable(self):
+        backup = (self.root / "scripts/backup.sh").read_text()
+        restore = (self.root / "scripts/restore.sh").read_text()
+        compose = (self.root / "compose.yaml").read_text()
+        for needle in ("age ", "BACKUP_REQUIRE_ENCRYPTION", "sha256sum", "last-success", "rclone copy", "set -euo pipefail"):
+            with self.subTest(backup=needle):
+                self.assertIn(needle, backup)
+        for needle in ("sha256sum -c", "--single-transaction", "--exit-on-error", "age -d", "health/ready"):
+            with self.subTest(restore=needle):
+                self.assertIn(needle, restore)
+        self.assertIn("dockerfile: deploy/backup/Dockerfile", compose)
+        self.assertIn("/backups/last-success", compose)
+        self.assertIn("backup-restore:", (self.root / ".github/workflows/ci.yml").read_text())

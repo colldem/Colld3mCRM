@@ -66,6 +66,18 @@ services:
       retries: 20
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
+  crm-init:
+    # One-shot, before the app starts: the bind-mounted upload directory must be
+    # writable by the app's fixed UID (10001), whoever created it on the host.
+    image: crm-backup:0.77.1
+    build:
+      context: .
+      dockerfile: deploy/backup/Dockerfile
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /media && chown -R 10001:10001 /media && chmod 750 /media"]
+    volumes:
+      - ./runtime/media:/media
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
   crm-backup:
     # Encrypted (age), checksummed backups; see scripts/backup.sh and docs/DEPLOYMENT.md.
     image: crm-backup:0.77.1
@@ -112,6 +124,7 @@ services:
       - ./runtime/media:/app/runtime/media
     depends_on:
       crm-db: {condition: service_healthy}
+      crm-init: {condition: service_completed_successfully}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/ready', timeout=3).read()"]
       interval: 10s
@@ -130,5 +143,6 @@ services:
       - ./runtime/media:/app/runtime/media
     depends_on:
       crm-db: {condition: service_healthy}
+      crm-init: {condition: service_completed_successfully}
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]

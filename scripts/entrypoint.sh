@@ -4,6 +4,16 @@ set -eu
 # collect on the way up. Kubernetes runs several: migrations belong to a Job that
 # runs once per release, and the static files are already in the image. Both
 # steps are therefore switchable, and both default to the Compose behaviour.
+# Uploads on the local filesystem need a writable directory; fail loudly now
+# rather than on the first upload.
+if [ "${CRM_MEDIA_BACKEND:-filesystem}" = "filesystem" ]; then
+  mkdir -p /app/runtime/media 2>/dev/null || true
+  if ! [ -w /app/runtime/media ]; then
+    echo "FATAL: /app/runtime/media is not writable by uid $(id -u). On the host run:" >&2
+    echo "       sudo chown -R 10001:10001 runtime/media   (compose.yaml's crm-init does this)" >&2
+    exit 1
+  fi
+fi
 if [ "${CRM_RUN_MIGRATIONS:-1}" = "1" ]; then
   python manage.py migrate --noinput
 fi
