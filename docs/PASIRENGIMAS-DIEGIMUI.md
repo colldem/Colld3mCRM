@@ -29,8 +29,9 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | Webhook'ai | ✅ HMAC-SHA256, pristatymų žurnalas 30 d. | `webhooks.py` |
 | Paslaptys DB | ✅ Fernet (`CRM_SECRETS_KEY`) | `crypto.py` |
 | Priedai | 🟡 dydis 10 MB ir plėtinių sąrašas; **nėra antivirusinio skenavimo** | `views.py` |
-| Atsarginės kopijos | 🟡 kasdien `pg_dump` + media, 14 vnt.; **nešifruotos, tame pačiame hoste, atkūrimas neautomatizuotas ir netestuotas** | `backup.sh` |
-| Atkūrimo instrukcija | 🟡 komandos aprašytos, nėra RPO/RTO ir testo | `DEPLOYMENT.md` |
+| Atsarginės kopijos | ✅ age šifravimas, SHA256SUMS, būsenos patikra, kopija už hosto ribų (rclone), pre-deploy dump'ai šifruojami | `backup.sh`, `deploy/backup` |
+| Atkūrimas | ✅ `restore.sh` + avarinio atkūrimo pratybos CI kiekvieno pakeitimo metu | `restore.sh`, `ci.yml` |
+| Failų katalogo teisės | ✅ fiksuotas UID 10001, `crm-init`, paleidimo patikra, Helm fsGroup | `compose.yaml` |
 | Aplinkų izoliacija | ✅ ne-production aplinkoje SMTP/IMAP/Entra/webhook'ai priverstinai išjungti | `integrations.py` |
 | Staging duomenys | ✅ nuasmeninami (struktūra išlieka) | `anonymize.py` |
 | Žurnalai (logging) | ✅ JSON į stdout (programa, `crm.security`, Gunicorn), request-id, be asmens duomenų | `observability.py` |
@@ -95,13 +96,17 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 > Žinomi apribojimai: atsarginėse kopijose ištrinti duomenys lieka iki kopijų galiojimo pabaigos;
 > įmonė kaip duomenų subjektas (individuali veikla) — tik per saugojimo terminą, ne per užklausų langą.
 
-### 4 etapas — Kopijos ir atkūrimas
+### 4 etapas — Kopijos ir atkūrimas — ✅ atlikta 2026-09-13
 
-| # | Darbas | Dydis | Būsena |
-|---|---|---|---|
-| 4.1 | **Šifruotos kopijos** (`age` viešuoju raktu — privatus raktas hoste nelaikomas), kontrolinės sumos | S | ❌ |
-| 4.2 | **`scripts/restore.sh`** + atkūrimo patikra CI (dump → atkūrimas → `/health/ready` → įrašų skaičius) | M | ❌ |
-| 4.3 | Kopijų siuntimas už hosto ribų (S3 / rsync, neprivaloma) | S | ❌ |
+| # | Darbas | Būsena |
+|---|---|---|
+| 4.1 | **Šifruotos kopijos** (age viešuoju raktu, `BACKUP_REQUIRE_ENCRYPTION`), SHA256SUMS, manifestas, sveikatos patikra pagal paskutinę sėkmingą kopiją | ✅ |
+| 4.2 | **`scripts/restore.sh`** (sumų patikra, iššifravimas konteineryje, viena transakcija, failai, patikra) + **CI avarinio atkūrimo pratybos** | ✅ |
+| 4.3 | **Kopija už hosto ribų** per rclone (S3, SFTP, …) su senų kopijų valymu | ✅ |
+| 4.4 | Rastas ir ištaisytas diegimo trūkumas: `runtime/media` teisės naujame hoste (UID 10001, `crm-init`) | ✅ |
+
+> RPO — vienas kopijavimo intervalas (numatyta 24 val.); RTO matuoti pratybose organizacijos infrastruktūroje.
+> Kubernetes atveju kopijos — platformos (DB PITR, S3 versijos).
 
 ### 5 etapas — Tiekimo grandinė ir CI
 
