@@ -769,6 +769,7 @@ def settings_page(request):
         "form": form,
         "password_form": PasswordChangeForm(request.user),
         "calendar_feed_url": request.build_absolute_uri("/calendar/feed/%s.ics" % feed_token),
+        "calendar_feed_enabled": SystemSettings.load().calendar_feed_enabled,
         "settings_section": "profile",
     })
 
@@ -1744,6 +1745,8 @@ def settings_automation_log(request):
 
 
 def calendar_feed(request, token):
+    if not SystemSettings.load().calendar_feed_enabled:
+        raise Http404
     profile = UserProfile.objects.filter(calendar_token=token).select_related("user").first()
     if profile is None or not profile.user.is_active:
         raise Http404

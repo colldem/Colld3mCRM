@@ -3889,3 +3889,9 @@ msgstr "Showing the latest %(shown)s of %(total)s."
 
 msgid "Rodomi %(shown)s artimiausi iš %(total)s."
 msgstr "Showing the next %(shown)s of %(total)s."
+
+msgid "Leisti kalendoriaus prenumeratos nuorodas (.ics)"
+msgstr "Allow calendar subscription links (.ics)"
+
+msgid "Nuoroda veikia be prisijungimo (žetonas adrese), kad išoriniai kalendoriai galėtų ją skaityti. Išjungus visos nuorodos iškart nustoja veikti."
+msgstr "The link works without signing in (a token in the address) so external calendars can read it. Turning it off stops every link at once."

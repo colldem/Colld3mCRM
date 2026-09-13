@@ -113,6 +113,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   produkcijos duomenų kopija į staging. `compose.staging.yaml` — staging stack'as
   (be `crm-worker`, `serve-staging.json` be Funnel).
   `deploy/runner/` — self-hosted runner konteineris (`README.md` — sąranka).
+- `docs/paketas/` — dokumentų paketas organizacijai (LT); `04-duomenu-zodynas.md` generuojamas
+  `manage.py data_dictionary` — pridėjus modelį ar lauką, klasifikuoti `contacts/data_dictionary.py` ir pergeneruoti.
 - `docs/DIEGIMAS-ORGANIZACIJOJE.md` — organizacinis diegimas: tinklo srautai, proxy, resursai (CI `load`), atnaujinimo ir rollback runbook.
 - `docs/ORACLE.md` — Oracle suderinamumo patikros rezultatai (CI `oracle-compatibility`, tik ataskaita).
   Naujame kode vengti `.distinct()`/`annotate(Count)` ant modelių su `TextField` — žr. ten.

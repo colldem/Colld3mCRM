@@ -664,3 +664,37 @@ class MetricsTests(TestCase):
                 self.assertIn("command: %s" % job, values)
                 source = (settings.BASE_DIR / ("contacts/management/commands/%s.py" % job)).read_text()
                 self.assertIn("class Command(TrackedCommand)", source)
+
+
+class DataDictionaryTests(TestCase):
+    """The DPO's data dictionary must describe the schema the code actually has."""
+
+    def test_every_model_is_classified(self):
+        from contacts.data_dictionary import unclassified
+        self.assertEqual(unclassified(), [])
+
+    def test_committed_document_is_current(self):
+        from contacts.data_dictionary import render
+        committed = (settings.BASE_DIR / "docs" / "paketas" / "04-duomenu-zodynas.md").read_text()
+        self.assertEqual(committed, render(),
+                         "run: python manage.py data_dictionary > docs/paketas/04-duomenu-zodynas.md")
+
+    def test_personal_and_secret_fields_are_not_left_technical(self):
+        from django.contrib.auth import get_user_model
+        from contacts.data_dictionary import classify
+        from contacts.models import ApiToken, AuditLog, EmailAddress, Person
+        self.assertEqual(classify(Person, Person._meta.get_field("last_name")), "A")
+        self.assertEqual(classify(EmailAddress, EmailAddress._meta.get_field("email")), "A")
+        self.assertEqual(classify(AuditLog, AuditLog._meta.get_field("ip")), "D")
+        self.assertEqual(classify(ApiToken, ApiToken._meta.get_field("token_hash")), "S")
+        User = get_user_model()
+        self.assertEqual(classify(User, User._meta.get_field("password")), "S")
+
+    def test_classification_names_only_existing_fields(self):
+        from django.apps import apps
+        from contacts.data_dictionary import FIELDS, MODELS
+        for key in FIELDS:
+            model_name, field_name = key.split(".")
+            with self.subTest(field=key):
+                self.assertIn(model_name, MODELS)
+                apps.get_model("contacts", model_name)._meta.get_field(field_name)

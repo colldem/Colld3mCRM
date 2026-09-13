@@ -7,6 +7,7 @@
   {% csrf_token %}
   {{ form.non_field_errors }}
   <label class="duplicate-level-field"><strong>{{ form.default_page_size.label }}</strong>{{ form.default_page_size.errors }}{{ form.default_page_size }}<small>{% translate 'Naudojamas, kai naudotojas sąraše nepasirenka kito.' %}</small></label>
+  <label class="setting-toggle">{{ form.calendar_feed_enabled }}<span><strong>{{ form.calendar_feed_enabled.label }}</strong><small>{% translate 'Nuoroda veikia be prisijungimo (žetonas adrese), kad išoriniai kalendoriai galėtų ją skaityti. Išjungus visos nuorodos iškart nustoja veikti.' %}</small></span></label>
   <label class="duplicate-level-field"><strong>{{ form.date_format.label }}</strong>{{ form.date_format.errors }}{{ form.date_format }}<small>{% translate 'Kaip rodomos datos visoje sąsajoje.' %}</small></label>
   <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti pakeitimus' %}</button></div>
 </form>

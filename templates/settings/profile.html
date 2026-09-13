@@ -33,11 +33,12 @@
 </div>
 {% endif %}
 
-<div class="settings-subsection">
+{% if calendar_feed_enabled %}<div class="settings-subsection">
   <div class="settings-section-head"><div><h2>{% translate 'Kalendoriaus prenumerata' %}</h2><p>{% translate 'Vienpusė nuoroda į jums priskirtus įvykius. Įklijuokite ją prenumeruojant kalendorių pagal URL (Google, Outlook, Apple).' %}</p></div></div>
   <div class="profile-fields"><label class="wide"><input type="text" readonly value="{{ calendar_feed_url }}" data-select-on-focus></label></div>
   <form method="post"><input type="hidden" name="action" value="new_calendar_token">{% csrf_token %}<button class="btn" type="submit">{% translate 'Sukurti naują nuorodą' %}</button></form>
   <p class="muted">{% translate 'Sukūrus naują, senoji nebeveikia — reikės iš naujo prenumeruoti.' %}</p>
 </div>
+{% endif %}
 </div>
 {% endblock %}

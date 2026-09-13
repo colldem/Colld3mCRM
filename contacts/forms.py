@@ -71,10 +71,11 @@ class DuplicateSettingsForm(forms.ModelForm):
 class SystemSettingsForm(forms.ModelForm):
     class Meta:
         model = SystemSettings
-        fields = ["default_page_size", "date_format"]
+        fields = ["default_page_size", "date_format", "calendar_feed_enabled"]
         labels = {
             "default_page_size": tr("Numatytas eilučių skaičius sąrašuose"),
             "date_format": tr("Datos formatas"),
+            "calendar_feed_enabled": tr("Leisti kalendoriaus prenumeratos nuorodas (.ics)"),
         }
 
 

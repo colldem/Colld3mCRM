@@ -7246,3 +7246,18 @@ class ClientAddressTests(TestCase):
         response = self.client.post(reverse("login"), {"username": "victim", "password": "very-secure-password"},
                                     REMOTE_ADDR="10.0.0.2", HTTP_X_FORWARDED_FOR="198.51.100.7")
         self.assertEqual(response.status_code, 302)
+
+
+class CalendarFeedSwitchTests(TestCase):
+    def test_admin_can_turn_subscription_links_off(self):
+        from contacts.models import SystemSettings
+        user = get_user_model().objects.create_user("feed", password="very-secure-password")
+        profile = UserProfile.objects.create(user=user)
+        url = "/calendar/feed/%s.ics" % profile.calendar_token
+        self.assertEqual(self.client.get(url).status_code, 200)
+        system = SystemSettings.load()
+        system.calendar_feed_enabled = False
+        system.save()
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(user)
+        self.assertNotContains(self.client.get(reverse("contacts:settings")), "Kalendoriaus prenumerata")

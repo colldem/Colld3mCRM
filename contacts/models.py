@@ -345,6 +345,8 @@ class SystemSettings(models.Model):
     audit_retention_days = models.PositiveIntegerField(default=0)
     # Personal data retention (Settings -> Duomenų apsauga). 0 = keep.
     archived_retention_days = models.PositiveIntegerField(default=0)
+    # Personal .ics subscription links (a token in the URL, no sign-in).
+    calendar_feed_enabled = models.BooleanField(default=True)
     incoming_mail_retention_days = models.PositiveIntegerField(default=0)
 
     # Automation rules master switch (Settings -> Automatika).
