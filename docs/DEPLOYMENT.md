@@ -284,7 +284,11 @@ TS_SERVE_CONFIG=/config/serve-staging.json   # no Funnel: private, unlike produc
 ```
 
 `scripts/refresh-staging.sh` reloads it from production; it streams a read-only
-`pg_dump` straight into the copy and then runs `sanitize_staging`. Set
+`pg_dump` straight into the copy and then runs `sanitize_staging`, which clears
+the integration credentials and **anonymises the personal data** — names, contact
+details, texts, attachment files, users; incoming mail, the audit trail and logs
+are deleted — while keeping counts, links and dates (`--keep-personal-data` skips
+it). `--with-media` copies attachments before that step. Set
 `CRM_APP_DIR` and `CRM_STAGING_DIR` to your two directories.
 
 ## Automated deployment

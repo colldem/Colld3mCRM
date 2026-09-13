@@ -8,9 +8,9 @@
 # Reads production, writes only staging. The production stack is never modified:
 # the only thing done there is a read-only pg_dump.
 #
-# Afterwards the clone still holds real personal data, so it stays protected by
-# CRM_ENVIRONMENT=staging (SMTP/IMAP/Entra/webhooks forced off) plus the
-# sanitize_staging pass below, which clears those settings from the data itself.
+# Afterwards the clone is protected by CRM_ENVIRONMENT=staging (SMTP/IMAP/Entra/
+# webhooks forced off) plus the sanitize_staging pass below, which clears those
+# settings from the data and anonymises the personal data in it.
 set -eu
 
 PROD="${CRM_APP_DIR:-/opt/crm}"
@@ -62,10 +62,7 @@ people="$($STAGING_COMPOSE exec -T crm-web python manage.py shell -v 0 -c \
   'from contacts.models import Person; print(Person.objects.count())' < /dev/null | tr -d '\r\n')"
 echo "    restored contacts: $people"
 
-$STAGING_COMPOSE exec -T crm-web python manage.py migrate --noinput < /dev/null
-$STAGING_COMPOSE exec -T crm-web python manage.py sanitize_staging < /dev/null
-
-# --- 4. optional: real attachments --------------------------------------
+# --- 4. optional: attachments, copied BEFORE the anonymising pass replaces them ---
 if [ -n "$WITH_MEDIA" ]; then
   # Through a container, because the deploy leaves runtime/ owned by root.
   echo ">>> copying media"
@@ -73,5 +70,10 @@ if [ -n "$WITH_MEDIA" ]; then
     -v "$PROD/runtime/media:/src:ro" -v "$STAGING/runtime/media:/dst" \
     alpine:3 sh -c 'rm -rf /dst/* && cp -a /src/. /dst/ 2>/dev/null; echo "    media copied"'
 fi
+
+$STAGING_COMPOSE exec -T crm-web python manage.py migrate --noinput < /dev/null
+# Clears integration credentials and anonymises personal data (names, contact
+# details, texts, attachment files, users, mail, audit trail).
+$STAGING_COMPOSE exec -T crm-web python manage.py sanitize_staging < /dev/null
 
 echo ">>> staging refreshed from production"

@@ -72,6 +72,30 @@ def log_change(action, *, request, target, field, old, new, **detail):
 AUDIT_RETENTION_MINIMUM_DAYS = 180
 
 
+def _database_guard(switch, value):
+    from django.db import connection
+
+    if connection.vendor == "postgresql":
+        with connection.cursor() as cursor:
+            cursor.execute("SET LOCAL crm.%s = '%s'" % (switch, "on" if value else "off"))
+
+
+def sanctioned_delete(queryset):
+    """Delete audit rows past the application and database guards.
+
+    Only for the retention purge and for wiping a staging clone. The database
+    switch is opened for this transaction and closed again before it returns.
+    """
+    from django.db import transaction
+
+    with transaction.atomic():
+        _database_guard("audit_purge", True)
+        try:
+            return queryset._raw_delete(queryset.db)
+        finally:
+            _database_guard("audit_purge", False)
+
+
 def purge_expired(now=None):
     """Delete audit rows older than ``SystemSettings.audit_retention_days``.
 
@@ -80,7 +104,6 @@ def purge_expired(now=None):
     """
     from datetime import timedelta
 
-    from django.db import connection, transaction
     from django.utils import timezone
 
     from .models import SystemSettings
@@ -90,15 +113,7 @@ def purge_expired(now=None):
         return 0
     days = max(days, AUDIT_RETENTION_MINIMUM_DAYS)
     cutoff = (now or timezone.now()) - timedelta(days=days)
-    with transaction.atomic():
-        if connection.vendor == "postgresql":
-            with connection.cursor() as cursor:
-                cursor.execute("SET LOCAL crm.audit_purge = 'on'")
-        expired = AuditLog.objects.filter(created_at__lt=cutoff)
-        count = expired._raw_delete(expired.db)
-        if connection.vendor == "postgresql":
-            with connection.cursor() as cursor:
-                cursor.execute("SET LOCAL crm.audit_purge = 'off'")
+    count = sanctioned_delete(AuditLog.objects.filter(created_at__lt=cutoff))
     if count:
         log(AuditLog.DELETE, target_type="audit_log", target_label="retention",
             detail={"purged": count, "before": cutoff.isoformat(), "retention_days": days})

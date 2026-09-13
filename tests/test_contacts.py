@@ -6627,3 +6627,100 @@ class PostgresAuditGuardTests(TestCase):
         purge_expired()  # inside this test's transaction, like a nested call would be
         with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
             cursor.execute("DELETE FROM contacts_auditlog WHERE id = %s", [self.entry.pk])
+
+
+@override_settings(CRM_ENVIRONMENT="staging", CRM_ISOLATED=True)
+class StagingAnonymisationTests(TestCase):
+    """A staging clone keeps the data's shape but nothing that identifies a person."""
+
+    SECRETS = ["Jonas", "Jonaitis", "+37061234567", "jonas@imone.lt", "Gedimino pr. 1", "https://jonas.lt",
+               "Slaptas pokalbis", "Paskambinti Jonui", "Asmens kodas 38001010000", "UAB Tikra", "302000000",
+               "jonas.tikras@regitra.lt", "Tikras Darbuotojas", "Laiško turinys"]
+
+    def setUp(self):
+        from contacts.audit import log as audit_log
+        from contacts.models import AuditLog, IncomingMail, PersonCompanyLink, PostalAddress, SavedFilter, WebLink
+        self.media = TemporaryDirectory()
+        self.override = override_settings(MEDIA_ROOT=self.media.name)
+        self.override.enable()
+        User = get_user_model()
+        self.root = User.objects.create_superuser("root", email="root@local", password="very-secure-password")
+        self.employee = User.objects.create_user("jonas.tikras@regitra.lt", email="jonas.tikras@regitra.lt",
+                                                 first_name="Tikras", last_name="Darbuotojas")
+        self.person = Person.objects.create(first_name="Jonas", last_name="Jonaitis", description="Asmens kodas 38001010000",
+                                            created_by=self.employee, owner=self.employee)
+        PhoneNumber.objects.create(person=self.person, number="+37061234567")
+        EmailAddress.objects.create(person=self.person, email="jonas@imone.lt")
+        PostalAddress.objects.create(person=self.person, address="Gedimino pr. 1")
+        WebLink.objects.create(person=self.person, url="https://jonas.lt")
+        self.company = Company.objects.create(name="UAB Tikra", company_code="302000000", email="jonas@imone.lt",
+                                              created_by=self.employee)
+        PersonCompanyLink.objects.create(person=self.person, company=self.company, role="Jonaitis direktorius")
+        activity = Activity.objects.create(person=self.person, text="Slaptas pokalbis", created_by=self.employee)
+        self.attachment = Attachment.objects.create(activity=activity, original_name="Jonaitis-sutartis.pdf",
+                                                    file=SimpleUploadedFile("Jonaitis.pdf", b"Jonas Jonaitis sutartis"))
+        Reminder.objects.create(person=self.person, text="Paskambinti Jonui", due_at=timezone.now(), created_by=self.employee)
+        field = CustomField.objects.create(entity=CustomField.PERSON, name="Pastaba", field_type=CustomField.TEXT)
+        CustomValue.objects.create(field=field, person=self.person, value="Jonaitis mėgsta kavą")
+        IncomingMail.objects.create(message_id="<m1>", from_addr="jonas@imone.lt", subject="Jonas",
+                                    body="Laiško turinys", received_at=timezone.now())
+        SavedFilter.objects.create(user=self.employee, name="Jonaitis", filters={"q": "Jonaitis"})
+        audit_log(AuditLog.UPDATE, actor=self.employee, target=self.person, field="first_name", old="Jonas", new="Jonas")
+        self.people_before, self.activities_before = Person.objects.count(), Activity.objects.count()
+
+    def tearDown(self):
+        self.override.disable()
+        self.media.cleanup()
+
+    def everything_as_text(self):
+        from django.core import serializers
+        from contacts.models import AuditLog, IncomingMail, PersonCompanyLink, PostalAddress, SavedFilter, WebLink
+        models = [Person, PhoneNumber, EmailAddress, PostalAddress, WebLink, Company, PersonCompanyLink, Activity,
+                  Attachment, Reminder, CustomValue, IncomingMail, SavedFilter, AuditLog, get_user_model()]
+        text = "".join(serializers.serialize("json", model.objects.all()) for model in models)
+        self.attachment.refresh_from_db()
+        with self.attachment.file.open("rb") as handle:
+            text += handle.read().decode("utf-8", "replace")
+        return text
+
+    def test_personal_data_is_gone_but_the_shape_stays(self):
+        from io import StringIO
+        from django.core.management import call_command
+        before = self.everything_as_text()
+        self.assertTrue(all(secret in before for secret in self.SECRETS))
+        out = StringIO()
+        call_command("sanitize_staging", stdout=out)
+        self.assertIn("anonymised:", out.getvalue())
+        after = self.everything_as_text()
+        for secret in self.SECRETS + ["Jonaitis"]:
+            with self.subTest(secret=secret):
+                self.assertNotIn(secret, after)
+        self.assertEqual(Person.objects.count(), self.people_before)
+        self.assertEqual(Activity.objects.count(), self.activities_before)
+        self.assertEqual(self.person.company_links.count(), 1)
+        self.assertEqual(Reminder.objects.count(), 1)
+
+    def test_break_glass_login_survives_and_other_usernames_are_replaced(self):
+        from io import StringIO
+        from django.core.management import call_command
+        call_command("sanitize_staging", stdout=StringIO())
+        self.root.refresh_from_db()
+        self.assertEqual(self.root.username, "root")
+        self.assertTrue(self.root.check_password("very-secure-password"))
+        response = self.client.post(reverse("login"), {"username": "root", "password": "very-secure-password"})
+        self.assertEqual(response.status_code, 302)
+        self.employee.refresh_from_db()
+        self.assertEqual(self.employee.username, "naudotojas%d" % self.employee.pk)
+
+    def test_keep_personal_data_flag_skips_anonymisation(self):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command("sanitize_staging", "--keep-personal-data", stdout=out)
+        self.assertIn("KEPT", out.getvalue())
+        self.assertTrue(Person.objects.filter(first_name="Jonas").exists())
+
+    def test_refresh_script_copies_media_before_anonymising(self):
+        script = (settings.BASE_DIR / "scripts" / "refresh-staging.sh").read_text()
+        self.assertLess(script.index("copying media"), script.index("manage.py sanitize_staging"))
+

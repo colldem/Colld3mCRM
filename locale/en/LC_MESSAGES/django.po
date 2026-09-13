@@ -3784,3 +3784,6 @@ msgstr "0 - keep forever. Otherwise at least %(retention_minimum)s days; older e
 
 msgid "Žurnalas ir saugumo įvykiai"
 msgstr "Audit log and security events"
+
+msgid "izoliuota kopija; laiškai, IMAP, katalogo prisijungimas ir webhook’ai išjungti"
+msgstr "isolated copy; email, IMAP, directory sign-in and webhooks are off"
