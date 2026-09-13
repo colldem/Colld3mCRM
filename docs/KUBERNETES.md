@@ -178,6 +178,21 @@ yours.
 | `ConfigMap` | non-secret settings; the pods roll when it changes |
 | `Secret` | only when `existingSecret` is empty; kept across upgrades |
 | `HorizontalPodAutoscaler` | only when `autoscaling.enabled` |
+| `PodDisruptionBudget` | with 2+ web replicas: `minAvailable: 1` through node drains |
+| `NetworkPolicy` | optional (`networkPolicy.enabled`): web port only from the ingress controller and monitoring namespaces; egress limited to DNS plus `networkPolicy.egress` when set |
+
+### Pod hardening
+
+Every pod (web, migrations, CronJobs) runs as the image's fixed user `10001`
+(`runAsNonRoot`, `fsGroup`), with the `RuntimeDefault` seccomp profile, no
+privilege escalation, all capabilities dropped, a **read-only root filesystem**
+(scratch space is a size-limited `emptyDir` on `/tmp`) and no Kubernetes API
+token mounted. Web and job pods carry `app.kubernetes.io/component: web|worker|migrate`;
+the Service and the PodDisruptionBudget select `web` only, so a running CronJob
+pod never receives traffic. CI renders the chart with these options, validates
+it against the Kubernetes 1.30 schemas (kubeconform) and runs the image with a
+read-only root filesystem against PostgreSQL.
+
 
 ### Probes
 

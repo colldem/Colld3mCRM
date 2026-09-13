@@ -390,6 +390,22 @@ class HelmChartTests(TestCase):
             with self.subTest(command=command):
                 self.assertIn(f"command: {command}", values)
 
+    def test_pods_are_hardened_and_only_web_pods_receive_traffic(self):
+        values = (self.chart / "values.yaml").read_text()
+        templates = self.chart / "templates"
+        self.assertIn("readOnlyRootFilesystem: true", values)
+        self.assertIn("type: RuntimeDefault", values)
+        self.assertIn("automountServiceAccountToken: false", values)
+        for name in ("deployment.yaml", "cronjobs.yaml", "job-migrate.yaml"):
+            with self.subTest(template=name):
+                text = (templates / name).read_text()
+                self.assertIn("mountPath: /tmp", text)
+                self.assertIn("automountServiceAccountToken:", text)
+                self.assertIn("app.kubernetes.io/component:", text)
+        self.assertIn("app.kubernetes.io/component: web", (templates / "service.yaml").read_text())
+        self.assertIn("kind: PodDisruptionBudget", (templates / "pdb.yaml").read_text())
+        self.assertIn("kind: NetworkPolicy", (templates / "networkpolicy.yaml").read_text())
+
     def test_probes_use_the_endpoints_the_app_actually_serves(self):
         deployment = (self.chart / "templates" / "deployment.yaml").read_text()
         for path in ("/health/live", "/health/ready"):

@@ -10,4 +10,8 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
-  selector: {{- include "crm.selectorLabels" . | nindent 4 }}
+  # component: web — the CronJob and migration pods share the other labels and
+  # must never receive traffic.
+  selector:
+    {{- include "crm.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web

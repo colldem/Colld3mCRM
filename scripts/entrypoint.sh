@@ -25,9 +25,12 @@ fi
 if [ "${CRM_LOG_FORMAT:-json}" = "json" ]; then
   set -- --access-logformat '{"ts":"%(t)s","logger":"gunicorn.access","remote":"%(h)s","method":"%(m)s","path":"%(U)s","status":"%(s)s","bytes":"%(B)s","duration_ms":"%(M)s","request_id":"%({x-request-id}o)s","user_agent":"%(a)s"}'
 fi
+# No runtime control socket: nothing needs it, and it would be written under
+# $HOME, which is read-only in hardened deployments.
 exec gunicorn config.wsgi:application "$@" \
   --bind "0.0.0.0:${CRM_GUNICORN_PORT:-8080}" \
   --workers "${CRM_GUNICORN_WORKERS:-2}" \
   --threads "${CRM_GUNICORN_THREADS:-2}" \
   --timeout "${CRM_GUNICORN_TIMEOUT:-60}" \
-  --access-logfile - --error-logfile -
+  --access-logfile - --error-logfile - \
+  --no-control-socket

@@ -11,13 +11,16 @@ spec:
     matchLabels: {{- include "crm.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      labels: {{- include "crm.selectorLabels" . | nindent 8 }}
+      labels:
+        {{- include "crm.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
       annotations:
         # Roll the pods when plain configuration changes, not only on a new image.
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- with .Values.podAnnotations }}{{- toYaml . | nindent 8 }}{{- end }}
     spec:
       serviceAccountName: {{ include "crm.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -48,6 +51,11 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
           resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: {{ .Values.tmpVolume.sizeLimit }}}
       {{- with .Values.nodeSelector }}
       nodeSelector: {{- toYaml . | nindent 8 }}
       {{- end }}

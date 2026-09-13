@@ -223,6 +223,21 @@ jobs:
           done
           curl -fsS http://localhost:8080/health/ready
           docker rm -f crm-ci
+      - name: Run it the way Kubernetes does (read-only root, /tmp and uploads writable, PostgreSQL)
+        run: |
+          docker network create ro
+          docker run -d --network ro --name ro-db -e POSTGRES_DB=crm -e POSTGRES_USER=crm -e POSTGRES_PASSWORD=ci \
+            "$(grep -m1 -o 'postgres:[^ "]*' compose.yaml)"
+          for i in $(seq 1 30); do docker exec ro-db pg_isready -U crm -d crm && break; sleep 2; done
+          docker run -d --network ro --name ro-web -p 8081:8080 --read-only --tmpfs /tmp --tmpfs /app/runtime/media:uid=10001 \
+            -e DB_HOST=ro-db -e DB_PASSWORD=ci -e CRM_COLLECTSTATIC=0 \
+            -e DJANGO_SECRET_KEY=ci-only-0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMN \
+            -e DJANGO_ALLOWED_HOSTS='localhost,127.0.0.1' -e DJANGO_DEBUG=false crm-web:ci
+          for i in $(seq 1 30); do curl -fsS http://localhost:8081/health/ready && break; sleep 2; done
+          curl -fsS http://localhost:8081/health/ready
+          curl -fsS -o /dev/null http://localhost:8081/login/
+          docker logs ro-web 2>&1 | tail -5
+          docker rm -f ro-web ro-db
       - name: Scan the image (Trivy — fixable HIGH/CRITICAL fail the build)
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" \
@@ -264,3 +279,17 @@ jobs:
           grep -q 'name: CRM_RUN_MIGRATIONS' /tmp/rendered.yaml
           grep -q 'concurrencyPolicy: Forbid' /tmp/rendered.yaml
           grep -q 'helm.sh/hook: pre-install,pre-upgrade' /tmp/rendered.yaml
+      - name: Render hardened options and validate against Kubernetes schemas
+        run: |
+          helm template crm deploy/helm/crm \
+            --set database.host=db.example.internal \
+            --set secrets.djangoSecretKey=x --set secrets.crmSecretsKey=y \
+            --set networkPolicy.enabled=true \
+            --set 'networkPolicy.egress[0].to[0].ipBlock.cidr=10.0.20.15/32' \
+            --set 'networkPolicy.egress[0].ports[0].port=5432' > /tmp/hardened.yaml
+          grep -q 'kind: NetworkPolicy' /tmp/hardened.yaml
+          grep -q 'kind: PodDisruptionBudget' /tmp/hardened.yaml
+          grep -q 'readOnlyRootFilesystem: true' /tmp/hardened.yaml
+          grep -q 'automountServiceAccountToken: false' /tmp/hardened.yaml
+          docker run --rm -v /tmp:/work ghcr.io/yannh/kubeconform:v0.6.7 \
+            -strict -summary -kubernetes-version 1.30.0 /work/rendered.yaml /work/hardened.yaml

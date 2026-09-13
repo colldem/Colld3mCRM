@@ -15,10 +15,13 @@ spec:
   activeDeadlineSeconds: {{ .Values.migrations.activeDeadlineSeconds }}
   template:
     metadata:
-      labels: {{- include "crm.selectorLabels" . | nindent 8 }}
+      labels:
+        {{- include "crm.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
     spec:
       restartPolicy: Never
       serviceAccountName: {{ include "crm.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -32,6 +35,11 @@ spec:
           env: {{- include "crm.env" . | nindent 12 }}
           envFrom: {{- include "crm.envFrom" . | nindent 12 }}
           resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: {{ .Values.tmpVolume.sizeLimit }}}
       {{- with .Values.nodeSelector }}
       nodeSelector: {{- toYaml . | nindent 8 }}
       {{- end }}

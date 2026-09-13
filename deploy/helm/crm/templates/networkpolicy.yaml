@@ -1,0 +1,33 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "crm.fullname" . }}
+  labels: {{- include "crm.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "crm.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  policyTypes: ["Ingress"{{ if .Values.networkPolicy.egress }}, "Egress"{{ end }}]
+  ingress:
+    # Only the ingress controller (and Prometheus, for /metrics) reach the web port.
+    - from:
+        {{- range concat .Values.networkPolicy.ingressNamespaces .Values.networkPolicy.monitoringNamespaces }}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: {{ . | quote }}}
+        {{- end }}
+      ports:
+        - {port: 8080, protocol: TCP}
+  {{- with .Values.networkPolicy.egress }}
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}

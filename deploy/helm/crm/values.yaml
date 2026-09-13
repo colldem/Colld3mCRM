@@ -147,15 +147,48 @@ autoscaling:
 podAnnotations: {}
 podSecurityContext:
   runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
   # The image's fixed crm user; fsGroup makes mounted volumes writable for it.
   runAsUser: 10001
   runAsGroup: 10001
   fsGroup: 10001
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false
+  # The app writes only to /tmp (an emptyDir below) and to object storage.
+  readOnlyRootFilesystem: true
   capabilities:
     drop: ["ALL"]
+
+# Scratch space for Gunicorn and large uploads in flight; the root filesystem is read-only.
+tmpVolume:
+  sizeLimit: 256Mi
+
+# The pods never talk to the Kubernetes API.
+automountServiceAccountToken: false
+
+# Keep at least this many web pods through node drains (only with 2+ replicas).
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Background CronJobs are short; they get their own, smaller budget.
+workerResources:
+  requests:
+    cpu: 50m
+    memory: 192Mi
+  limits:
+    memory: 384Mi
+
+# Restrict traffic to the web pods. Off by default because the right selectors
+# depend on the cluster; turn it on with the namespaces of your ingress controller
+# and Prometheus. Egress stays open unless you list the allowed destinations.
+networkPolicy:
+  enabled: false
+  ingressNamespaces: ["ingress-nginx"]
+  monitoringNamespaces: ["monitoring"]
+  # e.g. [{to: [{ipBlock: {cidr: 10.0.20.15/32}}], ports: [{port: 5432}]}]; DNS is always allowed.
+  egress: []
 
 nodeSelector: {}
 tolerations: []
