@@ -155,10 +155,18 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 
 > Rengiant dokumentus rasta ir įgyvendinta: kalendoriaus prenumeratos nuorodų išjungimo nustatymas.
 
-### 8 etapas — Tik jūs (ne kodas)
+### 8 etapas — Tik jūs (ne kodas) — šablonai paruošti 2026-09-13
 
-| # | Klausimas | Būsena |
-|---|---|---|
+| # | Klausimas | Pagalba | Būsena |
+|---|---|---|---|
+| 8.1 | Verslo užsakovas — padalinys ir atsakingas asmuo | `paketas/00-poreikio-aprasas.md` 1 ir 8 sk. | ❌ jūsų |
+| 8.2 | Autorių teisės: darbo ar asmeniniu laiku; MIT patvirtinimas | `paketas/11-…pareiskimas.md` 2 sk. (teisininkui) | ❌ jūsų |
+| 8.3 | Interesų konfliktas, jei būtų mokama priežiūra | `paketas/11-…` 5 sk. | ❌ jūsų |
+| 8.4 | Pirminė konsultacija su DAP | `paketas/05-dapv-juodrastis.md`, `10-klausimai.md` 10.5 | ❌ jūsų |
+| 8.5 | Poreikio aprašas (problema, naudotojų skaičius, nauda) | `paketas/00-poreikio-aprasas.md` | ❌ jūsų |
+| 8.6 | Susitikimo pasiruošimas | `paketas/12-susitikimo-planas.md` | ✅ paruošta |
+
+---|---|---|
 | 8.1 | Verslo užsakovas — padalinys ir atsakingas asmuo | ❌ |
 | 8.2 | Autorių teisės: kodas kurtas darbo ar asmeniniu laiku; MIT licencijos patvirtinimas | ❌ |
 | 8.3 | Interesų konfliktas, jei vėliau būtų mokama priežiūra | ❌ |
