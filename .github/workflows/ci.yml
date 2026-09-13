@@ -62,6 +62,85 @@ jobs:
           python manage.py makemigrations --check --dry-run
           python manage.py test
 
+  # A disaster drill on every change: back up encrypted, lose everything, restore.
+  backup-restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Configure a throwaway instance
+        run: |
+          cat > .env <<'ENV'
+          POSTGRES_PASSWORD=ci-only-db-password-0123456789
+          DJANGO_SECRET_KEY=ci-only-secret-0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJ
+          CRM_SETUP_TOKEN=ci-only-setup-token
+          CRM_SECRETS_KEY=
+          DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+          ENV
+          mkdir -p runtime/backups runtime/media runtime/backup-config
+      - name: Build and start
+        run: |
+          docker compose build
+          docker compose up -d crm-db crm-web
+          for i in $(seq 1 60); do
+            [ "$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q crm-web)")" = healthy ] && break
+            sleep 3
+          done
+          docker compose ps
+      - name: Create data, including an uploaded file
+        run: |
+          docker compose exec -T crm-web python manage.py shell -v 0 -c "
+          from django.contrib.auth import get_user_model
+          from django.core.files.base import ContentFile
+          from contacts.models import Activity, Attachment, Person
+          user = get_user_model().objects.create_user('drill', password='drill-password-123')
+          person = Person.objects.create(first_name='Atkūrimo', last_name='Pratybos', created_by=user)
+          activity = Activity.objects.create(person=person, text='prieš avariją', created_by=user)
+          Attachment.objects.create(activity=activity, original_name='drill.txt', file=ContentFile(b'drill-file-content', name='drill.txt'))
+          "
+      - name: Encrypted backup with a key that never touches the backup host
+        run: |
+          docker compose run --rm --no-deps --entrypoint age-keygen crm-backup > /tmp/identity.txt
+          recipient="$(grep -o 'age1[0-9a-z]*' /tmp/identity.txt | head -n 1)"
+          docker compose run --rm -e BACKUP_ONCE=true -e BACKUP_AGE_RECIPIENTS="$recipient" \
+            -e BACKUP_REQUIRE_ENCRYPTION=true crm-backup
+          ls -l runtime/backups
+          db="$(ls runtime/backups/db-*.dump.age)"; media="$(ls runtime/backups/media-*.tar.gz.age)"
+          sudo head -c 32 "$db" | grep -q 'age-encryption.org' || { echo "dump is not encrypted"; exit 1; }
+          ! sudo grep -a -q 'Pratybos' "$db" || { echo "plaintext found in the dump"; exit 1; }
+          sudo test -f runtime/backups/last-success
+          echo "DB=$db" >> "$GITHUB_ENV"; echo "MEDIA=$media" >> "$GITHUB_ENV"
+      - name: Unencrypted backups are refused when encryption is required
+        run: |
+          ! docker compose run --rm -e BACKUP_ONCE=true -e BACKUP_REQUIRE_ENCRYPTION=true crm-backup
+      - name: Disaster — database and uploads are gone
+        run: |
+          docker compose down
+          sudo rm -rf runtime/postgres runtime/media
+          mkdir -p runtime/media
+          docker compose up -d crm-db
+      - name: Tampered file is rejected
+        run: |
+          sudo cp "$DB" /tmp/pristine.age
+          echo x | sudo tee -a "$DB" > /dev/null
+          if bash scripts/restore.sh --db "$DB" --media "$MEDIA" --identity /tmp/identity.txt --yes > /tmp/tampered.log 2>&1; then
+            echo "a tampered dump was restored"; exit 1
+          fi
+          grep -q "checksum mismatch" /tmp/tampered.log
+          sudo cp /tmp/pristine.age "$DB"
+      - name: Restore and prove the data is back
+        run: |
+          bash scripts/restore.sh --db "$DB" --media "$MEDIA" --identity /tmp/identity.txt --yes
+          docker compose exec -T crm-web python manage.py shell -v 0 -c "
+          from contacts.models import Attachment, AuditLog, Person
+          person = Person.objects.get(last_name='Pratybos')
+          attachment = Attachment.objects.get(activity__person=person)
+          assert attachment.file.open('rb').read() == b'drill-file-content', 'attachment content differs'
+          print('person, activity and file restored')
+          "
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 100
+
   security:
     runs-on: ubuntu-latest
     steps:
@@ -92,6 +171,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build the production image
         run: docker build -t crm-web:ci .
+      - name: Build the backup image
+        run: docker build -f deploy/backup/Dockerfile -t crm-backup:ci .
       - name: Smoke test the image (migrate, collectstatic, health)
         run: |
           docker run -d --name crm-ci -p 8080:8080 \
@@ -110,6 +191,11 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" \
             aquasec/trivy:0.57.1 image --scanners vuln --severity HIGH,CRITICAL \
             --ignore-unfixed --exit-code 1 --no-progress crm-web:ci
+      - name: Scan the backup image (Trivy — fixable HIGH/CRITICAL fail the build)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.57.1 image --scanners vuln --severity HIGH,CRITICAL \
+            --ignore-unfixed --exit-code 1 --no-progress --pkg-types os crm-backup:ci
       - name: Scan the bundled PostgreSQL image (report only — upstream, fixed by bumping its digest)
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \

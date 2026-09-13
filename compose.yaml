@@ -67,8 +67,11 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-backup:
-    image: postgres:17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
-    entrypoint: ["/bin/sh", "/backup.sh"]
+    # Encrypted (age), checksummed backups; see scripts/backup.sh and docs/DEPLOYMENT.md.
+    image: crm-backup:0.77.1
+    build:
+      context: .
+      dockerfile: deploy/backup/Dockerfile
     environment:
       DB_HOST: crm-db
       DB_NAME: crm
@@ -76,12 +79,24 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       BACKUP_KEEP: ${BACKUP_KEEP:-14}
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_AGE_RECIPIENTS: ${BACKUP_AGE_RECIPIENTS:-}
+      BACKUP_REQUIRE_ENCRYPTION: ${BACKUP_REQUIRE_ENCRYPTION:-false}
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-}
+      BACKUP_REMOTE_KEEP_DAYS: ${BACKUP_REMOTE_KEEP_DAYS:-30}
     volumes:
-      - ./scripts/backup.sh:/backup.sh:ro
       - ./runtime/backups:/backups
       - ./runtime/media:/media:ro
+      # Optional: age-recipients.txt and rclone.conf for the off-host copy.
+      - ./runtime/backup-config:/config:ro
     depends_on:
       crm-db: {condition: service_healthy}
+    healthcheck:
+      # Unhealthy when no set has succeeded within two intervals (plus an hour).
+      test: ["CMD-SHELL", "test -n \"$$(find /backups/last-success -mmin -$$(( $${BACKUP_INTERVAL_SECONDS:-86400} / 30 + 60 )) 2>/dev/null)\""]
+      interval: 5m
+      timeout: 10s
+      retries: 1
+      start_period: 30m
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-web:

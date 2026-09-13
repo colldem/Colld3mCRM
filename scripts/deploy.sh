@@ -58,5 +58,25 @@ for _ in $(seq 1 30); do
 done
 [ -n "$ok" ] || { echo "FATAL: crm-web did not become healthy"; docker compose logs --tail 50 crm-web; exit 1; }
 docker compose exec -T crm-web python manage.py migrate --check < /dev/null
+
+# --- 5. encrypt the pre-deploy dumps -------------------------------------
+# They are taken before the new crm-backup image (with age) exists, so they are
+# encrypted now, with the same recipients as the scheduled backups.
+recipients="$(sed -n 's/^BACKUP_AGE_RECIPIENTS=//p' .env | tail -n 1)"
+if [ -n "$recipients" ] || [ -s runtime/backup-config/age-recipients.txt ]; then
+  args=""
+  for recipient in $recipients; do args="$args -r $recipient"; done
+  [ -s runtime/backup-config/age-recipients.txt ] && args="$args -R /config/age-recipients.txt"
+  for plain in "$APP"/pre-*.dump; do
+    [ -f "$plain" ] || continue
+    # shellcheck disable=SC2086
+    docker compose run --rm -T --no-deps --entrypoint age crm-backup $args < "$plain" > "$plain.age.part" \
+      && mv "$plain.age.part" "$plain.age" && rm -f "$plain" \
+      || { rm -f "$plain.age.part"; echo "WARNING: could not encrypt $plain"; }
+  done
+  ls -1t "$APP"/pre-*.dump.age 2>/dev/null | tail -n +21 | xargs -r rm -f   # keep 20
+else
+  echo "WARNING: pre-deploy dumps are NOT encrypted: set BACKUP_AGE_RECIPIENTS in .env"
+fi
 docker compose ps
 echo ">>> deployed ${VERSION} OK"
