@@ -220,6 +220,64 @@ jobs:
           name: oracle-report
           path: oracle-report.txt
 
+  # 50 concurrent users against the production image with default Gunicorn settings
+  # and 5,000 contacts in PostgreSQL. Thresholds guard against regressions; the
+  # numbers feed the sizing guidance in docs/DIEGIMAS-ORGANIZACIJOJE.md.
+  load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Start the stack
+        run: |
+          docker build -t crm-web:load .
+          docker network create load
+          docker run -d --network load --name load-db -e POSTGRES_DB=crm -e POSTGRES_USER=crm -e POSTGRES_PASSWORD=load \
+            "$(grep -m1 -o 'postgres:[^ "]*' compose.yaml)"
+          for i in $(seq 1 30); do docker exec load-db pg_isready -U crm -d crm && break; sleep 2; done
+          docker run -d --network load --name load-web -p 8080:8080 --cpus 2 --memory 1g \
+            -e DB_HOST=load-db -e DB_PASSWORD=load -e CRM_ENVIRONMENT=load -e CRM_LOG_LEVEL=WARNING \
+            -e DJANGO_SECRET_KEY=load-only-0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMN \
+            -e DJANGO_ALLOWED_HOSTS='localhost,127.0.0.1' -e DJANGO_DEBUG=false crm-web:load
+          for i in $(seq 1 40); do curl -fsS http://localhost:8080/health/ready && break; sleep 3; done
+      - name: Seed 5,000 contacts
+        run: docker exec -i load-web python manage.py shell -v 0 < scripts/loadtest/seed.py
+      - name: Run 50 users for 3 minutes
+        run: |
+          python -m pip install -r scripts/loadtest/requirements.txt
+          (while true; do docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}' load-web load-db; sleep 15; done) > stats.txt &
+          locust -f scripts/loadtest/locustfile.py --host http://localhost:8080 --headless -u 50 -r 5 -t 3m \
+            --csv load --only-summary
+          kill %1 || true
+          cat stats.txt | tail -6
+      - name: Check thresholds
+        run: |
+          python - <<'PY'
+          import csv
+          rows = {r["Name"]: r for r in csv.DictReader(open("load_stats.csv"))}
+          total = rows["Aggregated"]
+          requests, failures = int(total["Request Count"]), int(total["Failure Count"])
+          p95 = float(total["95%"])
+          print("requests=%d failures=%d p50=%sms p95=%sms rps=%s" % (requests, failures, total["50%"], total["95%"], total["Requests/s"]))
+          for name, row in sorted(rows.items()):
+              print("%-45s p50=%6s p95=%6s max=%8s n=%s" % (name, row["50%"], row["95%"], row["Max Response Time"], row["Request Count"]))
+          assert requests > 1000, "too few requests"
+          assert failures / requests < 0.01, "failure ratio above 1%"
+          assert p95 < 2000, "95th percentile above 2 s"
+          PY
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: load-test
+          path: |
+            load_*.csv
+            stats.txt
+      - name: Web logs on failure
+        if: failure()
+        run: docker logs load-web 2>&1 | tail -80
+
   security:
     runs-on: ubuntu-latest
     steps:
