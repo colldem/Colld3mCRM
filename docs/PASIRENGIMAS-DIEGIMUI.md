@@ -38,8 +38,8 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | Duomenų subjekto teisės | 🟡 pilnas ZIP ir CSV eksportas; nėra vieno asmens duomenų eksporto ar galutinio ištrynimo procedūros | — |
 | Naudotojų išjungimas | 🟡 rankinis; Entra susieti naudotojai išlaiko vietinį slaptažodį | `oidc.py` |
 | Vien SSO režimas | ❌ vietinio prisijungimo išjungti negalima | `config/urls.py` |
-| Pažeidžiamumų skenavimas | ❌ nėra pip-audit / Trivy / bandit CI | `ci.yml` |
-| SBOM | ❌ | — |
+| Pažeidžiamumų skenavimas | ✅ pip-audit, bandit, Trivy CI (žr. 5 etapą) | `ci.yml`, `security-check.sh` |
+| SBOM | ✅ CycloneDX (Python + image), GHCR atestacijos | `ci.yml`, `publish-image.yml` |
 | Kubernetes | ✅ Helm chart, migracijų Job, CronJob'ai, S3 saugykla | `deploy/helm` |
 | Dokumentacija | 🟡 techninė EN/LT gera; **nėra saugumo aprašo, duomenų žodyno, DAPV, priežiūros modelio** | `docs/` |
 
