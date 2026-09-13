@@ -18,13 +18,14 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | Konteinerio sauga | ✅ ne root naudotojas, `no-new-privileges`; Helm `runAsNonRoot` | `Dockerfile`, `values.yaml` |
 | Slaptažodžiai | ✅ Argon2, min. 12 simb., validatoriai | `settings.py` |
 | Prisijungimų ribojimas | ✅ django-axes 5 klaidos / 30 min, pagal IP ir naudotoją | `settings.py` |
-| SSO | ✅ Entra ID OIDC, „link-only" arba auto-kūrimas | `oidc.py` |
+| SSO | ✅ Entra ID arba AD FS (OIDC); žetono iss/aud/exp/tid tikrinimas; tapatybė pririšta prie oid/sub | `oidc.py` |
+| AD grupės → rolės | ✅ grupių susiejimas su rolėmis ir komandomis, taikomas kiekvieno prisijungimo metu; žetono tikrinimo įrankis | `directory.py` |
 | Sesijos | ✅ HttpOnly, SameSite, Secure (su HTTPS), slankus neaktyvumo langas | `settings.py` |
 | HTTP antraštės | 🟡 HSTS, X-Frame DENY, nosniff, Referrer-Policy; **nėra CSP** | `settings.py` |
 | Rolės ir matomumas | ✅ admin / visi / tik savi, teisių lentelė, komandos | `permissions.py` |
-| „Tik skaityti" | 🟡 tik API raktams, sąsajoje nėra | `models.ApiToken` |
+| „Tik skaityti" | ✅ rolė „Skaitytojas", užtikrinta serveryje | `middleware.py` |
 | Auditas | 🟡 pilnas įvykių žurnalas; **nėra eksporto, saugojimo termino, SIEM srauto** | `audit.py`, `AuditLog` |
-| API raktai | 🟡 saugomas tik sha256, scope, atšaukimas; **nėra galiojimo termino ir užklausų ribojimo** | `api.py` |
+| API raktai | ✅ sha256, scope, atšaukimas, galiojimo terminas, užklausų ribojimas (429) | `api.py` |
 | Webhook'ai | ✅ HMAC-SHA256, pristatymų žurnalas 30 d. | `webhooks.py` |
 | Paslaptys DB | ✅ Fernet (`CRM_SECRETS_KEY`) | `crypto.py` |
 | Priedai | 🟡 dydis 10 MB ir plėtinių sąrašas; **nėra antivirusinio skenavimo** | `views.py` |
@@ -36,8 +37,8 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | Stebėsena | 🟡 `/health/live`, `/health/ready`; nėra metrikų | `config/urls.py` |
 | Asmens duomenų saugojimo terminai | ❌ automatiškai valomi tik automatizacijų (90 d.) ir webhook (30 d.) žurnalai | — |
 | Duomenų subjekto teisės | 🟡 pilnas ZIP ir CSV eksportas; nėra vieno asmens duomenų eksporto ar galutinio ištrynimo procedūros | — |
-| Naudotojų išjungimas | 🟡 rankinis; Entra susieti naudotojai išlaiko vietinį slaptažodį | `oidc.py` |
-| Vien SSO režimas | ❌ vietinio prisijungimo išjungti negalima | `config/urls.py` |
+| Naudotojų išjungimas | ✅ AD išjungtas → atjungiamas per ≤15 min.; neaktyvūs išjungiami automatiškai; katalogo naudotojai be vietinio slaptažodžio | `oidc.py`, `accounts.py` |
+| Vien SSO režimas | ✅ su avarinėmis paskyromis (`CRM_BREAK_GLASS_USERS`) | `oidc.py` |
 | Pažeidžiamumų skenavimas | ✅ pip-audit, bandit, Trivy CI (žr. 5 etapą) | `ci.yml`, `security-check.sh` |
 | SBOM | ✅ CycloneDX (Python + image), GHCR atestacijos | `ci.yml`, `publish-image.yml` |
 | Kubernetes | ✅ Helm chart, migracijų Job, CronJob'ai, S3 saugykla | `deploy/helm` |
@@ -51,14 +52,25 @@ Dydis: S — iki pusdienio, M — ~1 diena, L — kelios dienos.
 Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 (testai, patikra naršyklėje, in-app žinynas, push).
 
-### 1 etapas — Prieiga ir tapatybė
+### 1 etapas — Prieiga ir tapatybė (AD) — ✅ atlikta 2026-09-13
 
-| # | Darbas | Dydis | Būsena |
-|---|---|---|---|
-| 1.1 | **Vien SSO režimas**: nustatymas (DB + env), kuris išjungia vietinį prisijungimą; avarinė admin paskyra leidžiama tik per env kintamąjį; auditas | M | ❌ |
-| 1.2 | **Naudotojų išjungimas**: automatinis išjungimas po N dienų neprisijungus (nustatymas), ataskaita „neaktyvūs naudotojai"; SSO režime vietiniai slaptažodžiai tampa nenaudojami | M | ❌ |
-| 1.3 | **„Tik skaityti" rolė** sąsajoje | M | ❌ |
-| 1.4 | **API raktai**: galiojimo terminas, užklausų ribojimas (429), nebenaudojamų raktų įspėjimas | S | ❌ |
+| # | Darbas | Būsena |
+|---|---|---|
+| 1.0 | **AD grupės → rolės ir komandos** (Entra ID arba AD FS), stipriausia rolė, be grupės neįleidžiama, žetono tikrinimo įrankis, AD žymos ir užraktai Naudotojų/Komandų languose | ✅ |
+| 1.0a | OIDC sustiprinimas: iss/aud/exp/tid tikrinimas, „common" draudimas, tapatybė pagal oid/sub, grupių „overage" atmetimas | ✅ |
+| 1.1 | **Vien SSO režimas** su avarinėmis paskyromis; vietinės sesijos baigiamos | ✅ |
+| 1.1a | **Sesijos pakartotinis tikrinimas** kas N min. (`prompt=none`): AD išjungtas ar iš grupės pašalintas naudotojas atjungiamas | ✅ |
+| 1.2 | **Neaktyvių paskyrų išjungimas** po N d., grąžinimas per AD; katalogo naudotojams vietinis slaptažodis neleidžiamas | ✅ |
+| 1.3 | **„Skaitytojo" rolė**, užtikrinta serveryje (middleware), API tik skaitymui | ✅ |
+| 1.4 | **API raktai**: galiojimo terminas, užklausų ribojimas (429, Retry-After) | ✅ |
+
+> Rastos ir ištaisytos klaidos, kurios būtų sutrukdžiusios tikram Entra prisijungimui:
+> neteisingi authorize/token (`/oauth2/` trūko), JWKS ir userinfo adresai; nesėkmingo
+> prisijungimo nukreipimas į neegzistuojantį adresą.
+>
+> **Neišbandyta su tikra aplinka** (nėra Regitros duomenų): reikės Entra programos
+> registracijos arba AD FS taisyklės, grupių lauko žetone ir bandomųjų paskyrų.
+> Klausimai infrastruktūrai — 7.10.
 
 ### 2 etapas — Žurnalai ir auditas
 
