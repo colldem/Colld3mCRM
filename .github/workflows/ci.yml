@@ -248,8 +248,9 @@ jobs:
         run: |
           python -m pip install -r scripts/loadtest/requirements.txt
           (while true; do docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}' load-web load-db; sleep 15; done) > stats.txt &
+          # Locust exits non-zero on any failed request; the threshold step decides.
           locust -f scripts/loadtest/locustfile.py --host http://localhost:8080 --headless -u 50 -r 5 -t 3m \
-            --csv load --only-summary
+            --csv load --only-summary || true
           kill %1 || true
           cat stats.txt | tail -6
       - name: Check thresholds
@@ -263,7 +264,7 @@ jobs:
           print("requests=%d failures=%d p50=%sms p95=%sms rps=%s" % (requests, failures, total["50%"], total["95%"], total["Requests/s"]))
           for name, row in sorted(rows.items()):
               print("%-45s p50=%6s p95=%6s max=%8s n=%s" % (name, row["50%"], row["95%"], row["Max Response Time"], row["Request Count"]))
-          assert requests > 1000, "too few requests"
+          assert requests > 1500, "too few requests"
           assert failures / requests < 0.01, "failure ratio above 1%"
           assert p95 < 2000, "95th percentile above 2 s"
           PY

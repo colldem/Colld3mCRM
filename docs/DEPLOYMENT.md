@@ -205,6 +205,7 @@ otherwise has its own disk — see [KUBERNETES.md](KUBERNETES.md).
 | `CRM_RUN_MIGRATIONS` | `1` | run `migrate` before starting. Kubernetes sets `0`: migrations run once per release, in a Job |
 | `CRM_COLLECTSTATIC` | `1` | run `collectstatic` before starting. `0` when the static files are already baked into the image |
 | `CRM_GUNICORN_PORT` | `8080` | port gunicorn binds |
+| `CRM_GUNICORN_KEEPALIVE` | `75` | seconds an idle keep-alive connection stays open; keep it above the reverse proxy's upstream keep-alive so the proxy never reuses a connection gunicorn is closing |
 | `CRM_GUNICORN_WORKERS` | `2` | worker processes |
 | `CRM_GUNICORN_THREADS` | `2` | threads per worker |
 | `CRM_GUNICORN_TIMEOUT` | `60` | seconds before a stuck worker is killed |

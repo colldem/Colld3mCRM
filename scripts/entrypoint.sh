@@ -32,5 +32,6 @@ exec gunicorn config.wsgi:application "$@" \
   --workers "${CRM_GUNICORN_WORKERS:-2}" \
   --threads "${CRM_GUNICORN_THREADS:-2}" \
   --timeout "${CRM_GUNICORN_TIMEOUT:-60}" \
+  --keep-alive "${CRM_GUNICORN_KEEPALIVE:-75}" \
   --access-logfile - --error-logfile - \
   --no-control-socket
