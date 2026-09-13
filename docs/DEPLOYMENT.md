@@ -323,6 +323,14 @@ Useful alerts: `event=audit.login_failed` with `reason=locked_out` (brute force)
 (a reader tried to change data), `logger=django.security.*` (rejected tokens,
 disallowed hosts, CSRF failures) and any `level=ERROR`.
 
+The audit trail itself (Settings → Žurnalas) is append-only: the application
+refuses to change or delete rows and, on PostgreSQL, a trigger refuses it in the
+database too. Only the retention purge (`purge_audit_log`, run by the worker;
+retention set on that page, 0 = forever, otherwise at least 180 days) removes
+rows, and it records that it did. The page exports the filtered trail as CSV.
+A database superuser can still bypass the trigger — ship the JSON stream to the
+SIEM for a copy nobody on the CRM host can alter.
+
 Gunicorn's access log uses the same shape (`logger=gunicorn.access`) and records
 the path without its query string, which can carry search terms.
 

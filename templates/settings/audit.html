@@ -1,6 +1,14 @@
 {% extends "settings/layout.html" %}{% load i18n %}
 {% block settings_content %}
-<div class="settings-section-head"><div><h2>{% translate 'Žurnalas' %}</h2><p>{% translate 'Kas, kada ir ką pakeitė. Įrašai netrinami.' %}</p></div></div>
+<div class="settings-section-head"><div><h2>{% translate 'Žurnalas' %}</h2><p>{% translate 'Kas, kada ir ką pakeitė. Įrašų pakeisti ar ištrinti negalima; senesni už saugojimo terminą pašalinami automatiškai.' %}</p></div>
+  <a class="btn" href="?{% if export_query %}{{ export_query }}&amp;{% endif %}format=csv">{% translate 'Eksportuoti CSV' %}</a></div>
+{% if is_crm_admin %}
+<form method="post" class="audit-retention">{% csrf_token %}
+  <label>{% translate 'Saugoti įrašus (dienų)' %}<input type="number" name="audit_retention_days" min="0" value="{{ audit_retention_days }}"></label>
+  <small>{% blocktranslate %}0 — saugoti visada. Kitaip bent {{ retention_minimum }} d.; senesni įrašai kasdien pašalinami, pašalinimas įrašomas į žurnalą.{% endblocktranslate %}</small>
+  <div class="filter-actions"><button class="btn" type="submit">{% translate 'Išsaugoti' %}</button></div>
+</form>
+{% endif %}
 
 <form method="get" class="audit-filters">
   <label>{% translate 'Naudotojas' %}<select name="actor"><option value="">{% translate 'Visi' %}</option>{% for u in actors %}<option value="{{ u.pk }}" {% if u.pk|stringformat:'s' == filter_actor %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></label>

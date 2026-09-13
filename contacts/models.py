@@ -330,6 +330,8 @@ class SystemSettings(models.Model):
     oidc_session_check_minutes = models.PositiveSmallIntegerField(default=15)
     # Accounts unused for this many days are switched off by the worker. 0 = never.
     deactivate_inactive_days = models.PositiveSmallIntegerField(default=0)
+    # Audit rows older than this many days are purged by the worker. 0 = keep forever.
+    audit_retention_days = models.PositiveIntegerField(default=0)
 
     # Automation rules master switch (Settings -> Automatika).
     automations_enabled = models.BooleanField(default=False)
@@ -648,8 +650,25 @@ class CustomValue(models.Model):
         ]
 
 
+class AuditLogImmutable(Exception):
+    """Raised on any attempt to change or delete audit rows outside the retention purge."""
+
+
+class AuditLogQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise AuditLogImmutable("audit log rows cannot be changed")
+
+    def delete(self):
+        raise AuditLogImmutable("audit log rows cannot be deleted; see contacts.audit.purge_expired")
+
+
 class AuditLog(models.Model):
-    """Append-only trail: who did what, to which record or setting, when."""
+    """Append-only trail: who did what, to which record or setting, when.
+
+    Rows are never updated or deleted by the application: the model and its
+    queryset refuse it, and on PostgreSQL a trigger (migration 0047) refuses it
+    in the database as well. The only exception is the retention purge in
+    contacts/audit.py. Detaching a deleted user (actor -> NULL) stays possible."""
     CREATE = "create"
     UPDATE = "update"
     ARCHIVE = "archive"
@@ -690,6 +709,8 @@ class AuditLog(models.Model):
     ip = models.GenericIPAddressField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
+    objects = AuditLogQuerySet.as_manager()
+
     class Meta:
         ordering = ["-created_at", "-pk"]
         verbose_name = "Žurnalo įrašas"
@@ -697,6 +718,14 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.created_at:%Y-%m-%d %H:%M} {self.actor_label} {self.action} {self.target_label}".strip()
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise AuditLogImmutable("audit log rows cannot be changed")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise AuditLogImmutable("audit log rows cannot be deleted")
 
 
 class IncomingMail(models.Model):

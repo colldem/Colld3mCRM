@@ -322,6 +322,10 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .login-panel{border-radius:8px;box-shadow:0 4px 20px #10243e0d;width:420px;max-width:calc(100vw - 32px)}
 .login-panel h1{font-size:28px}
 body[data-read-only] .favourite-form button,body[data-read-only] .inline-choices input{pointer-events:none}
+.audit-retention{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:0 0 16px}
+.audit-retention label{display:grid;gap:4px;font-weight:600}
+.audit-retention input{width:140px}
+.audit-retention small{flex-basis:100%;color:var(--muted)}
 .login-break-glass{margin-top:18px;font-size:var(--fs-sm)}
 .login-break-glass summary{cursor:pointer;color:var(--muted);text-align:center}
 .login-break-glass form{margin-top:12px}

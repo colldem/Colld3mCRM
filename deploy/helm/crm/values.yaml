@@ -119,6 +119,9 @@ worker:
     deactivate-inactive-users:
       command: deactivate_inactive_users
       schedule: "37 2 * * *"
+    purge-audit-log:
+      command: purge_audit_log
+      schedule: "47 2 * * *"
 
 gunicorn:
   workers: 2

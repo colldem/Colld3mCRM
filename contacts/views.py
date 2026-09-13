@@ -1,5 +1,6 @@
 from django.utils.translation import gettext as _, gettext_lazy as tr
 from datetime import datetime, time, timedelta
+import json
 import mimetypes
 import os
 import secrets
@@ -1096,6 +1097,38 @@ def settings_permissions(request):
     })
 
 
+def _audit_csv(request, entries):
+    """The filtered audit trail as UTF-8 CSV, streamed; the export itself is audited."""
+    import csv
+
+    from django.http import StreamingHttpResponse
+
+    from .sanitizers import csv_safe
+
+    class Echo:
+        def write(self, value):
+            return value
+
+    columns = ["created_at", "actor", "actor_id", "action", "target_type", "target_id", "target_label",
+               "field", "old_value", "new_value", "ip", "request_id", "detail"]
+
+    def rows():
+        writer = csv.writer(Echo())
+        yield "\ufeff" + writer.writerow(columns)
+        for entry in entries.order_by("created_at", "pk").iterator(chunk_size=2000):
+            yield writer.writerow([csv_safe(value) for value in (
+                entry.created_at.isoformat(), entry.actor_label, entry.actor_id or "", entry.action,
+                entry.target_type, entry.target_id, entry.target_label, entry.field, entry.old_value,
+                entry.new_value, entry.ip or "", (entry.detail or {}).get("request_id", ""),
+                json.dumps(entry.detail or {}, ensure_ascii=False, sort_keys=True))])
+
+    audit_log(AuditLog.EXPORT, request=request, target_type="audit_log", target_label=str(tr("Žurnalas")),
+              detail={"filters": {key: value for key, value in request.GET.items() if key != "format"}})
+    response = StreamingHttpResponse(rows(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="audit-%s.csv"' % timezone.now().strftime("%Y%m%d-%H%M")
+    return response
+
+
 @login_required
 def settings_audit(request):
     from .permissions import has_capability
@@ -1115,6 +1148,25 @@ def settings_audit(request):
         entries = entries.filter(created_at__date__gte=date_from)
     if date_to and parse_date(date_to):
         entries = entries.filter(created_at__date__lte=date_to)
+    from .audit import AUDIT_RETENTION_MINIMUM_DAYS
+    from .permissions import is_admin
+
+    system = SystemSettings.load()
+    if request.method == "POST" and is_admin(request.user):
+        raw = request.POST.get("audit_retention_days", "").strip()
+        days = int(raw) if raw.isdigit() else -1
+        if days != 0 and days < AUDIT_RETENTION_MINIMUM_DAYS:
+            messages.error(request, tr("Saugojimo terminas turi būti 0 (saugoti visada) arba bent %(days)s d.")
+                           % {"days": AUDIT_RETENTION_MINIMUM_DAYS})
+        elif days != system.audit_retention_days:
+            audit_log(AuditLog.SETTING, request=request, target_type="setting", target_label=str(tr("Žurnalo saugojimas")),
+                      old=system.audit_retention_days, new=days)
+            system.audit_retention_days = days
+            system.save(update_fields=["audit_retention_days", "updated_at"])
+            messages.success(request, tr("Žurnalo saugojimo terminas išsaugotas."))
+        return redirect("contacts:settings-audit")
+    if request.GET.get("format") == "csv":
+        return _audit_csv(request, entries)
     from django.core.paginator import Paginator
 
     page = Paginator(entries, 100).get_page(request.GET.get("page"))
@@ -1127,6 +1179,8 @@ def settings_audit(request):
         "page_numbers": _elided_page_numbers(page),
         "actors": get_user_model().objects.filter(audit_entries__isnull=False).distinct().order_by("username"),
         "action_choices": AuditLog.ACTION_CHOICES,
+        "audit_retention_days": system.audit_retention_days, "retention_minimum": AUDIT_RETENTION_MINIMUM_DAYS,
+        "export_query": list_query.urlencode(),
         "filter_actor": actor_id, "filter_action": action,
         "filter_date_from": date_from, "filter_date_to": date_to,
         "list_query": list_query.urlencode(),

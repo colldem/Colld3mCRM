@@ -67,3 +67,39 @@ def log_change(action, *, request, target, field, old, new, **detail):
     if str(old or "") == str(new or ""):
         return None
     return log(action, request=request, target=target, field=field, old=old, new=new, **detail)
+
+
+AUDIT_RETENTION_MINIMUM_DAYS = 180
+
+
+def purge_expired(now=None):
+    """Delete audit rows older than ``SystemSettings.audit_retention_days``.
+
+    The one sanctioned deletion: on PostgreSQL it opens the database guard for
+    this transaction only, and it leaves a summary row behind. Returns the count.
+    """
+    from datetime import timedelta
+
+    from django.db import connection, transaction
+    from django.utils import timezone
+
+    from .models import SystemSettings
+
+    days = SystemSettings.load().audit_retention_days
+    if not days:
+        return 0
+    days = max(days, AUDIT_RETENTION_MINIMUM_DAYS)
+    cutoff = (now or timezone.now()) - timedelta(days=days)
+    with transaction.atomic():
+        if connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL crm.audit_purge = 'on'")
+        expired = AuditLog.objects.filter(created_at__lt=cutoff)
+        count = expired._raw_delete(expired.db)
+        if connection.vendor == "postgresql":
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL crm.audit_purge = 'off'")
+    if count:
+        log(AuditLog.DELETE, target_type="audit_log", target_label="retention",
+            detail={"purged": count, "before": cutoff.isoformat(), "retention_days": days})
+    return count

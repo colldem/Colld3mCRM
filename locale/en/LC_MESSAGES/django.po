@@ -3763,3 +3763,24 @@ msgstr "Lifetime"
 
 msgid "Kiekvienas raktas turi galiojimo terminą. Vienu raktu leidžiama iki %(rate_limit)s užklausų per minutę; viršijus grąžinama HTTP 429 su Retry-After."
 msgstr "Every token expires. One token may make up to %(rate_limit)s requests per minute; beyond that the API answers HTTP 429 with Retry-After."
+
+msgid "Saugojimo terminas turi būti 0 (saugoti visada) arba bent %(days)s d."
+msgstr "Retention must be 0 (keep forever) or at least %(days)s days."
+
+msgid "Žurnalo saugojimas"
+msgstr "Audit log retention"
+
+msgid "Žurnalo saugojimo terminas išsaugotas."
+msgstr "Audit log retention saved."
+
+msgid "Kas, kada ir ką pakeitė. Įrašų pakeisti ar ištrinti negalima; senesni už saugojimo terminą pašalinami automatiškai."
+msgstr "Who changed what, and when. Entries cannot be changed or deleted; those older than the retention period are removed automatically."
+
+msgid "Saugoti įrašus (dienų)"
+msgstr "Keep entries (days)"
+
+msgid "0 — saugoti visada. Kitaip bent %(retention_minimum)s d.; senesni įrašai kasdien pašalinami, pašalinimas įrašomas į žurnalą."
+msgstr "0 - keep forever. Otherwise at least %(retention_minimum)s days; older entries are removed daily and the removal is logged."
+
+msgid "Žurnalas ir saugumo įvykiai"
+msgstr "Audit log and security events"

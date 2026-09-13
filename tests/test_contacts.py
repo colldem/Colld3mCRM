@@ -6488,3 +6488,146 @@ class InactiveAccountTests(TestCase):
         values = (settings.BASE_DIR / "deploy" / "helm" / "crm" / "values.yaml").read_text()
         self.assertIn("manage.py deactivate_inactive_users", compose)
         self.assertIn("command: deactivate_inactive_users", values)
+
+
+class AuditTrailTests(TestCase):
+    """Append-only audit rows, retention purge and CSV export."""
+
+    def setUp(self):
+        from contacts.audit import log as audit_log
+        from contacts.models import AuditLog
+        self.admin = get_user_model().objects.create_superuser("root", email="r@local", password="very-secure-password")
+        self.entry = audit_log(AuditLog.UPDATE, actor=self.admin, target_type="person", target_id="7",
+                               target_label="=HYPERLINK(\"x\")", field="first_name", old="A", new="B")
+
+    def test_rows_cannot_be_changed_or_deleted_through_the_application(self):
+        from contacts.models import AuditLog, AuditLogImmutable
+        self.entry.new_value = "tampered"
+        with self.assertRaises(AuditLogImmutable):
+            self.entry.save()
+        with self.assertRaises(AuditLogImmutable):
+            self.entry.delete()
+        with self.assertRaises(AuditLogImmutable):
+            AuditLog.objects.filter(pk=self.entry.pk).update(new_value="tampered")
+        with self.assertRaises(AuditLogImmutable):
+            AuditLog.objects.all().delete()
+        self.assertEqual(AuditLog.objects.get(pk=self.entry.pk).new_value, "B")
+
+    def test_deleting_a_user_keeps_their_audit_rows(self):
+        from contacts.models import AuditLog
+        user = get_user_model().objects.create_user("leaver", password="very-secure-password")
+        from contacts.audit import log as audit_log
+        row = audit_log(AuditLog.LOGIN, actor=user, target_type="auth")
+        user.delete()
+        row = AuditLog.objects.get(pk=row.pk)
+        self.assertIsNone(row.actor_id)
+        self.assertEqual(row.actor_label, "leaver")
+
+    def backdate(self, entry, days):
+        from datetime import timedelta
+        from django.db import connection
+        with connection.cursor() as cursor:
+            if connection.vendor == "postgresql":
+                # Back-dating is itself an UPDATE the guard refuses; lift it for this helper only.
+                cursor.execute("ALTER TABLE contacts_auditlog DISABLE TRIGGER contacts_auditlog_guard")
+            cursor.execute("UPDATE contacts_auditlog SET created_at = %s WHERE id = %s",
+                           [timezone.now() - timedelta(days=days), entry.pk])
+            if connection.vendor == "postgresql":
+                cursor.execute("ALTER TABLE contacts_auditlog ENABLE TRIGGER contacts_auditlog_guard")
+
+    def set_retention(self, days):
+        from contacts.models import SystemSettings
+        system = SystemSettings.load()
+        system.audit_retention_days = days
+        system.save()
+
+    def test_purge_removes_only_expired_rows_and_leaves_a_summary(self):
+        from io import StringIO
+        from django.core.management import call_command
+        from contacts.models import AuditLog
+        from contacts.audit import log as audit_log
+        old = audit_log(AuditLog.LOGIN, actor=self.admin, target_type="auth")
+        self.backdate(old, 400)
+        out = StringIO()
+        call_command("purge_audit_log", stdout=out)
+        self.assertIn("purged 0", out.getvalue())
+        self.set_retention(365)
+        call_command("purge_audit_log", stdout=out)
+        self.assertFalse(AuditLog.objects.filter(pk=old.pk).exists())
+        self.assertTrue(AuditLog.objects.filter(pk=self.entry.pk).exists())
+        summary = AuditLog.objects.get(target_type="audit_log", action=AuditLog.DELETE)
+        self.assertEqual(summary.detail["purged"], 1)
+
+    def test_retention_below_the_minimum_is_never_applied(self):
+        from contacts.audit import purge_expired
+        from contacts.models import AuditLog
+        from contacts.audit import log as audit_log
+        row = audit_log(AuditLog.LOGIN, actor=self.admin, target_type="auth")
+        self.backdate(row, 100)
+        self.set_retention(30)  # e.g. written straight to the database
+        purge_expired()
+        self.assertTrue(AuditLog.objects.filter(pk=row.pk).exists())
+
+    def test_only_admins_set_retention_and_the_minimum_is_enforced(self):
+        from contacts.models import SystemSettings
+        url = reverse("contacts:settings-audit")
+        self.client.force_login(self.admin)
+        response = self.client.post(url, {"audit_retention_days": "30"}, follow=True)
+        self.assertContains(response, "bent 180")
+        self.assertEqual(SystemSettings.load().audit_retention_days, 0)
+        self.client.post(url, {"audit_retention_days": "730"})
+        self.assertEqual(SystemSettings.load().audit_retention_days, 730)
+        viewer = get_user_model().objects.create_user("viewer", password="very-secure-password")
+        from contacts.models import RolePermissions
+        RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER, permissions={"can_view_audit": True})
+        self.client.force_login(viewer)
+        self.client.post(url, {"audit_retention_days": "0"})
+        self.assertEqual(SystemSettings.load().audit_retention_days, 730)
+
+    def test_csv_export_follows_filters_neutralises_formulas_and_is_audited(self):
+        import csv
+        from io import StringIO
+        from contacts.models import AuditLog
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("contacts:settings-audit"), {"action": "update", "format": "csv"})
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        body = b"".join(response.streaming_content).decode("utf-8-sig")
+        rows = list(csv.DictReader(StringIO(body)))
+        self.assertEqual({row["action"] for row in rows}, {"update"})
+        self.assertEqual(rows[0]["target_label"], "'=HYPERLINK(\"x\")")
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.EXPORT, target_type="audit_log").exists())
+
+    def test_export_needs_the_audit_capability(self):
+        self.client.force_login(get_user_model().objects.create_user("plain", password="very-secure-password"))
+        self.assertEqual(self.client.get(reverse("contacts:settings-audit"), {"format": "csv"}).status_code, 404)
+
+    def test_worker_and_kubernetes_run_the_purge(self):
+        self.assertIn("manage.py purge_audit_log", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("command: purge_audit_log", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
+
+
+class PostgresAuditGuardTests(TestCase):
+    """The database refuses what the application refuses (PostgreSQL only)."""
+
+    def setUp(self):
+        from django.db import connection
+        if connection.vendor != "postgresql":
+            self.skipTest("the database guard exists on PostgreSQL only")
+        from contacts.audit import log as audit_log
+        from contacts.models import AuditLog
+        self.entry = audit_log(AuditLog.LOGIN, target_type="auth", target_label="x")
+
+    def test_raw_update_and_delete_are_refused(self):
+        from django.db import DatabaseError, connection, transaction
+        for sql in ("UPDATE contacts_auditlog SET new_value = 'tampered' WHERE id = %s",
+                    "DELETE FROM contacts_auditlog WHERE id = %s"):
+            with self.subTest(sql=sql), self.assertRaises(DatabaseError), transaction.atomic():
+                with connection.cursor() as cursor:
+                    cursor.execute(sql, [self.entry.pk])
+
+    def test_purge_switch_is_scoped_to_its_transaction(self):
+        from django.db import DatabaseError, connection, transaction
+        with transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("SET LOCAL crm.audit_purge = 'on'")
+        with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("DELETE FROM contacts_auditlog WHERE id = %s", [self.entry.pk])
