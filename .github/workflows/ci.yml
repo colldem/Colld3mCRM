@@ -178,6 +178,48 @@ jobs:
           print('real ClamAV verdicts OK')
           "
 
+  # Oracle is not a supported target; this measures how far the code is from it
+  # (docs/ORACLE.md). It never fails the build — the report is the output.
+  oracle-compatibility:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      oracle:
+        image: gvenzl/oracle-free:23-slim-faststart
+        env:
+          ORACLE_PASSWORD: CiOracle0nly
+        ports: ["1521:1521"]
+        options: >-
+          --health-cmd healthcheck.sh --health-interval 10s --health-timeout 5s --health-retries 30
+    env:
+      DB_ENGINE: oracle
+      DB_HOST: localhost
+      DB_NAME: FREEPDB1
+      DB_USER: system
+      DB_PASSWORD: CiOracle0nly
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt -r requirements-oracle.txt
+      - name: Migrations and the test suite on Oracle
+        run: |
+          set +e
+          python manage.py test --noinput -v 2 > oracle-report.txt 2>&1
+          status=$?
+          grep -E "^(Ran|OK|FAILED)" oracle-report.txt
+          grep -E "^(ERROR|FAIL):" oracle-report.txt | sort | uniq -c | sort -rn | head -60
+          grep -hoE "(ORA-[0-9]{5}|DPY-[0-9]{4})[^\n]{0,90}" oracle-report.txt | sort | uniq -c | sort -rn | head -20
+          exit $status
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: oracle-report
+          path: oracle-report.txt
+
   security:
     runs-on: ubuntu-latest
     steps:

@@ -72,7 +72,20 @@ TEMPLATES = [{
 }]
 WSGI_APPLICATION = "config.wsgi.application"
 
-if os.environ.get("DB_HOST"):
+if os.environ.get("DB_ENGINE") == "oracle":
+    # Not a supported production target: used by the Oracle compatibility check in
+    # CI (docs/ORACLE.md). NAME is the service name; the driver is python-oracledb.
+    DATABASES = {"default": {
+        "ENGINE": "django.db.backends.oracle",
+        "HOST": os.environ["DB_HOST"],
+        "PORT": os.environ.get("DB_PORT", "1521"),
+        "NAME": os.environ.get("DB_NAME", "FREEPDB1"),
+        "USER": os.environ.get("DB_USER", "system"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+        "TEST": {"USER": "crm_test", "PASSWORD": os.environ.get("DB_PASSWORD", ""), "TBLSPACE": "crm_test_tbls",
+                 "TBLSPACE_TMP": "crm_test_tmp"},
+    }}
+elif os.environ.get("DB_HOST"):
     DATABASES = {"default": {
         "ENGINE": "django.db.backends.postgresql",
         "HOST": os.environ["DB_HOST"],
