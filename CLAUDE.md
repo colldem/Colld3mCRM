@@ -69,6 +69,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
   `permissions.py` — rolės (admin / visi / savi / skaitytojas), teisės ir įrašų matomumas;
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
+  `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
+  Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
   `menu.py` — asmeninė šoninė juosta (branduolys / naudotojo nuorodos / „Daugiau“ klostė;
   konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);

@@ -75,7 +75,7 @@
       <button class="btn" type="button" data-cal-close>{% translate 'Atšaukti' %}</button>
       <a class="btn cal-open-record" id="cal-open-record" href="#" hidden>{% translate 'Atidaryti įrašą' %}</a>
       <button class="btn danger" type="submit" id="cal-delete" formaction="" formnovalidate hidden
-              onclick="return confirm('{% translate 'Pašalinti šį įvykį?' %}')">{% translate 'Pašalinti' %}</button>
+              data-confirm="{% translate 'Pašalinti šį įvykį?' %}">{% translate 'Pašalinti' %}</button>
     </div>
   </form>
 </dialog>

@@ -33,7 +33,7 @@
   </form>
 </section>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 document.querySelectorAll('.archive-bulk').forEach(function(form){
   var all=form.querySelector('.archive-all'),
       rows=[].slice.call(form.querySelectorAll('.archive-select')),

@@ -6,7 +6,7 @@
 
 <div class="setting-toggle" style="margin-bottom:20px">
   <form method="post" style="display:contents">{% csrf_token %}<input type="hidden" name="op" value="toggle_global">
-    <input type="checkbox" onchange="this.form.submit()" {% if automations_enabled %}checked{% endif %} aria-label="{% translate 'Automatika įjungta' %}">
+    <input type="checkbox" data-autosubmit {% if automations_enabled %}checked{% endif %} aria-label="{% translate 'Automatika įjungta' %}">
     <span><strong>{% translate 'Automatika įjungta' %}</strong><small>{% translate 'Bendras jungiklis. Išjungus, jokia taisyklė neveikia.' %}</small></span>
   </form>
 </div>
@@ -23,7 +23,7 @@
     <td>
       <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="op" value="toggle"><input type="hidden" name="rule_id" value="{{ rule.pk }}"><button class="btn" type="submit">{% if rule.active %}{% translate 'Sustabdyti' %}{% else %}{% translate 'Įjungti' %}{% endif %}</button></form>
       <a class="btn" href="?edit={{ rule.pk }}">{% translate 'Keisti' %}</a>
-      <form method="post" style="display:inline" onsubmit="return confirm('{% translate 'Pašalinti taisyklę?' %}')">{% csrf_token %}<input type="hidden" name="op" value="delete"><input type="hidden" name="rule_id" value="{{ rule.pk }}"><button class="btn danger" type="submit">{% translate 'Šalinti' %}</button></form>
+      <form method="post" style="display:inline" data-confirm="{% translate 'Pašalinti taisyklę?' %}">{% csrf_token %}<input type="hidden" name="op" value="delete"><input type="hidden" name="rule_id" value="{{ rule.pk }}"><button class="btn danger" type="submit">{% translate 'Šalinti' %}</button></form>
     </td>
   </tr>{% endfor %}</tbody>
 </table></div>

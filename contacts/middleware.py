@@ -88,3 +88,50 @@ class ReadOnlyRoleMiddleware:
         if not url_has_allowed_host_and_scheme(back, {request.get_host()}, require_https=request.is_secure()) or back.endswith(request.path):
             back = "/"
         return redirect(back)
+
+
+class SecurityHeadersMiddleware:
+    """Content-Security-Policy with a per-request nonce, plus Permissions-Policy.
+
+    Scripts run only from this origin or inline with the request's nonce
+    (``{{ csp_nonce }}``); no inline event handlers (see static/js/behaviors.js),
+    no plugins, no framing, forms post only here. Inline ``style`` attributes stay
+    allowed — they cannot run code. ``CRM_CSP_REPORT_ONLY=true`` sends the policy
+    as report-only while checking a new deployment.
+    """
+
+    PERMISSIONS_POLICY = ("accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), "
+                          "microphone=(), payment=(), usb=()")
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    @staticmethod
+    def policy(nonce):
+        return "; ".join((
+            "default-src 'self'",
+            "script-src 'self' 'nonce-%s'" % nonce,
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "connect-src 'self'",
+            "manifest-src 'self'",
+            "worker-src 'self'",
+            "frame-src 'none'",
+            "frame-ancestors 'none'",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+        ))
+
+    def __call__(self, request):
+        import secrets
+
+        from django.conf import settings
+
+        request.csp_nonce = secrets.token_urlsafe(18)
+        response = self.get_response(request)
+        header = "Content-Security-Policy-Report-Only" if settings.CRM_CSP_REPORT_ONLY else "Content-Security-Policy"
+        response.setdefault(header, self.policy(request.csp_nonce))
+        response.setdefault("Permissions-Policy", self.PERMISSIONS_POLICY)
+        return response

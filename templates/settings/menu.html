@@ -61,7 +61,7 @@
   <div class="form-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti meniu' %}</button></div>
 </form>
 
-<script>
+<script nonce="{{ csp_nonce }}">
 (() => {
   const list = document.querySelector('[data-shortcuts]');
   if (!list) return;

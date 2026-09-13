@@ -59,3 +59,8 @@ def crm_menu(request):
     from .menu import build
 
     return {"crm_menu": build(request)}
+
+
+def csp(request):
+    """The per-request nonce inline <script> tags must carry (SecurityHeadersMiddleware)."""
+    return {"csp_nonce": getattr(request, "csp_nonce", "")}

@@ -497,3 +497,65 @@ class ObservabilityTests(TestCase):
     def test_production_defaults_to_json_logs_and_gunicorn_json_access_log(self):
         self.assertIn("contacts.observability.RequestIdMiddleware", settings.MIDDLEWARE[0])
         self.assertIn('"logger":"gunicorn.access"', (settings.BASE_DIR / "scripts" / "entrypoint.sh").read_text())
+
+
+class ContentSecurityPolicyTests(TestCase):
+    """Strict script policy: same origin or the request's nonce, never inline handlers."""
+
+    def setUp(self):
+        from contacts.models import Company, Person
+        self.user = get_user_model().objects.create_superuser("csp", email="c@local", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Jonas", last_name="Jonaitis", created_by=self.user, owner=self.user)
+        self.company = Company.objects.create(name="UAB CSP", created_by=self.user, owner=self.user)
+
+    def nonce_of(self, response):
+        import re
+        policy = response["Content-Security-Policy"]
+        self.assertIn("object-src 'none'", policy)
+        self.assertIn("frame-ancestors 'none'", policy)
+        self.assertNotIn("'unsafe-inline'", policy.split("script-src", 1)[1].split(";", 1)[0])
+        return re.search(r"'nonce-([^']+)'", policy).group(1)
+
+    def test_every_inline_script_carries_the_response_nonce(self):
+        import re
+        self.nonce_of(self.client.get(reverse("login")))  # the login page, signed out
+        self.client.force_login(self.user)
+        pages = [reverse("contacts:list"), reverse("contacts:company-list"), reverse("contacts:home"),
+                 reverse("contacts:detail", args=[self.person.pk]), reverse("contacts:calendar"),
+                 reverse("contacts:archive-list"), reverse("contacts:settings-menu"),
+                 reverse("contacts:settings-custom-fields"), reverse("contacts:settings")]
+        for url in pages:
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                nonce = self.nonce_of(response)
+                html = response.content.decode()
+                for tag in re.findall(r"<script\b[^>]*>", html):
+                    if "src=" in tag or 'type="application/json"' in tag:
+                        continue
+                    self.assertIn('nonce="%s"' % nonce, tag)
+
+    def test_nonce_changes_per_response(self):
+        self.assertNotEqual(self.nonce_of(self.client.get(reverse("login"))), self.nonce_of(self.client.get(reverse("login"))))
+
+    def test_templates_have_no_inline_event_handlers_or_javascript_urls(self):
+        import re
+        for path in (settings.BASE_DIR / "templates").rglob("*.html"):
+            text = path.read_text()
+            with self.subTest(template=str(path.relative_to(settings.BASE_DIR))):
+                self.assertIsNone(re.search(r"\son[a-z]+\s*=", text))
+                self.assertNotIn("javascript:", text)
+
+    def test_declarative_behaviours_replace_the_handlers(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("contacts:company-list"))
+        self.assertContains(response, 'data-row-href="%s"' % self.company.get_absolute_url())
+        self.assertContains(response, "js/behaviors.js")
+        self.assertContains(self.client.get(reverse("login")), "js/behaviors.js")
+
+    def test_permissions_policy_and_report_only_switch(self):
+        response = self.client.get(reverse("login"))
+        self.assertIn("camera=()", response["Permissions-Policy"])
+        with self.settings(CRM_CSP_REPORT_ONLY=True):
+            response = self.client.get(reverse("login"))
+        self.assertIn("Content-Security-Policy-Report-Only", response)
+        self.assertNotIn("Content-Security-Policy", response)

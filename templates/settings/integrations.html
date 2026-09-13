@@ -24,7 +24,7 @@
     <td>{{ token.last_used_at|date:datetime_format|default:"–" }}</td>
     <td>{% if token.expires_at %}{{ token.expires_at|date:datetime_format }}{% else %}<span title="{% translate 'Sukurtas prieš įvedant galiojimo terminą — rekomenduojama pakeisti nauju.' %}">{% translate 'neribotai' %} ⚠</span>{% endif %}</td>
     <td>{% if token.revoked_at %}<span class="muted">{% translate 'panaikintas' %}</span>{% elif token.expired %}<span class="muted">{% translate 'nebegalioja' %}</span>{% elif token.expires_at and token.expires_at < expiring_soon %}<span class="crm-label tag-color-3">{% translate 'baigia galioti' %}</span>{% else %}<span class="crm-label tag-color-1">{% translate 'aktyvus' %}</span>{% endif %}</td>
-    <td>{% if not token.revoked_at %}<form method="post" onsubmit="return confirm('{% translate 'Panaikinti raktą?' %}')">{% csrf_token %}<input type="hidden" name="op" value="revoke"><input type="hidden" name="token_id" value="{{ token.pk }}"><button class="btn danger" type="submit">{% translate 'Panaikinti' %}</button></form>{% endif %}</td>
+    <td>{% if not token.revoked_at %}<form method="post" data-confirm="{% translate 'Panaikinti raktą?' %}">{% csrf_token %}<input type="hidden" name="op" value="revoke"><input type="hidden" name="token_id" value="{{ token.pk }}"><button class="btn danger" type="submit">{% translate 'Panaikinti' %}</button></form>{% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table></div>
 {% else %}
@@ -66,7 +66,7 @@
       <td>
         <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="op" value="test_webhook"><input type="hidden" name="webhook_id" value="{{ hook.pk }}"><button class="btn" type="submit">{% translate 'Bandyti' %}</button></form>
         <form method="post" style="display:inline">{% csrf_token %}<input type="hidden" name="op" value="toggle_webhook"><input type="hidden" name="webhook_id" value="{{ hook.pk }}"><button class="btn" type="submit">{% if hook.active %}{% translate 'Išjungti' %}{% else %}{% translate 'Įjungti' %}{% endif %}</button></form>
-        <form method="post" style="display:inline" onsubmit="return confirm('{% translate 'Pašalinti webhook?' %}')">{% csrf_token %}<input type="hidden" name="op" value="delete_webhook"><input type="hidden" name="webhook_id" value="{{ hook.pk }}"><button class="btn danger" type="submit">{% translate 'Šalinti' %}</button></form>
+        <form method="post" style="display:inline" data-confirm="{% translate 'Pašalinti webhook?' %}">{% csrf_token %}<input type="hidden" name="op" value="delete_webhook"><input type="hidden" name="webhook_id" value="{{ hook.pk }}"><button class="btn danger" type="submit">{% translate 'Šalinti' %}</button></form>
       </td>
     </tr>{% endfor %}</tbody>
   </table></div>

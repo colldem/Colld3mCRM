@@ -69,6 +69,7 @@
 </div>
 <script src="{% static 'vendor/adminlte/adminlte.min.js' %}" defer></script>
 <script src="{% url 'javascript-catalog' %}"></script>
+<script src="{% static 'js/behaviors.js' %}?v=20260913a" defer></script>
 <script src="{% static 'js/theme.js' %}?v=20260913a" defer></script>
 <script src="{% static 'js/list-editing.js' %}?v=20260913a" defer></script>
 <script src="{% static 'js/detail-editing.js' %}?v=20260913a" defer></script>
@@ -77,6 +78,6 @@
 <script src="{% static 'js/search.js' %}?v=20260908a" defer></script>
 <script src="{% static 'js/forms.js' %}?v=20260910a" defer></script>
 <script src="{% static 'js/calendar.js' %}?v=20260913a" defer></script>
-<script>if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
+<script nonce="{{ csp_nonce }}">if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>
 </body>
 </html>

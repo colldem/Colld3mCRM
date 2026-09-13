@@ -14,7 +14,7 @@
 {% include "settings/_custom_field_list.html" with fields=people_fields %}
 <h3>{% translate 'Įmonių laukai' %}</h3>
 {% include "settings/_custom_field_list.html" with fields=company_fields %}
-<script>
+<script nonce="{{ csp_nonce }}">
 (() => {
   const form = document.querySelector('.custom-field-create');
   const type = form.querySelector('.cf-type-select');

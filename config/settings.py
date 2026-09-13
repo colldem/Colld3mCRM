@@ -31,6 +31,8 @@ MIDDLEWARE = [
     # First, so every log line of the request carries its id (contacts/observability.py).
     "contacts.observability.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Content-Security-Policy (nonce) and Permissions-Policy.
+    "contacts.middleware.SecurityHeadersMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
@@ -65,6 +67,7 @@ TEMPLATES = [{
         "contacts.context_processors.crm_permissions",
         "contacts.context_processors.system_settings",
         "contacts.context_processors.crm_menu",
+        "contacts.context_processors.csp",
     ]},
 }]
 WSGI_APPLICATION = "config.wsgi.application"
@@ -124,6 +127,9 @@ LOGGING = {
         "axes": {"level": "WARNING", "propagate": True},
     },
 }
+
+# Send the Content-Security-Policy as report-only (for checking a new setup).
+CRM_CSP_REPORT_ONLY = os.environ.get("CRM_CSP_REPORT_ONLY", "false").lower() == "true"
 
 # JSON API requests allowed per token per minute (0 = unlimited).
 CRM_API_RATE_LIMIT = int(os.environ.get("CRM_API_RATE_LIMIT", "120"))

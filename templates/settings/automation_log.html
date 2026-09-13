@@ -5,7 +5,7 @@
 </div>
 
 <form method="get" class="filter-row" style="margin-bottom:16px">
-  <select name="rule" onchange="this.form.submit()">
+  <select name="rule" data-autosubmit>
     <option value="">{% translate 'Visos taisyklės' %}</option>
     {% for rule in rules %}<option value="{{ rule.pk }}" {% if rule.pk|stringformat:'s' == rule_id %}selected{% endif %}>{{ rule.name }}</option>{% endfor %}
   </select>
