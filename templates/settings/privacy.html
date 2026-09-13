@@ -1,0 +1,18 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Duomenų apsauga' %}</h2><p>{% translate 'Duomenų subjekto užklausos: suraskite asmenį, atsisiųskite visus apie jį saugomus duomenis arba ištrinkite juos.' %}</p></div></div>
+
+<form method="get" class="audit-retention">
+  <label>{% translate 'Vardas, pavardė, el. paštas arba telefonas' %}<input type="search" name="q" value="{{ query }}" minlength="2" required></label>
+  <div class="filter-actions"><button class="btn primary" type="submit">{% translate 'Ieškoti' %}</button></div>
+</form>
+
+{% if query %}
+<ul class="settings-list custom-field-list">
+  {% for person in people %}
+  <li><div class="user-row"><div class="user-row-info"><strong>{{ person }}</strong><small>{% if person.deleted_at %}{% translate 'archyvuotas' %}{% else %}{% translate 'aktyvus' %}{% endif %} · ID {{ person.pk }}</small></div>
+    <div class="user-row-actions"><a class="btn" href="{% url 'contacts:settings-privacy-person' person.pk %}">{% translate 'Atidaryti' %}</a></div></div></li>
+  {% empty %}<li><small>{% translate 'Nieko nerasta.' %}</small></li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

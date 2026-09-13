@@ -55,6 +55,7 @@
       {% endif %}
       {% if crm_caps.can_import or crm_caps.can_export %}<a class="{% if settings_section == 'import-export' %}active{% endif %}" href="{% url 'contacts:import-export' %}">{% translate 'Importas / eksportas' %}</a>{% endif %}
       {% if request.user.is_staff %}<a class="{% if settings_section == 'data-export' %}active{% endif %}" href="{% url 'contacts:settings-data-export' %}">{% translate 'Duomenų eksportas' %}</a>{% endif %}
+      {% if is_crm_admin %}<a class="{% if settings_section == 'privacy' %}active{% endif %}" href="{% url 'contacts:settings-privacy' %}">{% translate 'Duomenų apsauga' %}</a>{% endif %}
       {% if crm_caps.can_view_audit %}<a class="{% if settings_section == 'audit' %}active{% endif %}" href="{% url 'contacts:settings-audit' %}">{% translate 'Žurnalas' %}</a>{% endif %}
     </div>
     {% endif %}

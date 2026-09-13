@@ -80,6 +80,25 @@ def _database_guard(switch, value):
             cursor.execute("SET LOCAL crm.%s = '%s'" % (switch, "on" if value else "off"))
 
 
+REDACTED = "[ištrinta]"
+
+
+def sanctioned_redact(queryset):
+    """Strip personal data from audit rows: who, what, where and when remain.
+
+    Only for erasing a data subject (contacts/privacy.py). Returns the count.
+    """
+    from django.db import models, transaction
+
+    with transaction.atomic():
+        _database_guard("audit_redact", True)
+        try:
+            return models.QuerySet.update(queryset, target_label=REDACTED, old_value="", new_value="",
+                                          detail={"redacted": True})
+        finally:
+            _database_guard("audit_redact", False)
+
+
 def sanctioned_delete(queryset):
     """Delete audit rows past the application and database guards.
 

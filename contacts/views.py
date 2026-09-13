@@ -1220,6 +1220,46 @@ _EXPORT_README = (
 
 
 @login_required
+def settings_privacy(request):
+    """Data protection: find a data subject; retention settings live here too."""
+    from .permissions import is_admin
+    from .privacy import find_people
+
+    if not is_admin(request.user):
+        raise Http404
+    query = request.GET.get("q", "")
+    return render(request, "settings/privacy.html", {
+        "settings_section": "privacy", "query": query, "people": find_people(query),
+    })
+
+
+@login_required
+def settings_privacy_person(request, pk):
+    """One data subject: what is held, export it, or erase it."""
+    from .permissions import is_admin
+    from .privacy import erase_person, export_person, summary
+
+    if not is_admin(request.user):
+        raise Http404
+    person = get_object_or_404(Person, pk=pk)
+    if request.GET.get("format") == "zip":
+        response = HttpResponse(export_person(person, request), content_type="application/zip")
+        response["Content-Disposition"] = 'attachment; filename="duomenu-subjektas-%d.zip"' % person.pk
+        return response
+    if request.method == "POST" and request.POST.get("op") == "erase":
+        if request.POST.get("confirm_name", "").strip() != str(person).strip():
+            messages.error(request, tr("Patvirtinimui įveskite tikslų asmens vardą ir pavardę."))
+            return redirect("contacts:settings-privacy-person", pk=person.pk)
+        counts = erase_person(person, request)
+        messages.success(request, tr("Asmens duomenys ištrinti: %(activities)s veiklų, %(attachments)s priedų, "
+                                     "%(incoming_mail)s laiškų; %(audit_rows)s žurnalo įrašų nuasmeninta.") % counts)
+        return redirect("contacts:settings-privacy")
+    return render(request, "settings/privacy_person.html", {
+        "settings_section": "privacy", "person": person, "summary": summary(person),
+    })
+
+
+@login_required
 def settings_data_export(request):
     if not request.user.is_staff:
         raise Http404

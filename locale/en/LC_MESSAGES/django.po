@@ -3787,3 +3787,66 @@ msgstr "Audit log and security events"
 
 msgid "izoliuota kopija; laiškai, IMAP, katalogo prisijungimas ir webhook’ai išjungti"
 msgstr "isolated copy; email, IMAP, directory sign-in and webhooks are off"
+
+msgid "Duomenų apsauga"
+msgstr "Data protection"
+
+msgid "Duomenų subjekto užklausos: suraskite asmenį, atsisiųskite visus apie jį saugomus duomenis arba ištrinkite juos."
+msgstr "Data subject requests: find a person, download everything held about them, or erase it."
+
+msgid "Vardas, pavardė, el. paštas arba telefonas"
+msgstr "Name, e-mail or phone"
+
+msgid "archyvuotas"
+msgstr "archived"
+
+msgid "Duomenų subjekto užklausa"
+msgstr "Data subject request"
+
+msgid "veiklų"
+msgstr "activities"
+
+msgid "priminimų"
+msgstr "reminders"
+
+msgid "priedų"
+msgstr "attachments"
+
+msgid "gautų laiškų"
+msgstr "incoming e-mails"
+
+msgid "žurnalo įrašų"
+msgstr "audit entries"
+
+msgid "Susipažinimas ir perkeliamumas"
+msgstr "Access and portability"
+
+msgid "ZIP archyvas: data.json su visais asmens duomenimis, veiklomis, priminimais, laiškais ir žurnalo įrašais bei prisegti failai. Atsisiuntimas įrašomas į žurnalą."
+msgstr "A ZIP archive: data.json with all personal data, activities, reminders, e-mails and audit entries, plus the attached files. The download is logged."
+
+msgid "Atsisiųsti duomenis (ZIP)"
+msgstr "Download data (ZIP)"
+
+msgid "Ištrynimas"
+msgstr "Erasure"
+
+msgid "Negrįžtamai ištrinamas asmuo, jo kontaktai, ryšiai, veiklos, priminimai, dinaminiai laukai, priedai ir jų failai bei susiję gauti laiškai. Žurnale lieka, kas, ką ir kada darė, bet be vardų ir reikšmių. Atsarginėse kopijose duomenys lieka, kol kopijos pasibaigia."
+msgstr "Permanently deletes the person, their contact details, links, activities, reminders, custom fields, attachments and files, and related incoming e-mail. The audit log keeps who did what and when, without names or values. Backups keep the data until they expire."
+
+msgid "Ištrinti šio asmens duomenis visam laikui?"
+msgstr "Permanently erase this person's data?"
+
+msgid "Patvirtinimui įveskite „%(person)s\""
+msgstr "To confirm, type \"%(person)s\""
+
+msgid "Ištrinti visam laikui"
+msgstr "Erase permanently"
+
+msgid "Patvirtinimui įveskite tikslų asmens vardą ir pavardę."
+msgstr "To confirm, type the person's exact first and last name."
+
+msgid "Asmens duomenys ištrinti: %(activities)s veiklų, %(attachments)s priedų, %(incoming_mail)s laiškų; %(audit_rows)s žurnalo įrašų nuasmeninta."
+msgstr "Personal data erased: %(activities)s activities, %(attachments)s attachments, %(incoming_mail)s e-mails; %(audit_rows)s audit entries redacted."
+
+msgid "Duomenų apsauga (BDAR)"
+msgstr "Data protection (GDPR)"

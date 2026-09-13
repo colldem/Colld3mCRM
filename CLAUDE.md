@@ -90,6 +90,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   iš produkcijos atkurta kopija neveiktų realiame pasaulyje
   (`manage.py sanitize_staging` išvalo tai ir pačiuose duomenyse);
   `crypto.py` — integracijų slaptažodžių šifravimas (`CRM_SECRETS_KEY`);
+  `privacy.py` — duomenų subjekto eksportas (ZIP) ir ištrynimas su žurnalo nuasmeninimu; `anonymize.py` — staging nuasmeninimas;
   `observability.py` — JSON žurnalai (`CRM_LOG_FORMAT`), `X-Request-ID`, `crm.security` įvykiai (audito veidrodis be asmens duomenų);
   `automation.py` + `management/commands/run_automations.py` — „kai X → daryk Y" taisyklės;
   `api.py` + `api_urls.py` — rankomis rašytas JSON REST API (`/api/v1/`);

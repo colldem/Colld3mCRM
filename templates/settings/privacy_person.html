@@ -1,0 +1,27 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{{ person }}</h2><p>{% translate 'Duomenų subjekto užklausa' %} · ID {{ person.pk }}{% if person.deleted_at %} · {% translate 'archyvuotas' %}{% endif %}</p></div>
+  <a class="btn" href="{% url 'contacts:settings-privacy' %}">← {% translate 'Duomenų apsauga' %}</a></div>
+
+<div class="doc-facts">
+  <div><b>{{ summary.activities }}</b><span>{% translate 'veiklų' %}</span></div>
+  <div><b>{{ summary.reminders }}</b><span>{% translate 'priminimų' %}</span></div>
+  <div><b>{{ summary.attachments }}</b><span>{% translate 'priedų' %}</span></div>
+  <div><b>{{ summary.incoming_mail }}</b><span>{% translate 'gautų laiškų' %}</span></div>
+  <div><b>{{ summary.audit_rows }}</b><span>{% translate 'žurnalo įrašų' %}</span></div>
+</div>
+
+<div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% translate 'Susipažinimas ir perkeliamumas' %}</h2><p>{% translate 'ZIP archyvas: data.json su visais asmens duomenimis, veiklomis, priminimais, laiškais ir žurnalo įrašais bei prisegti failai. Atsisiuntimas įrašomas į žurnalą.' %}</p></div></div>
+  <a class="btn primary" href="?format=zip">{% translate 'Atsisiųsti duomenis (ZIP)' %}</a>
+</div>
+
+<div class="settings-subsection">
+  <div class="settings-section-head"><div><h2>{% translate 'Ištrynimas' %}</h2><p>{% translate 'Negrįžtamai ištrinamas asmuo, jo kontaktai, ryšiai, veiklos, priminimai, dinaminiai laukai, priedai ir jų failai bei susiję gauti laiškai. Žurnale lieka, kas, ką ir kada darė, bet be vardų ir reikšmių. Atsarginėse kopijose duomenys lieka, kol kopijos pasibaigia.' %}</p></div></div>
+  {% translate 'Ištrinti šio asmens duomenis visam laikui?' as confirm_text %}
+  <form method="post" class="audit-retention" data-confirm="{{ confirm_text }}">{% csrf_token %}<input type="hidden" name="op" value="erase">
+    <label>{% blocktranslate %}Patvirtinimui įveskite „{{ person }}"{% endblocktranslate %}<input name="confirm_name" autocomplete="off" required></label>
+    <div class="filter-actions"><button class="btn danger" type="submit">{% translate 'Ištrinti visam laikui' %}</button></div>
+  </form>
+</div>
+{% endblock %}

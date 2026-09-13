@@ -6724,3 +6724,129 @@ class StagingAnonymisationTests(TestCase):
         script = (settings.BASE_DIR / "scripts" / "refresh-staging.sh").read_text()
         self.assertLess(script.index("copying media"), script.index("manage.py sanitize_staging"))
 
+
+
+class DataSubjectRequestTests(TestCase):
+    """Access/portability export and erasure of one contact person."""
+
+    def setUp(self):
+        from contacts.audit import log as audit_log
+        from contacts.models import AuditLog, IncomingMail, PostalAddress
+        self.media = TemporaryDirectory()
+        self.override = override_settings(MEDIA_ROOT=self.media.name)
+        self.override.enable()
+        self.admin = get_user_model().objects.create_superuser("root", email="r@local", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Ona", last_name="Onaitė", created_by=self.admin, owner=self.admin)
+        EmailAddress.objects.create(person=self.person, email="ona@imone.lt")
+        PhoneNumber.objects.create(person=self.person, number="+37069999999")
+        PostalAddress.objects.create(person=self.person, address="Vilniaus g. 5")
+        self.other = Person.objects.create(first_name="Kitas", last_name="Asmuo", created_by=self.admin)
+        self.activity = Activity.objects.create(person=self.person, text="Ona prašė pasiūlymo", created_by=self.admin)
+        self.attachment = Attachment.objects.create(activity=self.activity, original_name="pasiulymas.txt",
+                                                    file=SimpleUploadedFile("p.txt", b"Onos pasiulymas"))
+        Reminder.objects.create(person=self.person, text="Perskambinti Onai", due_at=timezone.now(), created_by=self.admin)
+        IncomingMail.objects.create(message_id="<ona>", from_addr="Ona <ona@imone.lt>", subject="Klausimas",
+                                    body="Sveiki", received_at=timezone.now())
+        IncomingMail.objects.create(message_id="<kitas>", from_addr="kitas@imone.lt", subject="Kita", body="x",
+                                    received_at=timezone.now())
+        self.audit_person = audit_log(AuditLog.UPDATE, actor=self.admin, target=self.person, field="first_name",
+                                      old="Onutė", new="Ona")
+        self.audit_mention = audit_log(AuditLog.UPDATE, actor=self.admin, target=self.other, field="note",
+                                       old="", new="susijęs su ona@imone.lt")
+        self.audit_unrelated = audit_log(AuditLog.UPDATE, actor=self.admin, target=self.other, field="first_name",
+                                         old="Kitoks", new="Kitas")
+        self.client.force_login(self.admin)
+        self.url = reverse("contacts:settings-privacy-person", args=[self.person.pk])
+
+    def tearDown(self):
+        self.override.disable()
+        self.media.cleanup()
+
+    def test_only_admins_reach_it(self):
+        self.client.force_login(get_user_model().objects.create_user("plain", password="very-secure-password"))
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+        self.assertEqual(self.client.get(reverse("contacts:settings-privacy")).status_code, 404)
+
+    def test_search_finds_active_and_archived_people_by_name_email_or_phone(self):
+        self.person.deleted_at = timezone.now()
+        self.person.save()
+        for query in ("Onaitė", "ona onaitė", "ona@imone", "69999999"):
+            with self.subTest(query=query):
+                self.assertContains(self.client.get(reverse("contacts:settings-privacy"), {"q": query}), self.url)
+
+    def test_export_contains_everything_and_is_audited(self):
+        import io
+        import zipfile
+        from contacts.models import AuditLog
+        response = self.client.get(self.url, {"format": "zip"})
+        self.assertEqual(response["Content-Type"], "application/zip")
+        archive = zipfile.ZipFile(io.BytesIO(response.content))
+        data = json.loads(archive.read("data.json"))
+        self.assertEqual(data["person"]["last_name"], "Onaitė")
+        self.assertEqual(data["emails"][0]["email"], "ona@imone.lt")
+        self.assertEqual(data["addresses"][0]["address"], "Vilniaus g. 5")
+        self.assertEqual(data["activities"][0]["text"], "Ona prašė pasiūlymo")
+        self.assertEqual(data["reminders"][0]["text"], "Perskambinti Onai")
+        self.assertEqual([m["subject"] for m in data["incoming_mail"]], ["Klausimas"])
+        self.assertEqual(data["audit_trail"][0]["old"], "Onutė")
+        self.assertEqual(archive.read("attachments/%d-pasiulymas.txt" % self.attachment.pk), b"Onos pasiulymas")
+        entry = AuditLog.objects.filter(action=AuditLog.EXPORT, target_id=str(self.person.pk)).get()
+        self.assertNotIn("Ona", entry.target_label)
+
+    def test_erasure_needs_the_exact_name(self):
+        self.client.post(self.url, {"op": "erase", "confirm_name": "Ona"})
+        self.assertTrue(Person.objects.filter(pk=self.person.pk).exists())
+
+    def test_erasure_removes_the_person_everywhere_and_redacts_the_audit_trail(self):
+        import os
+        from contacts.models import AuditLog, IncomingMail
+        path = self.attachment.file.path
+        self.assertTrue(os.path.exists(path))
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url, {"op": "erase", "confirm_name": "Ona Onaitė"}, follow=True)
+        self.assertContains(response, "Asmens duomenys ištrinti")
+        self.assertFalse(Person.objects.filter(pk=self.person.pk).exists())
+        self.assertFalse(EmailAddress.objects.filter(email="ona@imone.lt").exists())
+        self.assertFalse(Activity.objects.filter(pk=self.activity.pk).exists())
+        self.assertFalse(Reminder.objects.filter(text="Perskambinti Onai").exists())
+        self.assertFalse(Attachment.objects.filter(pk=self.attachment.pk).exists())
+        self.assertFalse(os.path.exists(path))
+        self.assertEqual(list(IncomingMail.objects.values_list("message_id", flat=True)), ["<kitas>"])
+        self.assertTrue(Person.objects.filter(pk=self.other.pk).exists())
+        for row in (self.audit_person, self.audit_mention):
+            row = AuditLog.objects.get(pk=row.pk)
+            with self.subTest(row=row.pk):
+                self.assertEqual((row.target_label, row.old_value, row.new_value), ("[ištrinta]", "", ""))
+                self.assertEqual((row.action, row.actor_id, row.field), (AuditLog.UPDATE, self.admin.pk, row.field))
+        self.assertEqual(AuditLog.objects.get(pk=self.audit_unrelated.pk).old_value, "Kitoks")
+        erasure = AuditLog.objects.get(action=AuditLog.DELETE, detail__reason="data_subject_erasure")
+        self.assertEqual(erasure.target_id, str(self.person.pk))
+        everything = json.dumps(list(AuditLog.objects.values()), default=str)
+        for secret in ("Ona", "Onaitė", "ona@imone.lt", "Onutė", "69999999"):
+            self.assertNotIn(secret, everything)
+
+    def test_detail_menu_links_admins_to_the_request_page(self):
+        self.assertContains(self.client.get(reverse("contacts:detail", args=[self.person.pk])), self.url)
+
+
+class PostgresAuditRedactionGuardTests(TestCase):
+    """Redaction may strip values but never rewrite who, what or when (PostgreSQL only)."""
+
+    def setUp(self):
+        from django.db import connection
+        if connection.vendor != "postgresql":
+            self.skipTest("the database guard exists on PostgreSQL only")
+        from contacts.audit import log as audit_log
+        from contacts.models import AuditLog
+        self.entry = audit_log(AuditLog.UPDATE, target_type="person", target_id="1", target_label="Ona", old="a", new="b")
+
+    def test_redaction_switch_allows_values_but_not_facts(self):
+        from django.db import DatabaseError, connection, transaction
+        from contacts.audit import sanctioned_redact
+        from contacts.models import AuditLog
+        self.assertEqual(sanctioned_redact(AuditLog.objects.filter(pk=self.entry.pk)), 1)
+        with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("SET LOCAL crm.audit_redact = 'on'")
+            cursor.execute("UPDATE contacts_auditlog SET action = 'login' WHERE id = %s", [self.entry.pk])
+        with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
+            cursor.execute("UPDATE contacts_auditlog SET old_value = 'x' WHERE id = %s", [self.entry.pk])

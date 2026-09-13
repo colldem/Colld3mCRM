@@ -23,6 +23,7 @@
         <summary class="btn" title="{% translate 'Daugiau veiksmų' %}" aria-label="{% translate 'Daugiau veiksmų' %}">⋯</summary>
         <div class="rec-menu-panel">
           {% if crm_caps.can_edit %}<a href="{{ edit_url }}">{% translate 'Redaguoti visus laukus' %}</a>{% endif %}
+          {% if is_crm_admin and not is_company %}<a href="{% url 'contacts:settings-privacy-person' person.pk %}">{% translate 'Duomenų subjekto užklausa' %}</a>{% endif %}
           <button type="button" class="copy-link" data-link="{{ request.scheme }}://{{ request.get_host }}{{ record.get_absolute_url }}">{% translate 'Kopijuoti nuorodą' %}</button>
           {% if crm_caps.can_delete %}<form method="post" action="{{ archive_url }}">{% csrf_token %}<button class="danger" type="submit">{% translate 'Archyvuoti' %}</button></form>{% endif %}
         </div>
