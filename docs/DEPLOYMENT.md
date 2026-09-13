@@ -86,6 +86,8 @@ DJANGO_ALLOWED_HOSTS=crm.example.com
 DJANGO_CSRF_TRUSTED_ORIGINS=https://crm.example.com
 DJANGO_FORCE_HTTPS=true
 CRM_BASE_URL=https://crm.example.com
+# The proxy's address as the app sees it (same host: loopback).
+CRM_TRUSTED_PROXIES=127.0.0.1/32
 ```
 
 Your proxy must pass `X-Forwarded-Proto`; the app already trusts that header to
@@ -97,9 +99,15 @@ location / {
     proxy_set_header   Host              $host;
     proxy_set_header   X-Forwarded-Proto $scheme;
     proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
-    client_max_body_size 64m;
+    client_max_body_size 12m;
+    proxy_read_timeout   90s;
 }
 ```
+
+A proxy on another machine: publish on that interface only (`CRM_BIND_IP=<app VM
+address>`), firewall the port to the proxy, and set `CRM_TRUSTED_PROXIES` to the
+proxy's address. The organisational deployment guide — network flows, sizing,
+upgrade and rollback — is [DIEGIMAS-ORGANIZACIJOJE.md](DIEGIMAS-ORGANIZACIJOJE.md).
 
 ### B. Your own domain, certificates handled for you
 
