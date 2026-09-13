@@ -10,7 +10,7 @@
         <tr>
           <td>{{ label }}</td>
           {% for role in roles %}
-            <td class="permissions-cell"><label><input type="checkbox" name="cap_{{ role.key }}" value="{{ key }}"{% if role.caps|get_item:key %} checked{% endif %}> <span class="sr-only">{{ label }} — {{ role.label }}</span></label></td>
+            <td class="permissions-cell"><label><input type="checkbox" name="cap_{{ role.key }}" value="{{ key }}"{% if role.caps|get_item:key %} checked{% endif %}{% if role.key == readonly_role and key not in readonly_caps %} disabled title="{% translate 'Skaitytojas nieko nekeičia' %}"{% endif %}> <span class="sr-only">{{ label }} — {{ role.label }}</span></label></td>
           {% endfor %}
         </tr>
       {% endfor %}

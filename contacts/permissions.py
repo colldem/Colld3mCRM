@@ -32,16 +32,22 @@ _CAPABILITY_DEFAULTS = {
         "can_manage_custom_fields": False, "can_manage_taxonomy": False,
         "can_manage_automations": False, "can_view_audit": False,
     },
+    UserProfile.ROLE_READONLY: {key: False for key in CAPABILITY_KEYS},
 }
+# A reader changes nothing; only these read-side capabilities can be granted.
+READONLY_CAPABILITIES = {"can_export", "can_view_audit"}
+EDITABLE_ROLES = (UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY)
 
 
 def capability_matrix():
     """{role: {capability: bool}} for the non-admin roles, stored value over default."""
     stored = {row.role: row.permissions or {} for row in RolePermissions.objects.all()}
     matrix = {}
-    for role in (UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED):
+    for role in EDITABLE_ROLES:
         defaults = _CAPABILITY_DEFAULTS[role]
         matrix[role] = {key: bool(stored.get(role, {}).get(key, defaults[key])) for key in CAPABILITY_KEYS}
+        if role == UserProfile.ROLE_READONLY:
+            matrix[role] = {key: value and key in READONLY_CAPABILITIES for key, value in matrix[role].items()}
     return matrix
 
 
@@ -52,6 +58,8 @@ def has_capability(user, capability):
         return True
     role = role_of(user)
     if role not in _CAPABILITY_DEFAULTS:
+        return False
+    if role == UserProfile.ROLE_READONLY and capability not in READONLY_CAPABILITIES:
         return False
     row = RolePermissions.objects.filter(role=role).first()
     if row and capability in (row.permissions or {}):
@@ -70,6 +78,10 @@ def role_of(user):
     if profile and profile.role:
         return profile.role
     return UserProfile.ROLE_ADMIN if user.is_staff else UserProfile.ROLE_MEMBER
+
+
+def is_read_only(user):
+    return role_of(user) == UserProfile.ROLE_READONLY
 
 
 def is_admin(user):

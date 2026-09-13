@@ -56,7 +56,8 @@ _PAGES = {
     "analytics": (tr_lazy("Analitika"), "contacts:analytics-overview", None),
     "import-export": (tr_lazy("Importas / eksportas"), "contacts:import-export", "can_import_or_export"),
     "archive": (tr_lazy("Archyvas"), "contacts:archive-list", None),
-    "duplicates": (tr_lazy("Galimi dublikatai"), "contacts:duplicate-list", None),
+    # Reviewing duplicates means merging or dismissing them, which a reader cannot do.
+    "duplicates": (tr_lazy("Galimi dublikatai"), "contacts:duplicate-list", "can_edit"),
     "settings": (tr_lazy("Nustatymai"), "contacts:settings", None),
 }
 
@@ -72,6 +73,15 @@ def page_choices(capabilities):
     """(key, label) for every page the user may put in the menu."""
     return [(key, _PAGES[key][0]) for key in _PAGES
             if key not in ("home", "settings") and _allowed(key, capabilities)]
+
+
+def capabilities_for(user):
+    """The capability flags menu entries are gated on, plus ``can_edit`` (not a reader)."""
+    from .permissions import CAPABILITY_KEYS, has_capability, is_read_only
+
+    capabilities = {key: has_capability(user, key) for key in CAPABILITY_KEYS}
+    capabilities["can_edit"] = not is_read_only(user)
+    return capabilities
 
 
 def _allowed(key, capabilities):
@@ -97,7 +107,7 @@ def _shortcut_item(entry, capabilities):
         if kind == "page" and value in _PAGES and _allowed(value, capabilities):
             label, url_name, _ = _PAGES[value]
             return Item(f"s-{value}", label, reverse(url_name), _ICONS.get(value, _ICONS["record"]))
-        if kind == "action" and value in ACTIONS:
+        if kind == "action" and value in ACTIONS and capabilities.get("can_edit", True):
             label, url_name = ACTIONS[value]
             return Item(f"s-{value}", label, reverse(url_name), _ICONS["action"])
         if kind in ("person", "company") and value.isdigit():
@@ -112,10 +122,8 @@ def _shortcut_item(entry, capabilities):
 
 def build(request):
     """The three bands, ready to render."""
-    from .permissions import CAPABILITY_KEYS, has_capability
-
     user = request.user
-    capabilities = {key: has_capability(user, key) for key in CAPABILITY_KEYS}
+    capabilities = capabilities_for(user)
     profile = getattr(user, "crm_profile", None)
     hidden, shortcuts = _config(profile)
     current = getattr(request.resolver_match, "url_name", "") or ""

@@ -17,12 +17,12 @@
       </div>
     </div>
     <div class="rec-actions">
-      <button type="button" class="btn primary" data-focus-composer>＋ {% translate 'Įrašas' %}</button>
-      {% if not is_company %}<button type="button" class="btn" data-open-tab="reminders">＋ {% translate 'Priminimas' %}</button>{% endif %}
+      {% if crm_caps.can_edit %}<button type="button" class="btn primary" data-focus-composer>＋ {% translate 'Įrašas' %}</button>
+      {% if not is_company %}<button type="button" class="btn" data-open-tab="reminders">＋ {% translate 'Priminimas' %}</button>{% endif %}{% endif %}
       <details class="rec-menu">
         <summary class="btn" title="{% translate 'Daugiau veiksmų' %}" aria-label="{% translate 'Daugiau veiksmų' %}">⋯</summary>
         <div class="rec-menu-panel">
-          <a href="{{ edit_url }}">{% translate 'Redaguoti visus laukus' %}</a>
+          {% if crm_caps.can_edit %}<a href="{{ edit_url }}">{% translate 'Redaguoti visus laukus' %}</a>{% endif %}
           <button type="button" class="copy-link" data-link="{{ request.scheme }}://{{ request.get_host }}{{ record.get_absolute_url }}">{% translate 'Kopijuoti nuorodą' %}</button>
           {% if crm_caps.can_delete %}<form method="post" action="{{ archive_url }}">{% csrf_token %}<button class="danger" type="submit">{% translate 'Archyvuoti' %}</button></form>{% endif %}
         </div>
@@ -61,7 +61,7 @@
     {% comment %}One composer for every kind of entry; the tabs below only filter the feed.{% endcomment %}
     <section class="detail-card rec-activity" data-tabs>
       <h2>{% translate 'Veikla' %}</h2>
-      <form method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="composer" id="composer">
+      {% if crm_caps.can_edit %}<form method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="composer" id="composer">
         {% csrf_token %}
         <input type="hidden" name="submission_token" value="{{ activity_token }}">
         <label class="sr-only" for="composer-text">{% translate 'Naujas įrašas' %}</label>
@@ -71,7 +71,7 @@
           <label class="composer-kind">{% translate 'Tipas' %} {{ activity_form.activity_type }}</label>
           <label class="composer-file">{% translate 'Prisegti failą' %}<input name="attachments" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.doc,.docx,.xls,.xlsx"></label>
         </div>
-      </form>
+      </form>{% endif %}
 
       <div class="tab-strip" role="tablist">
         <button type="button" role="tab" class="tab is-active" data-tab="all" id="tab-all">{% translate 'Visi' %} <span>{{ all_entries|length }}</span></button>
@@ -99,7 +99,7 @@
       </div>
 
       <div class="tab-panel" data-panel="reminders" role="tabpanel" hidden>
-        {% if not is_company %}
+        {% if not is_company and crm_caps.can_edit %}
           <details id="reminder-add"><summary>{% translate 'Pridėti priminimą' %}</summary>
             <form method="post" action="{% url 'contacts:reminder-create' person.pk %}" class="stack-form">{% csrf_token %}
               <input type="hidden" name="submission_token" value="{{ reminder_token }}">
@@ -114,7 +114,7 @@
           </details>
         {% endif %}
         <div class="reminder-list">
-          {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:datetime_format }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span><form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form></div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
+          {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:datetime_format }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span>{% if crm_caps.can_edit %}<form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form>{% endif %}</div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
         </div>
       </div>
     </section>

@@ -1,6 +1,7 @@
 function bindDetailField(block) {
   const display = block.querySelector('.field-display');
   const form = block.querySelector('.field-editor');
+  if (!form) return;  // read-only role: no editor rendered
   const status = form.querySelector('[role=status]');
   let linkTimer;
   const open = () => {

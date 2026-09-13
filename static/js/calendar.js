@@ -1,7 +1,7 @@
 // Calendar: click or drag an empty slot to schedule, click an event to edit.
 (() => {
   const dialog = document.getElementById('cal-dialog');
-  if (!dialog) return;
+  if (!dialog || document.body.dataset.readOnly) return;
 
   const config = JSON.parse(document.getElementById('cal-config').textContent);
   const form = document.getElementById('cal-form');

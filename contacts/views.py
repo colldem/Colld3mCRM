@@ -761,10 +761,9 @@ def settings_menu(request):
     """Each user shapes their own side menu — nothing is hidden from them, only
     folded away under "Daugiau"."""
     from .forms import MenuForm
-    from .menu import ACTIONS, MAX_SHORTCUTS, page_choices
-    from .permissions import CAPABILITY_KEYS, has_capability
+    from .menu import ACTIONS, MAX_SHORTCUTS, capabilities_for, page_choices
 
-    capabilities = {key: has_capability(request.user, key) for key in CAPABILITY_KEYS}
+    capabilities = capabilities_for(request.user)
     form = MenuForm(request.POST or None, user=request.user, capabilities=capabilities)
     if request.method == "POST" and form.is_valid():
         form.save()
@@ -1066,10 +1065,14 @@ def settings_permissions(request):
 
     if not is_admin(request.user):
         raise Http404
-    editable_roles = [UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED]
+    from .permissions import EDITABLE_ROLES, READONLY_CAPABILITIES
+
+    editable_roles = list(EDITABLE_ROLES)
     if request.method == "POST":
         for role in editable_roles:
             granted = set(request.POST.getlist("cap_" + role))
+            if role == UserProfile.ROLE_READONLY:
+                granted &= READONLY_CAPABILITIES
             permissions = {key: (key in granted) for key, _label in CAPABILITIES}
             RolePermissions.objects.update_or_create(role=role, defaults={"permissions": permissions})
         audit_log(AuditLog.SETTING, request=request, target_type="setting",
@@ -1082,6 +1085,7 @@ def settings_permissions(request):
         "settings_section": "permissions",
         "capabilities": CAPABILITIES,
         "roles": [{"key": role, "label": role_labels.get(role, role), "caps": matrix[role]} for role in editable_roles],
+        "readonly_role": UserProfile.ROLE_READONLY, "readonly_caps": READONLY_CAPABILITIES,
     })
 
 

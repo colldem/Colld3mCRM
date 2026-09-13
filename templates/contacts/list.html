@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head"><div><h1>{% translate 'Kontaktai' %}</h1><p>{{ page.paginator.count }} {% translate 'kontaktai' %}</p></div></div>
 <div class="record-toolbar">
-  <div class="record-actions"><a class="btn primary" href="{% url 'contacts:create' %}">{% translate '+ Pridėti kontaktą' %}</a></div>
+  {% if crm_caps.can_edit %}<div class="record-actions"><a class="btn primary" href="{% url 'contacts:create' %}">{% translate '+ Pridėti kontaktą' %}</a></div>{% endif %}
   <div class="list-actions">
     <a class="btn{% if filter_values.owner == 'me' %} primary{% endif %}" href="?owner=me">{% translate 'Mano kontaktai' %}</a>
     {% include "filters/contact_drawer.html" %}

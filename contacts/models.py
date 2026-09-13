@@ -115,10 +115,12 @@ class UserProfile(models.Model):
     ROLE_ADMIN = "admin"
     ROLE_MEMBER = "member"
     ROLE_RESTRICTED = "restricted"
+    ROLE_READONLY = "readonly"
     ROLE_CHOICES = (
         (ROLE_ADMIN, tr("Administratorius")),
         (ROLE_MEMBER, tr("Naudotojas (visi įrašai)")),
         (ROLE_RESTRICTED, tr("Naudotojas (tik savi įrašai)")),
+        (ROLE_READONLY, tr("Skaitytojas (tik peržiūra)")),
     )
 
     VISIBILITY_ALL = "all"

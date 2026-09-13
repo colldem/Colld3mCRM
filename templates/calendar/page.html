@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head">
   <div><h1>{% translate 'Kalendorius' %}</h1><p>{% translate 'Tik jūsų suplanuoti priminimai.' %}</p></div>
-  <div class="page-actions"><button class="btn primary" type="button" data-cal-new>＋ {% translate 'Naujas įvykis' %}</button></div>
+  {% if crm_caps.can_edit %}<div class="page-actions"><button class="btn primary" type="button" data-cal-new>＋ {% translate 'Naujas įvykis' %}</button></div>{% endif %}
 </div>
 
 <div class="cal-toolbar">

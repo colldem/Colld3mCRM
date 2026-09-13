@@ -11,7 +11,7 @@
     <tbody>{% for person in people %}<tr>
       <td><input type="checkbox" class="archive-select" name="selected" value="{{ person.pk }}" aria-label="{% translate 'Pažymėti' %} {{ person }}"></td>
       <td>{{ person }}</td><td>{{ person.deleted_at|date:datetime_format }}</td>
-      <td><button class="btn" formaction="{% url 'contacts:restore' person.pk %}" formmethod="post">{% translate 'Atkurti' %}</button></td>
+      <td>{% if crm_caps.can_edit %}<button class="btn" formaction="{% url 'contacts:restore' person.pk %}" formmethod="post">{% translate 'Atkurti' %}</button>{% endif %}</td>
     </tr>{% empty %}<tr><td colspan="4" class="empty">{% translate 'Archyvuotų kontaktų nėra.' %}</td></tr>{% endfor %}</tbody>
   </table></div>
   {% if people %}<button class="btn primary archive-restore-selected" type="submit" hidden>{% translate 'Atkurti pažymėtus' %}</button>{% endif %}
@@ -26,7 +26,7 @@
     <tbody>{% for company in companies %}<tr>
       <td><input type="checkbox" class="archive-select" name="selected" value="{{ company.pk }}" aria-label="{% translate 'Pažymėti' %} {{ company.name }}"></td>
       <td>{{ company.name }}</td><td>{{ company.deleted_at|date:datetime_format }}</td>
-      <td><button class="btn" formaction="{% url 'contacts:company-restore' company.pk %}" formmethod="post">{% translate 'Atkurti' %}</button></td>
+      <td>{% if crm_caps.can_edit %}<button class="btn" formaction="{% url 'contacts:company-restore' company.pk %}" formmethod="post">{% translate 'Atkurti' %}</button>{% endif %}</td>
     </tr>{% empty %}<tr><td colspan="4" class="empty">{% translate 'Archyvuotų įmonių nėra.' %}</td></tr>{% endfor %}</tbody>
   </table></div>
   {% if companies %}<button class="btn primary archive-restore-selected" type="submit" hidden>{% translate 'Atkurti pažymėtus' %}</button>{% endif %}

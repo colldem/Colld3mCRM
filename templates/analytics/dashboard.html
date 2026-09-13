@@ -4,14 +4,14 @@
 <div class="page-head">
   <div><h1>{% translate 'Darbastalis' %}</h1><p>{% translate 'Trumpa jūsų CRM apžvalga. Viskas, kas svarbiausia, vienoje vietoje.' %}</p></div>
   <div class="page-actions">
-    <details class="quick-add">
+    {% if crm_caps.can_edit %}<details class="quick-add">
       <summary class="btn primary">+ {% translate 'Pridėti' %}</summary>
       <div class="quick-menu">
         <a href="{% url 'contacts:person-create' %}">{% translate 'Kontaktą' %}</a>
         <a href="{% url 'contacts:company-create' %}">{% translate 'Įmonę' %}</a>
         <a href="{% url 'contacts:calendar' %}">{% translate 'Priminimą' %}</a>
       </div>
-    </details>
+    </details>{% endif %}
   </div>
 </div>
 

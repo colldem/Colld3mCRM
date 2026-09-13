@@ -40,6 +40,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Re-checks directory sessions with the identity provider (contacts/oidc.py).
     "contacts.oidc.DirectorySessionRefresh",
+    # The "Skaitytojas" role: refuses editing pages and shared-data writes.
+    "contacts.middleware.ReadOnlyRoleMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "axes.middleware.AxesMiddleware",

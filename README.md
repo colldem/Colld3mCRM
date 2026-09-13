@@ -53,7 +53,7 @@ lives inside the app: **Settings → Documentation**.
   evaluated in the background.
 - **Integration.** A JSON REST API at `/api/v1/` with bearer tokens, and outgoing
   webhooks signed with HMAC-SHA256.
-- **Access control.** Roles (administrator / all records / own records only), a
+- **Access control.** Roles (administrator / all records / own records only / read-only reader), a
   role-permission table, teams, and per-record visibility. Sign-in rate limiting
   and lockout. Single sign-on through Microsoft Entra ID or AD FS (OIDC), with roles and
   teams driven by directory (AD) groups, alongside local accounts.

@@ -3727,3 +3727,12 @@ msgstr "This user's sign-in is managed by the organisation directory; a local pa
 
 msgid "Prisijungiate per organizacijos katalogą — slaptažodis keičiamas ten, ne CRM."
 msgstr "You sign in through the organisation directory - change your password there, not in the CRM."
+
+msgid "Skaitytojas (tik peržiūra)"
+msgstr "Reader (view only)"
+
+msgid "Skaitytojas nieko nekeičia"
+msgstr "A reader changes nothing"
+
+msgid "Jūsų rolė leidžia tik peržiūrėti duomenis."
+msgstr "Your role only allows viewing data."

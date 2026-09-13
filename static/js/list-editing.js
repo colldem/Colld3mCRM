@@ -143,7 +143,7 @@ document.querySelectorAll('.favourite-form').forEach(form => {
     finally { button.disabled = false; }
   });
 });
-document.querySelectorAll('[data-edit-url]').forEach(section => {
+document.querySelectorAll(document.body.dataset.readOnly ? ':not(*)' : '[data-edit-url]').forEach(section => {
   const edit = () => location.assign(section.dataset.editUrl);
   section.addEventListener('dblclick', event => {
     if (!event.target.closest('a,button,input,select,textarea,form')) edit();

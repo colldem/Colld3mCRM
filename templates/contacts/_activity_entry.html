@@ -19,7 +19,7 @@ Scanned rather than read, so the author leads and the exact stamp lives in `titl
     </div>
     {% if activity.text %}<p>{{ activity.text|rich_text }}</p>{% endif %}
     {% for attachment in activity.attachments.all %}<a class="attachment" href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a>{% endfor %}
-    {% if activity.company_id %}<a class="feed-edit" href="{% url 'contacts:company-activity-edit' activity.company_id activity.pk %}">{% translate 'Redaguoti' %}</a>
+    {% if not crm_caps.can_edit %}{% elif activity.company_id %}<a class="feed-edit" href="{% url 'contacts:company-activity-edit' activity.company_id activity.pk %}">{% translate 'Redaguoti' %}</a>
     {% elif activity.person_id and not activity.person.deleted_at %}<a class="feed-edit" href="{% url 'contacts:activity-edit' activity.person_id activity.pk %}">{% translate 'Redaguoti' %}</a>{% endif %}
   </div>
 </article>

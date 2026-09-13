@@ -3,7 +3,7 @@
   <div class="field-display" tabindex="0" role="group" aria-label="{% translate 'Dukart spustelėkite pavadinimą, kad redaguotumėte' %}">
     <h1 {% if person %}data-contact-name{% else %}data-company-name{% endif %}>{% if person %}{{ person }}{% else %}{{ company.name }}{% endif %}</h1>
   </div>
-  <form class="field-editor title-field-editor" method="post" action="{% if person %}{% url 'contacts:field-edit' person.pk %}{% else %}{% url 'contacts:company-field-edit' company.pk %}{% endif %}" hidden>
+  {% if crm_caps.can_edit %}<form class="field-editor title-field-editor" method="post" action="{% if person %}{% url 'contacts:field-edit' person.pk %}{% else %}{% url 'contacts:company-field-edit' company.pk %}{% endif %}" hidden>
     {% csrf_token %}
     {% if person %}
       <input type="hidden" name="field" value="full_name">
@@ -15,5 +15,5 @@
     {% endif %}
     <div class="field-actions"><button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button><button class="btn cancel-field" type="button">{% translate 'Atšaukti' %}</button></div>
     <p role="status" aria-live="polite"></p>
-  </form>
+  </form>{% endif %}
 </div>

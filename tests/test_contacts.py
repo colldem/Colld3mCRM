@@ -6235,3 +6235,135 @@ class SsoOnlyAndSessionRefreshTests(TestCase):
         response = self.client.get(reverse("contacts:settings"))
         self.assertContains(response, "slaptažodis keičiamas ten, ne CRM")
         self.assertNotContains(response, "Pakeisti slaptažodį")
+
+
+class ReadOnlyRoleTests(TestCase):
+    """The "Skaitytojas" role sees records but changes nothing shared."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.owner = User.objects.create_user("owner", password="very-secure-password")
+        self.reader = User.objects.create_user("reader", password="very-secure-password")
+        UserProfile.objects.create(user=self.reader, role=UserProfile.ROLE_READONLY)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Jonaitis", created_by=self.owner, owner=self.owner)
+        self.company = Company.objects.create(name="UAB Bandymas", created_by=self.owner, owner=self.owner)
+        self.client.force_login(self.reader)
+
+    def test_reader_can_open_every_viewing_page(self):
+        for name, args in (("home", []), ("list", []), ("company-list", []), ("detail", [self.person.pk]),
+                           ("company-detail", [self.company.pk]), ("calendar", []), ("analytics-overview", []),
+                           ("search", []), ("archive-list", []), ("settings", [])):
+            with self.subTest(page=name):
+                self.assertEqual(self.client.get(reverse("contacts:" + name, args=args)).status_code, 200)
+
+    def test_viewing_pages_offer_no_editing_controls(self):
+        pages = {
+            reverse("contacts:list"): ["+ Pridėti kontaktą"],
+            reverse("contacts:company-list"): ["+ Pridėti įmonę"],
+            reverse("contacts:home"): ['class="quick-add"'],
+            reverse("contacts:detail", args=[self.person.pk]): ['id="composer"', "field-editor", "Redaguoti visus laukus", 'id="reminder-add"'],
+            reverse("contacts:company-detail", args=[self.company.pk]): ['id="composer"', "field-editor"],
+            reverse("contacts:calendar"): ["data-cal-new"],
+        }
+        for url, markers in pages.items():
+            response = self.client.get(url)
+            self.assertContains(response, 'data-read-only="1"')
+            for marker in markers:
+                with self.subTest(url=url, marker=marker):
+                    self.assertNotContains(response, marker)
+
+    def test_editors_see_the_controls(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse("contacts:detail", args=[self.person.pk]))
+        self.assertContains(response, 'id="composer"')
+        self.assertNotContains(response, "data-read-only")
+
+    def test_editing_pages_and_writes_are_refused_server_side(self):
+        from contacts.models import AuditLog
+        refused = [
+            ("get", reverse("contacts:person-create"), {}),
+            ("get", reverse("contacts:edit", args=[self.person.pk]), {}),
+            ("post", reverse("contacts:edit", args=[self.person.pk]), {"first_name": "Pakeista"}),
+            ("post", reverse("contacts:inline-update", args=["person", self.person.pk]), {"field": "favourite", "value": "true"}),
+            ("post", reverse("contacts:field-edit", args=[self.person.pk]), {"field": "first_name", "value": "Pakeista"}),
+            ("post", reverse("contacts:activity-create", args=[self.person.pk]), {"note": "x"}),
+            ("post", reverse("contacts:archive", args=[self.person.pk]), {}),
+            ("post", reverse("contacts:bulk-action"), {"selected": [self.person.pk], "action": "archive"}),
+            ("post", reverse("contacts:calendar-event-create"), {"text": "x"}),
+            ("post", reverse("contacts:import-export"), {}),
+        ]
+        for method, url, data in refused:
+            with self.subTest(method=method, url=url):
+                response = getattr(self.client, method)(url, data)
+                self.assertEqual(response.status_code, 302)
+                self.assertNotEqual(response["Location"], url)
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.first_name, "Jonas")
+        self.assertIsNone(self.person.deleted_at)
+        self.assertFalse(self.person.favourite)
+        self.assertEqual(Activity.objects.count(), 0)
+        self.assertTrue(AuditLog.objects.filter(target_type="access", detail__refused="read_only").exists())
+
+    def test_background_writes_get_a_json_refusal(self):
+        response = self.client.post(reverse("contacts:inline-update", args=["person", self.person.pk]),
+                                    {"field": "favourite", "value": "true"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("peržiūrėti", response.json()["error"])
+
+    def test_personal_settings_stay_writable(self):
+        response = self.client.post(reverse("contacts:settings-menu"), {"visible": ["calendar"]})
+        self.assertRedirects(response, reverse("contacts:settings-menu"))
+        self.assertEqual(self.client.post(reverse("contacts:reminder-mark-read")).status_code, 200)
+        response = self.client.post(reverse("contacts:settings-password"), {
+            "old_password": "very-secure-password", "new_password1": "Another-long-passphrase-9",
+            "new_password2": "Another-long-passphrase-9"})
+        self.assertRedirects(response, reverse("contacts:settings"))
+
+    def test_capabilities_are_capped_whatever_the_table_says(self):
+        from contacts import permissions as perm
+        from contacts.models import RolePermissions
+        RolePermissions.objects.create(role=UserProfile.ROLE_READONLY,
+                                       permissions={"can_delete": True, "can_import": True, "can_export": True})
+        self.assertFalse(perm.has_capability(self.reader, "can_delete"))
+        self.assertFalse(perm.has_capability(self.reader, "can_import"))
+        self.assertTrue(perm.has_capability(self.reader, "can_export"))
+        self.assertEqual(perm.capability_matrix()[UserProfile.ROLE_READONLY]["can_delete"], False)
+
+    def test_permissions_page_only_grants_read_side_capabilities_to_readers(self):
+        from contacts import permissions as perm
+        admin = get_user_model().objects.create_superuser("root", email="r@local", password="very-secure-password")
+        self.client.force_login(admin)
+        response = self.client.get(reverse("contacts:settings-permissions"))
+        self.assertContains(response, "Skaitytojas (tik peržiūra)")
+        self.client.post(reverse("contacts:settings-permissions"), {"cap_readonly": ["can_export", "can_delete"]})
+        matrix = perm.capability_matrix()[UserProfile.ROLE_READONLY]
+        self.assertTrue(matrix["can_export"])
+        self.assertFalse(matrix["can_delete"])
+
+    def test_read_write_api_token_of_a_reader_cannot_write(self):
+        raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="rw", token_hash=digest, prefix=raw[:13], scope=ApiToken.READ_WRITE, created_by=self.reader)
+        auth = {"HTTP_AUTHORIZATION": "Bearer " + raw}
+        self.assertEqual(self.client.get("/api/v1/contacts", **auth).status_code, 200)
+        response = self.client.post("/api/v1/contacts", data=json.dumps({"first_name": "Naujas", "last_name": "Asmuo"}),
+                                    content_type="application/json", **auth)
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Person.objects.filter(first_name="Naujas").exists())
+
+    def test_create_shortcuts_are_left_out_of_a_readers_menu(self):
+        profile = self.reader.crm_profile
+        profile.menu_config = {"shortcuts": [{"kind": "action", "value": "person-create"}]}
+        profile.save()
+        response = self.client.get(reverse("contacts:list"))
+        self.assertNotContains(response, reverse("contacts:person-create"))
+        self.assertNotContains(response, reverse("contacts:duplicate-list"))
+
+    def test_directory_reader_group_is_the_weakest_role(self):
+        from contacts.directory import evaluate
+        from contacts.integrations import OIDCConfig
+        from contacts.models import DirectoryGroupMapping
+        config = OIDCConfig(enabled=True, tenant_id="t", client_id="c", client_secret="s", create_users=False)
+        readers = DirectoryGroupMapping(group="CRM-Readers", role=UserProfile.ROLE_READONLY)
+        own = DirectoryGroupMapping(group="CRM-Own", role=UserProfile.ROLE_RESTRICTED)
+        self.assertEqual(evaluate({"groups": ["CRM-Readers"]}, config, [readers, own]).role, UserProfile.ROLE_READONLY)
+        self.assertEqual(evaluate({"groups": ["CRM-Readers", "CRM-Own"]}, config, [readers, own]).role, UserProfile.ROLE_RESTRICTED)

@@ -64,7 +64,9 @@ def api_view(fn):
 
 
 def _require_write(token):
-    if token.scope != ApiToken.READ_WRITE:
+    from .permissions import is_read_only
+
+    if token.scope != ApiToken.READ_WRITE or is_read_only(token.created_by):
         raise ApiError(403, "token is read-only")
 
 
