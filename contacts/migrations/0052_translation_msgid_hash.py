@@ -10,7 +10,7 @@ from django.db import migrations, models
 
 def fill_hashes(apps, schema_editor):
     Translation = apps.get_model("contacts", "Translation")
-    for row in Translation.objects.all():
+    for row in Translation.objects.order_by("pk"):  # the historical model orders by the text column
         row.msgid_hash = hashlib.sha256(row.msgid.encode("utf-8")).hexdigest()
         row.save(update_fields=["msgid_hash"])
 
