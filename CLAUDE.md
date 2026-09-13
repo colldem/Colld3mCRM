@@ -113,6 +113,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   produkcijos duomenų kopija į staging. `compose.staging.yaml` — staging stack'as
   (be `crm-worker`, `serve-staging.json` be Funnel).
   `deploy/runner/` — self-hosted runner konteineris (`README.md` — sąranka).
+- `docs/ORACLE.md` — Oracle suderinamumo patikros rezultatai (CI `oracle-compatibility`, tik ataskaita).
+  Naujame kode vengti `.distinct()`/`annotate(Count)` ant modelių su `TextField` — žr. ten.
 - `docs/INTEGRACIJOS.md` — integracijų kanalai; `reporting` schema (migracija 0051) ir `create_reporting_role`
   — tik skaitymo prieiga DWH; keičiant modelius, kurių laukai yra rodiniuose, atnaujinti rodinius nauja migracija.
 - `docs/DEPLOYMENT.md` — bendrinė diegimo procedūra (bet kuris Docker hostas,
