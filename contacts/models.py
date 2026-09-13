@@ -189,6 +189,17 @@ class Team(models.Model):
         return self.name
 
 
+class JobHeartbeat(models.Model):
+    """Last outcome of each background command, for monitoring (/metrics)."""
+    name = models.CharField(max_length=64, unique=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_failure_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=500, blank=True, default="")
+
+    def __str__(self):
+        return self.name
+
+
 class DirectoryGroupMapping(models.Model):
     """A directory (AD / Entra) group and the CRM access its members get."""
     group = models.CharField(max_length=256, unique=True)

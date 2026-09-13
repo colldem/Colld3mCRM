@@ -1,10 +1,10 @@
 """Deliver queued webhooks (H4). Run from the worker loop."""
-from django.core.management.base import BaseCommand
+from ...management.tracked import TrackedCommand
 
 from ...webhooks import deliver_pending
 
 
-class Command(BaseCommand):
+class Command(TrackedCommand):
     help = "POST pending webhook deliveries."
 
     def handle(self, *args, **options):

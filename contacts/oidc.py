@@ -277,7 +277,7 @@ class DirectorySessionRefresh(SessionRefresh):
     """
 
     EXEMPT = [re.compile(pattern) for pattern in (
-        r"^/api/", r"^/health/", r"^/static/", r"^/media/", r"^/calendar/feed/", r"^/notifications/unsubscribe/",
+        r"^/api/", r"^/health/", r"^/metrics$", r"^/static/", r"^/media/", r"^/calendar/feed/", r"^/notifications/unsubscribe/",
         r"^/manifest\.webmanifest$", r"^/sw\.js$", r"^/login/", r"^/logout/", r"^/setup/", r"^/jsi18n/",
     )]
 

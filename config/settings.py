@@ -131,6 +131,9 @@ LOGGING = {
 # Send the Content-Security-Policy as report-only (for checking a new setup).
 CRM_CSP_REPORT_ONLY = os.environ.get("CRM_CSP_REPORT_ONLY", "false").lower() == "true"
 
+# Bearer token for /metrics (Prometheus); empty = endpoint off.
+CRM_METRICS_TOKEN = os.environ.get("CRM_METRICS_TOKEN", "").strip()
+
 # Malware scanning of uploads through clamd (contacts/antivirus.py); empty host = off.
 CRM_CLAMAV_HOST = os.environ.get("CRM_CLAMAV_HOST", "").strip()
 CRM_CLAMAV_PORT = int(os.environ.get("CRM_CLAMAV_PORT", "3310"))

@@ -1,10 +1,10 @@
 """Pull new messages from the CRM dropbox mailbox (G6). No-op without IMAP_HOST."""
-from django.core.management.base import BaseCommand
+from ...management.tracked import TrackedCommand
 
 from ...mailfetch import fetch
 
 
-class Command(BaseCommand):
+class Command(TrackedCommand):
     help = "Fetch and file incoming CRM emails."
 
     def handle(self, *args, **options):

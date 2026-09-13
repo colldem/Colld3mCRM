@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from ...management.tracked import TrackedCommand
 from django.db.models import F
 from django.utils import timezone
 
@@ -17,7 +17,7 @@ from ...notifications import send_digest, send_task_assigned, send_upcoming
 from ...reminder_queries import mine_q, pending_reminders
 
 
-class Command(BaseCommand):
+class Command(TrackedCommand):
     help = "Send due CRM email notifications. Run every ~5 minutes."
 
     def handle(self, *args, **options):

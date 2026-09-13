@@ -171,6 +171,7 @@ the summary.
 |---|---|---|
 | `CRM_ENVIRONMENT` | `production` | anything else marks the instance an isolated copy: e-mail, IMAP, Entra and webhooks are forced off and a banner names the tier |
 | `DJANGO_SESSION_IDLE_MINUTES` | `480` | idle timeout before a session expires |
+| `CRM_METRICS_TOKEN` | *(empty)* | enables `/metrics` (Prometheus text format) for requests with `Authorization: Bearer <token>`; see *Monitoring* |
 | `CRM_CLAMAV_HOST` | *(empty)* | clamd host for malware scanning of every upload (attachments, e-mail attachments, avatars, import and translation files); `compose.clamav.yaml` runs one and sets it. Empty disables scanning |
 | `CRM_CLAMAV_PORT`, `CRM_CLAMAV_TIMEOUT` | `3310`, `30` | clamd TCP port and per-file timeout in seconds |
 | `CRM_CLAMAV_REQUIRED` | `true` | while the scanner is unreachable: `true` refuses uploads, `false` accepts them unscanned; both log to `crm.security` |
@@ -356,6 +357,40 @@ the workflows: `CRM_APP_DIR`, `CRM_STAGING_DIR`, `CRM_PROD_URL`,
 
 None of this is required. `scripts/deploy.sh` does the same work over SSH, and
 `docker compose build --pull && docker compose up -d` is always enough.
+
+## Monitoring
+
+| Endpoint | Use |
+|---|---|
+| `/health/live` | the process answers — liveness probe |
+| `/health/ready` | the database answers — readiness probe, load balancer check |
+| `/metrics` | Prometheus scrape, with `CRM_METRICS_TOKEN` as bearer token |
+
+`/metrics` is computed from the database at scrape time, so any web process gives
+the same answer; request rates and latencies come from the reverse proxy or
+ingress. Scrape config:
+
+```yaml
+- job_name: crm
+  scheme: https
+  metrics_path: /metrics
+  authorization: {credentials: "<CRM_METRICS_TOKEN>"}
+  static_configs: [{targets: ["crm.example.com"]}]
+```
+
+| Metric | Suggested alert |
+|---|---|
+| `crm_database_up`, `crm_clamav_up` | `== 0` for 5 minutes |
+| `crm_job_last_success_timestamp_seconds{job}` | older than 30 minutes for `send_notifications`, `fetch_mail`, `deliver_webhooks`, `run_automations`; older than 26 hours for the daily ones — the worker has stopped |
+| `crm_job_last_failure_timestamp_seconds{job}` | newer than the last success |
+| `crm_login_failures_24h{reason="locked_out"}` | above your baseline — password guessing |
+| `crm_read_only_refusals_24h` | above 0 — someone probing beyond their role |
+| `crm_api_tokens{state="expiring_14d"}` | above 0 — an integration is about to break |
+| `crm_webhook_deliveries_pending` | growing — a receiving system is down |
+| `crm_info{version,environment}` | informational |
+
+The backup container has its own health check (last successful set), visible to
+the Docker or orchestrator monitoring.
 
 ## Malware scanning
 

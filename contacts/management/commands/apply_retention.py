@@ -1,11 +1,11 @@
 """Delete archived records and incoming mail past the retention set in
 Settings -> Duomenų apsauga. Idempotent; does nothing while both are 0."""
-from django.core.management.base import BaseCommand
+from ...management.tracked import TrackedCommand
 
 from ...privacy import apply_retention
 
 
-class Command(BaseCommand):
+class Command(TrackedCommand):
     help = "Apply the personal data retention periods."
 
     def add_arguments(self, parser):

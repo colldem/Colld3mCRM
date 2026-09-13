@@ -3,6 +3,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
 from contacts import views
+from contacts.metrics import metrics_view
 from django.views.i18n import JavaScriptCatalog
 
 
@@ -17,6 +18,7 @@ urlpatterns = [
     path("setup/", views.setup_admin, name="setup"),
     path("health/live", views.health_live, name="health-live"),
     path("health/ready", views.health_ready, name="health-ready"),
+    path("metrics", metrics_view, name="metrics"),
     path("manifest.webmanifest", views.pwa_manifest, name="pwa-manifest"),
     path("sw.js", views.pwa_service_worker, name="pwa-service-worker"),
     path("api/v1/", include("contacts.api_urls")),

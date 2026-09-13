@@ -588,3 +588,63 @@ class BackupAndRuntimeLayoutTests(TestCase):
         self.assertIn("dockerfile: deploy/backup/Dockerfile", compose)
         self.assertIn("/backups/last-success", compose)
         self.assertIn("backup-restore:", (self.root / ".github/workflows/ci.yml").read_text())
+
+
+class MetricsTests(TestCase):
+    """/metrics: token-protected Prometheus text with health, security and job heartbeats."""
+
+    def scrape(self, token="metrics-secret-123"):
+        return self.client.get("/metrics", HTTP_AUTHORIZATION="Bearer " + token)
+
+    def test_endpoint_is_off_without_a_token_and_refuses_a_wrong_one(self):
+        self.assertEqual(self.client.get("/metrics").status_code, 404)
+        with self.settings(CRM_METRICS_TOKEN="metrics-secret-123"):
+            self.assertEqual(self.scrape("wrong").status_code, 401)
+            self.assertEqual(self.client.get("/metrics").status_code, 401)
+
+    def test_exposition_contains_health_security_and_business_gauges(self):
+        import re
+        from contacts.audit import log as audit_log
+        from contacts.models import AuditLog, Person
+        user = get_user_model().objects.create_user("m", password="very-secure-password")
+        Person.objects.create(first_name="A", last_name="B", created_by=user)
+        audit_log(AuditLog.LOGIN_FAILED, target_type="auth", detail={"reason": "locked_out"})
+        with self.settings(CRM_METRICS_TOKEN="metrics-secret-123"):
+            response = self.scrape()
+        self.assertEqual(response["Content-Type"], "text/plain; version=0.0.4; charset=utf-8")
+        body = response.content.decode()
+        self.assertIn("crm_database_up 1", body)
+        self.assertIn('crm_records{kind="person"} 1', body)
+        self.assertIn('crm_login_failures_24h{reason="locked_out"} 1', body)
+        self.assertIn('crm_job_last_success_timestamp_seconds{job="fetch_mail"} 0', body)
+        self.assertNotIn("crm_clamav_up", body)
+        for line in body.splitlines():  # every sample line parses as Prometheus text
+            if line and not line.startswith("#"):
+                self.assertRegex(line, r'^[a-z_][a-z0-9_]*(\{[a-z_]+="[^"]*"(,[a-z_]+="[^"]*")*\})? -?\d+(\.\d+)?$')
+        self.assertTrue(re.search(r'crm_info\{version="[^"]+",environment="production"\} 1', body))
+
+    def test_background_commands_record_their_heartbeat(self):
+        from io import StringIO
+        from unittest.mock import patch
+        from django.core.management import call_command
+        from contacts.models import JobHeartbeat
+        call_command("purge_audit_log", stdout=StringIO())
+        beat = JobHeartbeat.objects.get(name="purge_audit_log")
+        self.assertIsNotNone(beat.last_success_at)
+        with patch("contacts.management.commands.purge_audit_log.purge_expired", side_effect=RuntimeError("disk full")):
+            with self.assertRaises(RuntimeError):
+                call_command("purge_audit_log", stdout=StringIO())
+        beat.refresh_from_db()
+        self.assertIn("disk full", beat.last_error)
+        with self.settings(CRM_METRICS_TOKEN="metrics-secret-123"):
+            body = self.scrape().content.decode()
+        self.assertRegex(body, r'crm_job_last_failure_timestamp_seconds\{job="purge_audit_log"\} [1-9]\d+')
+
+    def test_every_scheduled_command_is_tracked(self):
+        from contacts.metrics import JOBS
+        values = (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text()
+        for job in JOBS:
+            with self.subTest(job=job):
+                self.assertIn("command: %s" % job, values)
+                source = (settings.BASE_DIR / ("contacts/management/commands/%s.py" % job)).read_text()
+                self.assertIn("class Command(TrackedCommand)", source)

@@ -2,12 +2,12 @@
 
 Idempotent — safe to run from the worker loop. Does nothing while the setting is 0.
 """
-from django.core.management.base import BaseCommand
+from ...management.tracked import TrackedCommand
 
 from ...accounts import deactivate_inactive
 
 
-class Command(BaseCommand):
+class Command(TrackedCommand):
     help = "Deactivate CRM accounts that have not signed in for the configured number of days."
 
     def handle(self, *args, **options):
