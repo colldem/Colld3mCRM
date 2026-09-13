@@ -6523,17 +6523,13 @@ class AuditTrailTests(TestCase):
         self.assertIsNone(row.actor_id)
         self.assertEqual(row.actor_label, "leaver")
 
-    def backdate(self, entry, days):
+    def old_entry(self, days):
+        """An audit row written ``days`` ago (auto_now_add reads timezone.now)."""
         from datetime import timedelta
-        from django.db import connection
-        with connection.cursor() as cursor:
-            if connection.vendor == "postgresql":
-                # Back-dating is itself an UPDATE the guard refuses; lift it for this helper only.
-                cursor.execute("ALTER TABLE contacts_auditlog DISABLE TRIGGER contacts_auditlog_guard")
-            cursor.execute("UPDATE contacts_auditlog SET created_at = %s WHERE id = %s",
-                           [timezone.now() - timedelta(days=days), entry.pk])
-            if connection.vendor == "postgresql":
-                cursor.execute("ALTER TABLE contacts_auditlog ENABLE TRIGGER contacts_auditlog_guard")
+        from contacts.audit import log as audit_log
+        from contacts.models import AuditLog
+        with patch("django.utils.timezone.now", return_value=timezone.now() - timedelta(days=days)):
+            return audit_log(AuditLog.LOGIN, actor=self.admin, target_type="auth")
 
     def set_retention(self, days):
         from contacts.models import SystemSettings
@@ -6545,9 +6541,7 @@ class AuditTrailTests(TestCase):
         from io import StringIO
         from django.core.management import call_command
         from contacts.models import AuditLog
-        from contacts.audit import log as audit_log
-        old = audit_log(AuditLog.LOGIN, actor=self.admin, target_type="auth")
-        self.backdate(old, 400)
+        old = self.old_entry(400)
         out = StringIO()
         call_command("purge_audit_log", stdout=out)
         self.assertIn("purged 0", out.getvalue())
@@ -6561,9 +6555,7 @@ class AuditTrailTests(TestCase):
     def test_retention_below_the_minimum_is_never_applied(self):
         from contacts.audit import purge_expired
         from contacts.models import AuditLog
-        from contacts.audit import log as audit_log
-        row = audit_log(AuditLog.LOGIN, actor=self.admin, target_type="auth")
-        self.backdate(row, 100)
+        row = self.old_entry(100)
         self.set_retention(30)  # e.g. written straight to the database
         purge_expired()
         self.assertTrue(AuditLog.objects.filter(pk=row.pk).exists())
@@ -6625,9 +6617,13 @@ class PostgresAuditGuardTests(TestCase):
                 with connection.cursor() as cursor:
                     cursor.execute(sql, [self.entry.pk])
 
-    def test_purge_switch_is_scoped_to_its_transaction(self):
+    def test_purge_closes_the_guard_again_when_it_is_done(self):
         from django.db import DatabaseError, connection, transaction
-        with transaction.atomic(), connection.cursor() as cursor:
-            cursor.execute("SET LOCAL crm.audit_purge = 'on'")
+        from contacts.audit import purge_expired
+        from contacts.models import SystemSettings
+        system = SystemSettings.load()
+        system.audit_retention_days = 365
+        system.save()
+        purge_expired()  # inside this test's transaction, like a nested call would be
         with self.assertRaises(DatabaseError), transaction.atomic(), connection.cursor() as cursor:
             cursor.execute("DELETE FROM contacts_auditlog WHERE id = %s", [self.entry.pk])
