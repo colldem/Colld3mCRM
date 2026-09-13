@@ -12,7 +12,7 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 
 | Sritis | Būklė | Kur |
 |---|---|---|
-| Testai ir CI | ✅ 525 testai, ruff, `makemigrations --check`, `check --deploy`, image smoke test, Helm lint | `ci.yml`, `release-check.sh` |
+| Testai ir CI | ✅ 611 testų (SQLite **ir PostgreSQL**), ruff, `makemigrations --check`, `check --deploy`, image smoke test, Helm lint | `ci.yml`, `release-check.sh` |
 | Priklausomybių atnaujinimai | ✅ Dependabot: pip, GitHub Actions, Docker; Django laikomas 5.2 LTS | `.github/dependabot.yml` |
 | Fiksuotos versijos | ✅ `requirements.txt` tikslios versijos, bazinis image ir Postgres pagal SHA | `Dockerfile`, `compose.yaml` |
 | Konteinerio sauga | ✅ ne root naudotojas, `no-new-privileges`; Helm `runAsNonRoot` | `Dockerfile`, `values.yaml` |
@@ -21,10 +21,10 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | SSO | ✅ Entra ID arba AD FS (OIDC); žetono iss/aud/exp/tid tikrinimas; tapatybė pririšta prie oid/sub | `oidc.py` |
 | AD grupės → rolės | ✅ grupių susiejimas su rolėmis ir komandomis, taikomas kiekvieno prisijungimo metu; žetono tikrinimo įrankis | `directory.py` |
 | Sesijos | ✅ HttpOnly, SameSite, Secure (su HTTPS), slankus neaktyvumo langas | `settings.py` |
-| HTTP antraštės | 🟡 HSTS, X-Frame DENY, nosniff, Referrer-Policy; **nėra CSP** | `settings.py` |
+| HTTP antraštės | ✅ CSP su nonce, Permissions-Policy, HSTS, X-Frame DENY, nosniff, Referrer-Policy, X-Request-ID | `middleware.py` |
 | Rolės ir matomumas | ✅ admin / visi / tik savi, teisių lentelė, komandos | `permissions.py` |
 | „Tik skaityti" | ✅ rolė „Skaitytojas", užtikrinta serveryje | `middleware.py` |
-| Auditas | 🟡 pilnas įvykių žurnalas; **nėra eksporto, saugojimo termino, SIEM srauto** | `audit.py`, `AuditLog` |
+| Auditas | ✅ nekeičiamas (programa + PostgreSQL trigeris), saugojimo terminas, CSV eksportas, SIEM srautas | `audit.py`, `AuditLog` |
 | API raktai | ✅ sha256, scope, atšaukimas, galiojimo terminas, užklausų ribojimas (429) | `api.py` |
 | Webhook'ai | ✅ HMAC-SHA256, pristatymų žurnalas 30 d. | `webhooks.py` |
 | Paslaptys DB | ✅ Fernet (`CRM_SECRETS_KEY`) | `crypto.py` |
@@ -33,7 +33,7 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | Atkūrimo instrukcija | 🟡 komandos aprašytos, nėra RPO/RTO ir testo | `DEPLOYMENT.md` |
 | Aplinkų izoliacija | ✅ ne-production aplinkoje SMTP/IMAP/Entra/webhook'ai priverstinai išjungti | `integrations.py` |
 | Staging duomenys | ❌ **`sanitize_staging` išvalo tik integracijas — asmens duomenys lieka tikri** | `sanitize_staging.py` |
-| Žurnalai (logging) | ❌ **nėra `LOGGING` konfigūracijos**, tik Gunicorn access log į stdout | `settings.py` |
+| Žurnalai (logging) | ✅ JSON į stdout (programa, `crm.security`, Gunicorn), request-id, be asmens duomenų | `observability.py` |
 | Stebėsena | 🟡 `/health/live`, `/health/ready`; nėra metrikų | `config/urls.py` |
 | Asmens duomenų saugojimo terminai | ❌ automatiškai valomi tik automatizacijų (90 d.) ir webhook (30 d.) žurnalai | — |
 | Duomenų subjekto teisės | 🟡 pilnas ZIP ir CSV eksportas; nėra vieno asmens duomenų eksporto ar galutinio ištrynimo procedūros | — |
@@ -72,13 +72,17 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 > registracijos arba AD FS taisyklės, grupių lauko žetone ir bandomųjų paskyrų.
 > Klausimai infrastruktūrai — 7.10.
 
-### 2 etapas — Žurnalai ir auditas
+### 2 etapas — Žurnalai ir auditas — ✅ atlikta 2026-09-13
 
-| # | Darbas | Dydis | Būsena |
-|---|---|---|---|
-| 2.1 | **Struktūrizuoti žurnalai**: `LOGGING` su JSON formatu stdout (SIEM), request-id, saugumo įvykiai (prisijungimai, blokados, teisių klaidos), be asmens duomenų | M | ❌ |
-| 2.2 | **Audito žurnalo eksportas** (CSV, filtrai) ir saugojimo terminas (nustatymas); auditas neredaguojamas ir netrinamas per sąsają ar admin | S | ❌ |
-| 2.3 | **CSP antraštė**: iškelti inline skriptus (10 šablonų) arba nonce; `Permissions-Policy` | M | ❌ |
+| # | Darbas | Būsena |
+|---|---|---|
+| 2.1 | **JSON žurnalai SIEM'ui**: programa, `crm.security` (kiekvienas audito įvykis, blokados), Gunicorn access log be query string; `X-Request-ID` visur ir audito įrašuose | ✅ |
+| 2.2 | **Auditas**: įrašų pakeisti/ištrinti negalima (modelis + PostgreSQL trigeris), saugojimo terminas (≥180 d.) su kasdieniu valymu, CSV eksportas | ✅ |
+| 2.3 | **CSP** su nonce, be įterptinių tvarkytojų (`behaviors.js`), `Permissions-Policy`, report-only jungiklis | ✅ |
+| 2.4 | **CI testai su PostgreSQL** (produkcijos DB variklis) | ✅ |
+
+> Žinomas apribojimas: DB superuser gali apeiti trigerį — nekeičiama kopija turi būti SIEM'e.
+> Gunicorn paleidimo pranešimai (kelios eilutės starto metu) lieka tekstiniai.
 
 ### 3 etapas — Asmens duomenys (BDAR)
 
