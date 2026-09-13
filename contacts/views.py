@@ -1,7 +1,6 @@
 from django.utils.translation import gettext as _, gettext_lazy as tr
 from datetime import datetime, time, timedelta
 import json
-import mimetypes
 import os
 import secrets
 import uuid
@@ -1329,18 +1328,48 @@ def settings_data_export(request):
     return render(request, "settings/data_export.html", {"settings_section": "data-export"})
 
 
+
+
+AVATAR_SIGNATURES = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def avatar_image_type(fileobj):
+    """The image type from the file's first bytes, or None if it is not an allowed image."""
+    try:
+        fileobj.seek(0)
+        head = fileobj.read(16)
+        fileobj.seek(0)
+    except (OSError, ValueError):
+        return None
+    for signature, content_type in AVATAR_SIGNATURES:
+        if head.startswith(signature):
+            return content_type
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 @login_required
 def profile_avatar(request):
     profile = UserProfile.objects.filter(user=request.user).first()
     if not profile or not profile.avatar:
         raise Http404
     try:
-        response = FileResponse(
-            profile.avatar.open("rb"),
-            content_type=mimetypes.guess_type(profile.avatar.name)[0] or "application/octet-stream",
-        )
+        handle = profile.avatar.open("rb")
     except FileNotFoundError:
         raise Http404("Profilio nuotrauka nerasta.") from None
+    content_type = avatar_image_type(handle)
+    if content_type is None:
+        # Never let a stored file choose to be rendered (e.g. HTML named .png).
+        response = FileResponse(handle, as_attachment=True, filename="avatar.bin",
+                                content_type="application/octet-stream")
+    else:
+        response = FileResponse(handle, content_type=content_type)
     response["Cache-Control"] = "private, no-store"
     return response
 

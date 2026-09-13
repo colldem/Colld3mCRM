@@ -7261,3 +7261,65 @@ class CalendarFeedSwitchTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 404)
         self.client.force_login(user)
         self.assertNotContains(self.client.get(reverse("contacts:settings")), "Kalendoriaus prenumerata")
+
+
+class ReviewHardeningTests(TestCase):
+    """Findings of the pre-presentation security review."""
+
+    def test_production_like_start_refuses_the_development_secret_key(self):
+        import subprocess
+        import sys
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("DJANGO_", "DB_"))}
+        env.update({"DB_HOST": "db.invalid", "DJANGO_SETTINGS_MODULE": "config.settings"})
+        probe = "import django; django.setup(); from django.conf import settings; print(settings.DEBUG)"
+        result = subprocess.run([sys.executable, "-c", probe], env=env, capture_output=True, text=True,
+                                cwd=settings.BASE_DIR)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("DJANGO_SECRET_KEY is not set", result.stderr)
+        env["DJANGO_SECRET_KEY"] = "a-real-secret-0123456789abcdefghijklmnopqrstuvwxyzABCDEF"
+        result = subprocess.run([sys.executable, "-c", probe], env=env, capture_output=True, text=True,
+                                cwd=settings.BASE_DIR)
+        self.assertEqual(result.stdout.strip(), "False")  # DEBUG defaults off with a real database
+
+    def test_django_admin_is_off_by_default_and_superuser_only_when_enabled(self):
+        import importlib
+        from django.urls import clear_url_caches
+        import config.urls
+        staff = get_user_model().objects.create_user("crmadmin", password="very-secure-password", is_staff=True)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get("/admin/").status_code, 404)
+        try:
+            with self.settings(CRM_DJANGO_ADMIN=True):
+                importlib.reload(config.urls)
+                clear_url_caches()
+                self.assertNotEqual(self.client.get("/admin/").status_code, 200)  # staff is not enough
+                root = get_user_model().objects.create_superuser("root", email="r@local", password="very-secure-password")
+                self.client.force_login(root)
+                self.assertEqual(self.client.get("/admin/").status_code, 200)
+        finally:
+            importlib.reload(config.urls)
+            clear_url_caches()
+
+    def test_avatar_must_really_be_an_image_and_is_never_served_as_html(self):
+        from contacts.views import avatar_image_type
+        from io import BytesIO
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+        self.assertEqual(avatar_image_type(BytesIO(png)), "image/png")
+        self.assertEqual(avatar_image_type(BytesIO(b"RIFF\x00\x00\x00\x00WEBPVP8 ")), "image/webp")
+        self.assertIsNone(avatar_image_type(BytesIO(b"<html><script>alert(1)</script>")))
+        media = TemporaryDirectory()
+        try:
+            with self.settings(MEDIA_ROOT=media.name):
+                user = get_user_model().objects.create_user("pic", password="very-secure-password", first_name="A")
+                self.client.force_login(user)
+                disguised = SimpleUploadedFile("evil.png", b"<html><script>alert(1)</script></html>", content_type="image/png")
+                self.client.post(reverse("contacts:settings"), {"first_name": "A", "last_name": "B", "email": "a@b.lt",
+                                                               "language": "lt", "timezone": "Europe/Vilnius", "avatar": disguised})
+                profile = UserProfile.objects.get(user=user)
+                self.assertFalse(profile.avatar)
+                profile.avatar.save("legacy.html", SimpleUploadedFile("legacy.html", b"<html>x</html>"))
+                response = self.client.get(reverse("contacts:profile-avatar"))
+                self.assertEqual(response["Content-Type"], "application/octet-stream")
+                self.assertIn("attachment", response["Content-Disposition"])
+        finally:
+            media.cleanup()

@@ -6,12 +6,23 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-change-before-production")
-DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() == "true"
 # The NAS runs with production security settings. Django's in-process test
 # client does not send the proxy HTTPS header, so keep redirects disabled only
 # for `manage.py test` and preserve them for every deployed request.
 RUNNING_TESTS = "test" in sys.argv
+# Fail safe: with a real database (DB_HOST) DEBUG is off unless asked for, and a
+# missing secret key stops the process instead of signing sessions with a
+# publicly known one. A local SQLite checkout keeps the developer defaults.
+_DEV_DEFAULT_KEY = "dev-only-change-before-production"
+DEBUG = os.environ.get("DJANGO_DEBUG", "false" if os.environ.get("DB_HOST") else "true").lower() == "true"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", _DEV_DEFAULT_KEY)
+if SECRET_KEY == _DEV_DEFAULT_KEY and os.environ.get("DB_HOST") and not RUNNING_TESTS:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY is not set: refusing to start with the development key.")
+# Django's own /admin/ edits records outside the audit trail and CRM permissions,
+# so it is off unless explicitly enabled, and then for superusers only.
+CRM_DJANGO_ADMIN = os.environ.get("CRM_DJANGO_ADMIN", "false").lower() == "true"
 ALLOWED_HOSTS = [value.strip() for value in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",") if value.strip()]
 CSRF_TRUSTED_ORIGINS = [value.strip() for value in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if value.strip()]
 CRM_SETUP_TOKEN = os.environ.get("CRM_SETUP_TOKEN", "")

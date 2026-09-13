@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
@@ -7,10 +8,15 @@ from contacts.metrics import metrics_view
 from django.views.i18n import JavaScriptCatalog
 
 
-urlpatterns = [
+urlpatterns = []
+if settings.CRM_DJANGO_ADMIN:
+    # Superusers only: the CRM's own settings cover everything else, with audit.
+    admin.site.has_permission = lambda request: request.user.is_active and request.user.is_superuser
+    urlpatterns.append(path("admin/", admin.site.urls))
+
+urlpatterns += [
     path("jsi18n/", JavaScriptCatalog.as_view(), name="javascript-catalog"),
     path("i18n/", include("django.conf.urls.i18n")),
-    path("admin/", admin.site.urls),
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     # Entra ID (OIDC) — the views 404 unless login through Entra is enabled in Settings.

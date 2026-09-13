@@ -179,6 +179,7 @@ the summary.
 |---|---|---|
 | `CRM_ENVIRONMENT` | `production` | anything else marks the instance an isolated copy: e-mail, IMAP, Entra and webhooks are forced off and a banner names the tier |
 | `DJANGO_SESSION_IDLE_MINUTES` | `480` | idle timeout before a session expires |
+| `CRM_DJANGO_ADMIN` | `false` | `true` mounts Django's `/admin/` for superusers only. It edits records outside the CRM's audit trail and permissions, so leave it off unless a one-off technical fix needs it |
 | `CRM_TRUSTED_PROXIES` | *(empty; overlays set it)* | CIDR list of reverse proxies whose `X-Forwarded-For` is believed. The client address in the audit trail and the sign-in lockout comes from it; without it every user behind one proxy shares the proxy's address — five failed sign-ins by anyone would lock everyone out. Read right-to-left, skipping trusted hops, so a client cannot spoof it |
 | `CRM_METRICS_TOKEN` | *(empty)* | enables `/metrics` (Prometheus text format) for requests with `Authorization: Bearer <token>`; see *Monitoring* |
 | `CRM_CLAMAV_HOST` | *(empty)* | clamd host for malware scanning of every upload (attachments, e-mail attachments, avatars, import and translation files); `compose.clamav.yaml` runs one and sets it. Empty disables scanning |

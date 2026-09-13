@@ -30,7 +30,11 @@ class UserProfileForm(forms.Form):
             return avatar
         if avatar.size > 5 * 1024 * 1024:
             raise forms.ValidationError(tr("Profilio nuotrauka negali būti didesnė nei 5 MB."))
-        if getattr(avatar, "content_type", "") not in {"image/png", "image/jpeg", "image/webp", "image/gif"}:
+        from .views import avatar_image_type
+
+        # The browser's declared type and the file name are the uploader's to choose;
+        # the file's own signature is not.
+        if avatar_image_type(avatar) is None:
             raise forms.ValidationError(tr("Pasirinkite PNG, JPG, WEBP arba GIF formato nuotrauką."))
         from .antivirus import check_upload
 
