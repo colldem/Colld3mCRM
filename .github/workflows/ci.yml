@@ -31,6 +31,37 @@ jobs:
           PYTHON_BIN: python
         run: ./scripts/release-check.sh
 
+  # Production runs PostgreSQL; the checks job above uses SQLite. Same suite, real engine.
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:17.11-bookworm@sha256:051f7b7b3abdd564d5d1bd1e8c4b9c1b6e77087d1dd22020ede611c096a272e0
+        env:
+          POSTGRES_DB: crm
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: crm-ci-only
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U crm -d crm" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DB_HOST: localhost
+      DB_NAME: crm
+      DB_USER: crm
+      DB_PASSWORD: crm-ci-only
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Migrations and tests on PostgreSQL
+        run: |
+          python manage.py makemigrations --check --dry-run
+          python manage.py test
+
   security:
     runs-on: ubuntu-latest
     steps:
