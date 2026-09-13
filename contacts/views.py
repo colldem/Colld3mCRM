@@ -37,6 +37,7 @@ from .filters import (
 from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, SystemSettings, Tag, Team, UserProfile, WebLink
 from .permissions import visible_companies, visible_people, visible_reminders
 from .sanitizers import csv_safe, safe_url
+from .antivirus import check_upload
 from .audit import log as audit_log
 
 
@@ -1991,6 +1992,9 @@ def _save_attachments(request, activity):
                 or total > ATTACHMENT_MAX_TOTAL_BYTES or existing >= ATTACHMENT_MAX_PER_RECORD):
             rejected.append(upload.name)
             continue
+        if not check_upload(upload, name=upload.name, source="attachment", request=request):
+            rejected.append(upload.name)
+            continue
         Attachment.objects.create(
             activity=activity, file=upload, original_name=upload.name[:255],
             content_type=getattr(upload, "content_type", "") or "", size=upload.size,
@@ -2003,7 +2007,7 @@ def _save_attachments(request, activity):
 
 def _report_rejected_attachments(request, rejected):
     if rejected:
-        messages.error(request, tr("Nepridėti failai (per dideli arba netinkamo tipo): %(names)s") % {"names": ", ".join(rejected)})
+        messages.error(request, tr("Nepridėti failai (per dideli, netinkamo tipo arba nepraėjo antivirusinės patikros): %(names)s") % {"names": ", ".join(rejected)})
 
 
 @login_required
@@ -2720,6 +2724,8 @@ def contacts_import(request):
         upload = request.FILES.get("file")
         if not upload or upload.size > 10 * 1024 * 1024:
             messages.error(request, tr("Pasirinkite iki 10 MB dydžio CSV arba XLSX failą."))
+        elif not check_upload(upload, name=upload.name, source="import", request=request):
+            messages.error(request, tr("Failas nepraėjo antivirusinės patikros."))
         else:
             try:
                 rows = _read_import_rows(upload)
@@ -2880,6 +2886,8 @@ def settings_translations(request):
         upload = request.FILES.get("file")
         if not upload:
             error = tr("Pasirinkite failą.")
+        elif not check_upload(upload, name=upload.name, source="translations", request=request):
+            error = tr("Failas nepraėjo antivirusinės patikros.")
         else:
             try:
                 parsed = _read_translations_csv(upload)

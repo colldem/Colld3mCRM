@@ -171,6 +171,9 @@ the summary.
 |---|---|---|
 | `CRM_ENVIRONMENT` | `production` | anything else marks the instance an isolated copy: e-mail, IMAP, Entra and webhooks are forced off and a banner names the tier |
 | `DJANGO_SESSION_IDLE_MINUTES` | `480` | idle timeout before a session expires |
+| `CRM_CLAMAV_HOST` | *(empty)* | clamd host for malware scanning of every upload (attachments, e-mail attachments, avatars, import and translation files); `compose.clamav.yaml` runs one and sets it. Empty disables scanning |
+| `CRM_CLAMAV_PORT`, `CRM_CLAMAV_TIMEOUT` | `3310`, `30` | clamd TCP port and per-file timeout in seconds |
+| `CRM_CLAMAV_REQUIRED` | `true` | while the scanner is unreachable: `true` refuses uploads, `false` accepts them unscanned; both log to `crm.security` |
 | `CRM_CSP_REPORT_ONLY` | `false` | `true` sends the Content-Security-Policy as `Content-Security-Policy-Report-Only` — violations show in the browser console instead of being blocked; use only while checking a new reverse proxy or browser extension setup |
 | `CRM_LOG_FORMAT` | `json` (`text` with `DJANGO_DEBUG=true`) | `json` writes one JSON object per line to stdout — application, security and Gunicorn access logs — for a SIEM; `text` is for reading by eye. See *Logs* below |
 | `CRM_LOG_LEVEL` | `INFO` | root log level |
@@ -353,6 +356,16 @@ the workflows: `CRM_APP_DIR`, `CRM_STAGING_DIR`, `CRM_PROD_URL`,
 
 None of this is required. `scripts/deploy.sh` does the same work over SSH, and
 `docker compose build --pull && docker compose up -d` is always enough.
+
+## Malware scanning
+
+Add `compose.clamav.yaml` to `COMPOSE_FILE`. It runs ClamAV (signatures updated by
+the container itself, cached in `runtime/clamav`, ~1.5 GB RAM) and points the web
+and worker containers at it. Every uploaded file is streamed to it before it is
+stored or parsed; an infected file is refused, audited (`target_type=upload`,
+`detail.signature`) and logged as `event=upload.malware`. An organisation that
+already runs clamd sets `CRM_CLAMAV_HOST` instead. CI checks the integration against
+a real ClamAV with the EICAR test file.
 
 ## Logs
 

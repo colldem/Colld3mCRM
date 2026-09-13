@@ -141,6 +141,43 @@ jobs:
         if: failure()
         run: docker compose logs --tail 100
 
+  # The scanner integration against a real ClamAV, not only the protocol fake in the tests.
+  clamav:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Start ClamAV (the image compose.clamav.yaml pins)
+        run: |
+          image="$(grep -o 'clamav/clamav:[^ ]*' compose.clamav.yaml)"
+          docker run -d --name clamav -p 3310:3310 "$image"
+          for i in $(seq 1 120); do
+            [ "$(docker inspect --format '{{.State.Health.Status}}' clamav)" = healthy ] && break
+            sleep 5
+          done
+          docker inspect --format '{{.State.Health.Status}}' clamav | grep -q healthy
+      - name: EICAR is refused, a clean file accepted
+        env:
+          CRM_CLAMAV_HOST: 127.0.0.1
+        run: |
+          python manage.py migrate -v 0
+          python manage.py shell -v 0 -c "
+          from io import BytesIO
+          from contacts.antivirus import check_upload, scan_file
+          eicar = b'X5O!P%@AP[4\\\\PZX54(P^)7CC)7}\$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!\$H+H*'
+          verdict = scan_file(BytesIO(eicar))
+          print('eicar:', verdict)
+          assert not verdict.clean and 'Eicar' in verdict.signature
+          assert check_upload(BytesIO(b'%PDF-1.4 ordinary document'), name='ok.pdf', source='ci')
+          assert not check_upload(BytesIO(eicar), name='eicar.txt', source='ci')
+          print('real ClamAV verdicts OK')
+          "
+
   security:
     runs-on: ubuntu-latest
     steps:

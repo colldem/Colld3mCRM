@@ -3877,3 +3877,9 @@ msgstr "Automatic encrypted backups"
 
 msgid "Automatinės atkūrimo pratybos"
 msgstr "Automatic restore drill"
+
+msgid "Nepridėti failai (per dideli, netinkamo tipo arba nepraėjo antivirusinės patikros): %(names)s"
+msgstr "Files not added (too large, wrong type or failed the malware scan): %(names)s"
+
+msgid "Failas nepraėjo antivirusinės patikros."
+msgstr "The file failed the malware scan."

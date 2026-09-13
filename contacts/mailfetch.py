@@ -77,6 +77,12 @@ def _save_attachments(msg, activity):
         payload = part.get_payload(decode=True) or b""
         if not payload or len(payload) > ATTACH_MAX:
             continue
+        from io import BytesIO
+
+        from .antivirus import check_upload
+
+        if not check_upload(BytesIO(payload), name=name, source="incoming_mail"):
+            continue
         Attachment.objects.create(
             activity=activity, file=ContentFile(payload, name=name[:255]),
             original_name=name[:255], content_type=part.get_content_type() or "", size=len(payload),

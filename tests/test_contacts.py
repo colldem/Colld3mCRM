@@ -6927,3 +6927,124 @@ class RetentionTests(TestCase):
     def test_worker_and_kubernetes_run_it(self):
         self.assertIn("manage.py apply_retention", (settings.BASE_DIR / "compose.yaml").read_text())
         self.assertIn("command: apply_retention", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
+
+
+class FakeClamd:
+    """A minimal clamd speaking INSTREAM on a free port; flags the EICAR test string."""
+
+    EICAR = b"X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+
+    def __init__(self, reply=None):
+        import socketserver
+        import struct
+        import threading
+        fixed = reply
+
+        class Handler(socketserver.BaseRequestHandler):
+            def handle(self):
+                command = b""
+                while not command.endswith(b"\0"):
+                    command += self.request.recv(1)
+                data = b""
+                while True:
+                    size = struct.unpack("!L", self._exact(4))[0]
+                    if not size:
+                        break
+                    data += self._exact(size)
+                if fixed is not None:
+                    self.request.sendall(fixed)
+                elif FakeClamd.EICAR in data:
+                    self.request.sendall(b"stream: Eicar-Test-Signature FOUND\0")
+                else:
+                    self.request.sendall(b"stream: OK\0")
+
+            def _exact(self, size):
+                buffer = b""
+                while len(buffer) < size:
+                    buffer += self.request.recv(size - len(buffer))
+                return buffer
+
+        self.server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Handler)
+        self.port = self.server.server_address[1]
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def close(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+class AntivirusTests(TestCase):
+    """Uploads are scanned by clamd before they are stored or parsed."""
+
+    def setUp(self):
+        self.clamd = FakeClamd()
+        self.media = TemporaryDirectory()
+        self.overrides = override_settings(CRM_CLAMAV_HOST="127.0.0.1", CRM_CLAMAV_PORT=self.clamd.port,
+                                           CRM_CLAMAV_REQUIRED=True, MEDIA_ROOT=self.media.name)
+        self.overrides.enable()
+        self.user = get_user_model().objects.create_superuser("av", email="av@local", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Failų", last_name="Tikrinimas", created_by=self.user, owner=self.user)
+        self.client.force_login(self.user)
+
+    def tearDown(self):
+        self.overrides.disable()
+        self.clamd.close()
+        self.media.cleanup()
+
+    def test_protocol_verdicts(self):
+        from io import BytesIO
+        from contacts.antivirus import scan_file
+        self.assertTrue(scan_file(BytesIO(b"hello " * 50000)).clean)
+        verdict = scan_file(BytesIO(b"prefix " + FakeClamd.EICAR))
+        self.assertFalse(verdict.clean)
+        self.assertEqual(verdict.signature, "Eicar-Test-Signature")
+
+    def test_infected_attachment_is_refused_audited_and_logged(self):
+        from contacts.models import AuditLog
+        url = reverse("contacts:activity-create", args=[self.person.pk])
+        with self.assertLogs("crm.security", level="WARNING") as captured:
+            self.client.post(url, {"activity_type": "note", "text": "su failais", "attachments": [
+                SimpleUploadedFile("eicar.txt", FakeClamd.EICAR), SimpleUploadedFile("ok.txt", b"clean file")]})
+        self.assertEqual(list(Attachment.objects.values_list("original_name", flat=True)), ["ok.txt"])
+        self.assertTrue(AuditLog.objects.filter(target_type="upload", detail__signature="Eicar-Test-Signature").exists())
+        self.assertTrue(any(r.event == "upload.malware" for r in captured.records))
+
+    def test_unreachable_scanner_fails_closed_unless_told_otherwise(self):
+        from io import BytesIO
+        from contacts.antivirus import check_upload
+        self.clamd.close()
+        with self.assertLogs("crm.security", level="ERROR"):
+            self.assertFalse(check_upload(BytesIO(b"x"), name="x.txt", source="test"))
+        with override_settings(CRM_CLAMAV_REQUIRED=False), self.assertLogs("crm.security", level="WARNING"):
+            self.assertTrue(check_upload(BytesIO(b"x"), name="x.txt", source="test"))
+        self.clamd = FakeClamd()  # tearDown closes it
+
+    def test_error_reply_is_not_mistaken_for_clean(self):
+        from io import BytesIO
+        from contacts.antivirus import ScanUnavailable, scan_file
+        broken = FakeClamd(reply=b"INSTREAM size limit exceeded. ERROR\0")
+        try:
+            with override_settings(CRM_CLAMAV_PORT=broken.port), self.assertRaises(ScanUnavailable):
+                scan_file(BytesIO(b"x"))
+        finally:
+            broken.close()
+
+    def test_import_and_incoming_mail_attachments_are_scanned(self):
+        from email.message import EmailMessage
+        from contacts.mailfetch import _save_attachments
+        response = self.client.post(reverse("contacts:import-export"),
+                                    {"file": SimpleUploadedFile("kontaktai.csv", FakeClamd.EICAR)}, follow=True)
+        self.assertContains(response, "nepraėjo antivirusinės patikros")
+        activity = Activity.objects.create(person=self.person, text="laiškas", created_by=self.user)
+        message = EmailMessage()
+        message.set_content("body")
+        message.add_attachment(FakeClamd.EICAR, maintype="application", subtype="pdf", filename="virus.pdf")
+        message.add_attachment(b"%PDF-1.4 clean", maintype="application", subtype="pdf", filename="clean.pdf")
+        _save_attachments(message, activity)
+        self.assertEqual(list(activity.attachments.values_list("original_name", flat=True)), ["clean.pdf"])
+
+    def test_scanning_is_off_without_a_host(self):
+        from io import BytesIO
+        from contacts.antivirus import check_upload
+        with override_settings(CRM_CLAMAV_HOST=""):
+            self.assertTrue(check_upload(BytesIO(FakeClamd.EICAR), name="e.txt", source="test"))

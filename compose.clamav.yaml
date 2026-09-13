@@ -1,0 +1,33 @@
+# Malware scanning of uploads (contacts/antivirus.py). Add to COMPOSE_FILE:
+#
+#   COMPOSE_FILE=compose.yaml:compose.clamav.yaml
+#   COMPOSE_FILE=compose.yaml:compose.tailscale.yaml:compose.clamav.yaml
+#
+# ClamAV keeps its signatures in runtime/clamav and refreshes them itself
+# (freshclam); the first start downloads them, which takes a few minutes and
+# about 1.5 GB of memory once loaded.
+services:
+  crm-clamav:
+    image: clamav/clamav:1.4.6-debian@sha256:6a7d6f2d65398bfafb0cb171a9746ac8868fae6c56f188e90b34ddb0caf8d5dc
+    volumes:
+      - ./runtime/clamav:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10m
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+  crm-web:
+    environment:
+      CRM_CLAMAV_HOST: crm-clamav
+      CRM_CLAMAV_REQUIRED: ${CRM_CLAMAV_REQUIRED:-true}
+    depends_on:
+      crm-clamav: {condition: service_healthy}
+  crm-worker:
+    environment:
+      CRM_CLAMAV_HOST: crm-clamav
+      CRM_CLAMAV_REQUIRED: ${CRM_CLAMAV_REQUIRED:-true}
+    depends_on:
+      crm-clamav: {condition: service_healthy}

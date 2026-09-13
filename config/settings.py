@@ -131,6 +131,13 @@ LOGGING = {
 # Send the Content-Security-Policy as report-only (for checking a new setup).
 CRM_CSP_REPORT_ONLY = os.environ.get("CRM_CSP_REPORT_ONLY", "false").lower() == "true"
 
+# Malware scanning of uploads through clamd (contacts/antivirus.py); empty host = off.
+CRM_CLAMAV_HOST = os.environ.get("CRM_CLAMAV_HOST", "").strip()
+CRM_CLAMAV_PORT = int(os.environ.get("CRM_CLAMAV_PORT", "3310"))
+CRM_CLAMAV_TIMEOUT = int(os.environ.get("CRM_CLAMAV_TIMEOUT", "30"))
+# Refuse uploads while the scanner is unreachable (true) or accept them unscanned.
+CRM_CLAMAV_REQUIRED = os.environ.get("CRM_CLAMAV_REQUIRED", "true").lower() == "true"
+
 # JSON API requests allowed per token per minute (0 = unlimited).
 CRM_API_RATE_LIMIT = int(os.environ.get("CRM_API_RATE_LIMIT", "120"))
 # Usernames allowed to sign in with a local password while SSO-only mode is on.

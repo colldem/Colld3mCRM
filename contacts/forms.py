@@ -32,6 +32,10 @@ class UserProfileForm(forms.Form):
             raise forms.ValidationError(tr("Profilio nuotrauka negali būti didesnė nei 5 MB."))
         if getattr(avatar, "content_type", "") not in {"image/png", "image/jpeg", "image/webp", "image/gif"}:
             raise forms.ValidationError(tr("Pasirinkite PNG, JPG, WEBP arba GIF formato nuotrauką."))
+        from .antivirus import check_upload
+
+        if not check_upload(avatar, name=avatar.name, source="avatar"):
+            raise forms.ValidationError(tr("Failas nepraėjo antivirusinės patikros."))
         return avatar
 
     @transaction.atomic
