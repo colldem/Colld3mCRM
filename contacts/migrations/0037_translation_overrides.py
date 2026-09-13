@@ -17,7 +17,10 @@ class Migration(migrations.Migration):
             name='Translation',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('msgid', models.TextField(unique=True)),
+                # Was unique=True: a unique index on unbounded text breaks on Oracle and on
+                # PostgreSQL past ~2.7 kB. Uniqueness moved to msgid_hash (0052), which also
+                # drops the old constraint where this migration had already created it.
+                ('msgid', models.TextField()),
                 ('lt', models.TextField(blank=True, default='')),
                 ('en', models.TextField(blank=True, default='')),
                 ('updated_at', models.DateTimeField(auto_now=True)),

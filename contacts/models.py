@@ -928,7 +928,9 @@ class Translation(models.Model):
     inside the image and would be lost on the next rebuild. An empty value means
     "use the shipped translation", so clearing a cell reverts it.
     """
-    msgid = models.TextField(unique=True)
+    msgid = models.TextField()
+    # Uniqueness lives on the digest: an index on unbounded text is not portable.
+    msgid_hash = models.CharField(max_length=64, unique=True, editable=False)
     lt = models.TextField(blank=True, default="")
     en = models.TextField(blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
@@ -938,7 +940,15 @@ class Translation(models.Model):
     objects = TranslationManager()
 
     class Meta:
-        ordering = ["msgid"]
+        ordering = ["id"]
 
     def __str__(self):
         return self.msgid[:60]
+
+    @staticmethod
+    def hash_of(msgid):
+        return hashlib.sha256(msgid.encode("utf-8")).hexdigest()
+
+    def save(self, *args, **kwargs):
+        self.msgid_hash = self.hash_of(self.msgid)
+        return super().save(*args, **kwargs)

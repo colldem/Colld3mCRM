@@ -7107,3 +7107,17 @@ class PostgresReportingRoleTests(TransactionTestCase):
         from django.core.management import CommandError, call_command
         with patch.dict(os.environ, {"REPORTING_PASSWORD": "short"}), self.assertRaises(CommandError):
             call_command("create_reporting_role", "--name", self.ROLE)
+
+
+class TranslationStorageTests(TestCase):
+    """Overrides are unique per msgid without an index on the unbounded text."""
+
+    def test_long_msgids_are_stored_and_duplicates_refused(self):
+        from django.db import IntegrityError, transaction
+        from contacts.models import Translation
+        long_msgid = "Ilgas dokumentacijos tekstas. " * 400  # ~12 kB: past PostgreSQL's btree row limit
+        row = Translation.objects.create(msgid=long_msgid, en="Long")
+        self.assertEqual(row.msgid_hash, Translation.hash_of(long_msgid))
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            Translation.objects.create(msgid=long_msgid, en="Again")
+        self.assertEqual(Translation.objects.get(msgid_hash=Translation.hash_of(long_msgid)).en, "Long")

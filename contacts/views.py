@@ -2870,11 +2870,11 @@ def settings_translations(request):
         for change in changes:
             # An empty cell means "use the shipped translation".
             if not (change["new_lt"] or change["new_en"]):
-                Translation.objects.filter(msgid=change["msgid"]).delete()
+                Translation.objects.filter(msgid_hash=Translation.hash_of(change["msgid"])).delete()
             else:
                 Translation.objects.update_or_create(
-                    msgid=change["msgid"],
-                    defaults={"lt": change["new_lt"], "en": change["new_en"],
+                    msgid_hash=Translation.hash_of(change["msgid"]),
+                    defaults={"msgid": change["msgid"], "lt": change["new_lt"], "en": change["new_en"],
                               "updated_by": request.user})
         translations.apply_overrides()
         audit_log(AuditLog.UPDATE, request=request, target_type="translations",
