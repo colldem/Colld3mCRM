@@ -5155,6 +5155,260 @@ class ApiTests(TestCase):
         response = self.client.get(reverse("api:contacts") + "?limit=abc", **self._auth(self.raw_read_token))
         self.assertEqual(response.status_code, 400)
 
+    # --- request body and unhandled errors -------------------------------------
+
+    def test_malformed_json_body_is_a_400(self):
+        response = self.client.post(reverse("api:contacts"), data="{not json",
+                                    content_type="application/json", **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 400)
+
+    def test_a_json_body_that_is_not_an_object_is_a_400(self):
+        response = self.client.post(reverse("api:contacts"), data=json.dumps(["a", "b"]),
+                                    content_type="application/json", **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 400)
+
+    def test_an_unhandled_error_is_a_500_without_leaking_a_traceback(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        with patch("contacts.api.serialize_person", side_effect=RuntimeError("boom")):
+            response = self.client.get(reverse("api:contact", args=[person.pk]), **self._auth(self.raw_read_token))
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json(), {"error": "internal error"})
+        self.assertNotIn("boom", response.content.decode())
+
+    def test_an_unsupported_method_is_a_405(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        response = self.client.put(reverse("api:contact", args=[person.pk]), **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 405)
+
+    # --- searching and filtering the contacts collection ------------------------
+
+    def test_contacts_collection_search_matches_name_and_email(self):
+        match = Person.objects.create(first_name="Living", last_name="Stone")
+        EmailAddress.objects.create(person=match, email="living@example.lt", is_primary=True)
+        Person.objects.create(first_name="Kitas", last_name="Žmogus")
+        response = self.client.get(reverse("api:contacts") + "?q=living", **self._auth(self.raw_read_token))
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertEqual(ids, {match.pk})
+
+    def test_contacts_collection_filters_by_updated_since(self):
+        old = Person.objects.create(first_name="Senas", last_name="Įrašas")
+        Person.objects.filter(pk=old.pk).update(updated_at=timezone.now() - timedelta(days=2))
+        cutoff = timezone.now() - timedelta(days=1)
+        recent = Person.objects.create(first_name="Naujas", last_name="Įrašas")
+        response = self.client.get(
+            reverse("api:contacts"), {"since": cutoff.isoformat()}, **self._auth(self.raw_read_token))
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertEqual(ids, {recent.pk})
+
+    def test_contacts_collection_filters_by_owner(self):
+        mine = Person.objects.create(first_name="A", last_name="M", owner=self.owner)
+        Person.objects.create(first_name="B", last_name="N")
+        response = self.client.get(
+            reverse("api:contacts") + f"?owner={self.owner.pk}", **self._auth(self.raw_read_token))
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertEqual(ids, {mine.pk})
+
+    def test_writing_emails_deduplicates_within_the_same_request(self):
+        created = self._post_json(reverse("api:contacts"), {
+            "first_name": "A", "last_name": "Z",
+            "emails": ["dup@example.lt", "DUP@example.lt", "dup@example.lt"],
+        }, self.raw_write_token).json()
+        self.assertEqual(created["emails"], ["dup@example.lt"])
+
+    def test_patching_a_contact_sets_description_favourite_tags_and_categories(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        response = self._patch_json(reverse("api:contact", args=[person.pk]), {
+            "description": "Apie jį", "favourite": True, "tags": ["VIP"], "categories": ["Partneris"],
+        })
+        self.assertEqual(response.status_code, 200)
+        person.refresh_from_db()
+        self.assertEqual(person.description, "Apie jį")
+        self.assertTrue(person.favourite)
+        self.assertEqual(list(person.tags.values_list("name", flat=True)), ["VIP"])
+        self.assertEqual(list(person.categories.values_list("name", flat=True)), ["Partneris"])
+
+    def test_patching_a_contact_can_link_it_to_a_visible_company(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        company = Company.objects.create(name="UAB Susieta")
+        response = self._patch_json(reverse("api:contact", args=[person.pk]), {"company_id": company.pk})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(person.company_links.filter(company=company).exists())
+
+    # --- companies collection ---------------------------------------------------
+
+    def test_companies_collection_search_matches_name(self):
+        match = Company.objects.create(name="UAB Rasta")
+        Company.objects.create(name="Kita")
+        response = self.client.get(reverse("api:companies") + "?q=rasta", **self._auth(self.raw_read_token))
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertEqual(ids, {match.pk})
+
+    def test_companies_collection_filters_by_updated_since(self):
+        old = Company.objects.create(name="Sena")
+        Company.objects.filter(pk=old.pk).update(updated_at=timezone.now() - timedelta(days=2))
+        cutoff = timezone.now() - timedelta(days=1)
+        recent = Company.objects.create(name="Nauja")
+        response = self.client.get(
+            reverse("api:companies"), {"since": cutoff.isoformat()}, **self._auth(self.raw_read_token))
+        ids = {row["id"] for row in response.json()["results"]}
+        self.assertEqual(ids, {recent.pk})
+
+    def test_patching_a_company_sets_description_tags_and_categories(self):
+        company = Company.objects.create(name="UAB X")
+        response = self.client.patch(reverse("api:company", args=[company.pk]), data=json.dumps({
+            "description": "Aprašymas", "tags": ["Rizika"], "categories": ["A"],
+        }), content_type="application/json", **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 200)
+        company.refresh_from_db()
+        self.assertEqual(company.description, "Aprašymas")
+        self.assertEqual(list(company.tags.values_list("name", flat=True)), ["Rizika"])
+
+    def test_deleting_a_company_requires_the_can_delete_capability(self):
+        RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER, permissions={"can_delete": False})
+        UserProfile.objects.create(user=self.owner, role=UserProfile.ROLE_MEMBER)
+        company = Company.objects.create(name="UAB Saugoma")
+        response = self.client.delete(reverse("api:company", args=[company.pk]), **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 403)
+
+    def test_deleting_a_company_archives_it(self):
+        company = Company.objects.create(name="UAB Trinama")
+        response = self.client.delete(reverse("api:company", args=[company.pk]), **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 200)
+        company.refresh_from_db()
+        self.assertIsNotNone(company.deleted_at)
+
+    # --- activities: visibility, filtering ---------------------------------------
+
+    def test_creating_an_activity_against_an_invisible_person_is_a_404(self):
+        restricted_user = get_user_model().objects.create_user("api-restricted2", password="x")
+        UserProfile.objects.create(user=restricted_user, role=UserProfile.ROLE_RESTRICTED)
+        raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="r2", token_hash=digest, prefix=raw[:12],
+                                scope=ApiToken.READ_WRITE, created_by=restricted_user)
+        someone_elses = Person.objects.create(first_name="Kito", last_name="K", owner=self.owner)
+        response = self._post_json(reverse("api:activities"),
+                                   {"activity_type": "note", "text": "x", "person_id": someone_elses.pk}, raw)
+        self.assertEqual(response.status_code, 404)
+
+    def test_activities_collection_can_be_filtered_by_person_or_company(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        company = Company.objects.create(name="UAB C")
+        for_person = Activity.objects.create(person=person, text="p", created_by=self.owner)
+        for_company = Activity.objects.create(company=company, text="c", created_by=self.owner)
+
+        by_person = self.client.get(
+            reverse("api:activities") + f"?person_id={person.pk}", **self._auth(self.raw_read_token))
+        self.assertEqual({r["id"] for r in by_person.json()["results"]}, {for_person.pk})
+
+        by_company = self.client.get(
+            reverse("api:activities") + f"?company_id={company.pk}", **self._auth(self.raw_read_token))
+        self.assertEqual({r["id"] for r in by_company.json()["results"]}, {for_company.pk})
+
+    def test_activities_collection_without_a_filter_lists_every_visible_activity(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        Activity.objects.create(person=person, text="p", created_by=self.owner)
+        response = self.client.get(reverse("api:activities"), **self._auth(self.raw_read_token))
+        self.assertGreaterEqual(response.json()["count"], 1)
+
+    # --- reminders: filtering -----------------------------------------------------
+
+    # --- the remaining write-helper and 404/405 branches -------------------------
+
+    def test_patching_a_contact_assigns_an_owner_by_id(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        response = self._patch_json(reverse("api:contact", args=[person.pk]), {"owner_id": self.owner.pk})
+        self.assertEqual(response.status_code, 200)
+        person.refresh_from_db()
+        self.assertEqual(person.owner_id, self.owner.pk)
+
+    def test_patching_a_contact_syncs_phones_addresses_and_urls(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        response = self._patch_json(reverse("api:contact", args=[person.pk]), {
+            "phones": ["+370 600 00000"], "addresses": ["Gedimino pr. 1"], "urls": ["example.lt"],
+        })
+        data = response.json()
+        self.assertEqual(data["phones"], ["+370 600 00000"])
+        self.assertEqual(data["addresses"], ["Gedimino pr. 1"])
+        self.assertEqual(data["urls"], ["https://example.lt"])
+
+    def test_patching_a_company_assigns_an_owner_by_id(self):
+        company = Company.objects.create(name="UAB Y")
+        response = self.client.patch(reverse("api:company", args=[company.pk]),
+                                     data=json.dumps({"owner_id": self.owner.pk}),
+                                     content_type="application/json", **self._auth(self.raw_write_token))
+        self.assertEqual(response.status_code, 200)
+        company.refresh_from_db()
+        self.assertEqual(company.owner_id, self.owner.pk)
+
+    def test_duplicate_check_is_skipped_while_duplicate_detection_is_disabled(self):
+        DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": False})
+        Person.objects.create(first_name="Ona", last_name="Onaitė")
+        response = self._post_json(reverse("api:contacts"), {"first_name": "Ona", "last_name": "Onaitė"},
+                                   self.raw_write_token)
+        self.assertEqual(response.status_code, 201)
+
+    def test_fetching_an_unknown_company_is_a_404(self):
+        response = self.client.get(reverse("api:company", args=[999999]), **self._auth(self.raw_read_token))
+        self.assertEqual(response.status_code, 404)
+
+    def test_fetching_an_existing_company_returns_it(self):
+        company = Company.objects.create(name="UAB Z")
+        response = self.client.get(reverse("api:company", args=[company.pk]), **self._auth(self.raw_read_token))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["name"], "UAB Z")
+
+    def test_creating_a_reminder_against_an_invisible_company_is_a_404(self):
+        restricted_user = get_user_model().objects.create_user("api-restricted3", password="x")
+        UserProfile.objects.create(user=restricted_user, role=UserProfile.ROLE_RESTRICTED)
+        raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="r3", token_hash=digest, prefix=raw[:12],
+                                scope=ApiToken.READ_WRITE, created_by=restricted_user)
+        someone_elses_company = Company.objects.create(name="UAB Kito", owner=self.owner)
+        response = self._post_json(reverse("api:reminders"),
+                                   {"text": "x", "due_at": "2030-01-01T10:00:00Z",
+                                    "company_id": someone_elses_company.pk}, raw)
+        self.assertEqual(response.status_code, 404)
+
+    def test_creating_an_activity_with_a_linked_record_but_empty_text_is_a_400(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        response = self._post_json(reverse("api:activities"),
+                                   {"activity_type": "note", "text": "   ", "person_id": person.pk},
+                                   self.raw_write_token)
+        self.assertEqual(response.status_code, 400)
+
+    def test_activities_collection_filters_by_updated_since(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        old = Activity.objects.create(person=person, text="senas", created_by=self.owner)
+        Activity.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=2))
+        cutoff = timezone.now() - timedelta(days=1)
+        recent = Activity.objects.create(person=person, text="naujas", created_by=self.owner)
+        response = self.client.get(
+            reverse("api:activities"), {"since": cutoff.isoformat()}, **self._auth(self.raw_read_token))
+        self.assertEqual({r["id"] for r in response.json()["results"]}, {recent.pk})
+
+    def test_every_collection_endpoint_rejects_an_unsupported_method(self):
+        company = Company.objects.create(name="UAB W")
+        auth = self._auth(self.raw_write_token)
+        cases = [
+            (self.client.delete, reverse("api:contacts")),
+            (self.client.delete, reverse("api:companies")),
+            (self.client.post, reverse("api:company", args=[company.pk])),
+            (self.client.delete, reverse("api:activities")),
+            (self.client.delete, reverse("api:reminders")),
+        ]
+        for method, url in cases:
+            with self.subTest(url=url):
+                self.assertEqual(method(url, **auth).status_code, 405)
+
+    def test_reminders_collection_open_filter_excludes_completed_ones(self):
+        person = Person.objects.create(first_name="A", last_name="B")
+        open_reminder = Reminder.objects.create(person=person, text="Atviras", due_at=timezone.now(),
+                                                created_by=self.owner)
+        Reminder.objects.create(person=person, text="Baigtas", due_at=timezone.now(),
+                                created_by=self.owner, completed_at=timezone.now())
+        response = self.client.get(reverse("api:reminders") + "?open=1", **self._auth(self.raw_read_token))
+        self.assertEqual({r["id"] for r in response.json()["results"]}, {open_reminder.pk})
+
 
 class MergeRecordsTests(TestCase):
     """contacts/merging.py's guard rails and data movement, at the function
@@ -5410,3 +5664,107 @@ class MergeRecordsTests(TestCase):
         self.assertEqual(merge_companies(already_merged_source.pk, first_target.pk), first_target)
         with self.assertRaises(ValidationError):
             merge_companies(already_merged_source.pk, other_target.pk)
+
+
+class CustomFieldHelperTests(TestCase):
+    """contacts/custom_fields.py at the function level. View-level tests
+    elsewhere only ever use text/select/multiselect fields — bool and
+    textarea, and an invalid select choice, were never exercised."""
+
+    def setUp(self):
+        self.person = Person.objects.create(first_name="A", last_name="B")
+
+    def _bool_field(self):
+        return CustomField.objects.create(entity=CustomField.PERSON, name="Aktyvus", field_type=CustomField.BOOL)
+
+    def _select_field(self):
+        return CustomField.objects.create(
+            entity=CustomField.PERSON, name="Šaltinis", field_type=CustomField.SELECT, options=["Web", "Renginys"])
+
+    def _textarea_field(self):
+        return CustomField.objects.create(entity=CustomField.PERSON, name="Pastabos", field_type=CustomField.TEXTAREA)
+
+    @staticmethod
+    def _posted(value):
+        from django.http import QueryDict
+        data = QueryDict(mutable=True)
+        data["value"] = value
+        return data
+
+    # --- _decode / _encode / display ---------------------------------------
+
+    def test_bool_field_decodes_and_encodes_through_the_stored_marker(self):
+        from contacts.custom_fields import _decode, _encode
+        field = self._bool_field()
+        self.assertEqual(_encode(field, True), "1")
+        self.assertEqual(_encode(field, False), "")
+        self.assertTrue(_decode(field, "1"))
+        self.assertFalse(_decode(field, ""))
+        self.assertFalse(_decode(field, None))
+
+    def test_text_field_encode_strips_whitespace(self):
+        from contacts.custom_fields import _encode
+        field = self._textarea_field()
+        self.assertEqual(_encode(field, "  su tarpais  "), "su tarpais")
+        self.assertEqual(_encode(field, None), "")
+
+    def test_bool_field_displays_as_yes_or_no(self):
+        from contacts.custom_fields import display
+        field = self._bool_field()
+        self.assertEqual(display(field, True), "Taip")
+        self.assertEqual(display(field, False), "Ne")
+
+    # --- single_context ------------------------------------------------------
+
+    def test_single_context_returns_none_for_an_unknown_field(self):
+        from contacts.custom_fields import single_context
+        self.assertIsNone(single_context(self.person, "cf_999999"))
+
+    def test_single_context_returns_none_for_a_field_of_the_other_entity(self):
+        from contacts.custom_fields import single_context
+        company_field = CustomField.objects.create(entity=CustomField.COMPANY, name="X", field_type=CustomField.TEXT)
+        self.assertIsNone(single_context(self.person, company_field.key))
+
+    # --- clean_and_store -------------------------------------------------------
+
+    def test_clean_and_store_rejects_a_select_value_outside_the_options(self):
+        from contacts.custom_fields import clean_and_store
+        field = self._select_field()
+        decoded = clean_and_store(self.person, field, self._posted("Kažkas kito"))
+        self.assertEqual(decoded, "")
+        self.assertEqual(CustomValue.objects.get(field=field, person=self.person).value, "")
+
+    def test_clean_and_store_accepts_a_valid_select_value(self):
+        from contacts.custom_fields import clean_and_store
+        field = self._select_field()
+        decoded = clean_and_store(self.person, field, self._posted("Web"))
+        self.assertEqual(decoded, "Web")
+
+    def test_clean_and_store_parses_a_bool_field_from_several_truthy_spellings(self):
+        from contacts.custom_fields import clean_and_store
+        field = self._bool_field()
+        for spelling in ("1", "on", "true"):
+            self.assertTrue(clean_and_store(self.person, field, self._posted(spelling)))
+        self.assertFalse(clean_and_store(self.person, field, self._posted("false")))
+        self.assertFalse(clean_and_store(self.person, field, self._posted("")))
+
+    def test_clean_and_store_truncates_a_textarea_to_1000_characters(self):
+        from contacts.custom_fields import clean_and_store
+        field = self._textarea_field()
+        long_text = "x" * 1500
+        decoded = clean_and_store(self.person, field, self._posted(long_text))
+        self.assertEqual(len(decoded), 1000)
+
+    def test_clean_and_store_truncates_a_plain_text_field_to_200_characters(self):
+        from contacts.custom_fields import clean_and_store
+        field = CustomField.objects.create(entity=CustomField.PERSON, name="Trumpas", field_type=CustomField.TEXT)
+        decoded = clean_and_store(self.person, field, self._posted("y" * 300))
+        self.assertEqual(len(decoded), 200)
+
+    def test_clean_and_store_updates_rather_than_duplicates_the_value_row(self):
+        from contacts.custom_fields import clean_and_store
+        field = self._select_field()
+        clean_and_store(self.person, field, self._posted("Web"))
+        clean_and_store(self.person, field, self._posted("Renginys"))
+        self.assertEqual(CustomValue.objects.filter(field=field, person=self.person).count(), 1)
+        self.assertEqual(CustomValue.objects.get(field=field, person=self.person).value, "Renginys")
