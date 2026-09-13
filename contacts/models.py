@@ -391,6 +391,11 @@ class Person(RecordDetailsModel, TimestampedModel):
 
     @property
     def primary_company(self):
+        if "company_links" in getattr(self, "_prefetched_objects_cache", {}):
+            # Lists prefetch the links with their companies: pick in Python, no query per row.
+            links = sorted((link for link in self.company_links.all() if link.company.deleted_at is None),
+                           key=lambda link: (not link.is_primary, link.company.name))
+            return links[0].company if links else None
         link = self.company_links.filter(company__deleted_at__isnull=True).select_related("company").order_by("-is_primary", "company__name").first()
         return link.company if link else None
 
@@ -593,16 +598,16 @@ class Reminder(TimestampedModel):
     def contact_phone(self):
         record = self.record
         if isinstance(record, Person):
-            phone = record.phones.first()
-            return phone.number if phone else ""
+            phones = list(record.phones.all())  # .all() reads a prefetch; .first() would query per reminder
+            return phones[0].number if phones else ""
         return record.phone if record else ""
 
     @property
     def contact_address(self):
         record = self.record
         if isinstance(record, Person):
-            address = record.addresses.first()
-            return address.address if address else ""
+            addresses = list(record.addresses.all())
+            return addresses[0].address if addresses else ""
         return record.address if record else ""
 
 

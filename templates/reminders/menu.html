@@ -4,9 +4,9 @@
   <button type="button" id="bell-scheduled-tab" role="tab" aria-selected="false" aria-controls="bell-scheduled" tabindex="-1">{% translate 'Visi suplanuoti' %}</button>
 </div>
 <div id="bell-active" role="tabpanel" aria-labelledby="bell-active-tab" class="bell-panel">
-  {% for reminder in active_reminders_menu %}<a class="reminder-menu-item" href="{% url 'contacts:reminder-edit' reminder.pk %}">{{ reminder.text }}<small>{{ reminder.due_at|date:datetime_format }}{% if reminder.record %} - {{ reminder.record }}{% endif %}</small></a>{% empty %}<p>{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
+  {% for reminder in active_reminders_menu %}<a class="reminder-menu-item" href="{% url 'contacts:reminder-edit' reminder.pk %}">{{ reminder.text }}<small>{{ reminder.due_at|date:datetime_format }}{% if reminder.record %} - {{ reminder.record }}{% endif %}</small></a>{% empty %}<p>{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}{% if active_reminders_total > bell_limit %}<p class="bell-more">{% blocktranslate with shown=bell_limit total=active_reminders_total %}Rodomi {{ shown }} naujausi iš {{ total }}.{% endblocktranslate %}</p>{% endif %}
 </div>
 <div id="bell-scheduled" role="tabpanel" aria-labelledby="bell-scheduled-tab" class="bell-panel" hidden>
-  {% for reminder in scheduled_reminders_menu %}<a class="reminder-menu-item" href="{% url 'contacts:reminder-edit' reminder.pk %}">{{ reminder.text }}<small>{{ reminder.due_at|date:datetime_format }}{% if reminder.record %} - {{ reminder.record }}{% endif %}</small></a>{% empty %}<p>{% translate 'Suplanuotų priminimų nėra.' %}</p>{% endfor %}
+  {% for reminder in scheduled_reminders_menu %}<a class="reminder-menu-item" href="{% url 'contacts:reminder-edit' reminder.pk %}">{{ reminder.text }}<small>{{ reminder.due_at|date:datetime_format }}{% if reminder.record %} - {{ reminder.record }}{% endif %}</small></a>{% empty %}<p>{% translate 'Suplanuotų priminimų nėra.' %}</p>{% endfor %}{% if scheduled_reminders_total > bell_limit %}<p class="bell-more">{% blocktranslate with shown=bell_limit total=scheduled_reminders_total %}Rodomi {{ shown }} artimiausi iš {{ total }}.{% endblocktranslate %}</p>{% endif %}
 </div>
 <a href="{% url 'contacts:calendar' %}">{% translate 'Atidaryti kalendorių' %}</a>

@@ -93,7 +93,9 @@ def dashboard(request):
 
     agenda = (Reminder.objects.filter(created_by=request.user, deleted_at__isnull=True,
                                       completed_at__isnull=True)
-              .select_related("person", "company"))
+              .select_related("person", "company")
+              # The agenda cards show the contact's phone and address.
+              .prefetch_related("person__phones", "person__addresses"))
     counts = dict(Activity.objects.filter(created_by=request.user, deleted_at__isnull=True,
                                           created_at__gte=week_start)
                   .values_list("activity_type").annotate(total=Count("id")))

@@ -7121,3 +7121,47 @@ class TranslationStorageTests(TestCase):
         with self.assertRaises(IntegrityError), transaction.atomic():
             Translation.objects.create(msgid=long_msgid, en="Again")
         self.assertEqual(Translation.objects.get(msgid_hash=Translation.hash_of(long_msgid)).en, "Long")
+
+
+class QueryScalingTests(TestCase):
+    """Page cost must not grow with the data: guards against N+1 queries and unbounded markup."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("scale", password="very-secure-password")
+        self.client.force_login(self.user)
+        self.company = Company.objects.create(name="UAB Mastas", created_by=self.user, owner=self.user)
+
+    def add_people(self, count):
+        from contacts.models import PersonCompanyLink, PostalAddress
+        for index in range(count):
+            person = Person.objects.create(first_name="Asmuo", last_name="Nr%04d" % Person.objects.count(),
+                                           created_by=self.user, owner=self.user)
+            PhoneNumber.objects.create(person=person, number="+3706000%04d" % person.pk)
+            PostalAddress.objects.create(person=person, address="Gatvė %d" % person.pk)
+            PersonCompanyLink.objects.create(person=person, company=self.company)
+            Reminder.objects.create(person=person, text="Priminimas", due_at=timezone.now() + timedelta(hours=index + 1),
+                                    created_by=self.user)
+
+    def queries_for(self, url):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        self.client.get(url)  # warm per-process caches
+        with CaptureQueriesContext(connection) as captured:
+            self.assertEqual(self.client.get(url).status_code, 200)
+        return len(captured.captured_queries)
+
+    def test_list_calendar_and_dashboard_queries_do_not_grow_with_rows(self):
+        # Both sizes non-empty: a prefetch that runs only when there are rows is constant, not growth.
+        self.add_people(10)
+        small = {url: self.queries_for(url) for url in ("/contacts/", "/calendar/", "/")}
+        self.add_people(30)
+        for url, count in small.items():
+            with self.subTest(url=url):
+                self.assertEqual(self.queries_for(url), count)
+
+    def test_bell_lists_a_bounded_number_of_reminders(self):
+        from contacts.context_processors import BELL_LIMIT
+        self.add_people(BELL_LIMIT + 10)
+        response = self.client.get("/calendar/")
+        self.assertEqual(response.content.decode().count('class="reminder-menu-item"'), BELL_LIMIT)
+        self.assertContains(response, "Rodomi %d artimiausi iš %d." % (BELL_LIMIT, BELL_LIMIT + 10))

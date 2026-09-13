@@ -61,7 +61,12 @@ def has_capability(user, capability):
         return False
     if role == UserProfile.ROLE_READONLY and capability not in READONLY_CAPABILITIES:
         return False
-    row = RolePermissions.objects.filter(role=role).first()
+    # Pages check a dozen capabilities (menu, context, view); read the role's row
+    # once per user object, i.e. once per request.
+    rows = user.__dict__.setdefault("_crm_role_permissions", {})
+    if role not in rows:
+        rows[role] = RolePermissions.objects.filter(role=role).first()
+    row = rows[role]
     if row and capability in (row.permissions or {}):
         return bool(row.permissions[capability])
     return _CAPABILITY_DEFAULTS[role].get(capability, False)

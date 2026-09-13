@@ -3883,3 +3883,9 @@ msgstr "Files not added (too large, wrong type or failed the malware scan): %(na
 
 msgid "Failas nepraėjo antivirusinės patikros."
 msgstr "The file failed the malware scan."
+
+msgid "Rodomi %(shown)s naujausi iš %(total)s."
+msgstr "Showing the latest %(shown)s of %(total)s."
+
+msgid "Rodomi %(shown)s artimiausi iš %(total)s."
+msgstr "Showing the next %(shown)s of %(total)s."

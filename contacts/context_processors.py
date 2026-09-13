@@ -6,6 +6,11 @@ from .reminder_queries import pending_reminders
 from .models import SystemSettings, UserProfile
 
 
+# The bell renders on every page: it lists the nearest entries only and links to
+# the calendar for the rest, so its cost does not grow with the reminder table.
+BELL_LIMIT = 25
+
+
 def reminder_count(request):
     if not request.user.is_authenticated:
         return {"active_reminder_count": 0, "active_reminders_menu": []}
@@ -15,9 +20,16 @@ def reminder_count(request):
     # it is not due yet, until you have opened it.
     handed_to_me = Q(assigned_to=request.user, read_at__isnull=True) & ~Q(assigned_to=F("created_by"))
     active = pending.filter(Q(due_at__lte=now) | handed_to_me)
+    scheduled = pending.filter(due_at__gt=now).exclude(handed_to_me)
+    # Overdue: the most recent first would hide the oldest; keep due order but
+    # show the latest BELL_LIMIT, which are the ones still likely to matter.
+    active_total, scheduled_total = active.count(), scheduled.count()
     return {"active_reminder_count": active.filter(read_at__isnull=True).count(),
-            "active_reminders_menu": active,
-            "scheduled_reminders_menu": pending.filter(due_at__gt=now).exclude(handed_to_me)}
+            "active_reminders_menu": active[max(active_total - BELL_LIMIT, 0):],
+            "active_reminders_total": active_total,
+            "scheduled_reminders_menu": scheduled[:BELL_LIMIT],
+            "scheduled_reminders_total": scheduled_total,
+            "bell_limit": BELL_LIMIT}
 
 
 def user_profile(request):
