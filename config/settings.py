@@ -77,9 +77,11 @@ if os.environ.get("DB_ENGINE") == "oracle":
     # CI (docs/ORACLE.md). NAME is the service name; the driver is python-oracledb.
     DATABASES = {"default": {
         "ENGINE": "django.db.backends.oracle",
-        "HOST": os.environ["DB_HOST"],
-        "PORT": os.environ.get("DB_PORT", "1521"),
-        "NAME": os.environ.get("DB_NAME", "FREEPDB1"),
+        # Easy Connect "host:port/service" in NAME: Django reads HOST/PORT as a SID.
+        "HOST": "",
+        "PORT": "",
+        "NAME": "%s:%s/%s" % (os.environ["DB_HOST"], os.environ.get("DB_PORT", "1521"),
+                              os.environ.get("DB_NAME", "FREEPDB1")),
         "USER": os.environ.get("DB_USER", "system"),
         "PASSWORD": os.environ.get("DB_PASSWORD", ""),
         "TEST": {"USER": "crm_test", "PASSWORD": os.environ.get("DB_PASSWORD", ""), "TBLSPACE": "crm_test_tbls",
