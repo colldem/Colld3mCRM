@@ -49,6 +49,7 @@ jobs:
       DB_NAME: crm
       DB_USER: crm
       DB_PASSWORD: crm-ci-only
+      DJANGO_SECRET_KEY: ci-only-0123456789abcdefghijklmnopqrstuvwxyz-postgres-job
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -193,6 +194,7 @@ jobs:
     env:
       DB_ENGINE: oracle
       DB_HOST: localhost
+      DJANGO_SECRET_KEY: ci-only-0123456789abcdefghijklmnopqrstuvwxyz-oracle-job
       DB_NAME: FREEPDB1
       DB_USER: system
       DB_PASSWORD: CiOracle0nly

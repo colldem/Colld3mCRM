@@ -47,7 +47,7 @@ skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
 | Kliento IP už proxy | ✅ `CRM_TRUSTED_PROXIES`; ištaisyta: blokavimas palietė visus už proxy | `audit.py` |
 | Integracijos / DWH | ✅ `reporting` schema, tik skaitymo rolė, `INTEGRACIJOS.md` | migracija 0051 |
 | Oracle | 🟡 migracijos praeina, 515/644 testų; darbų įvertinimas `ORACLE.md` | CI `oracle-compatibility` |
-| Dokumentacija | 🟡 techninė EN/LT gera; **nėra saugumo aprašo, duomenų žodyno, DAPV, priežiūros modelio** | `docs/` |
+| Dokumentacija | ✅ techninė + organizacijos paketas `docs/paketas/` (00–12); 🟡 programos žinyno papildymai atidėti (D) | `docs/` |
 
 ---
 
@@ -166,12 +166,6 @@ Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
 | 8.5 | Poreikio aprašas (problema, naudotojų skaičius, nauda) | `paketas/00-poreikio-aprasas.md` | ❌ jūsų |
 | 8.6 | Susitikimo pasiruošimas | `paketas/12-susitikimo-planas.md` | ✅ paruošta |
 
----|---|---|
-| 8.1 | Verslo užsakovas — padalinys ir atsakingas asmuo | ❌ |
-| 8.2 | Autorių teisės: kodas kurtas darbo ar asmeniniu laiku; MIT licencijos patvirtinimas | ❌ |
-| 8.3 | Interesų konfliktas, jei vėliau būtų mokama priežiūra | ❌ |
-| 8.4 | Pirminė konsultacija su DAP | ❌ |
-| 8.5 | Poreikio aprašas (problema, naudotojų skaičius, nauda) | ❌ |
 
 ---
 
@@ -188,7 +182,8 @@ Sutarta atlikti vėliau (2026-09-13):
   `reporting` schema ir `create_reporting_role`; `CRM_TRUSTED_PROXIES`; `CRM_LOG_FORMAT`/`CRM_LOG_LEVEL`;
   `CRM_GUNICORN_KEEPALIVE`; kintamųjų lentelėje — `CRM_API_RATE_LIMIT`, `BACKUP_*`, `CRM_CLAMAV_*`,
   `CRM_BREAK_GLASS_USERS`, `CRM_CSP_REPORT_ONLY`; nustatymų sąraše — „Duomenų apsauga";
-  varpelio riba (25 įrašai); technologijų sąraše — ClamAV, age, rclone.
+  varpelio riba (25 įrašai); technologijų sąraše — ClamAV, age, rclone; `/admin/` dabar išjungtas
+  (`CRM_DJANGO_ADMIN`, tik superuser) — žinyno „Prieigos modelis" ir „Naudotojų valdymas" tekstai pasenę.
 
 ## C. Revizija (pildoma pabaigus)
 
