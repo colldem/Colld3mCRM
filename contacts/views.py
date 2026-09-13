@@ -278,15 +278,24 @@ def contact_list(request):
     people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True)).select_related("owner").prefetch_related(
         "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
     )
-    people = people.annotate(last_contact_at=Max("activities__created_at", filter=Q(activities__deleted_at__isnull=True)))
+    # Aggregates over joined tables are the expensive part of this page, so the
+    # whole list is annotated only with what it is filtered or sorted by; the
+    # "last contact" column of the visible page is filled in afterwards.
+    last_contact_in_query = sort_key == "last_contact" or bool(
+        filter_values.get("last_contact_from") or filter_values.get("last_contact_to"))
+    if last_contact_in_query:
+        people = people.annotate(last_contact_at=Max("activities__created_at", filter=Q(activities__deleted_at__isnull=True)))
     people = apply_contact_filters(people, filter_values, request.user)
-    people = people.annotate(
-        sort_company=Min("company_links__company__name"),
-        sort_phone=Min("phones__number"),
-        sort_email=Min("emails__email"),
-        sort_category=Min("categories__name"),
-        sort_tag=Min("tags__name"),
-    )
+    sort_aggregates = {
+        "company": ("sort_company", Min("company_links__company__name")),
+        "phone": ("sort_phone", Min("phones__number")),
+        "email": ("sort_email", Min("emails__email")),
+        "category": ("sort_category", Min("categories__name")),
+        "tags": ("sort_tag", Min("tags__name")),
+    }
+    if sort_key in sort_aggregates:
+        name, aggregate = sort_aggregates[sort_key]
+        people = people.annotate(**{name: aggregate})
     custom_fields = list(CustomField.objects.filter(entity=CustomField.PERSON))
     allowed_columns = ["company", "phone", "email", "category", "tags", "owner", "last_contact", "updated"] + [field.key for field in custom_fields]
     default_columns = ["company", "phone", "email", "category", "tags", "updated"]
@@ -300,6 +309,12 @@ def contact_list(request):
 
     page = Paginator(people.order_by(*order, "id"), page_size).get_page(request.GET.get("page"))
     page.object_list = list(page.object_list)
+    if not last_contact_in_query:
+        latest = dict(Activity.objects.filter(person_id__in=[person.pk for person in page.object_list],
+                                              deleted_at__isnull=True)
+                      .values_list("person_id").annotate(latest=Max("created_at")).order_by())
+        for person in page.object_list:
+            person.last_contact_at = latest.get(person.pk)
     custom_columns = [field for field in custom_fields if field.key in columns]
     _attach_custom_cells(page.object_list, custom_columns)
     list_query = request.GET.copy()
@@ -2224,11 +2239,18 @@ def company_list(request):
     contact_count_filter = Q(people__deleted_at__isnull=True)
     if not sees_all_records(request.user):
         contact_count_filter &= Q(people__pk__in=visible_person_ids(request.user))
-    companies = companies.distinct().annotate(
-        contact_count=Count("people", filter=contact_count_filter, distinct=True),
-        sort_category=Min("categories__name"),
-        sort_tag=Min("tags__name"),
-    ).order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
+    # As on the contact list: aggregate the whole list only for the active sort,
+    # count the visible page's contacts afterwards.
+    companies = companies.distinct()
+    sort_aggregates = {
+        "contacts": ("contact_count", Count("people", filter=contact_count_filter, distinct=True)),
+        "category": ("sort_category", Min("categories__name")),
+        "tags": ("sort_tag", Min("tags__name")),
+    }
+    if sort_key in sort_aggregates:
+        name, aggregate = sort_aggregates[sort_key]
+        companies = companies.annotate(**{name: aggregate})
+    companies = companies.order_by(f"{order_prefix}{sort_map[sort_key]}", "id")
     custom_fields = list(CustomField.objects.filter(entity=CustomField.COMPANY))
     allowed_columns = ["company_code", "vat_code", "address", "city", "phone", "email", "contacts", "owner"] + [field.key for field in custom_fields]
     # Registry codes matter for invoices, not for scanning a list — they stay one
@@ -2245,6 +2267,14 @@ def company_list(request):
 
     page = Paginator(companies, page_size).get_page(request.GET.get("page"))
     page.object_list = list(page.object_list)
+    if sort_key != "contacts":
+        links = PersonCompanyLink.objects.filter(company_id__in=[company.pk for company in page.object_list],
+                                                 person__deleted_at__isnull=True)
+        if not sees_all_records(request.user):
+            links = links.filter(person_id__in=visible_person_ids(request.user))
+        counts = dict(links.values_list("company_id").annotate(total=Count("person_id", distinct=True)).order_by())
+        for company in page.object_list:
+            company.contact_count = counts.get(company.pk, 0)
     custom_columns = [field for field in custom_fields if field.key in columns]
     _attach_custom_cells(page.object_list, custom_columns)
     list_query = request.GET.copy()

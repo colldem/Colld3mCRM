@@ -7165,3 +7165,44 @@ class QueryScalingTests(TestCase):
         response = self.client.get("/calendar/")
         self.assertEqual(response.content.decode().count('class="reminder-menu-item"'), BELL_LIMIT)
         self.assertContains(response, "Rodomi %d artimiausi iš %d." % (BELL_LIMIT, BELL_LIMIT + 10))
+
+
+class ListPageAggregateTests(TestCase):
+    """Last contact and contact counts are computed for the visible page with the same results."""
+
+    def setUp(self):
+        from contacts.models import PersonCompanyLink
+        User = get_user_model()
+        self.boss = User.objects.create_user("boss", password="very-secure-password")
+        self.own = User.objects.create_user("own", password="very-secure-password")
+        UserProfile.objects.create(user=self.own, role=UserProfile.ROLE_RESTRICTED)
+        self.company = Company.objects.create(name="UAB Skaičius", created_by=self.boss, owner=self.own)
+        self.mine = Person.objects.create(first_name="Mano", last_name="Kontaktas", created_by=self.own, owner=self.own)
+        self.other = Person.objects.create(first_name="Svetimas", last_name="Kontaktas", created_by=self.boss, owner=self.boss)
+        for person in (self.mine, self.other):
+            PersonCompanyLink.objects.create(person=person, company=self.company)
+        old = Activity.objects.create(person=self.mine, text="senas", created_by=self.own)
+        Activity.objects.filter(pk=old.pk).update(created_at=timezone.make_aware(datetime(2026, 1, 5, 10, 0)))
+        newest = Activity.objects.create(person=self.mine, text="naujas", created_by=self.own)
+        Activity.objects.filter(pk=newest.pk).update(created_at=timezone.make_aware(datetime(2026, 3, 7, 10, 0)))
+        archived = Activity.objects.create(person=self.mine, text="archyvuotas", created_by=self.own)
+        Activity.objects.filter(pk=archived.pk).update(created_at=timezone.make_aware(datetime(2026, 5, 1, 10, 0)),
+                                                       deleted_at=timezone.now())
+
+    def test_last_contact_column_matches_with_and_without_sorting_by_it(self):
+        self.client.force_login(self.boss)
+        for params in ({"columns": ["last_contact"]}, {"columns": ["last_contact"], "sort": "last_contact"}):
+            with self.subTest(params=params):
+                response = self.client.get(reverse("contacts:list"), params)
+                rows = {p.pk: p.last_contact_at for p in response.context["page"].object_list}
+                self.assertEqual(rows[self.mine.pk].date(), datetime(2026, 3, 7).date())
+                self.assertIsNone(rows[self.other.pk])
+
+    def test_company_contact_count_respects_visibility_with_and_without_sorting(self):
+        for user, expected in ((self.boss, 2), (self.own, 1)):
+            self.client.force_login(user)
+            for params in ({}, {"sort": "contacts"}):
+                with self.subTest(user=user.username, params=params):
+                    response = self.client.get(reverse("contacts:company-list"), params)
+                    company = next(c for c in response.context["page"].object_list if c.pk == self.company.pk)
+                    self.assertEqual(company.contact_count, expected)
