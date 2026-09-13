@@ -146,6 +146,14 @@ LOGGING = {
 # Send the Content-Security-Policy as report-only (for checking a new setup).
 CRM_CSP_REPORT_ONLY = os.environ.get("CRM_CSP_REPORT_ONLY", "false").lower() == "true"
 
+# Reverse proxies (CIDR list) whose X-Forwarded-For is believed for the client
+# address used by the audit trail and the sign-in lockout. Empty: connection address.
+import ipaddress  # noqa: E402
+
+CRM_TRUSTED_PROXIES = os.environ.get("CRM_TRUSTED_PROXIES", "").strip()
+CRM_TRUSTED_PROXY_NETWORKS = tuple(
+    ipaddress.ip_network(item.strip(), strict=False) for item in CRM_TRUSTED_PROXIES.split(",") if item.strip())
+
 # Bearer token for /metrics (Prometheus); empty = endpoint off.
 CRM_METRICS_TOKEN = os.environ.get("CRM_METRICS_TOKEN", "").strip()
 
@@ -171,6 +179,8 @@ AXES_LOCKOUT_PARAMETERS = [["ip_address"], ["username", "ip_address"]]
 AXES_RESET_ON_SUCCESS = True
 AXES_HTTP_RESPONSE_CODE = 429
 AXES_VERBOSE = False
+# Lock out by the real client address, not by the reverse proxy's (contacts/audit.py).
+AXES_CLIENT_IP_CALLABLE = "contacts.audit.client_ip"
 LANGUAGE_CODE = "lt"
 LANGUAGES = [("lt", "Lietuvių"), ("en", "English")]
 LOCALE_PATHS = [BASE_DIR / "locale"]

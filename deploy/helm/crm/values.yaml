@@ -60,6 +60,9 @@ env:
   CRM_ENVIRONMENT: production
   # Usernames still allowed a local password in SSO-only mode; empty = superusers.
   CRM_BREAK_GLASS_USERS: ""
+  # Networks of the ingress controller whose X-Forwarded-For is believed; narrow
+  # it to the pod CIDR (and keep networkPolicy on) so pods cannot spoof it.
+  CRM_TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
   # JSON API requests per token per minute; 0 = unlimited.
   CRM_API_RATE_LIMIT: "120"
   # Files must not live on a pod's own disk once there is more than one replica.

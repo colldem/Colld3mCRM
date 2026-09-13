@@ -4,13 +4,43 @@ import logging
 from .models import AuditLog
 
 
+def _parse(address):
+    import ipaddress
+
+    try:
+        return ipaddress.ip_address(address.strip())
+    except ValueError:
+        return None
+
+
+def _trusted(address, networks):
+    ip = _parse(address)
+    return ip is not None and any(ip in network for network in networks)
+
+
 def client_ip(request):
+    """The client's address, as the audit trail and sign-in lockout see it.
+
+    ``X-Forwarded-For`` is believed only when the connection comes from a proxy in
+    ``CRM_TRUSTED_PROXIES``; the header is then read from the right, skipping
+    trusted proxies, so a client cannot choose its address by sending the header
+    itself. Without trusted proxies the connection's address is used.
+    """
     if request is None:
         return None
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or None
-    return request.META.get("REMOTE_ADDR") or None
+    from django.conf import settings
+
+    remote = request.META.get("REMOTE_ADDR") or None
+    networks = getattr(settings, "CRM_TRUSTED_PROXY_NETWORKS", ())
+    if not remote or not networks or not _trusted(remote, networks):
+        return remote
+    hops = [hop.strip() for hop in request.META.get("HTTP_X_FORWARDED_FOR", "").split(",") if hop.strip()]
+    for hop in reversed(hops):
+        if _parse(hop) is None:
+            return remote  # a malformed header is not an address to record or lock out
+        if not _trusted(hop, networks):
+            return hop
+    return hops[0] if hops else remote
 
 
 def _actor_label(actor):

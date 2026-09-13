@@ -34,6 +34,9 @@ services:
     # publish ports of its own — !reset drops the base file's mapping.
     ports: !reset []
     network_mode: service:crm-tailscale
+    environment:
+      # Tailscale Serve proxies from inside the shared network namespace.
+      CRM_TRUSTED_PROXIES: ${CRM_TRUSTED_PROXIES:-127.0.0.1/32,::1/128}
     depends_on:
       crm-db: {condition: service_healthy}
       crm-tailscale: {condition: service_started}

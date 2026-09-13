@@ -7206,3 +7206,43 @@ class ListPageAggregateTests(TestCase):
                     response = self.client.get(reverse("contacts:company-list"), params)
                     company = next(c for c in response.context["page"].object_list if c.pk == self.company.pk)
                     self.assertEqual(company.contact_count, expected)
+
+
+class ClientAddressTests(TestCase):
+    """Behind a proxy the real client address drives audit and lockout, and cannot be spoofed."""
+
+    def ip(self, remote, forwarded=None):
+        from django.test import RequestFactory
+        from contacts.audit import client_ip
+        extra = {"REMOTE_ADDR": remote}
+        if forwarded is not None:
+            extra["HTTP_X_FORWARDED_FOR"] = forwarded
+        return client_ip(RequestFactory().get("/", **extra))
+
+    def test_without_trusted_proxies_the_header_is_ignored(self):
+        self.assertEqual(self.ip("203.0.113.9", "1.2.3.4"), "203.0.113.9")
+
+    @override_settings(CRM_TRUSTED_PROXY_NETWORKS=(__import__("ipaddress").ip_network("10.0.0.0/8"),))
+    def test_trusted_proxy_header_is_read_from_the_right(self):
+        self.assertEqual(self.ip("10.0.0.2", "198.51.100.7"), "198.51.100.7")
+        # A client-supplied hop to the left of the real one is not believed.
+        self.assertEqual(self.ip("10.0.0.2", "6.6.6.6, 198.51.100.7"), "198.51.100.7")
+        self.assertEqual(self.ip("10.0.0.2", "198.51.100.7, 10.0.0.9"), "198.51.100.7")
+        # A direct, untrusted connection cannot choose its address.
+        self.assertEqual(self.ip("203.0.113.9", "198.51.100.7"), "203.0.113.9")
+        # A malformed header falls back to the connection address (the audit column is an IP type).
+        self.assertEqual(self.ip("10.0.0.2", "garbage"), "10.0.0.2")
+        self.assertEqual(self.ip("10.0.0.2", "198.51.100.7, <script>"), "10.0.0.2")
+
+    @override_settings(CRM_TRUSTED_PROXY_NETWORKS=(__import__("ipaddress").ip_network("10.0.0.0/8"),))
+    def test_lockout_is_per_client_not_per_proxy(self):
+        get_user_model().objects.create_user("victim", password="very-secure-password")
+        for _ in range(6):
+            self.client.post(reverse("login"), {"username": "attacker", "password": "wrong-password-123"},
+                             REMOTE_ADDR="10.0.0.2", HTTP_X_FORWARDED_FOR="198.51.100.66")
+        blocked = self.client.post(reverse("login"), {"username": "attacker", "password": "wrong-password-123"},
+                                   REMOTE_ADDR="10.0.0.2", HTTP_X_FORWARDED_FOR="198.51.100.66")
+        self.assertEqual(blocked.status_code, 429)
+        response = self.client.post(reverse("login"), {"username": "victim", "password": "very-secure-password"},
+                                    REMOTE_ADDR="10.0.0.2", HTTP_X_FORWARDED_FOR="198.51.100.7")
+        self.assertEqual(response.status_code, 302)

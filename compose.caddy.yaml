@@ -35,3 +35,6 @@ services:
   crm-web:
     # Reached over the compose network by Caddy, so it publishes nothing itself.
     ports: !reset []
+    environment:
+      # Only Caddy reaches the app, over the private compose network.
+      CRM_TRUSTED_PROXIES: ${CRM_TRUSTED_PROXIES:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
