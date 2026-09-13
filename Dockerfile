@@ -2,6 +2,11 @@ ARG PYTHON_IMAGE=python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f35
 FROM ${PYTHON_IMAGE}
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /app
+# The pinned base image is only as fresh as its digest: pull in Debian's security
+# fixes at build time so a rebuild ships patched OS packages (CI scans the result).
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system crm && useradd --system --gid crm --home-dir /app --shell /usr/sbin/nologin crm
 COPY requirements.txt /app/requirements.txt
 RUN python -m pip install --no-cache-dir -r /app/requirements.txt

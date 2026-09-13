@@ -50,7 +50,7 @@ jobs:
           python -m venv /tmp/runtime
           /tmp/runtime/bin/pip install -q -r requirements.txt
           cyclonedx-py environment /tmp/runtime/bin/python --of JSON -o sbom-python.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: sbom-python
           path: sbom-python.cdx.json
@@ -79,11 +79,16 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" \
             aquasec/trivy:0.57.1 image --scanners vuln --severity HIGH,CRITICAL \
             --ignore-unfixed --exit-code 1 --no-progress crm-web:ci
+      - name: Scan the bundled PostgreSQL image (report only — upstream, fixed by bumping its digest)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.57.1 image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress "$(grep -m1 -o 'postgres:[^ "]*' compose.yaml)"
       - name: Image SBOM (CycloneDX — OS packages and Python)
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" \
             aquasec/trivy:0.57.1 image --format cyclonedx --output /out/sbom-image.cdx.json crm-web:ci
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: sbom-image
           path: sbom-image.cdx.json
