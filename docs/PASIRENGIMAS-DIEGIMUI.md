@@ -1,0 +1,144 @@
+# Pasirengimas diegimui organizacijoje — būklė ir veiksmų planas
+
+Darbinis dokumentas. Sudarytas 2026-09-13, versija 0.77.1, commit `6c82da6`.
+Tikslas: paruošti CRM pristatymui organizacijos infrastruktūros ir saugos
+skyriams. Po kiekvieno atlikto punkto žymima būsena; pabaigoje — revizija.
+
+Žymėjimas: ✅ padaryta · 🟡 iš dalies · ❌ nėra · ⏳ vykdoma
+
+---
+
+## A. Kas jau yra (patikrinta kode)
+
+| Sritis | Būklė | Kur |
+|---|---|---|
+| Testai ir CI | ✅ 525 testai, ruff, `makemigrations --check`, `check --deploy`, image smoke test, Helm lint | `ci.yml`, `release-check.sh` |
+| Priklausomybių atnaujinimai | ✅ Dependabot: pip, GitHub Actions, Docker; Django laikomas 5.2 LTS | `.github/dependabot.yml` |
+| Fiksuotos versijos | ✅ `requirements.txt` tikslios versijos, bazinis image ir Postgres pagal SHA | `Dockerfile`, `compose.yaml` |
+| Konteinerio sauga | ✅ ne root naudotojas, `no-new-privileges`; Helm `runAsNonRoot` | `Dockerfile`, `values.yaml` |
+| Slaptažodžiai | ✅ Argon2, min. 12 simb., validatoriai | `settings.py` |
+| Prisijungimų ribojimas | ✅ django-axes 5 klaidos / 30 min, pagal IP ir naudotoją | `settings.py` |
+| SSO | ✅ Entra ID OIDC, „link-only" arba auto-kūrimas | `oidc.py` |
+| Sesijos | ✅ HttpOnly, SameSite, Secure (su HTTPS), slankus neaktyvumo langas | `settings.py` |
+| HTTP antraštės | 🟡 HSTS, X-Frame DENY, nosniff, Referrer-Policy; **nėra CSP** | `settings.py` |
+| Rolės ir matomumas | ✅ admin / visi / tik savi, teisių lentelė, komandos | `permissions.py` |
+| „Tik skaityti" | 🟡 tik API raktams, sąsajoje nėra | `models.ApiToken` |
+| Auditas | 🟡 pilnas įvykių žurnalas; **nėra eksporto, saugojimo termino, SIEM srauto** | `audit.py`, `AuditLog` |
+| API raktai | 🟡 saugomas tik sha256, scope, atšaukimas; **nėra galiojimo termino ir užklausų ribojimo** | `api.py` |
+| Webhook'ai | ✅ HMAC-SHA256, pristatymų žurnalas 30 d. | `webhooks.py` |
+| Paslaptys DB | ✅ Fernet (`CRM_SECRETS_KEY`) | `crypto.py` |
+| Priedai | 🟡 dydis 10 MB ir plėtinių sąrašas; **nėra antivirusinio skenavimo** | `views.py` |
+| Atsarginės kopijos | 🟡 kasdien `pg_dump` + media, 14 vnt.; **nešifruotos, tame pačiame hoste, atkūrimas neautomatizuotas ir netestuotas** | `backup.sh` |
+| Atkūrimo instrukcija | 🟡 komandos aprašytos, nėra RPO/RTO ir testo | `DEPLOYMENT.md` |
+| Aplinkų izoliacija | ✅ ne-production aplinkoje SMTP/IMAP/Entra/webhook'ai priverstinai išjungti | `integrations.py` |
+| Staging duomenys | ❌ **`sanitize_staging` išvalo tik integracijas — asmens duomenys lieka tikri** | `sanitize_staging.py` |
+| Žurnalai (logging) | ❌ **nėra `LOGGING` konfigūracijos**, tik Gunicorn access log į stdout | `settings.py` |
+| Stebėsena | 🟡 `/health/live`, `/health/ready`; nėra metrikų | `config/urls.py` |
+| Asmens duomenų saugojimo terminai | ❌ automatiškai valomi tik automatizacijų (90 d.) ir webhook (30 d.) žurnalai | — |
+| Duomenų subjekto teisės | 🟡 pilnas ZIP ir CSV eksportas; nėra vieno asmens duomenų eksporto ar galutinio ištrynimo procedūros | — |
+| Naudotojų išjungimas | 🟡 rankinis; Entra susieti naudotojai išlaiko vietinį slaptažodį | `oidc.py` |
+| Vien SSO režimas | ❌ vietinio prisijungimo išjungti negalima | `config/urls.py` |
+| Pažeidžiamumų skenavimas | ❌ nėra pip-audit / Trivy / bandit CI | `ci.yml` |
+| SBOM | ❌ | — |
+| Kubernetes | ✅ Helm chart, migracijų Job, CronJob'ai, S3 saugykla | `deploy/helm` |
+| Dokumentacija | 🟡 techninė EN/LT gera; **nėra saugumo aprašo, duomenų žodyno, DAPV, priežiūros modelio** | `docs/` |
+
+---
+
+## B. Veiksmų planas
+
+Dydis: S — iki pusdienio, M — ~1 diena, L — kelios dienos.
+Kiekvienas kodo punktas = atskiras commit pagal `CLAUDE.md` taisykles
+(testai, patikra naršyklėje, in-app žinynas, push).
+
+### 1 etapas — Prieiga ir tapatybė
+
+| # | Darbas | Dydis | Būsena |
+|---|---|---|---|
+| 1.1 | **Vien SSO režimas**: nustatymas (DB + env), kuris išjungia vietinį prisijungimą; avarinė admin paskyra leidžiama tik per env kintamąjį; auditas | M | ❌ |
+| 1.2 | **Naudotojų išjungimas**: automatinis išjungimas po N dienų neprisijungus (nustatymas), ataskaita „neaktyvūs naudotojai"; SSO režime vietiniai slaptažodžiai tampa nenaudojami | M | ❌ |
+| 1.3 | **„Tik skaityti" rolė** sąsajoje | M | ❌ |
+| 1.4 | **API raktai**: galiojimo terminas, užklausų ribojimas (429), nebenaudojamų raktų įspėjimas | S | ❌ |
+
+### 2 etapas — Žurnalai ir auditas
+
+| # | Darbas | Dydis | Būsena |
+|---|---|---|---|
+| 2.1 | **Struktūrizuoti žurnalai**: `LOGGING` su JSON formatu stdout (SIEM), request-id, saugumo įvykiai (prisijungimai, blokados, teisių klaidos), be asmens duomenų | M | ❌ |
+| 2.2 | **Audito žurnalo eksportas** (CSV, filtrai) ir saugojimo terminas (nustatymas); auditas neredaguojamas ir netrinamas per sąsają ar admin | S | ❌ |
+| 2.3 | **CSP antraštė**: iškelti inline skriptus (10 šablonų) arba nonce; `Permissions-Policy` | M | ❌ |
+
+### 3 etapas — Asmens duomenys (BDAR)
+
+| # | Darbas | Dydis | Būsena |
+|---|---|---|---|
+| 3.1 | **Staging nuasmeninimas**: `sanitize_staging --anonymize` pakeičia vardus, kontaktus, pastabas, laiškus, priedus fiktyviais | M | ❌ |
+| 3.2 | **Saugojimo terminai**: nustatymai archyvuotiems įrašams, gautiems laiškams, priedams; foninis valymas su auditu ir peržiūra prieš trynimą | M | ❌ |
+| 3.3 | **Duomenų subjekto užklausos**: vieno asmens visų duomenų eksportas (JSON) ir galutinis ištrynimas su audito įrašu | M | ❌ |
+
+### 4 etapas — Kopijos ir atkūrimas
+
+| # | Darbas | Dydis | Būsena |
+|---|---|---|---|
+| 4.1 | **Šifruotos kopijos** (`age` viešuoju raktu — privatus raktas hoste nelaikomas), kontrolinės sumos | S | ❌ |
+| 4.2 | **`scripts/restore.sh`** + atkūrimo patikra CI (dump → atkūrimas → `/health/ready` → įrašų skaičius) | M | ❌ |
+| 4.3 | Kopijų siuntimas už hosto ribų (S3 / rsync, neprivaloma) | S | ❌ |
+
+### 5 etapas — Tiekimo grandinė ir CI
+
+| # | Darbas | Dydis | Būsena |
+|---|---|---|---|
+| 5.1 | `pip-audit` CI (priklausomybių CVE) | S | ✅ radinių nėra |
+| 5.2 | `bandit` statinė kodo saugumo analizė | S | ✅ 8 radiniai peržiūrėti, realių spragų nėra; `rich_text` XSS regresijos testai |
+| 5.3 | Trivy image skenavimas CI | S | ✅ rado 2 HIGH (libpcre2) — pataisyta Dockerfile; PostgreSQL image skenuojamas informaciniu režimu |
+| 5.4 | SBOM (CycloneDX) kaip leidimo artefaktas + licencijų sąrašas | S | ✅ Python ir image SBOM CI artefaktai; GHCR image su SBOM ir provenance atestacijomis |
+| 5.5 | Priedų antivirusinis skenavimas per ClamAV (neprivaloma, įjungiama env) | M | ❌ |
+
+> Žinomas apribojimas: oficialus `postgres:17.11-bookworm` (naujausias) turi
+> neištaisytų upstream CVE (libpcre2, `gosu` Go stdlib). Keičiama tik atnaujinus
+> digest, kai upstream išleis; organizacijos nuosavas PostgreSQL šios rizikos neturi.
+
+### 6 etapas — Diegimas svetimoje infrastruktūroje
+
+| # | Darbas | Dydis | Būsena |
+|---|---|---|---|
+| 6.1 | Helm: `readOnlyRootFilesystem`, `NetworkPolicy`, resursų limitai | S | ❌ |
+| 6.2 | Diegimo už įmonės reverse proxy aprašas (be Tailscale/NAS), tinklo prievadų ir srautų lentelė | S | ❌ |
+| 6.3 | Apkrovos testas (locust), rezultatai ir resursų rekomendacija | M | ❌ |
+| 6.4 | Metrikos `/metrics` (Prometheus, neprivaloma) | S | ❌ |
+| 6.5 | Atnaujinimo ir atšaukimo (rollback) runbook | S | ❌ |
+
+### 7 etapas — Dokumentų paketas (LT)
+
+| # | Dokumentas | Būsena |
+|---|---|---|
+| 7.1 | Sistemos aprašas (1–2 psl.: paskirtis, funkcijos, technologijos) | ❌ |
+| 7.2 | Architektūros ir diegimo schemos (loginė, aplinkų, duomenų srautų) | ❌ |
+| 7.3 | Saugumo priemonių aprašas | ❌ |
+| 7.4 | Duomenų žodynas (generuojamas iš modelių: laukai, asmens duomenys, terminai) | ❌ |
+| 7.5 | DAPV juodraštis | ❌ |
+| 7.6 | Kopijavimo ir atkūrimo planas (RPO/RTO) | ❌ |
+| 7.7 | Priežiūros modelis ir perdavimo planas | ❌ |
+| 7.8 | Pilotinio projekto planas | ❌ |
+| 7.9 | Žinomi apribojimai ir rizikų registras | ❌ |
+| 7.10 | Klausimų sąrašas infrastruktūrai ir saugai | ❌ |
+
+### 8 etapas — Tik jūs (ne kodas)
+
+| # | Klausimas | Būsena |
+|---|---|---|
+| 8.1 | Verslo užsakovas — padalinys ir atsakingas asmuo | ❌ |
+| 8.2 | Autorių teisės: kodas kurtas darbo ar asmeniniu laiku; MIT licencijos patvirtinimas | ❌ |
+| 8.3 | Interesų konfliktas, jei vėliau būtų mokama priežiūra | ❌ |
+| 8.4 | Pirminė konsultacija su DAP | ❌ |
+| 8.5 | Poreikio aprašas (problema, naudotojų skaičius, nauda) | ❌ |
+
+---
+
+## C. Revizija (pildoma pabaigus)
+
+- [ ] Visi A lentelės ❌ ir 🟡 punktai arba padaryti, arba sąmoningai įrašyti į 7.9 kaip žinomi apribojimai
+- [ ] `release-check.sh` žalias, CI žalias, skenavimai be kritinių radinių
+- [ ] Atkūrimas iš šifruotos kopijos išbandytas
+- [ ] Dokumentų paketas 7.1–7.10 baigtas ir suderintas su kodu
+- [ ] Kiekvienam 4.1–4.4 klausimui iš pasirengimo plano yra atsakymas arba nuoroda
