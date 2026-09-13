@@ -10,7 +10,12 @@ fi
 if [ "${CRM_COLLECTSTATIC:-1}" = "1" ]; then
   python manage.py collectstatic --noinput
 fi
-exec gunicorn config.wsgi:application \
+# Access log as JSON for the SIEM (path without query string, which can carry
+# search terms); plain Gunicorn format with CRM_LOG_FORMAT=text.
+if [ "${CRM_LOG_FORMAT:-json}" = "json" ]; then
+  set -- --access-logformat '{"ts":"%(t)s","logger":"gunicorn.access","remote":"%(h)s","method":"%(m)s","path":"%(U)s","status":"%(s)s","bytes":"%(B)s","duration_ms":"%(M)s","request_id":"%({x-request-id}o)s","user_agent":"%(a)s"}'
+fi
+exec gunicorn config.wsgi:application "$@" \
   --bind "0.0.0.0:${CRM_GUNICORN_PORT:-8080}" \
   --workers "${CRM_GUNICORN_WORKERS:-2}" \
   --threads "${CRM_GUNICORN_THREADS:-2}" \

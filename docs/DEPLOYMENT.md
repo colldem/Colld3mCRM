@@ -171,6 +171,8 @@ the summary.
 |---|---|---|
 | `CRM_ENVIRONMENT` | `production` | anything else marks the instance an isolated copy: e-mail, IMAP, Entra and webhooks are forced off and a banner names the tier |
 | `DJANGO_SESSION_IDLE_MINUTES` | `480` | idle timeout before a session expires |
+| `CRM_LOG_FORMAT` | `json` (`text` with `DJANGO_DEBUG=true`) | `json` writes one JSON object per line to stdout — application, security and Gunicorn access logs — for a SIEM; `text` is for reading by eye. See *Logs* below |
+| `CRM_LOG_LEVEL` | `INFO` | root log level |
 | `CRM_API_RATE_LIMIT` | `120` | JSON API requests allowed per token per minute (counted in the database, so shared by every process and replica); `0` disables the limit |
 | `CRM_BREAK_GLASS_USERS` | *(empty)* | comma-separated usernames still allowed a local password when SSO-only sign-in is on (Settings → Prisijungimas); empty means active superusers only |
 | `WORKER_INTERVAL_SECONDS` | `300` | how often `crm-worker` runs the background commands |
@@ -301,6 +303,28 @@ the workflows: `CRM_APP_DIR`, `CRM_STAGING_DIR`, `CRM_PROD_URL`,
 
 None of this is required. `scripts/deploy.sh` does the same work over SSH, and
 `docker compose build --pull && docker compose up -d` is always enough.
+
+## Logs
+
+Every container writes to stdout; collect it with the platform's log shipper
+(Docker logging driver, Fluent Bit, Promtail, the SIEM agent). With
+`CRM_LOG_FORMAT=json` each line is one JSON object:
+
+| Field | Meaning |
+|---|---|
+| `ts`, `level`, `logger`, `message` | always present; `ts` is UTC ISO 8601 |
+| `request_id` | the request's id — the incoming `X-Request-ID` when a proxy sets one, otherwise generated — also returned in the `X-Request-ID` response header and stored in the audit trail (`detail.request_id`) |
+| `event` | on `crm.security` lines: `audit.<action>` for every audit row (`login`, `login_failed`, `logout`, `create`, `update`, `archive`, `delete`, `merge`, `import`, `export`, `setting` …) |
+| `action`, `actor_id`, `target_type`, `target_id`, `field`, `ip`, `reason` | the structured part of a security event: ids and types only, never names or field values |
+| `exception` | stack trace, when there is one |
+
+Useful alerts: `event=audit.login_failed` with `reason=locked_out` (brute force),
+`reason=directory` (sign-in refused by group mapping), `target_type=access`
+(a reader tried to change data), `logger=django.security.*` (rejected tokens,
+disallowed hosts, CSRF failures) and any `level=ERROR`.
+
+Gunicorn's access log uses the same shape (`logger=gunicorn.access`) and records
+the path without its query string, which can carry search terms.
 
 ## Security notes
 

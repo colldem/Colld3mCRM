@@ -78,6 +78,7 @@ contacts/          vienintelė programa (app)
   directory.py      AD grupių → rolės ir komandos (DirectoryGroupMapping), taikoma prisijungiant
   integrations.py   efektyvi SMTP / IMAP / OIDC konfigūracija (DB + .env fallback)
   crypto.py         integracijų slaptažodžių šifravimas (Fernet, CRM_SECRETS_KEY)
+  observability.py  JSON žurnalai SIEM'ui, X-Request-ID, crm.security įvykiai
   sanitizers.py     safe_url / csv_safe
   automation.py     „kai X -> daryk Y" taisyklės (H2)
   api.py / api_urls.py  rankomis rašytas JSON REST API (H3), /api/v1/

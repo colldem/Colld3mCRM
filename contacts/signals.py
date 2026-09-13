@@ -31,6 +31,19 @@ def _audit_logout(sender, request, user, **kwargs):
         audit_log(AuditLog.LOGOUT, request=request, actor=user, target_type="auth", target_label=user.get_username())
 
 
+def _audit_locked_out(sender, request=None, username=None, ip_address=None, **kwargs):
+    audit_log(AuditLog.LOGIN_FAILED, request=request, actor=None, target_type="auth", target_label=username or "",
+              detail={"reason": "locked_out"})
+
+
+try:
+    from axes.signals import user_locked_out
+except ImportError:  # pragma: no cover - axes is a hard dependency
+    pass
+else:
+    user_locked_out.connect(_audit_locked_out, dispatch_uid="crm-audit-locked-out")
+
+
 @receiver(user_login_failed)
 def _audit_login_failed(sender, credentials, request=None, **kwargs):
     username = (credentials or {}).get("username", "")

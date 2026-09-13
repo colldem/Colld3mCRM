@@ -409,3 +409,91 @@ class HelmChartTests(TestCase):
         self.assertIn("ghcr.io/${{ github.repository_owner }}/crm-web", workflow)
         self.assertIn("Check the tag matches VERSION", workflow)
         self.assertIn("github.repository == 'colldem/Colld3mCRM'", workflow)
+
+
+class ObservabilityTests(TestCase):
+    """JSON logs with request ids, and security events mirrored from the audit trail."""
+
+    def test_every_response_carries_a_request_id_and_keeps_a_sane_incoming_one(self):
+        response = self.client.get("/health/live")
+        self.assertRegex(response["X-Request-ID"], r"^[0-9a-f]{32}$")
+        response = self.client.get("/health/live", HTTP_X_REQUEST_ID="lb-abc123456")
+        self.assertEqual(response["X-Request-ID"], "lb-abc123456")
+        response = self.client.get("/health/live", HTTP_X_REQUEST_ID="bad id <script>")
+        self.assertRegex(response["X-Request-ID"], r"^[0-9a-f]{32}$")
+
+    def test_django_request_warnings_carry_the_request_id(self):
+        import logging
+        from contacts.observability import RequestIdFilter
+
+        seen = []
+
+        class Capture(logging.Handler):  # filters run at emit time, as on the real stdout handler
+            def emit(self, record):
+                seen.append(record.request_id)
+
+        handler = Capture()
+        handler.addFilter(RequestIdFilter())
+        logger = logging.getLogger("django.request")
+        logger.addHandler(handler)
+        try:
+            self.client.get("/definitely-missing/", HTTP_X_REQUEST_ID="trace-404404404")
+        finally:
+            logger.removeHandler(handler)
+        self.assertIn("trace-404404404", seen)
+
+    def test_json_formatter_writes_one_parseable_line_with_structured_fields(self):
+        import json
+        import logging
+        from contacts.observability import JsonFormatter, RequestIdFilter, _request_id
+        record = logging.LogRecord("crm.security", logging.WARNING, __file__, 1, "audit.login_failed", None, None)
+        record.event, record.ip, record.secret_name = "audit.login_failed", "10.0.0.1", "not exported"
+        token = _request_id.set("req-12345678")
+        try:
+            RequestIdFilter().filter(record)
+        finally:
+            _request_id.reset(token)
+        line = JsonFormatter().format(record)
+        self.assertNotIn("\n", line)
+        payload = json.loads(line)
+        self.assertEqual(payload["level"], "WARNING")
+        self.assertEqual(payload["request_id"], "req-12345678")
+        self.assertEqual(payload["event"], "audit.login_failed")
+        self.assertEqual(payload["ip"], "10.0.0.1")
+        self.assertNotIn("secret_name", payload)
+
+    def test_audit_rows_are_mirrored_to_the_security_log_without_personal_data(self):
+        from contacts.models import Person
+        user = get_user_model().objects.create_user("auditor", password="very-secure-password")
+        person = Person.objects.create(first_name="Slaptas", last_name="Vardas", created_by=user, owner=user)
+        from contacts.audit import log as audit_log
+        from contacts.models import AuditLog
+        with self.assertLogs("crm.security", level="INFO") as captured:
+            entry = audit_log(AuditLog.UPDATE, actor=user, target=person, field="first_name", old="Slaptas", new="Kitas")
+        record = captured.records[0]
+        self.assertEqual(record.event, "audit.update")
+        self.assertEqual(record.target_id, str(person.pk))
+        self.assertNotIn("Slaptas", " ".join(captured.output))
+        self.assertNotIn("Kitas", " ".join(captured.output))
+        self.assertEqual(entry.target_label, "Slaptas Vardas")
+
+    def test_request_id_is_stored_with_audit_rows(self):
+        from contacts.models import AuditLog
+        get_user_model().objects.create_user("idtest", password="very-secure-password")
+        response = self.client.post(reverse("login"), {"username": "idtest", "password": "wrong-password-123"},
+                                    HTTP_X_REQUEST_ID="trace-000111222")
+        self.assertEqual(response["X-Request-ID"], "trace-000111222")
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.LOGIN_FAILED, detail__request_id="trace-000111222").exists())
+
+    def test_lockout_is_audited_and_logged_as_a_warning(self):
+        from contacts.models import AuditLog
+        get_user_model().objects.create_user("locked", password="very-secure-password")
+        with self.assertLogs("crm.security", level="WARNING") as captured:
+            for _ in range(6):
+                self.client.post(reverse("login"), {"username": "locked", "password": "wrong-password-123"})
+        self.assertTrue(AuditLog.objects.filter(detail__reason="locked_out").exists())
+        self.assertTrue(any(getattr(r, "reason", "") == "locked_out" for r in captured.records))
+
+    def test_production_defaults_to_json_logs_and_gunicorn_json_access_log(self):
+        self.assertIn("contacts.observability.RequestIdMiddleware", settings.MIDDLEWARE[0])
+        self.assertIn('"logger":"gunicorn.access"', (settings.BASE_DIR / "scripts" / "entrypoint.sh").read_text())

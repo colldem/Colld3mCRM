@@ -1,4 +1,6 @@
 """Append-only audit trail. Call :func:`log` from a view once the action succeeded."""
+import logging
+
 from .models import AuditLog
 
 
@@ -26,7 +28,12 @@ def log(action, *, request=None, actor=None, target=None, target_type="", target
     Extra context goes in `detail` (a dict) and/or as loose keyword arguments;
     both are merged into the stored JSON.
     """
+    from .observability import current_request_id, security_event
+
     detail = {**(detail or {}), **extra}
+    request_id = getattr(request, "request_id", "") or current_request_id()
+    if request_id:
+        detail.setdefault("request_id", request_id)
     if actor is None and request is not None:
         actor = getattr(request, "user", None)
     if actor is not None and not getattr(actor, "is_authenticated", False):
@@ -35,7 +42,7 @@ def log(action, *, request=None, actor=None, target=None, target_type="", target
         target_type = target_type or target.__class__.__name__.lower()
         target_id = target_id or str(getattr(target, "pk", "") or "")
         target_label = target_label or str(target)
-    return AuditLog.objects.create(
+    entry = AuditLog.objects.create(
         actor=actor,
         actor_label=_actor_label(actor),
         action=action,
@@ -48,6 +55,11 @@ def log(action, *, request=None, actor=None, target=None, target_type="", target
         detail=detail or {},
         ip=ip if ip is not None else client_ip(request),
     )
+    # Mirror to the SIEM stream: ids and types only, no labels or values.
+    security_event("audit.%s" % action, level=logging.WARNING if action == AuditLog.LOGIN_FAILED else logging.INFO,
+                   action=action, actor_id=entry.actor_id, target_type=target_type, target_id=entry.target_id,
+                   field=entry.field, ip=entry.ip, reason=(detail or {}).get("reason", ""))
+    return entry
 
 
 def log_change(action, *, request, target, field, old, new, **detail):

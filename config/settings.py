@@ -28,6 +28,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # First, so every log line of the request carries its id (contacts/observability.py).
+    "contacts.observability.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -95,6 +97,34 @@ AUTHENTICATION_BACKENDS = [
     # ModelBackend that refuses local passwords in SSO-only mode (break-glass excepted).
     "contacts.oidc.LocalAccountBackend",
 ]
+# Logs go to stdout: one JSON object per line for a SIEM ("json", the default
+# outside DEBUG) or plain text ("text"). See contacts/observability.py.
+CRM_LOG_FORMAT = os.environ.get("CRM_LOG_FORMAT", "text" if DEBUG else "json").lower()
+CRM_LOG_LEVEL = os.environ.get("CRM_LOG_LEVEL", "INFO").upper()
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"request_id": {"()": "contacts.observability.RequestIdFilter"}},
+    "formatters": {
+        "json": {"()": "contacts.observability.JsonFormatter"},
+        "text": {"format": "%(asctime)s %(levelname)s %(name)s [%(request_id)s] %(message)s"},
+    },
+    "handlers": {
+        "stdout": {"class": "logging.StreamHandler", "stream": "ext://sys.stdout", "filters": ["request_id"],
+                   "formatter": "json" if CRM_LOG_FORMAT == "json" else "text"},
+        "null": {"class": "logging.NullHandler"},
+    },
+    "root": {"handlers": ["null" if RUNNING_TESTS else "stdout"], "level": CRM_LOG_LEVEL},
+    "loggers": {
+        "django": {"level": "INFO", "propagate": True},
+        # Suppressed 4xx noise is still visible at WARNING; 5xx at ERROR.
+        "django.request": {"level": "WARNING", "propagate": True},
+        "django.security": {"level": "INFO", "propagate": True},
+        "crm.security": {"level": "INFO", "propagate": True},
+        "axes": {"level": "WARNING", "propagate": True},
+    },
+}
+
 # JSON API requests allowed per token per minute (0 = unlimited).
 CRM_API_RATE_LIMIT = int(os.environ.get("CRM_API_RATE_LIMIT", "120"))
 # Usernames allowed to sign in with a local password while SSO-only mode is on.
