@@ -95,6 +95,8 @@ AUTHENTICATION_BACKENDS = [
     # ModelBackend that refuses local passwords in SSO-only mode (break-glass excepted).
     "contacts.oidc.LocalAccountBackend",
 ]
+# JSON API requests allowed per token per minute (0 = unlimited).
+CRM_API_RATE_LIMIT = int(os.environ.get("CRM_API_RATE_LIMIT", "120"))
 # Usernames allowed to sign in with a local password while SSO-only mode is on.
 # Empty: active superusers only.
 CRM_BREAK_GLASS_USERS = [name.strip().lower() for name in os.environ.get("CRM_BREAK_GLASS_USERS", "").split(",") if name.strip()]

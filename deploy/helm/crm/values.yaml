@@ -60,6 +60,8 @@ env:
   CRM_ENVIRONMENT: production
   # Usernames still allowed a local password in SSO-only mode; empty = superusers.
   CRM_BREAK_GLASS_USERS: ""
+  # JSON API requests per token per minute; 0 = unlimited.
+  CRM_API_RATE_LIMIT: "120"
   # Files must not live on a pod's own disk once there is more than one replica.
   CRM_MEDIA_BACKEND: s3
   CRM_S3_BUCKET: crm-media

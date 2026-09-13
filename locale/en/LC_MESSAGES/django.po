@@ -3742,3 +3742,24 @@ msgstr "Switch off accounts unused for more than (days)"
 
 msgid "Paskyra, prie kurios nebuvo prisijungta tiek dienų, išjungiama automatiškai (kartu nustoja veikti jos API raktai). Avarinės paskyros neišjungiamos. Katalogo naudotojas, kurį AD vis dar leidžia, grąžinamas kitu prisijungimu. 0 — neišjunginėti."
 msgstr "An account nobody has signed in to for this many days is switched off automatically (its API tokens stop working too). Break-glass accounts are never switched off. A directory user AD still allows is let back in at the next sign-in. 0 - never."
+
+msgid "Galioja iki"
+msgstr "Valid until"
+
+msgid "Sukurtas prieš įvedant galiojimo terminą — rekomenduojama pakeisti nauju."
+msgstr "Issued before tokens expired - replacing it with a new one is recommended."
+
+msgid "neribotai"
+msgstr "no expiry"
+
+msgid "nebegalioja"
+msgstr "expired"
+
+msgid "baigia galioti"
+msgstr "expiring soon"
+
+msgid "Galiojimas"
+msgstr "Lifetime"
+
+msgid "Kiekvienas raktas turi galiojimo terminą. Vienu raktu leidžiama iki %(rate_limit)s užklausų per minutę; viršijus grąžinama HTTP 429 su Retry-After."
+msgstr "Every token expires. One token may make up to %(rate_limit)s requests per minute; beyond that the API answers HTTP 429 with Retry-After."

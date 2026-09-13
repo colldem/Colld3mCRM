@@ -1,7 +1,7 @@
 import json
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from contacts.models import (
@@ -223,3 +223,68 @@ class WebhookTests(TestCase):
         hook = Webhook.objects.get()
         self.assertEqual(sorted(hook.events), ["activity.created", "contact.created"])
         self.assertTrue(hook.secret.startswith("enc:v1:"))
+
+
+class ApiTokenLifecycleTests(TestCase):
+    """Token expiry and the per-token request limit."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("apiadmin", email="a@local", password="very-secure-password")
+        self.raw, digest = ApiToken.new()
+        self.token = ApiToken.objects.create(name="t", token_hash=digest, prefix=self.raw[:13], scope=ApiToken.READ,
+                                             created_by=self.user)
+
+    def get(self, raw=None):
+        return self.client.get("/api/v1/contacts", HTTP_AUTHORIZATION="Bearer " + (raw or self.raw))
+
+    def test_expired_token_is_refused(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.token.expires_at = timezone.now() + timedelta(minutes=1)
+        self.token.save()
+        self.assertEqual(self.get().status_code, 200)
+        self.token.expires_at = timezone.now() - timedelta(seconds=1)
+        self.token.save()
+        response = self.get()
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json()["error"], "token expired")
+
+    @override_settings(CRM_API_RATE_LIMIT=3)
+    def test_requests_beyond_the_limit_get_429_with_retry_after(self):
+        for _ in range(3):
+            self.assertEqual(self.get().status_code, 200)
+        response = self.get()
+        self.assertEqual(response.status_code, 429)
+        self.assertTrue(1 <= int(response["Retry-After"]) <= 60)
+
+    @override_settings(CRM_API_RATE_LIMIT=2)
+    def test_the_limit_is_per_token_and_resets_with_the_next_minute(self):
+        from datetime import timedelta
+        other_raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="o", token_hash=digest, prefix=other_raw[:13], scope=ApiToken.READ, created_by=self.user)
+        self.get(), self.get()
+        self.assertEqual(self.get().status_code, 429)
+        self.assertEqual(self.get(other_raw).status_code, 200)
+        token = ApiToken.objects.get(pk=self.token.pk)
+        ApiToken.objects.filter(pk=token.pk).update(rate_window_start=token.rate_window_start - timedelta(minutes=1))
+        self.assertEqual(self.get().status_code, 200)
+
+    @override_settings(CRM_API_RATE_LIMIT=0)
+    def test_zero_disables_the_limit(self):
+        for _ in range(5):
+            self.assertEqual(self.get().status_code, 200)
+
+    def test_new_tokens_always_expire_with_the_chosen_lifetime(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.client.force_login(self.user)
+        self.client.post("/settings/integrations/", {"op": "create", "name": "Default", "scope": "read"})
+        self.client.post("/settings/integrations/", {"op": "create", "name": "Year", "scope": "read", "lifetime_days": "365"})
+        self.client.post("/settings/integrations/", {"op": "create", "name": "Forever", "scope": "read", "lifetime_days": "99999"})
+        now = timezone.now()
+        for name, days in (("Default", 90), ("Year", 365), ("Forever", 90)):
+            with self.subTest(name=name):
+                expires = ApiToken.objects.get(name=name).expires_at
+                self.assertLess(abs(expires - (now + timedelta(days=days))), timedelta(minutes=1))
+        page = self.client.get("/settings/integrations/")
+        self.assertContains(page, "neribotai")  # the legacy token from setUp is flagged

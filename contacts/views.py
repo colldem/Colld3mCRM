@@ -1,5 +1,5 @@
 from django.utils.translation import gettext as _, gettext_lazy as tr
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 import mimetypes
 import os
 import secrets
@@ -1537,9 +1537,12 @@ def settings_integrations(request):
     if request.method == "POST" and op == "create":
         name = (request.POST.get("name") or "").strip()[:80]
         scope = request.POST.get("scope") if request.POST.get("scope") in {ApiToken.READ, ApiToken.READ_WRITE} else ApiToken.READ
+        lifetime = request.POST.get("lifetime_days", "")
+        days = int(lifetime) if lifetime.isdigit() and int(lifetime) in ApiToken.LIFETIME_DAYS else ApiToken.DEFAULT_LIFETIME_DAYS
         if name:
             raw, digest = ApiToken.new()
-            ApiToken.objects.create(name=name, token_hash=digest, prefix=raw[:13], scope=scope, created_by=request.user)
+            ApiToken.objects.create(name=name, token_hash=digest, prefix=raw[:13], scope=scope, created_by=request.user,
+                                    expires_at=timezone.now() + timedelta(days=days))
             audit_log(AuditLog.SETTING, request=request, target_type="api_token", target_label=name, new="created")
             new_token = raw
         else:
@@ -1581,6 +1584,8 @@ def settings_integrations(request):
     return render(request, "settings/integrations.html", {
         "settings_section": "integrations", "new_token": new_token, "new_secret": new_secret,
         "tokens": ApiToken.objects.select_related("created_by"),
+        "token_lifetimes": ApiToken.LIFETIME_DAYS, "default_lifetime": ApiToken.DEFAULT_LIFETIME_DAYS,
+        "expiring_soon": timezone.now() + timedelta(days=14), "rate_limit": settings.CRM_API_RATE_LIMIT,
         "webhooks": Webhook.objects.all(),
         "webhook_events": Webhook.EVENTS,
         "secrets_available": secrets_available(),

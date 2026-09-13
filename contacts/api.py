@@ -9,7 +9,8 @@ import json
 import logging
 from functools import wraps
 
-from django.db.models import Q
+from django.conf import settings
+from django.db.models import F, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -29,9 +30,28 @@ MAX_PAGE = 100
 
 
 class ApiError(Exception):
-    def __init__(self, status, message):
+    def __init__(self, status, message, headers=None):
         self.status = status
         self.message = message
+        self.headers = headers or {}
+
+
+def _throttle(token):
+    """At most ``CRM_API_RATE_LIMIT`` requests per token per minute, across all processes."""
+    limit = settings.CRM_API_RATE_LIMIT
+    if limit <= 0:
+        return
+    now = timezone.now()
+    window = now.replace(second=0, microsecond=0)
+    counted = ApiToken.objects.filter(pk=token.pk, rate_window_start=window, rate_count__lt=limit).update(
+        rate_count=F("rate_count") + 1)
+    if counted:
+        return
+    started = ApiToken.objects.filter(pk=token.pk).exclude(rate_window_start=window).update(
+        rate_window_start=window, rate_count=1)
+    if not started:
+        retry = 60 - now.second
+        raise ApiError(429, "rate limit exceeded: %d requests per minute" % limit, {"Retry-After": str(retry)})
 
 
 def _authenticate(request):
@@ -43,6 +63,9 @@ def _authenticate(request):
              .select_related("created_by").first())
     if token is None or not token.created_by.is_active:
         raise ApiError(401, "invalid or revoked token")
+    if token.expired:
+        raise ApiError(401, "token expired")
+    _throttle(token)
     if token.last_used_at is None or (timezone.now() - token.last_used_at).total_seconds() > 300:
         ApiToken.objects.filter(pk=token.pk).update(last_used_at=timezone.now())
     return token
@@ -56,7 +79,10 @@ def api_view(fn):
             token = _authenticate(request)
             return fn(request, token, *args, **kwargs)
         except ApiError as error:
-            return JsonResponse({"error": error.message}, status=error.status)
+            response = JsonResponse({"error": error.message}, status=error.status)
+            for header, value in error.headers.items():
+                response[header] = value
+            return response
         except Exception:  # never leak a stack trace over the API
             logger.exception("unhandled API error")
             return JsonResponse({"error": "internal error"}, status=500)

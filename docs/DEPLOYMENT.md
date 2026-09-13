@@ -171,6 +171,7 @@ the summary.
 |---|---|---|
 | `CRM_ENVIRONMENT` | `production` | anything else marks the instance an isolated copy: e-mail, IMAP, Entra and webhooks are forced off and a banner names the tier |
 | `DJANGO_SESSION_IDLE_MINUTES` | `480` | idle timeout before a session expires |
+| `CRM_API_RATE_LIMIT` | `120` | JSON API requests allowed per token per minute (counted in the database, so shared by every process and replica); `0` disables the limit |
 | `CRM_BREAK_GLASS_USERS` | *(empty)* | comma-separated usernames still allowed a local password when SSO-only sign-in is on (Settings → Prisijungimas); empty means active superusers only |
 | `WORKER_INTERVAL_SECONDS` | `300` | how often `crm-worker` runs the background commands |
 | `BACKUP_KEEP` / `BACKUP_INTERVAL_SECONDS` | `14` / `86400` | how many dumps `crm-backup` keeps, and how often it takes one |

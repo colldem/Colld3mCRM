@@ -798,10 +798,24 @@ class ApiToken(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="api_tokens")
     last_used_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
+    # Every new token expires; empty only on tokens issued before expiry existed.
+    expires_at = models.DateTimeField(null=True, blank=True)
+    # Fixed one-minute request window, shared by every process through the database.
+    rate_window_start = models.DateTimeField(null=True, blank=True)
+    rate_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    LIFETIME_DAYS = (30, 90, 180, 365)
+    DEFAULT_LIFETIME_DAYS = 90
 
     class Meta:
         ordering = ["-created_at"]
+
+    @property
+    def expired(self):
+        from django.utils import timezone
+
+        return bool(self.expires_at and self.expires_at <= timezone.now())
 
     def __str__(self):
         return self.name

@@ -15,14 +15,15 @@
 
 {% if tokens %}
 <div class="table-wrap"><table>
-  <thead><tr><th>{% translate 'Pavadinimas' %}</th><th>{% translate 'Pradžia' %}</th><th>{% translate 'Teisės' %}</th><th>{% translate 'Sukūrė' %}</th><th>{% translate 'Paskutinį kartą' %}</th><th>{% translate 'Būsena' %}</th><th></th></tr></thead>
+  <thead><tr><th>{% translate 'Pavadinimas' %}</th><th>{% translate 'Pradžia' %}</th><th>{% translate 'Teisės' %}</th><th>{% translate 'Sukūrė' %}</th><th>{% translate 'Paskutinį kartą' %}</th><th>{% translate 'Galioja iki' %}</th><th>{% translate 'Būsena' %}</th><th></th></tr></thead>
   <tbody>{% for token in tokens %}<tr>
     <td>{{ token.name }}</td>
     <td><code>{{ token.prefix }}…</code></td>
     <td>{{ token.get_scope_display }}</td>
     <td>{{ token.created_by.get_full_name|default:token.created_by.username }}</td>
     <td>{{ token.last_used_at|date:datetime_format|default:"–" }}</td>
-    <td>{% if token.revoked_at %}<span class="muted">{% translate 'panaikintas' %}</span>{% else %}<span class="crm-label tag-color-1">{% translate 'aktyvus' %}</span>{% endif %}</td>
+    <td>{% if token.expires_at %}{{ token.expires_at|date:datetime_format }}{% else %}<span title="{% translate 'Sukurtas prieš įvedant galiojimo terminą — rekomenduojama pakeisti nauju.' %}">{% translate 'neribotai' %} ⚠</span>{% endif %}</td>
+    <td>{% if token.revoked_at %}<span class="muted">{% translate 'panaikintas' %}</span>{% elif token.expired %}<span class="muted">{% translate 'nebegalioja' %}</span>{% elif token.expires_at and token.expires_at < expiring_soon %}<span class="crm-label tag-color-3">{% translate 'baigia galioti' %}</span>{% else %}<span class="crm-label tag-color-1">{% translate 'aktyvus' %}</span>{% endif %}</td>
     <td>{% if not token.revoked_at %}<form method="post" onsubmit="return confirm('{% translate 'Panaikinti raktą?' %}')">{% csrf_token %}<input type="hidden" name="op" value="revoke"><input type="hidden" name="token_id" value="{{ token.pk }}"><button class="btn danger" type="submit">{% translate 'Panaikinti' %}</button></form>{% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table></div>
@@ -31,7 +32,7 @@
 {% endif %}
 
 <div class="settings-subsection">
-  <div class="settings-section-head"><div><h2>{% translate 'Naujas raktas' %}</h2></div></div>
+  <div class="settings-section-head"><div><h2>{% translate 'Naujas raktas' %}</h2><p>{% blocktranslate %}Kiekvienas raktas turi galiojimo terminą. Vienu raktu leidžiama iki {{ rate_limit }} užklausų per minutę; viršijus grąžinama HTTP 429 su Retry-After.{% endblocktranslate %}</p></div></div>
   <form method="post" class="profile-form">{% csrf_token %}<input type="hidden" name="op" value="create">
     <div class="profile-fields">
       <label class="wide">{% translate 'Pavadinimas' %}<input type="text" name="name" maxlength="80" required></label>
@@ -39,6 +40,7 @@
         <option value="read">{% translate 'Tik skaityti' %}</option>
         <option value="read_write">{% translate 'Skaityti ir keisti' %}</option>
       </select></label>
+      <label class="wide">{% translate 'Galiojimas' %}<select name="lifetime_days">{% for days in token_lifetimes %}<option value="{{ days }}"{% if days == default_lifetime %} selected{% endif %}>{{ days }} {% translate 'd.' %}</option>{% endfor %}</select></label>
     </div>
     <div class="form-actions profile-form-actions"><button class="btn primary" type="submit">{% translate 'Sukurti raktą' %}</button></div>
   </form>
