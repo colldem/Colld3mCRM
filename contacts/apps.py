@@ -12,5 +12,5 @@ class ContactsConfig(AppConfig):
         # clearing an override can restore the original.
         try:
             translations.capture_defaults()
-        except Exception:  # pragma: no cover - catalogs are built lazily
+        except Exception:  # nosec B110  # pragma: no cover - catalogs are built lazily
             pass

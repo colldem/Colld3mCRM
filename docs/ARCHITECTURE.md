@@ -91,7 +91,7 @@ static/            css/ (app.css — žetonai ir bazė, theme.css — komponenta
                    js/ (progresyvus enhancement), vendor/adminlte
 locale/en/         .po / .mo (šaltinis — lietuviški msgid)
 tests/             test_contacts.py, test_theme.py (~270 iš viso)
-scripts/           entrypoint.sh, backup.sh, release-check.sh, deploy*.sh, refresh-staging.sh
+scripts/           entrypoint.sh, backup.sh, release-check.sh, security-check.sh, deploy*.sh, refresh-staging.sh
 deploy/tailscale/  serve.json          deploy/caddy/   Caddyfile
 deploy/runner/     self-hosted CI runner konteineris
 deploy/helm/crm/   Helm chart'as Kubernetes klasteriui (žr. docs/KUBERNETES.md)

@@ -46,7 +46,8 @@ def _body(msg):
             if payload is None:
                 continue
             text = payload.decode(part.get_content_charset() or "utf-8", "replace")
-        except Exception:
+        # An undecodable part is skipped; the next one may do.
+        except Exception:  # nosec B112
             continue
         if ctype == "text/plain":
             return text
@@ -155,6 +156,7 @@ def fetch():
     finally:
         try:
             conn.logout()
-        except Exception:
+        # The session is being torn down anyway.
+        except Exception:  # nosec B110
             pass
     return counts

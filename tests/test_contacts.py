@@ -5768,3 +5768,33 @@ class CustomFieldHelperTests(TestCase):
         clean_and_store(self.person, field, self._posted("Renginys"))
         self.assertEqual(CustomValue.objects.filter(field=field, person=self.person).count(), 1)
         self.assertEqual(CustomValue.objects.get(field=field, person=self.person).value, "Renginys")
+
+
+class RichTextEscapingTests(TestCase):
+    """rich_text is the one filter that returns mark_safe; hostile notes must stay inert."""
+
+    def render(self, value):
+        from contacts.templatetags.crm_format import rich_text
+        return str(rich_text(value))
+
+    def test_markup_and_attribute_breakouts_are_escaped(self):
+        cases = {
+            "<script>alert(1)</script>": "<script",
+            "**<img src=x onerror=alert(1)>**": "<img",
+            'http://x.lt/"onmouseover=alert(1)': '"onmouseover',
+            'a@b.lt"><svg onload=alert(1)>': "<svg",
+            "_http://e.lt\" x=\"y_": '" x="',
+        }
+        for value, forbidden in cases.items():
+            with self.subTest(value=value):
+                self.assertNotIn(forbidden, self.render(value))
+
+    def test_javascript_scheme_is_never_linked(self):
+        self.assertNotIn("href", self.render("javascript:alert(1)"))
+
+    def test_supported_formatting_still_renders(self):
+        html = self.render("**bold** _it_\nhttps://example.lt")
+        self.assertIn("<strong>bold</strong>", html)
+        self.assertIn("<em>it</em>", html)
+        self.assertIn('<a href="https://example.lt"', html)
+        self.assertIn("<br>", html)

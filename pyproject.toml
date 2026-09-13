@@ -13,3 +13,7 @@ ignore = ["B008"]  # Django's FK(..., on_delete=...) as a default is idiomatic
 [tool.ruff.lint.per-file-ignores]
 "contacts/apps.py" = ["F401"]        # signals imported for its side effects
 "contacts/tests.py" = ["F401", "F403"]  # `from tests.test_contacts import *` shim
+
+[tool.bandit]
+# Tests use fixed fake credentials and asserts by design; migrations are generated.
+exclude_dirs = ["tests", "contacts/migrations", ".venv"]

@@ -285,7 +285,11 @@ TS_SERVE_CONFIG=/config/serve-staging.json   # no Funnel: private, unlike produc
 ## Automated deployment
 
 `.github/workflows/` contains the pipeline this project uses: `ci.yml` (lint,
-tests, image build on every push and pull request), `deploy-staging.yml` (every
+tests, image build on every push and pull request; security checks — `pip-audit`
+for known CVEs in dependencies, `bandit` static analysis, a Trivy scan of the
+image — and CycloneDX SBOMs of the Python dependencies and of the image,
+downloadable as run artifacts; run the first two locally with
+`scripts/security-check.sh`), `deploy-staging.yml` (every
 push to `main`) and `deploy.yml` (a `v*.*.*` tag). Both deploy jobs run on a
 self-hosted runner on the target host — see [`deploy/runner/README.md`](../deploy/runner/README.md).
 

@@ -17,7 +17,8 @@ def rich_text(value):
     # The input has already been escaped above, so urlize must not escape the
     # deliberately generated formatting tags a second time.
     text = urlize(text, autoescape=False)
-    return mark_safe(text.replace("\n", "<br>"))
+    # Safe: the input is escaped first; only the tags generated above are raw.
+    return mark_safe(text.replace("\n", "<br>"))  # nosec B308 B703
 
 
 @register.filter

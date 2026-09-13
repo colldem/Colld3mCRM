@@ -94,7 +94,7 @@ def _isolated():
 
 def email_config(system=None):
     if _isolated():
-        return EmailConfig(host="", port=0, user="", password="", use_tls=False,
+        return EmailConfig(host="", port=0, user="", password="", use_tls=False,  # nosec B106
                            use_ssl=False, from_email=dj.DEFAULT_FROM_EMAIL, enabled=False)
     system = _load(system)
     host = system.email_host or dj.EMAIL_HOST
@@ -113,7 +113,7 @@ def email_config(system=None):
 
 def imap_config(system=None):
     if _isolated():
-        return ImapConfig(host="", port=0, user="", password="", folder="INBOX", enabled=False)
+        return ImapConfig(host="", port=0, user="", password="", folder="INBOX", enabled=False)  # nosec B106
     system = _load(system)
     host = system.imap_host or dj.IMAP_HOST
     from_db = bool(system.imap_host)
@@ -129,7 +129,7 @@ def imap_config(system=None):
 
 def oidc_config(system=None):
     if _isolated():
-        return OIDCConfig(enabled=False, tenant_id="", client_id="", client_secret="", create_users=False)
+        return OIDCConfig(enabled=False, tenant_id="", client_id="", client_secret="", create_users=False)  # nosec B106
     system = _load(system)
     from_db = bool(system.oidc_client_id)
     return OIDCConfig(

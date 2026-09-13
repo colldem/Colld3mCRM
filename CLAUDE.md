@@ -98,6 +98,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `.dash-card-head`, `.kpi-card`); kortelės antraštė visada `--fs-md`/700.
 - `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
   `deploy.yml` (tag `v*`), abu `runs-on: self-hosted crm-nas`.
+  `scripts/security-check.sh` — pip-audit + bandit (CI `security` darbas; Trivy ir SBOM — `image` darbe);
   `scripts/deploy.sh` / `deploy-staging.sh` — diegimas; `refresh-staging.sh` —
   produkcijos duomenų kopija į staging. `compose.staging.yaml` — staging stack'as
   (be `crm-worker`, `serve-staging.json` be Funnel).
