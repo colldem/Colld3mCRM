@@ -79,7 +79,7 @@ FIELDS = {
 }
 
 # Django's own user table holds CRM users' identities and password hashes.
-USER_FIELDS = {"username": "D", "first_name": "D", "last_name": "D", "email": "D", "password": "S",
+USER_FIELDS = {"username": "D", "first_name": "D", "last_name": "D", "email": "D", "password": "S",  # nosec B105
                "last_login": "D", "date_joined": "D", "is_active": "T", "is_staff": "T", "is_superuser": "T",
                "groups": "T", "user_permissions": "T"}
 
