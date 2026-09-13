@@ -926,6 +926,12 @@ def _update_crm_user(request, target):
 def _reset_crm_user_password(request, target):
     from django.contrib.auth.password_validation import validate_password
 
+    from .integrations import oidc_config
+
+    if oidc_config().sync_groups and UserProfile.objects.filter(user=target, directory_managed=True).exists():
+        # A local password would let the person in after removal from the directory.
+        messages.error(request, tr("Šio naudotojo prisijungimą valdo organizacijos katalogas; vietinio slaptažodžio nustatyti negalima."))
+        return
     if target.is_superuser and not request.user.is_superuser:
         messages.error(request, tr("Pagrindinio administratoriaus slaptažodžio keisti negalima."))
         return

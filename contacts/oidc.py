@@ -15,14 +15,19 @@ On top of the library's signature and nonce checks, every ID token is checked
 for issuer, audience, expiry and (Entra) tenant. With directory group sync on,
 roles and teams follow the user's AD groups — see contacts/directory.py.
 """
+import re
 import time
 
-from django.contrib import messages
+from django.conf import settings
+from django.contrib import auth, messages
+from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth import get_user_model
 from django.core.exceptions import SuspiciousOperation
 from django.http import Http404
+from django.utils.deprecation import MiddlewareMixin
 from mozilla_django_oidc import views as oidc_views
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend
+from mozilla_django_oidc.middleware import SessionRefresh
 from mozilla_django_oidc.utils import import_from_settings
 
 from . import directory
@@ -59,6 +64,8 @@ def _resolve(attr, *args):
         "OIDC_OP_USER_ENDPOINT": cfg.user_endpoint,
         "OIDC_OP_JWKS_ENDPOINT": cfg.jwks_endpoint,
     }
+    if attr == "OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS":
+        return max(cfg.session_check_minutes, 1) * 60
     if attr in dynamic and dynamic[attr]:
         return dynamic[attr]
     return import_from_settings(attr, *args)
@@ -211,4 +218,73 @@ class EntraRequestView(_EntraViewMixin, oidc_views.OIDCAuthenticationRequestView
 
 
 class EntraCallbackView(_EntraViewMixin, oidc_views.OIDCAuthenticationCallbackView):
-    pass
+    def login_failure(self):
+        # A refused re-check (removed from the CRM groups, identity mismatch)
+        # must end the session that is still open, not just redirect.
+        if self.request.user.is_authenticated:
+            auth.logout(self.request)
+        return super().login_failure()
+
+
+def is_break_glass(user):
+    names = getattr(settings, "CRM_BREAK_GLASS_USERS", [])
+    if names:
+        return user.get_username().lower() in names
+    return bool(user.is_superuser)
+
+
+class LocalAccountBackend(ModelBackend):
+    """Username/password sign-in; in SSO-only mode for break-glass accounts only.
+
+    ``user_can_authenticate`` is also consulted when a session is loaded, so
+    switching SSO-only on ends the open local sessions of everyone else.
+    """
+
+    def user_can_authenticate(self, user):
+        if not super().user_can_authenticate(user):
+            return False
+        return not oidc_config().enforced or is_break_glass(user)
+
+
+class DirectorySessionRefresh(SessionRefresh):
+    """Silently re-authenticates directory sessions every N minutes.
+
+    The identity provider refuses a disabled account (the library then logs the
+    user out) and the callback re-applies the current groups, so a person removed
+    from AD or from the CRM groups loses access within minutes, not at session end.
+    Local sessions, the API, feeds and health checks are never redirected.
+    """
+
+    EXEMPT = [re.compile(pattern) for pattern in (
+        r"^/api/", r"^/health/", r"^/static/", r"^/media/", r"^/calendar/feed/", r"^/notifications/unsubscribe/",
+        r"^/manifest\.webmanifest$", r"^/sw\.js$", r"^/login/", r"^/logout/", r"^/setup/", r"^/jsi18n/",
+    )]
+
+    def __init__(self, get_response):
+        # The parent reads the endpoints here, at start-up; they live in the
+        # database and are read per request in process_request instead.
+        MiddlewareMixin.__init__(self, get_response)
+        self.OIDC_EXEMPT_URLS = []
+        self.OIDC_STATE_SIZE = 32
+        self.OIDC_AUTHENTICATION_CALLBACK_URL = "oidc_authentication_callback"
+        self.OIDC_RP_SCOPES = settings.OIDC_RP_SCOPES
+        self.OIDC_USE_NONCE = True
+        self.OIDC_NONCE_SIZE = 32
+        self.OIDC_OP_AUTHORIZATION_ENDPOINT = ""
+        self.OIDC_RP_CLIENT_ID = ""
+
+    @staticmethod
+    def get_settings(attr, *args):
+        return _resolve(attr, *args)
+
+    @property
+    def exempt_url_patterns(self):
+        return set(self.EXEMPT)
+
+    def process_request(self, request):
+        config = oidc_config()
+        if not config.usable or config.session_check_minutes <= 0:
+            return None
+        self.OIDC_OP_AUTHORIZATION_ENDPOINT = config.authorization_endpoint
+        self.OIDC_RP_CLIENT_ID = config.client_id
+        return super().process_request(request)

@@ -33,6 +33,7 @@ def system_settings(request):
     return {"date_format": system.date_format, "datetime_format": system.datetime_format,
             "oidc_enabled": oidc_config(system).usable,
             "oidc_is_entra": oidc_config(system).is_entra,
+            "sso_only": oidc_config(system).enforced,
             # Names the tier in the top banner so a clone holding real data is
             # never mistaken for production.
             "crm_environment": dj_settings.CRM_ENVIRONMENT,

@@ -1,3 +1,15 @@
+// A directory session past its re-check interval answers background GET requests
+// with 403 and a "refresh_url" header (contacts/oidc.py DirectorySessionRefresh).
+// Reloading lets the page itself go through the silent sign-in round trip.
+(() => {
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = async (...args) => {
+    const response = await nativeFetch(...args);
+    if (response.status === 403 && response.headers.get('refresh_url')) window.location.reload();
+    return response;
+  };
+})();
+
 // Localize the accessibility helpers created by AdminLTE at DOMContentLoaded.
 document.addEventListener('DOMContentLoaded', () => {
   // CRM is a private single-user tool; AdminLTE's skip links are not needed and

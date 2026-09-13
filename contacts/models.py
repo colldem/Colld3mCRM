@@ -318,6 +318,11 @@ class SystemSettings(models.Model):
     oidc_jwks_endpoint = models.CharField(max_length=500, blank=True, default="")
     oidc_groups_claim = models.CharField(max_length=200, blank=True, default="groups")
     oidc_sync_groups = models.BooleanField(default=False)
+    # Only break-glass accounts may use a local password while this is on.
+    sso_only = models.BooleanField(default=False)
+    # How often a directory session is silently re-checked with the identity
+    # provider (disabled account, changed groups). 0 = only at sign-in.
+    oidc_session_check_minutes = models.PositiveSmallIntegerField(default=15)
 
     # Automation rules master switch (Settings -> Automatika).
     automations_enabled = models.BooleanField(default=False)

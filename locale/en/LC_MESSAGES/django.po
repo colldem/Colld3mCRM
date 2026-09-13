@@ -3703,3 +3703,27 @@ msgstr "Paste the token contents (claims) as a JSON object."
 
 msgid "Prisijungimas per organizacijos katalogą (AD)"
 msgstr "Sign-in through the organisation directory (AD)"
+
+msgid "Tik organizacijos prisijungimas"
+msgstr "Organisation sign-in only"
+
+msgid "Sesijos pakartotinio tikrinimo intervalas (min.)"
+msgstr "Session re-check interval (min)"
+
+msgid "Nėra avarinės vietinės paskyros su slaptažodžiu (pagrindinis administratorius arba CRM_BREAK_GLASS_USERS). Be jos sutrikus katalogui prisijungti nepavyktų."
+msgstr "There is no break-glass local account with a password (main administrator or CRM_BREAK_GLASS_USERS). Without one, nobody could sign in if the directory failed."
+
+msgid "Vietiniu slaptažodžiu gali prisijungti tik avarinės paskyros: pagrindinis administratorius arba CRM_BREAK_GLASS_USERS sąraše nurodyti naudotojai. Kitų vietinės sesijos baigiamos. Galioja tik kai prisijungimas per katalogą sukonfigūruotas."
+msgstr "Only break-glass accounts may sign in with a local password: the main administrator or the users listed in CRM_BREAK_GLASS_USERS. Other local sessions are ended. Applies only while directory sign-in is configured."
+
+msgid "Kas kiek minučių katalogo sesija nepastebimai patikrinama tapatybės teikėjuje: išjungtas naudotojas atjungiamas, pasikeitusios grupės pritaikomos. 0 — tikrinama tik prisijungiant."
+msgstr "How often a directory session is silently re-checked with the identity provider: a disabled user is signed out, changed groups are applied. 0 - checked at sign-in only."
+
+msgid "Avarinis vietinis prisijungimas"
+msgstr "Break-glass local sign-in"
+
+msgid "Šio naudotojo prisijungimą valdo organizacijos katalogas; vietinio slaptažodžio nustatyti negalima."
+msgstr "This user's sign-in is managed by the organisation directory; a local password cannot be set."
+
+msgid "Prisijungiate per organizacijos katalogą — slaptažodis keičiamas ten, ne CRM."
+msgstr "You sign in through the organisation directory - change your password there, not in the CRM."

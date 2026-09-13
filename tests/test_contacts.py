@@ -6072,3 +6072,166 @@ class DirectoryAccessTests(TestCase):
         self.assertEqual(response.request["PATH_INFO"], reverse("login"))
         self.assertContains(response, "Nepriklausote CRM grupei")
         self.assertContains(response, "Prisijungti su Microsoft")
+
+
+class SsoOnlyAndSessionRefreshTests(TestCase):
+    """SSO-only sign-in with break-glass accounts, and directory session re-checks."""
+
+    PASSWORD = "very-secure-password"
+
+    def configure(self, sso_only=True, minutes=15, sync=True):
+        from contacts.crypto import encrypt
+        from contacts.models import SystemSettings
+        system = SystemSettings.load()
+        system.oidc_enabled, system.oidc_tenant_id = True, DirectoryAccessTests.TENANT
+        system.oidc_client_id, system.oidc_client_secret = "cid", encrypt("csecret")
+        system.oidc_sync_groups, system.sso_only, system.oidc_session_check_minutes = sync, sso_only, minutes
+        system.save()
+
+    def setUp(self):
+        User = get_user_model()
+        self.root = User.objects.create_superuser("root", email="root@local", password=self.PASSWORD)
+        self.plain = User.objects.create_user("plain", email="plain@imone.lt", password=self.PASSWORD)
+
+    def login(self, username):
+        return self.client.post(reverse("login"), {"username": username, "password": self.PASSWORD})
+
+    def test_local_passwords_work_until_sso_only_is_enforced(self):
+        self.configure(sso_only=False)
+        self.assertEqual(self.login("plain").status_code, 302)
+
+    def test_sso_only_refuses_local_passwords_except_break_glass(self):
+        self.configure()
+        self.assertEqual(self.login("plain").status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertEqual(self.login("root").status_code, 302)
+
+    @override_settings(CRM_BREAK_GLASS_USERS=["plain"])
+    def test_break_glass_list_replaces_the_superuser_default(self):
+        self.configure()
+        self.assertEqual(self.login("root").status_code, 200)
+        self.assertEqual(self.login("plain").status_code, 302)
+
+    def test_sso_only_is_ignored_while_the_provider_is_not_usable(self):
+        from contacts.models import SystemSettings
+        self.configure()
+        system = SystemSettings.load()
+        system.oidc_client_id = ""
+        system.save()
+        self.assertEqual(self.login("plain").status_code, 302)
+
+    def test_switching_sso_only_on_ends_open_local_sessions(self):
+        self.configure(sso_only=False)
+        self.login("plain")
+        self.assertEqual(self.client.get(reverse("contacts:list")).status_code, 200)
+        self.configure(sso_only=True)
+        self.assertEqual(self.client.get(reverse("contacts:list")).status_code, 302)
+
+    def test_login_page_puts_sso_first_and_hides_the_local_form(self):
+        self.configure()
+        response = self.client.get(reverse("login"))
+        self.assertContains(response, "Avarinis vietinis prisijungimas")
+        self.assertContains(response, 'class="btn primary" style="width:100%;justify-content:center" href="/oidc/authenticate/"')
+
+    def test_sso_only_needs_a_break_glass_account_with_a_password(self):
+        from contacts.models import SystemSettings
+        self.configure(sso_only=False)
+        self.client.force_login(self.root)
+        form = {"op": "save", "oidc_enabled": "on", "oidc_tenant_id": DirectoryAccessTests.TENANT,
+                "oidc_client_id": "cid", "oidc_session_check_minutes": "15", "sso_only": "on"}
+        self.root.set_unusable_password()
+        self.root.save()
+        self.client.force_login(self.root)  # a password change ends the session
+        response = self.client.post(reverse("contacts:settings-login"), form)
+        self.assertContains(response, "Nėra avarinės vietinės paskyros")
+        self.assertFalse(SystemSettings.load().sso_only)
+        self.root.set_password(self.PASSWORD)
+        self.root.save()
+        self.client.force_login(self.root)
+        self.client.post(reverse("contacts:settings-login"), form)
+        self.assertTrue(SystemSettings.load().sso_only)
+
+    # --- session re-check
+    def oidc_session(self, expired=True):
+        import time as _time
+        self.client.force_login(self.plain, backend="contacts.oidc.EntraOIDCBackend")
+        session = self.client.session
+        session["oidc_id_token_expiration"] = _time.time() + (-10 if expired else 600)
+        session.save()
+
+    def test_expired_directory_session_is_silently_rechecked(self):
+        from urllib.parse import parse_qs, urlparse
+        self.configure(sso_only=False)
+        self.oidc_session()
+        response = self.client.get(reverse("contacts:list"))
+        self.assertEqual(response.status_code, 302)
+        target = urlparse(response["Location"])
+        self.assertEqual(target.path, "/%s/oauth2/v2.0/authorize" % DirectoryAccessTests.TENANT)
+        query = parse_qs(target.query)
+        self.assertEqual(query["prompt"], ["none"])
+        self.assertEqual(query["client_id"], ["cid"])
+
+    def test_background_requests_get_a_refresh_signal_instead_of_a_redirect(self):
+        self.configure(sso_only=False)
+        self.oidc_session()
+        response = self.client.get(reverse("contacts:list"), HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("refresh_url", response)
+
+    def test_recheck_skips_fresh_sessions_local_sessions_api_and_disabled_interval(self):
+        self.configure(sso_only=False)
+        self.oidc_session(expired=False)
+        self.assertEqual(self.client.get(reverse("contacts:list")).status_code, 200)
+        self.oidc_session()
+        self.assertNotEqual(self.client.get("/api/v1/contacts/").status_code, 302)
+        self.assertEqual(self.client.get("/health/live").status_code, 200)
+        self.client.logout()
+        self.client.force_login(self.plain, backend="contacts.oidc.LocalAccountBackend")
+        self.assertEqual(self.client.get(reverse("contacts:list")).status_code, 200)
+        self.configure(sso_only=False, minutes=0)
+        self.oidc_session()
+        self.assertEqual(self.client.get(reverse("contacts:list")).status_code, 200)
+
+    def test_callback_sets_the_configured_recheck_interval(self):
+        from contacts.oidc import _resolve
+        self.configure(sso_only=False, minutes=7)
+        self.assertEqual(_resolve("OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS", 900), 420)
+
+    def test_refused_recheck_ends_the_open_session(self):
+        self.configure(sso_only=False)
+        self.oidc_session(expired=False)
+        session = self.client.session
+        session["oidc_states"] = {"s": {"nonce": "n", "code_verifier": None}}
+        session.save()
+        with patch("contacts.oidc.EntraOIDCBackend.authenticate", return_value=None):
+            response = self.client.get("/oidc/callback/?code=c&state=s")
+        self.assertEqual(response["Location"], "/login/")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_idp_error_on_recheck_logs_out(self):
+        self.configure(sso_only=False)
+        self.oidc_session(expired=False)
+        self.client.get("/oidc/callback/?error=login_required")
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    # --- local passwords for directory users
+    def test_admin_cannot_give_a_directory_user_a_local_password(self):
+        from contacts.models import UserProfile
+        self.configure(sso_only=False)
+        UserProfile.objects.create(user=self.plain, directory_managed=True)
+        self.plain.set_unusable_password()
+        self.plain.save()
+        self.client.force_login(self.root)
+        response = self.client.post(reverse("contacts:settings-users"), {
+            "action": "reset", "user_id": self.plain.pk, "password": "Another-long-passphrase-9"}, follow=True)
+        self.assertContains(response, "vietinio slaptažodžio nustatyti negalima")
+        self.plain.refresh_from_db()
+        self.assertFalse(self.plain.has_usable_password())
+
+    def test_profile_hides_password_change_without_a_local_password(self):
+        self.plain.set_unusable_password()
+        self.plain.save()
+        self.client.force_login(self.plain)
+        response = self.client.get(reverse("contacts:settings"))
+        self.assertContains(response, "slaptažodis keičiamas ten, ne CRM")
+        self.assertNotContains(response, "Pakeisti slaptažodį")

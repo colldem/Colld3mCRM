@@ -55,6 +55,13 @@ class OIDCConfig:
     endpoints: dict = field(default_factory=dict)
     groups_claim: str = "groups"
     sync_groups: bool = False
+    sso_only: bool = False
+    session_check_minutes: int = 0
+
+    @property
+    def enforced(self):
+        """Local passwords are limited to break-glass accounts."""
+        return bool(self.sso_only and self.usable)
 
     @property
     def is_entra(self):
@@ -62,6 +69,7 @@ class OIDCConfig:
 
     @property
     def authority(self):
+        """The v2.0 issuer; the endpoints below live under /oauth2/v2.0 and /discovery/v2.0."""
         return "https://login.microsoftonline.com/%s/v2.0" % self.tenant_id
 
     @property
@@ -73,11 +81,11 @@ class OIDCConfig:
 
     @property
     def authorization_endpoint(self):
-        return self._endpoint("authorization", self.authority + "/authorize")
+        return self._endpoint("authorization", "https://login.microsoftonline.com/%s/oauth2/v2.0/authorize" % self.tenant_id)
 
     @property
     def token_endpoint(self):
-        return self._endpoint("token", self.authority + "/token")
+        return self._endpoint("token", "https://login.microsoftonline.com/%s/oauth2/v2.0/token" % self.tenant_id)
 
     @property
     def user_endpoint(self):
@@ -172,6 +180,8 @@ def oidc_config(system=None):
         },
         groups_claim=(system.oidc_groups_claim or "groups").strip(),
         sync_groups=system.oidc_sync_groups,
+        sso_only=system.sso_only,
+        session_check_minutes=system.oidc_session_check_minutes,
     )
 
 

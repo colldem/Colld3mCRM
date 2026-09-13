@@ -38,6 +38,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Re-checks directory sessions with the identity provider (contacts/oidc.py).
+    "contacts.oidc.DirectorySessionRefresh",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "axes.middleware.AxesMiddleware",
@@ -88,8 +90,12 @@ PASSWORD_HASHERS = [
 ]
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
-    "django.contrib.auth.backends.ModelBackend",
+    # ModelBackend that refuses local passwords in SSO-only mode (break-glass excepted).
+    "contacts.oidc.LocalAccountBackend",
 ]
+# Usernames allowed to sign in with a local password while SSO-only mode is on.
+# Empty: active superusers only.
+CRM_BREAK_GLASS_USERS = [name.strip().lower() for name in os.environ.get("CRM_BREAK_GLASS_USERS", "").split(",") if name.strip()]
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=30)
 # Lock the exact (username, ip) pair, and also any single IP that keeps failing

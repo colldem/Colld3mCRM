@@ -77,7 +77,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   priminimai gyvena varpelyje (`reminder_live.py`), kalendoriuje ir kortelėse;
   varpelio atidarymas žymi juos skaitytais (`reminder_mark_read`); `sanitizers.py` — `safe_url` / `csv_safe`;
   `mailfetch.py` + `management/commands/fetch_mail.py` — IMAP gautų laiškų prisegimas;
-  `oidc.py` — OIDC prisijungimo backend'as (Entra ID arba AD FS; iss/aud/exp/tid tikrinimas) ir view'ai;
+  `oidc.py` — OIDC prisijungimo backend'as (Entra ID arba AD FS; iss/aud/exp/tid tikrinimas), view'ai,
+  `LocalAccountBackend` (vien SSO režimas, avarinės paskyros `CRM_BREAK_GLASS_USERS`) ir
+  `DirectorySessionRefresh` middleware (katalogo sesijos pakartotinis tikrinimas);
   `directory.py` — AD grupių susiejimas su rolėmis ir komandomis, taikomas kiekvieno prisijungimo metu;
   `integrations.py` — efektyvi SMTP/IMAP/OIDC konfigūracija (DB + `.env` fallback);
   izoliacija: kai `CRM_ENVIRONMENT` ≠ `production`, visi trys akcesoriai grąžina

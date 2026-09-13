@@ -319,8 +319,11 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .tag-color-6{background:#fef3c7;color:#92400e;border-color:#fde68a}
 .tag-color-7{background:#e0e7ff;color:#3730a3;border-color:#c7d2fe}
 .login-page{background:#f4f6f9}
-.login-panel{border-radius:8px;box-shadow:0 4px 20px #10243e0d}
+.login-panel{border-radius:8px;box-shadow:0 4px 20px #10243e0d;width:420px;max-width:calc(100vw - 32px)}
 .login-panel h1{font-size:28px}
+.login-break-glass{margin-top:18px;font-size:var(--fs-sm)}
+.login-break-glass summary{cursor:pointer;color:var(--muted);text-align:center}
+.login-break-glass form{margin-top:12px}
 .login-or{margin:16px 0 12px;text-align:center;color:var(--muted);font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.06em}
 @media(min-width:992px) and (max-width:1350px){.record-toolbar{flex-wrap:wrap}.record-toolbar .list-actions{margin-left:auto}}
 @media(max-width:991.98px){
