@@ -185,10 +185,11 @@ Sutarta atlikti vėliau (2026-09-13):
   varpelio riba (25 įrašai); technologijų sąraše — ClamAV, age, rclone; `/admin/` dabar išjungtas
   (`CRM_DJANGO_ADMIN`, tik superuser) — žinyno „Prieigos modelis" ir „Naudotojų valdymas" tekstai pasenę.
 
-## C. Revizija (pildoma pabaigus)
+## C. Revizija — ✅ atlikta 2026-09-13
 
-- [ ] Visi A lentelės ❌ ir 🟡 punktai arba padaryti, arba sąmoningai įrašyti į 7.9 kaip žinomi apribojimai
-- [ ] `release-check.sh` žalias, CI žalias, skenavimai be kritinių radinių
-- [ ] Atkūrimas iš šifruotos kopijos išbandytas
-- [ ] Dokumentų paketas 7.1–7.10 baigtas ir suderintas su kodu
-- [ ] Kiekvienam 4.1–4.4 klausimui iš pasirengimo plano yra atsakymas arba nuoroda
+- [x] A lentelės punktai padaryti arba įrašyti į `paketas/09` kaip žinomi apribojimai (Oracle — išmatuota)
+- [x] `release-check.sh`, `security-check.sh`, ruff žali; CI 9/9 (SQLite, PostgreSQL, sauga, image, Helm, atkūrimas, ClamAV, apkrova, Oracle ataskaita)
+- [x] Atkūrimas iš šifruotos kopijos išbandytas (CI `backup-restore`)
+- [x] Dokumentų paketas `docs/paketas/00–13` suderintas su kodu (žodynas generuojamas)
+- [x] Kiekvienam pradiniam klausimui — atsakymas arba aiškiai pažymėtas atviras punktas: `paketas/13-revizija.md`
+- [x] Revizijos radiniai ištaisyti: `/admin/` auditas, saugūs numatytieji nustatymai, profilio nuotraukos tipas

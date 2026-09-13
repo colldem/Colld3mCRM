@@ -18,6 +18,7 @@ sistemos savininkui. Pradėkite nuo [01 — sistemos aprašo](01-sistemos-aprasa
 | 10 | [Klausimai infrastruktūrai, saugai, DAP ir užsakovui](10-klausimai.md) | susitikimui |
 | 11 | [Autorystės, licencijos ir komponentų pareiškimas](11-autorystes-ir-licencijos-pareiskimas.md) (juodraštis) | teisininkams, pirkimams |
 | 12 | [Pirmojo susitikimo planas](12-susitikimo-planas.md) | jums |
+| 13 | [Revizija prieš pristatymą](13-revizija.md) | jums |
 
 Techniniai priedai: [DIEGIMAS-ORGANIZACIJOJE](../DIEGIMAS-ORGANIZACIJOJE.md),
 [DEPLOYMENT](../DEPLOYMENT.md), [KUBERNETES](../KUBERNETES.md),
