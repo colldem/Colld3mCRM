@@ -220,7 +220,7 @@ jobs:
           # The newest contacts migration must have applied: Oracle migrations must not regress.
           latest="$(ls contacts/migrations | grep -E '^[0-9]{4}_.*\.py$' | sort | tail -n 1 | sed 's/\.py$//')"
           grep -q "Applying contacts.$latest... OK" oracle-report.txt || { echo "migration $latest did not apply on Oracle"; exit 1; }
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: oracle-report
@@ -274,7 +274,7 @@ jobs:
           assert failures / requests < 0.01, "failure ratio above 1%"
           assert p95 < 2000, "95th percentile above 2 s"
           PY
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: load-test
@@ -304,7 +304,7 @@ jobs:
           python -m venv /tmp/runtime
           /tmp/runtime/bin/pip install -q -r requirements.txt
           cyclonedx-py environment /tmp/runtime/bin/python --of JSON -o sbom-python.cdx.json
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-python
           path: sbom-python.cdx.json
@@ -364,7 +364,7 @@ jobs:
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/out" \
             aquasec/trivy:0.57.1 image --format cyclonedx --output /out/sbom-image.cdx.json crm-web:ci
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-image
           path: sbom-image.cdx.json
