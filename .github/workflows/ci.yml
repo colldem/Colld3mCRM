@@ -373,7 +373,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
       - name: Lint the chart
         run: helm lint deploy/helm/crm --set database.host=db.example.internal --set secrets.djangoSecretKey=x --set secrets.crmSecretsKey=y
       - name: Render the chart
