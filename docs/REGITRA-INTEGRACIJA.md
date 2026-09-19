@@ -60,7 +60,7 @@ colld3m-regitra/
 ```
 
 Diegimas: `pip install git+https://github.com/<org>/colld3m-regitra@vX.Y.Z`,
-`INSTALLED_APPS += ["regitra"]`, `manage.py migrate`.
+`CRM_EXTRA_APPS=regitra` (CRM pats pasiima jį į `INSTALLED_APPS`), `manage.py migrate`.
 
 ## Keturios aplinkos
 

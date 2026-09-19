@@ -7661,3 +7661,27 @@ class ReviewHardeningTests(TestCase):
                 self.assertIn("attachment", response["Content-Disposition"])
         finally:
             media.cleanup()
+
+
+class ExtraAppsTests(TestCase):
+    """`CRM_EXTRA_APPS` is how an integration installed beside the CRM is
+    switched on — without it the Regitra app could not be a separate package."""
+
+    def test_the_setting_reads_a_comma_separated_list_and_ignores_blanks(self):
+        import importlib
+        import os
+        from unittest.mock import patch
+
+        with patch.dict(os.environ, {"CRM_EXTRA_APPS": " regitra , , kita "}):
+            settings_module = importlib.reload(importlib.import_module("config.settings"))
+        try:
+            apps = settings_module.INSTALLED_APPS
+            # Whitespace trimmed, the empty entry dropped, order kept.
+            self.assertEqual([name for name in apps if name in ("regitra", "kita")], ["regitra", "kita"])
+            self.assertNotIn("", apps)
+        finally:
+            # Leave the imported module as the running process found it.
+            importlib.reload(settings_module)
+
+    def test_nothing_is_added_when_the_variable_is_unset(self):
+        self.assertNotIn("regitra", settings.INSTALLED_APPS)

@@ -177,6 +177,7 @@ the summary.
 
 | Variable | Default | What it does |
 |---|---|---|
+| `CRM_EXTRA_APPS` | empty | comma-separated Django apps installed beside the CRM and added to `INSTALLED_APPS` — `regitra` switches on the Regitra integration (see `docs/REGITRA-INTEGRACIJA.md`) |
 | `CRM_ENVIRONMENT` | `production` | anything else marks the instance an isolated copy: e-mail, IMAP, Entra and webhooks are forced off and a banner names the tier |
 | `DJANGO_SESSION_IDLE_MINUTES` | `480` | idle timeout before a session expires |
 | `CRM_DJANGO_ADMIN` | `false` | `true` mounts Django's `/admin/` for superusers only. It edits records outside the CRM's audit trail and permissions, so leave it off unless a one-off technical fix needs it |
