@@ -129,7 +129,8 @@
       <details class="detail-card boxed collapsible rec-extra" data-block="{{ block.key }}">
         <summary><h2>{{ block.title }}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
         {% if block.template %}{% include block.template with block=block.context %}
-        {% else %}<p class="muted">{{ block.hint }}</p>{% endif %}
+        {% else %}<p class="muted">{{ block.hint }}</p>
+          <p class="muted rec-extra-soon">{% translate 'Bus rodoma prijungus Regitros duomenis.' %}</p>{% endif %}
       </details>
     {% endfor %}
   </div>

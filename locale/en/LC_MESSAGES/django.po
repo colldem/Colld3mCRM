@@ -4013,26 +4013,18 @@ msgstr "All activity this week"
 msgid "Automobiliai"
 msgstr "Vehicles"
 
-msgid "Transporto priemonės pagal VIN su techniniais duomenimis. Bus rodoma prijungus Regitros duomenis."
-msgstr "Vehicles by VIN with their technical details. Shown once the Regitra data is connected."
 
 msgid "Valstybiniai numeriai"
 msgstr "Registration plates"
 
-msgid "Turimi valstybinio numerio ženklai. Bus rodoma prijungus Regitros duomenis."
-msgstr "Registration plates held. Shown once the Regitra data is connected."
 
 msgid "Neseniai suteiktos paslaugos"
 msgstr "Recent services"
 
-msgid "Paskutinės suteiktos paslaugos. Bus rodoma prijungus Regitros duomenis."
-msgstr "The most recent services provided. Shown once the Regitra data is connected."
 
 msgid "Išsiųsti SMS"
 msgstr "Text messages sent"
 
-msgid "Neseniai į šio įrašo numerį siųsti pranešimai. Bus rodoma prijungus Regitros duomenis."
-msgstr "Messages recently sent to this record's number. Shown once the Regitra data is connected."
 
 msgid "Komandos įvykiai"
 msgstr "Team events"
@@ -4043,11 +4035,100 @@ msgstr "All events"
 msgid "Įgaliojimai"
 msgstr "Mandates"
 
-msgid "Galiojantys ir pasibaigę įgaliojimai. Bus rodoma prijungus Regitros duomenis."
-msgstr "Mandates in force and expired. Shown once the Regitra data is connected."
 
 msgid "Prašymai"
 msgstr "Applications"
 
-msgid "Pateikti prašymai ir jų būsena. Bus rodoma prijungus Regitros duomenis."
-msgstr "Applications submitted and their status. Shown once the Regitra data is connected."
+
+msgid "Vairuotojo pažymėjimas"
+msgstr "Driving licence"
+
+msgid "Pažymėjimo numeris, kategorijos, galiojimas, medicininė pažyma ir teisės vairuoti būsena."
+msgstr "Licence number, categories, validity, medical certificate and the state of the right to drive."
+
+msgid "Egzaminai"
+msgstr "Exams"
+
+msgid "Registracijos, laikyti teorijos ir praktikos egzaminai, rezultatai ir apeliacijos."
+msgstr "Bookings, theory and practical exams taken, results and appeals."
+
+msgid "Transporto priemonės pagal VIN su techniniais duomenimis."
+msgstr "Vehicles by VIN with their technical details."
+
+msgid "Transporto priemonių parkas"
+msgstr "Vehicle fleet"
+
+msgid "Įmonės vardu registruotos transporto priemonės."
+msgstr "Vehicles registered to the company."
+
+msgid "Turimi numerio ženklai ir jų saugojimo terminai."
+msgstr "Registration plates held and how long they are being stored."
+
+msgid "Laikinieji (prekybiniai) numeriai"
+msgstr "Trade plates"
+
+msgid "Įmonei priskirti laikinieji numerio ženklai ir jų galiojimas."
+msgstr "Trade plates issued to the company and their validity."
+
+msgid "Statusai"
+msgstr "Statuses"
+
+msgid "Vežėjas, gamintojo atstovas, prekybininkas, vairavimo mokykla — nuo jų priklauso, kas įmonei prieinama."
+msgstr "Carrier, manufacturer's representative, dealer, driving school — these decide what the company may use."
+
+msgid "Sutartys"
+msgstr "Contracts"
+
+msgid "Duomenų teikimo ir vairavimo mokymo sutartys bei jų terminai."
+msgstr "Data supply and driver training contracts, and when they run out."
+
+msgid "Vizitai padaliniuose"
+msgstr "Branch visits"
+
+msgid "Artimiausia rezervacija ir praėję vizitai padaliniuose."
+msgstr "The next booking and past visits to a branch."
+
+msgid "Pateikti prašymai ir jų būsena."
+msgstr "Applications submitted and their status."
+
+msgid "Galiojantys ir pasibaigę įgaliojimai."
+msgstr "Mandates in force and expired."
+
+msgid "Atstovai ir įgaliojimai"
+msgstr "Representatives and mandates"
+
+msgid "Asmenys, turintys teisę veikti įmonės vardu."
+msgstr "People entitled to act on the company's behalf."
+
+msgid "Autentiškumo patikrinimai"
+msgstr "Authenticity checks"
+
+msgid "Transporto priemonių autentiškumo patikrinimo užsakymai ir jų eiga."
+msgstr "Vehicle authenticity check orders and how far along they are."
+
+msgid "Pažymos ir išrašai"
+msgstr "Certificates and extracts"
+
+msgid "Išduotos pažymos ir registro duomenų išrašai."
+msgstr "Certificates issued and extracts from the register."
+
+msgid "Paskutinės suteiktos paslaugos."
+msgstr "The most recent services provided."
+
+msgid "Mokėjimai ir skolos"
+msgstr "Payments and debts"
+
+msgid "Registracijos mokestis, apmokėtos ir neapmokėtos paslaugos."
+msgstr "The registration fee, and services paid and unpaid."
+
+msgid "Mokėjimai ir sąskaitos"
+msgstr "Payments and invoices"
+
+msgid "Išrašytos sąskaitos, apmokėjimai ir įsiskolinimai."
+msgstr "Invoices issued, payments made and amounts outstanding."
+
+msgid "Neseniai į šio įrašo numerį siųsti pranešimai."
+msgstr "Messages recently sent to this record's number."
+
+msgid "Bus rodoma prijungus Regitros duomenis."
+msgstr "Shown once the Regitra data is connected."

@@ -11,14 +11,32 @@ Vienintelis, ir sąmoningai siauras: kortelės vidurinė kolona.
 `contacts/record_blocks.py` laiko blokų sąrašą ir eilę; CRM registruoja tik
 tuščius blokus su paaiškinimu, ką juose matysime:
 
-| Raktas | Blokas |
-| --- | --- |
-| `vehicles` | Automobiliai |
-| `plates` | Valstybiniai numeriai |
-| `services` | Neseniai suteiktos paslaugos |
-| `messages` | Išsiųsti SMS |
-| `mandates` | Įgaliojimai |
-| `requests` | Prašymai |
+Blokas priklauso kontakto kortelei, įmonės kortelei arba abiem:
+
+| Raktas | Blokas | Kortelė |
+| --- | --- | --- |
+| `licence` | Vairuotojo pažymėjimas | kontakto |
+| `exams` | Egzaminai | kontakto |
+| `vehicles` | Automobiliai | kontakto |
+| `fleet` | Transporto priemonių parkas | įmonės |
+| `plates` | Valstybiniai numeriai | kontakto |
+| `trade_plates` | Laikinieji (prekybiniai) numeriai | įmonės |
+| `statuses` | Statusai | įmonės |
+| `contracts` | Sutartys | įmonės |
+| `visits` | Vizitai padaliniuose | kontakto |
+| `requests` | Prašymai | abi |
+| `mandates` | Įgaliojimai | kontakto |
+| `representatives` | Atstovai ir įgaliojimai | įmonės |
+| `authenticity` | Autentiškumo patikrinimai | įmonės |
+| `certificates` | Pažymos ir išrašai | kontakto |
+| `services` | Neseniai suteiktos paslaugos | abi |
+| `payments` | Mokėjimai ir skolos | kontakto |
+| `invoices` | Mokėjimai ir sąskaitos | įmonės |
+| `messages` | Išsiųsti SMS | abi |
+
+Sąrašas sudarytas pagal regitra.lt paslaugų katalogą (2026 m. rugsėjis) ir
+klientų aptarnavimo scenarijų: pirma tai, kas turi terminą ar būseną, paskui
+istorija. Tai hipotezė — tikrieji laukai derinami su registro schema.
 
 Integracija tuo pačiu raktu perima bloką, o nauju raktu — prideda savo:
 

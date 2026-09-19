@@ -350,10 +350,12 @@ pasiekiamas iš šoninio meniu — `contacts/menu.py` `_PAGES` (ir `OPTIONAL_KEY
 jei naudotojas turi galėti jį susiskleisti). Testas → `tests/test_contacts.py`.
 
 **Bloką į kortelės vidurinę koloną.** `contacts/record_blocks.py` laiko blokų
-sąrašą ir jų eilę. CRM pats registruoja tik tuščius blokus su paaiškinimu, ką
+sąrašą, jų eilę ir tai, kuriai kortelei blokas priklauso (`kinds`: `PERSON`,
+`COMPANY` arba abu). CRM pats registruoja tik tuščius blokus su paaiškinimu, ką
 juose matysime; atskirai įdiegta programėlė (Regitros integracija gyvena savame
 repozitorijuje) `AppConfig.ready()` metu kviečia `register_block(key, title,
-template=…, loader=…)` ir tuo pačiu raktu perima placeholder'į. `loader(record)`
+template=…, loader=…)` ir tuo pačiu raktu perima placeholder'į — `kinds`
+nenurodžius, blokas lieka toje pačioje kortelėje. `loader(record)`
 grąžina šablono kontekstą. CRM niekur neimportuoja integracijos, tad be jos
 kortelė veikia lygiai taip pat. Žr. `docs/REGITRA-INTEGRACIJA.md`.
 
