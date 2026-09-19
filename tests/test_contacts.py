@@ -7388,21 +7388,27 @@ class QueryScalingTests(TestCase):
                                     created_by=self.user)
 
     def queries_for(self, url):
+        """The page's queries, with literals folded away so two runs compare by
+        shape — a mismatch then names the query that appeared."""
+        import re
         from django.db import connection
         from django.test.utils import CaptureQueriesContext
         self.client.get(url)  # warm per-process caches
         with CaptureQueriesContext(connection) as captured:
             self.assertEqual(self.client.get(url).status_code, 200)
-        return len(captured.captured_queries)
+        return [re.sub(r"\d+", "N", query["sql"])[:160] for query in captured.captured_queries]
 
     def test_list_calendar_and_dashboard_queries_do_not_grow_with_rows(self):
         # Both sizes non-empty: a prefetch that runs only when there are rows is constant, not growth.
+        from collections import Counter
         self.add_people(10)
         small = {url: self.queries_for(url) for url in ("/contacts/", "/calendar/", "/")}
         self.add_people(30)
-        for url, count in small.items():
+        for url, before in small.items():
             with self.subTest(url=url):
-                self.assertEqual(self.queries_for(url), count)
+                after = self.queries_for(url)
+                added = Counter(after) - Counter(before)
+                self.assertEqual(len(after), len(before), "added: %s" % sorted(added.elements()))
 
     def test_bell_lists_a_bounded_number_of_reminders(self):
         from contacts.context_processors import BELL_LIMIT
