@@ -1231,10 +1231,32 @@ class ContactViewTests(TestCase):
                 page = self.client.get(url).content.decode()
                 extras = page.split('class="rec-extras"')[1].split("<aside")[0]
                 for title in ("Automobiliai", "Valstybiniai numeriai",
-                              "Neseniai suteiktos paslaugos", "Išsiųsti SMS"):
+                              "Neseniai suteiktos paslaugos", "Išsiųsti SMS",
+                              "Įgaliojimai", "Prašymai"):
                     self.assertIn(title, extras)
+                self.assertIn("Bus rodoma prijungus Regitros duomenis.", extras)
         css = (settings.BASE_DIR / "static/css/theme.css").read_text()
         self.assertIn("grid-template-columns:minmax(0,1fr) minmax(0,1fr) 300px", css)
+
+    def test_an_integration_app_can_fill_a_middle_column_block(self):
+        """The column is a seam: the separate Regitra app registers a template
+        and a loader for a block, and the card renders what it hands back."""
+        from contacts import record_blocks as registry
+        saved = ({key: dict(value) for key, value in registry._BLOCKS.items()}, list(registry._ORDER))
+        self.addCleanup(lambda: (registry._BLOCKS.clear(), registry._BLOCKS.update(saved[0]),
+                                 registry._ORDER.clear(), registry._ORDER.extend(saved[1])))
+        registry.register_block("vehicles", "Automobiliai", template="contacts/detail_title.html",
+                                loader=lambda record: {"record": record})
+        registry.register_block("regitra-naujas", "Regitros blokas", hint="Dar tuščias")
+
+        self.client.force_login(self.user)
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        extras = page.split('class="rec-extras"')[1].split("<aside")[0]
+        # The placeholder's hint is gone: the registered template took over.
+        self.assertNotIn("Transporto priemonės pagal VIN", extras)
+        # A block the CRM never declared is appended after the ones it did.
+        self.assertLess(extras.index('data-block="vehicles"'), extras.index('data-block="regitra-naujas"'))
+        self.assertIn("Dar tuščias", extras)
 
     def _import_file(self, upload):
         """Upload a file for import and confirm it (the two-step wizard)."""

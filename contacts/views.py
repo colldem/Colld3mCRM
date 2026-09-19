@@ -1947,6 +1947,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 @login_required
 def contact_detail(request, pk):
     from .detail_editing import grouped_detail_fields
+    from .record_blocks import record_blocks
     person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(open_q(now), deleted_at__isnull=True)
@@ -1954,6 +1955,7 @@ def contact_detail(request, pk):
                         key=lambda a: a.created_at, reverse=True)
     return render(request, "contacts/detail.html", {
         "person": person,
+        "record_blocks": record_blocks(person),
         **grouped_detail_fields(person, viewer=request.user),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "reminder_form": ReminderForm(user=request.user),
@@ -2346,6 +2348,7 @@ def company_list(request):
 @login_required
 def company_detail(request, pk):
     from .detail_editing import grouped_detail_fields
+    from .record_blocks import record_blocks
     company = get_object_or_404(visible_companies(request.user, Company.objects.select_related("owner", "created_by").prefetch_related("person_links__person", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     # Linked contacts, and anything hanging off them, must still respect record visibility.
     visible_linked_ids = list(visible_people(
@@ -2366,6 +2369,7 @@ def company_detail(request, pk):
     next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
     return render(request, "companies/detail.html", {
         "company": company,
+        "record_blocks": record_blocks(company),
         **grouped_detail_fields(company, viewer=request.user),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "activity_form": ActivityForm(),

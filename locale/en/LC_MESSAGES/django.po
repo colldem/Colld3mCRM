@@ -4039,3 +4039,15 @@ msgstr "Team events"
 
 msgid "Visi įvykiai"
 msgstr "All events"
+
+msgid "Įgaliojimai"
+msgstr "Mandates"
+
+msgid "Galiojantys ir pasibaigę įgaliojimai. Bus rodoma prijungus Regitros duomenis."
+msgstr "Mandates in force and expired. Shown once the Regitra data is connected."
+
+msgid "Prašymai"
+msgstr "Applications"
+
+msgid "Pateikti prašymai ir jų būsena. Bus rodoma prijungus Regitros duomenis."
+msgstr "Applications submitted and their status. Shown once the Regitra data is connected."

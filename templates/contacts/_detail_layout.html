@@ -121,26 +121,17 @@
     </section>
   </div>
 
-  {% comment %}The Regitra column. The blocks name what the integration will
-  fill them with; until it is wired they say so rather than showing nothing.
-  {% endcomment %}
+  {% comment %}The middle column is a seam: `contacts/record_blocks.py` says
+  which blocks there are, and an integration app installed beside the CRM fills
+  them in. An unfilled block says what it will hold.{% endcomment %}
   <div class="rec-extras">
-    <details class="detail-card boxed collapsible rec-extra">
-      <summary><h2>{% translate 'Automobiliai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
-      <p class="muted">{% translate 'Transporto priemonės pagal VIN su techniniais duomenimis. Bus rodoma prijungus Regitros duomenis.' %}</p>
-    </details>
-    <details class="detail-card boxed collapsible rec-extra">
-      <summary><h2>{% translate 'Valstybiniai numeriai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
-      <p class="muted">{% translate 'Turimi valstybinio numerio ženklai. Bus rodoma prijungus Regitros duomenis.' %}</p>
-    </details>
-    <details class="detail-card boxed collapsible rec-extra">
-      <summary><h2>{% translate 'Neseniai suteiktos paslaugos' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
-      <p class="muted">{% translate 'Paskutinės suteiktos paslaugos. Bus rodoma prijungus Regitros duomenis.' %}</p>
-    </details>
-    <details class="detail-card boxed collapsible rec-extra">
-      <summary><h2>{% translate 'Išsiųsti SMS' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
-      <p class="muted">{% translate 'Neseniai į šio įrašo numerį siųsti pranešimai. Bus rodoma prijungus Regitros duomenis.' %}</p>
-    </details>
+    {% for block in record_blocks %}
+      <details class="detail-card boxed collapsible rec-extra" data-block="{{ block.key }}">
+        <summary><h2>{{ block.title }}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
+        {% if block.template %}{% include block.template with block=block.context %}
+        {% else %}<p class="muted">{{ block.hint }}</p>{% endif %}
+      </details>
+    {% endfor %}
   </div>
 
   <aside class="rec-rail">
