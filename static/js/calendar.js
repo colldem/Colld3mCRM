@@ -332,7 +332,7 @@
     if (id) completeButton.formAction = config.completeUrl.replace(/0\/complete\/$/, `${id}/complete/`);
     deleteButton.hidden = !id;
     if (id) deleteButton.formAction = config.deleteUrl.replace(/0\/delete\/$/, `${id}/delete/`);
-    recordList.hidden = true;
+    showList(false);
     applyKind();
     if (meetingUrl) showOnlineLink();
     dialog.showModal();
@@ -420,6 +420,10 @@
 
   // --- contact / company picker ---
   let searchTimer;
+  const showList = open => {
+    recordList.hidden = !open;
+    recordField.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
   recordField.addEventListener('input', () => {
     recordKind.value = '';
     recordId.value = '';
@@ -427,7 +431,7 @@
     openRecord.hidden = true;
     clearTimeout(searchTimer);
     const query = recordField.value.trim();
-    if (query.length < 2) { recordList.hidden = true; return; }
+    if (query.length < 2) { showList(false); return; }
     searchTimer = setTimeout(async () => {
       try {
         const response = await fetch(`${recordField.dataset.recordsUrl}?q=${encodeURIComponent(query)}`);
@@ -445,12 +449,12 @@
           option.addEventListener('click', () => {
             setRecord(item);
             applyKind();
-            recordList.hidden = true;
+            showList(false);
           });
           recordList.append(option);
         });
-        recordList.hidden = data.results.length === 0;
-      } catch { recordList.hidden = true; }
+        showList(data.results.length > 0);
+      } catch { showList(false); }
     }, 200);
   });
 

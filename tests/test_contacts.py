@@ -707,6 +707,19 @@ class CalendarTests(TestCase):
                          {"text": "Nesiųsti", "due_at": due, "notify_at": day_before})
         self.assertIsNone(Reminder.objects.get(text="Nesiųsti").notify_before)
 
+    def test_the_record_picker_hangs_its_matches_off_the_field(self):
+        """The dialog lays its fields out in a grid, and a scrolling box gives a
+        grid row no height of its own — in the flow the matches collapsed to a
+        sliver and looked like nothing had been found. The list is taken out of
+        the flow and anchored to the field instead."""
+        page = self.client.get(reverse("contacts:calendar")).content.decode()
+        anchor = page.split('class="cal-record-anchor"')[1].split("</div>")[0]
+        self.assertIn('id="cal-record"', anchor)
+        self.assertIn('id="cal-record-list"', anchor)
+        css = (settings.BASE_DIR / "static/css/theme.css").read_text()
+        self.assertIn(".cal-record-anchor{position:relative}", css)
+        self.assertIn(".cal-record-list{position:absolute", css)
+
     def test_the_dialog_picks_a_type_by_icon_and_asks_when_to_remind(self):
         """No radio to aim at: each type is a tile with its own icon. The
         reminder itself is a date and a time; the quick picks only fill it in."""

@@ -67,13 +67,18 @@
         <input id="cal-text" name="text" maxlength="500" required placeholder="{% translate 'pvz. Perskambinti dėl sutarties' %}">
       </label>
 
-      <label for="cal-record">{% translate 'Kontaktas arba įmonė' %}
-        <input id="cal-record" type="text" autocomplete="off" role="combobox" aria-expanded="false"
-               aria-controls="cal-record-list" placeholder="{% translate 'Įveskite bent 2 simbolius…' %}"
-               data-records-url="{% url 'contacts:calendar-records' %}">
+      {% comment %}The matches hang under the field as a dropdown: in the dialog's
+      grid a scrolling box has no height of its own to give a row.{% endcomment %}
+      <div class="cal-record-field">
+        <label for="cal-record">{% translate 'Kontaktas arba įmonė' %}</label>
+        <div class="cal-record-anchor">
+          <input id="cal-record" type="text" autocomplete="off" role="combobox" aria-expanded="false"
+                 aria-controls="cal-record-list" placeholder="{% translate 'Įveskite bent 2 simbolius…' %}"
+                 data-records-url="{% url 'contacts:calendar-records' %}">
+          <div class="cal-record-list" id="cal-record-list" hidden></div>
+        </div>
         <small>{% translate 'Neprivaloma. Pasirinkus kontaktą įsirašo jo pagrindinė įmonė, pasirinkus įmonę — jos pagrindinis kontaktas.' %}</small>
-      </label>
-      <div class="cal-record-list" id="cal-record-list" hidden></div>
+      </div>
       <dl class="cal-record-info" id="cal-record-info" hidden>
         <div data-record-row="partner"><dt>{% translate 'Susijęs įrašas' %}</dt><dd id="cal-record-partner">–</dd></div>
         <div data-record-row="phone"><dt>{% translate 'Telefonas' %}</dt><dd id="cal-record-phone">–</dd></div>

@@ -588,7 +588,12 @@ body[data-read-only] .favourite-form button,body[data-read-only] .inline-choices
 .cal-quick{padding:4px 10px;border:1px solid var(--line);border-radius:var(--radius-pill);background:#fff;color:var(--ink);font:inherit;font-size:var(--fs-2xs);font-weight:650;cursor:pointer}
 .cal-quick:hover{border-color:var(--navy-950)}
 .cal-quick.is-on{border-color:var(--navy-950);background:var(--navy-950);color:#fff}
-.cal-record-list{display:grid;max-height:190px;margin-top:-6px;border:1px solid var(--line);border-radius:6px;overflow-y:auto}
+.cal-record-field{display:grid;gap:4px}
+.cal-record-anchor{position:relative}
+/* Out of the flow: a scrolling box contributes no height to the grid row it
+   would sit in, so in the flow the list collapsed to a sliver. */
+.cal-record-list{position:absolute;z-index:2;top:calc(100% + 2px);left:0;right:0;display:grid;max-height:190px;
+  border:1px solid var(--line);border-radius:6px;background:#fff;overflow-y:auto;box-shadow:0 10px 24px rgba(6,43,99,.16)}
 .cal-record-option{display:grid;gap:1px;padding:7px 9px;border:0;border-bottom:1px solid var(--line);background:#fff;font:inherit;text-align:left;cursor:pointer}
 .cal-record-option:last-child{border-bottom:0}
 .cal-record-option:hover{background:var(--soft)}
