@@ -3953,11 +3953,11 @@ msgstr "Double-click the link to edit it."
 msgid "Siųsti priminimą el. paštu"
 msgstr "Send an email reminder"
 
-msgid "Prieš"
-msgstr "Before"
+msgid "Priminti"
+msgstr "Remind at"
 
-msgid "Nepasirinkta (prieš 5 min.)"
-msgstr "Not chosen (5 min. before)"
+msgid "Nepasirinkus laiko primename likus 5 min. iki įvykio."
+msgstr "With no time chosen we remind you 5 min. before the event."
 
 msgid "Uždaryti"
 msgstr "Close"

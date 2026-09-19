@@ -561,16 +561,27 @@ body[data-read-only] .favourite-form button,body[data-read-only] .inline-choices
 .cal-dialog input:focus-visible,.cal-dialog select:focus-visible,.cal-dialog textarea:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
 .cal-dialog fieldset{min-width:0;margin:0;padding:0;border:0}
 .cal-dialog legend{display:block;float:left;width:100%;margin:0 0 6px;padding:0;font-size:var(--fs-xs);font-weight:650;color:var(--muted)}
-.cal-kinds{display:flex;flex-wrap:wrap;gap:8px}
-.cal-kind{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--line);border-radius:var(--radius-pill);background:#fff;color:var(--ink);font-size:var(--fs-sm);font-weight:650;cursor:pointer}
-.cal-kind input{width:14px;height:14px;margin:0;accent-color:var(--navy-950)}
-.cal-kind:has(input:checked){border-color:var(--navy-950);background:var(--selected)}
+.cal-kinds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+/* The legend is a grid item here, not a floated line above the tiles. */
+.cal-kinds legend{grid-column:1/-1;float:none}
+.cal-kind{display:grid;justify-items:center;gap:6px;padding:10px 6px;border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;color:var(--muted);font-size:var(--fs-xs);font-weight:650;text-align:center;cursor:pointer}
+/* The radio still carries the value; the tile is what is clicked. */
+.cal-kind input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.cal-kind-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:var(--radius);background:var(--soft);color:var(--navy-950)}
+.cal-kind-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.cal-kind:hover{border-color:var(--navy-950)}
+.cal-kind:has(input:focus-visible){outline:2px solid var(--blue-600);outline-offset:1px}
+.cal-kind:has(input:checked){border-color:var(--navy-950);background:var(--selected);color:var(--ink)}
+.cal-kind:has(input:checked) .cal-kind-icon{background:var(--navy-950);color:#fff}
 .cal-kind.kind-call:has(input:checked){border-color:#1f7a5a;background:#e8f5ef}
+.cal-kind.kind-call:has(input:checked) .cal-kind-icon{background:#1f7a5a}
 .cal-kind.kind-meeting:has(input:checked){border-color:#7a4fbf;background:#f1ebfb}
+.cal-kind.kind-meeting:has(input:checked) .cal-kind-icon{background:#7a4fbf}
 .cal-times{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .cal-online-link{display:block;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--soft);font-weight:400;overflow-wrap:anywhere}
 .cal-notify{display:grid;gap:8px;padding:11px;border-radius:var(--radius-sm);background:var(--soft)}
-.cal-notify-toggle{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:var(--fs-sm)}
+/* Beats `.cal-dialog label`, which would stack the box above its text. */
+.cal-dialog .cal-notify-toggle{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:var(--fs-sm)}
 .cal-notify-toggle input{width:16px;height:16px;margin:0;accent-color:var(--navy-950)}
 .cal-notify-body{display:grid;gap:8px}
 .cal-notify-quick{display:flex;flex-wrap:wrap;gap:6px}

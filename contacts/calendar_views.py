@@ -15,7 +15,7 @@ from django.utils.translation import gettext as tr
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import NOTIFY_LEAD_CHOICES, AuditLog, Company, Person, Reminder
+from .models import AuditLog, Company, Person, Reminder
 from .audit import log as audit_log
 from .permissions import assignable_users_for, user_label, visible_companies, visible_people
 from .reminder_queries import mine_q as _mine_q
@@ -30,8 +30,10 @@ COLLEAGUE_COLOURS = ("#b4552d", "#2e8a6b", "#7a4fbf", "#9a6b10", "#c0447a",
                      "#3f7f8c", "#4a7f2f", "#8a4b8a", "#a35441", "#5d6bbf")
 # Quick picks for the dialog's reminder lead time, in minutes before the event.
 NOTIFY_QUICK_PICKS = ((2880, tr("prieš 2 d.")), (1440, tr("prieš 1 d.")), (60, tr("prieš valandą")))
-# "Notify me" ticked but no lead time chosen: nudge just before it starts.
+# "Notify me" ticked but no time chosen: nudge just before it starts.
 NOTIFY_FALLBACK_MINUTES = 5
+# `Reminder.notify_before` is a small integer: roughly 22 days of lead.
+NOTIFY_MAX_MINUTES = 32767
 
 
 def colleague_colour(pk):
@@ -198,7 +200,6 @@ def calendar_page(request):
         "default_minutes": Reminder.DEFAULT_MINUTES,
         "event_kinds": Reminder.KIND_CHOICES,
         "notify_quick_picks": NOTIFY_QUICK_PICKS,
-        "notify_choices": [row for row in NOTIFY_LEAD_CHOICES if row[0]],
         "colleagues": colleagues,
         "colleague_total": colleague_total,
         "colleague_page": COLLEAGUE_PAGE,
@@ -339,17 +340,20 @@ def _resolve_record(request):
     return None, None
 
 
-def _notify_before(request):
-    """Minutes before the event to send the email, or None for no email."""
+def _notify_before(request, start):
+    """Minutes before the event to send the email, or None for no email.
+
+    The dialog asks when to remind, as a date and a time; what the row keeps is
+    the lead in minutes, which is what the notifier walks.
+    """
     if not request.POST.get("notify"):
         return None
-    raw = request.POST.get("notify_before", "").strip()
-    try:
-        minutes = int(raw)
-    except ValueError:
+    at = _parse_local(request.POST.get("notify_at", ""))
+    if at is None or at >= start:
+        # Asked for a reminder without saying when: just before it starts.
         return NOTIFY_FALLBACK_MINUTES
-    # Asked for a reminder without saying when: just before it starts.
-    return minutes if minutes > 0 else NOTIFY_FALLBACK_MINUTES
+    # Capped at the column's ceiling; a lead that long is a different event.
+    return min(NOTIFY_MAX_MINUTES, max(1, round((start - at).total_seconds() / 60)))
 
 
 def _back_to_calendar(request):
@@ -388,7 +392,7 @@ def calendar_event_save(request, pk=None):
     reminder.end_at = end
     reminder.person = person
     reminder.company = company
-    reminder.notify_before = _notify_before(request)
+    reminder.notify_before = _notify_before(request, start)
     if pk is None:  # recurrence is only set at creation from the calendar
         freq = request.POST.get("recurrence_freq", "")
         reminder.recurrence_freq = freq if freq in dict(Reminder.FREQ_CHOICES) else ""

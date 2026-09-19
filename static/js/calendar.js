@@ -221,7 +221,7 @@
   const repeatField = document.getElementById('cal-repeat-field');
   const notifyBox = document.getElementById('cal-notify');
   const notifyBody = document.getElementById('cal-notify-body');
-  const notifySelect = document.getElementById('cal-notify-before');
+  const notifyAt = document.getElementById('cal-notify-at');
   const onlineField = document.getElementById('cal-online-field');
   const onlineInput = document.getElementById('cal-meeting-url');
   const onlineLink = document.getElementById('cal-meeting-link');
@@ -271,14 +271,33 @@
   });
 
   notifyBox.addEventListener('change', () => { notifyBody.hidden = !notifyBox.checked; });
+
+  // A quick pick is a lead time, not a fixed moment: it fills the date and time
+  // in, and follows the event if the event is moved. Typing your own wins.
+  let quickMinutes = null;
+  const clearQuick = () => {
+    quickMinutes = null;
+    form.querySelectorAll('.cal-quick').forEach(button => button.classList.remove('is-on'));
+  };
+  const before = (value, minutes) => {
+    const start = new Date(value);
+    return Number.isNaN(start.getTime()) ? '' : localValue(new Date(start.getTime() - minutes * 60000));
+  };
+  const applyQuick = () => {
+    if (quickMinutes === null || !startField.value) return;
+    notifyAt.value = before(startField.value, quickMinutes);
+  };
   form.querySelectorAll('.cal-quick').forEach(button => {
     button.addEventListener('click', () => {
       notifyBox.checked = true;
       notifyBody.hidden = false;
-      notifySelect.value = button.dataset.minutes;
+      quickMinutes = Number(button.dataset.minutes);
       form.querySelectorAll('.cal-quick').forEach(other => other.classList.toggle('is-on', other === button));
+      applyQuick();
     });
   });
+  startField.addEventListener('change', applyQuick);
+  notifyAt.addEventListener('input', clearQuick);
 
   function setRecord({kind, id, label, phone, address, url, partner}) {
     recordKind.value = kind || '';
@@ -304,8 +323,8 @@
     onlineInput.value = meetingUrl || '';
     notifyBox.checked = Boolean(notifyBefore);
     notifyBody.hidden = !notifyBox.checked;
-    notifySelect.value = notifyBefore || '';
-    form.querySelectorAll('.cal-quick').forEach(button => button.classList.remove('is-on'));
+    clearQuick();
+    notifyAt.value = notifyBefore && start ? before(start, Number(notifyBefore)) : '';
     setRecord(recordData || {});
     // Recurrence is a property of a new series, not of an occurrence already saved.
     repeatField.hidden = Boolean(id);

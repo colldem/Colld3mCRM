@@ -664,19 +664,37 @@ class CalendarTests(TestCase):
         results = self.client.get(reverse("contacts:calendar-records"), {"q": "Gorin"}).json()["results"]
         self.assertEqual(results[0]["partner"], "AB Regitra")
 
-    def test_reminder_lead_time_defaults_to_five_minutes_when_none_is_chosen(self):
+    def test_reminder_time_is_stored_as_a_lead_and_falls_back_to_five_minutes(self):
         due = self.start.strftime("%Y-%m-%dT%H:%M")
         self.client.post(reverse("contacts:calendar-event-create"),
                          {"text": "Be laiko", "due_at": due, "notify": "1"})
         self.assertEqual(Reminder.objects.get(text="Be laiko").notify_before, 5)
 
+        # The dialog posts a moment; the row keeps the minutes before the event.
+        day_before = (self.start - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
         self.client.post(reverse("contacts:calendar-event-create"),
-                         {"text": "Su laiku", "due_at": due, "notify": "1", "notify_before": "1440"})
+                         {"text": "Su laiku", "due_at": due, "notify": "1", "notify_at": day_before})
         self.assertEqual(Reminder.objects.get(text="Su laiku").notify_before, 1440)
 
+        # A moment at or after the event says nothing useful: nudge just before it.
+        later = (self.start + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
         self.client.post(reverse("contacts:calendar-event-create"),
-                         {"text": "Nesiųsti", "due_at": due, "notify_before": "1440"})
+                         {"text": "Po įvykio", "due_at": due, "notify": "1", "notify_at": later})
+        self.assertEqual(Reminder.objects.get(text="Po įvykio").notify_before, 5)
+
+        self.client.post(reverse("contacts:calendar-event-create"),
+                         {"text": "Nesiųsti", "due_at": due, "notify_at": day_before})
         self.assertIsNone(Reminder.objects.get(text="Nesiųsti").notify_before)
+
+    def test_the_dialog_picks_a_type_by_icon_and_asks_when_to_remind(self):
+        """No radio to aim at: each type is a tile with its own icon. The
+        reminder itself is a date and a time; the quick picks only fill it in."""
+        page = self.client.get(reverse("contacts:calendar")).content.decode()
+        for kind in ("call", "meeting", "reminder"):
+            self.assertIn(f'class="cal-kind kind-{kind}"', page)
+        self.assertEqual(page.count('class="cal-kind-icon"'), 3)
+        self.assertIn('id="cal-notify-at" name="notify_at" type="datetime-local"', page)
+        self.assertIn('class="cal-quick" data-minutes="1440"', page)
 
     def test_a_meeting_closes_itself_once_it_is_over_but_a_call_waits(self):
         from contacts.reminder_queries import autocomplete_past_meetings, pending_reminders

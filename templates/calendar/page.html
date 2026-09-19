@@ -46,12 +46,19 @@
     </header>
 
     <div class="cal-dialog-body">
+      {% comment %}The radio carries the value the form posts, but it is off the
+      screen: the type is picked by clicking its icon.{% endcomment %}
       <fieldset class="cal-kinds">
         <legend>{% translate 'Tipas' %}</legend>
         {% for value, label in event_kinds %}
-          <label class="cal-kind kind-{{ value }}">
+          <label class="cal-kind kind-{{ value }}" title="{{ label }}">
             <input type="radio" name="kind" value="{{ value }}"{% if value == 'reminder' %} checked{% endif %}>
-            <span>{{ label }}</span>
+            <span class="cal-kind-icon" aria-hidden="true">
+              {% if value == 'call' %}<svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></svg>
+              {% elif value == 'meeting' %}<svg viewBox="0 0 24 24"><path d="M17 20v-2a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v2"/><circle cx="10" cy="8" r="3"/><path d="M21 20v-2a3 3 0 0 0-2.3-2.9M16 5.1a3 3 0 0 1 0 5.8"/></svg>
+              {% else %}<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{% endif %}
+            </span>
+            <span class="cal-kind-name">{{ label }}</span>
           </label>
         {% endfor %}
       </fieldset>
@@ -98,11 +105,11 @@
               <button type="button" class="cal-quick" data-minutes="{{ minutes }}">{{ label }}</button>
             {% endfor %}
           </div>
-          <label for="cal-notify-before">{% translate 'Prieš' %}
-            <select id="cal-notify-before" name="notify_before">
-              <option value="">{% translate 'Nepasirinkta (prieš 5 min.)' %}</option>
-              {% for minutes, label in notify_choices %}<option value="{{ minutes }}">{{ label }}</option>{% endfor %}
-            </select>
+          {% comment %}A quick pick only fills this in; the date and the time stay
+          editable, and an empty field means five minutes before the event.{% endcomment %}
+          <label for="cal-notify-at">{% translate 'Priminti' %}
+            <input id="cal-notify-at" name="notify_at" type="datetime-local">
+            <small>{% translate 'Nepasirinkus laiko primename likus 5 min. iki įvykio.' %}</small>
           </label>
         </div>
       </fieldset>
