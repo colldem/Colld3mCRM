@@ -1222,58 +1222,6 @@ class ContactViewTests(TestCase):
         PhoneNumber.objects.create(person=self.person, number="+370 645 21 987", is_primary=True)
         EmailAddress.objects.create(person=self.person, email="ruta@example.lt", is_primary=True)
 
-    def _extras(self, record):
-        page = self.client.get(record.get_absolute_url()).content.decode()
-        return page.split('class="rec-extras"')[1].split("<aside")[0]
-
-    def test_the_record_card_keeps_a_middle_column_for_the_registry_blocks(self):
-        """Half of the record's own width goes to the blocks the Regitra
-        integration will fill; until it is wired each says what it will hold."""
-        self.client.force_login(self.user)
-        for record in (self.person, self.company):
-            with self.subTest(record=record):
-                extras = self._extras(record)
-                for title in ("Prašymai", "Neseniai suteiktos paslaugos", "Išsiųsti SMS"):
-                    self.assertIn(title, extras)
-                self.assertIn("Bus rodoma prijungus Regitros duomenis.", extras)
-        css = (settings.BASE_DIR / "static/css/theme.css").read_text()
-        self.assertIn("grid-template-columns:minmax(0,1fr) minmax(0,1fr) 300px", css)
-
-    def test_a_person_and_a_company_are_asked_different_things_of_the_registry(self):
-        """A driving licence is not a company's, and a fleet is not a person's."""
-        self.client.force_login(self.user)
-        person, company = self._extras(self.person), self._extras(self.company)
-        for key in ("licence", "exams", "vehicles", "plates", "visits", "mandates",
-                    "certificates", "payments"):
-            self.assertIn('data-block="%s"' % key, person)
-            self.assertNotIn('data-block="%s"' % key, company)
-        for key in ("fleet", "trade_plates", "statuses", "contracts",
-                    "representatives", "authenticity", "invoices"):
-            self.assertIn('data-block="%s"' % key, company)
-            self.assertNotIn('data-block="%s"' % key, person)
-
-    def test_an_integration_app_can_fill_a_middle_column_block(self):
-        """The column is a seam: the separate Regitra app registers a template
-        and a loader for a block, and the card renders what it hands back."""
-        from contacts import record_blocks as registry
-        saved = ({key: dict(value) for key, value in registry._BLOCKS.items()}, list(registry._ORDER))
-        self.addCleanup(lambda: (registry._BLOCKS.clear(), registry._BLOCKS.update(saved[0]),
-                                 registry._ORDER.clear(), registry._ORDER.extend(saved[1])))
-        registry.register_block("vehicles", "Automobiliai", template="contacts/detail_title.html",
-                                loader=lambda record: {"record": record})
-        registry.register_block("regitra-naujas", "Regitros blokas", hint="Dar tuščias",
-                                kinds=(registry.PERSON,))
-
-        self.client.force_login(self.user)
-        extras = self._extras(self.person)
-        # The placeholder's hint is gone: the registered template took over.
-        self.assertNotIn("Transporto priemonės pagal VIN", extras)
-        # A block the CRM never declared is appended after the ones it did.
-        self.assertLess(extras.index('data-block="vehicles"'), extras.index('data-block="regitra-naujas"'))
-        self.assertIn("Dar tuščias", extras)
-        # Taking a placeholder over leaves it on the card it was declared for.
-        self.assertNotIn('data-block="vehicles"', self._extras(self.company))
-
     def _import_file(self, upload):
         """Upload a file for import and confirm it (the two-step wizard)."""
         preview = self.client.post(reverse("contacts:import-export"), {"file": upload})
@@ -7680,8 +7628,8 @@ class ReviewHardeningTests(TestCase):
 
 
 class ExtraAppsTests(TestCase):
-    """`CRM_EXTRA_APPS` is how an integration installed beside the CRM is
-    switched on — without it the Regitra app could not be a separate package."""
+    """`CRM_EXTRA_APPS` is how an app installed beside the CRM is switched on,
+    so an integration can be a separate package instead of a patch."""
 
     def test_the_setting_reads_a_comma_separated_list_and_ignores_blanks(self):
         import importlib
@@ -7701,85 +7649,3 @@ class ExtraAppsTests(TestCase):
 
     def test_nothing_is_added_when_the_variable_is_unset(self):
         self.assertNotIn("regitra", settings.INSTALLED_APPS)
-
-
-class PersonalCodeTests(TestCase):
-    """The national identity number: the one field that finds the right person,
-    and the one that must never quietly hold a wrong value."""
-
-    # Real-looking codes with correct check digits, not anybody's.
-    VALID = "38901010003"
-    OTHER = "48507121239"
-
-    def setUp(self):
-        self.user = get_user_model().objects.create_user("kodai", password="very-secure-password")
-        self.client.force_login(self.user)
-        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis", owner=self.user)
-
-    def test_the_validator_rejects_what_cannot_be_a_personal_code(self):
-        from contacts.validators import validate_personal_code
-
-        validate_personal_code("")            # blank is allowed: it is optional
-        validate_personal_code(self.VALID)
-        for bad in ("3890101000", "389010100034", "3890101000x", "38901010004", "78901010003"):
-            with self.subTest(bad=bad), self.assertRaises(ValidationError):
-                validate_personal_code(bad)
-
-    def test_the_card_will_not_store_a_code_that_fails_its_checksum(self):
-        """The inline editor builds its own form field, which does not carry the
-        model's validators — so it has to run them itself."""
-        url = reverse("contacts:field-edit", args=[self.person.pk])
-        response = self.client.post(url, {"field": "personal_code", "value": "38901010004"})
-        self.assertEqual(response.status_code, 400)
-        self.person.refresh_from_db()
-        self.assertEqual(self.person.personal_code, "")
-
-        self.assertEqual(self.client.post(url, {"field": "personal_code", "value": self.VALID}).status_code, 200)
-        self.person.refresh_from_db()
-        self.assertEqual(self.person.personal_code, self.VALID)
-
-    def test_the_code_is_shown_on_the_card_and_found_by_search(self):
-        Person.objects.filter(pk=self.person.pk).update(personal_code=self.VALID)
-        Person.objects.create(first_name="Ona", last_name="Kazlauskienė",
-                              owner=self.user, personal_code=self.OTHER)
-        page = self.client.get(self.person.get_absolute_url()).content.decode()
-        self.assertIn("Asmens kodas", page)
-        self.assertIn(self.VALID, page)
-
-        found = self.client.get(reverse("contacts:search"), {"q": self.VALID}).context["results"]["people"]
-        self.assertEqual([person.pk for person in found], [self.person.pk])
-
-
-class DemoBlockTests(TestCase):
-    """Sample registry rows are a development aid, and must stay one."""
-
-    def test_they_are_off_unless_asked_for_and_never_in_production(self):
-        import os
-        from unittest.mock import patch
-
-        from contacts import record_blocks_demo as demo
-
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("CRM_DEMO_BLOCKS", None)
-            self.assertFalse(demo.enabled())
-        with patch.dict(os.environ, {"CRM_DEMO_BLOCKS": "1"}):
-            with override_settings(CRM_ENVIRONMENT="staging"):
-                self.assertTrue(demo.enabled())
-            with override_settings(CRM_ENVIRONMENT="production"):
-                self.assertFalse(demo.enabled())
-
-    def test_a_person_and_a_company_get_rows_that_belong_to_them(self):
-        from contacts import record_blocks as registry
-        from contacts import record_blocks_demo as demo
-
-        saved = ({key: dict(value) for key, value in registry._BLOCKS.items()}, list(registry._ORDER))
-        self.addCleanup(lambda: (registry._BLOCKS.clear(), registry._BLOCKS.update(saved[0]),
-                                 registry._ORDER.clear(), registry._ORDER.extend(saved[1])))
-        demo.install()
-        person = Person.objects.create(first_name="Jonas", last_name="Petraitis")
-        company = Company.objects.create(name="UAB Vežėjas")
-        # "services" is on both cards, and each side gets its own rows.
-        by_key = {block["key"]: block for block in registry.record_blocks(person)}
-        self.assertIn("Vairuotojo pažymėjimo keitimas", str(by_key["services"]["context"]))
-        by_key = {block["key"]: block for block in registry.record_blocks(company)}
-        self.assertIn("Autentiškumo patikrinimas", str(by_key["services"]["context"]))

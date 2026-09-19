@@ -72,10 +72,6 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
   `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
-  `record_blocks.py` — kortelės vidurinės kolonos blokai (Regitros integracijos
-  sąlyčio taškas; `register_block`, žr. `docs/REGITRA-INTEGRACIJA.md`);
-  `record_blocks_demo.py` — tų blokų pavyzdiniai duomenys (`CRM_DEMO_BLOCKS=1`,
-  tik ne produkcijoje); `validators.py` — asmens kodo tikrinimas;
   `menu.py` — asmeninė šoninė juosta (branduolys / naudotojo nuorodos / „Daugiau“ klostė;
   konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);
@@ -123,8 +119,6 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `docs/DIEGIMAS-ORGANIZACIJOJE.md` — organizacinis diegimas: tinklo srautai, proxy, resursai (CI `load`), atnaujinimo ir rollback runbook.
 - `docs/ORACLE.md` — Oracle suderinamumo patikros rezultatai (CI `oracle-compatibility`, tik ataskaita).
   Naujame kode vengti `.distinct()`/`annotate(Count)` ant modelių su `TextField` — žr. ten.
-- `docs/REGITRA-INTEGRACIJA.md` — Regitros dalis atskirame repozitorijuje ir keturios
-  aplinkos (CRM prod/staging, Regitra prod/staging).
 - `docs/INTEGRACIJOS.md` — integracijų kanalai; `reporting` schema (migracija 0051) ir `create_reporting_role`
   — tik skaitymo prieiga DWH; keičiant modelius, kurių laukai yra rodiniuose, atnaujinti rodinius nauja migracija.
 - `docs/DEPLOYMENT.md` — bendrinė diegimo procedūra (bet kuris Docker hostas,

@@ -38,9 +38,8 @@ INSTALLED_APPS = [
     "contacts",
 ]
 
-# Apps installed beside the CRM — today the Regitra integration, which fills the
-# record card's middle column (contacts/record_blocks.py). Comma separated, so a
-# deployment switches one on without patching this file.
+# Apps installed beside the CRM. Comma separated, so a deployment can switch one
+# on without patching this file.
 INSTALLED_APPS += [name.strip() for name in os.environ.get("CRM_EXTRA_APPS", "").split(",") if name.strip()]
 
 MIDDLEWARE = [

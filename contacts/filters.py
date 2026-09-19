@@ -117,7 +117,6 @@ def apply_contact_filters(people, values, user=None):
         people = people.filter(
             Q(first_name__icontains=term)
             | Q(last_name__icontains=term)
-            | Q(personal_code__icontains=term)
             | Q(job_title__icontains=term)
             | Q(company_links__company__name__icontains=term)
             | Q(phones__number__icontains=term)

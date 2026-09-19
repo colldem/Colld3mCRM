@@ -21,11 +21,6 @@ name: crm-staging
 services:
   crm-web:
     image: crm-web:staging
-    environment:
-      # Sample rows in the record card's registry blocks, so the layout can be
-      # judged before the Regitra integration exists. Refused in production by
-      # contacts/record_blocks_demo.py, which this overlay never reaches anyway.
-      CRM_DEMO_BLOCKS: "1"
   # Not "removed" — compose cannot delete an inherited service, so both are
   # defined with zero replicas, which starts none of them.
   crm-worker:

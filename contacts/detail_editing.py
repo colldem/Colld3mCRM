@@ -225,8 +225,7 @@ def edit_company_field(request, pk):
     return JsonResponse({"ok": True, "name": company.name, "html": html})
 
 
-SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"),
-           "personal_code": _("Asmens kodas"), "job_title": _("Pareigos")}
+SCALARS = {"first_name": _("Vardas"), "last_name": _("Pavardė"), "job_title": _("Pareigos")}
 _AUDIT_LABELS = {**SCALARS, **EXTRA_FIELDS, "companies": _("Įmonės"), "owner": _("Atsakingas"),
                  "responsibles": _("Atsakingi"), "full_name": _("Vardas ir pavardė")}
 
@@ -304,13 +303,13 @@ def detail_fields(person, viewer=None):
     from .custom_fields import detail_context
 
     order = ["companies", "responsibles", "first_name", "last_name", "job_title",
-             "personal_code", *MULTIPLE, "description"]
+             *MULTIPLE, "description"]
     return [field_context(person, field, viewer=viewer) for field in order] + detail_context(person)
 
 
 _CONTACT_INFO_KEYS = {
     True: {"email", "phone", "address", "city", "url", "company_code", "vat_code"},
-    False: {"personal_code", "emails", "phones", "addresses", "web_links"},
+    False: {"emails", "phones", "addresses", "web_links"},
 }
 
 
@@ -365,12 +364,7 @@ def edit_contact_field(request, pk):
                 person.last_name = last_name
                 person.save(update_fields=["first_name", "last_name", "updated_at"])
         elif field in SCALARS or field in EXTRA_FIELDS:
-            model_field = person._meta.get_field(field)
-            value = model_field.formfield().clean(request.POST.get("value", ""))
-            # `formfield()` leaves the model field's own validators behind, and
-            # the card must not accept what the form would reject.
-            for validator in model_field.validators:
-                validator(value)
+            value = person._meta.get_field(field).formfield().clean(request.POST.get("value", ""))
             changed = getattr(person, field) != value
             if changed and field in {"first_name", "last_name"}:
                 duplicate_settings = DuplicateSettings.load()

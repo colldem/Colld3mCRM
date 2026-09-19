@@ -55,8 +55,7 @@ MODELS = {
 # Values are category codes; bandit mistakes the ones next to *_token names for
 # hardcoded passwords, hence the reviewed nosec markers below.
 FIELDS = {
-    "Person.first_name": "A", "Person.last_name": "A", "Person.personal_code": "A",
-    "Person.job_title": "A", "Person.description": "L",
+    "Person.first_name": "A", "Person.last_name": "A", "Person.job_title": "A", "Person.description": "L",
     "PhoneNumber.number": "A", "EmailAddress.email": "A", "PostalAddress.address": "A", "WebLink.url": "A",
     "Company.name": "A", "Company.company_code": "A", "Company.vat_code": "A", "Company.address": "A",
     "Company.phone": "A", "Company.email": "A", "Company.url": "A", "Company.description": "L",

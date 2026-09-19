@@ -121,20 +121,6 @@
     </section>
   </div>
 
-  {% comment %}The middle column is a seam: `contacts/record_blocks.py` says
-  which blocks there are, and an integration app installed beside the CRM fills
-  them in. An unfilled block says what it will hold.{% endcomment %}
-  <div class="rec-extras">
-    {% for block in record_blocks %}
-      <details class="detail-card boxed collapsible rec-extra" data-block="{{ block.key }}">
-        <summary><h2>{{ block.title }}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
-        {% if block.template %}{% include block.template with block=block.context %}
-        {% else %}<p class="muted">{{ block.hint }}</p>
-          <p class="muted rec-extra-soon">{% translate 'Bus rodoma prijungus Regitros duomenis.' %}</p>{% endif %}
-      </details>
-    {% endfor %}
-  </div>
-
   <aside class="rec-rail">
     <section class="detail-card org-card">
       <h2>{% if is_company %}{% translate 'Kontaktiniai asmenys' %}{% else %}{% translate 'Organizacija' %}{% endif %}</h2>
