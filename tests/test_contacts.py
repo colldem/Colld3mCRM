@@ -12,7 +12,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import timezone, translation
 
 from contacts import crypto
 from contacts.models import Activity, ApiToken, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, RolePermissions, SavedFilter, Tag, Team, UserProfile, WebLink
@@ -88,8 +88,9 @@ class AnalyticsTests(TestCase):
         return Person.objects.create(first_name=first, last_name="Testas", **kwargs)
 
     @patch("django.utils.timezone.now")
-    def test_dashboard_splits_overdue_today_and_tomorrow_for_this_user_only(self, mock_now):
+    def test_dashboard_agenda_splits_by_horizon_for_this_user_only(self, mock_now):
         from datetime import datetime, timezone as _tz
+        # A Monday, so "this week" still has room ahead of it.
         mock_now.return_value = datetime(2026, 6, 15, 12, 0, tzinfo=_tz.utc)
         talkative = self._person("Kalbus")
         midnight = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -104,16 +105,20 @@ class AnalyticsTests(TestCase):
 
         response = self.client.get(reverse("contacts:home"))
         self.assertEqual(response.status_code, 200)
-        texts = lambda key: [r.text for r in response.context[key]]
-        self.assertEqual(texts("overdue_events"), ["Vėluoja"])
-        self.assertIn("Šiandien vėliau", texts("today_events"))
-        self.assertEqual(texts("tomorrow_events"), ["Rytoj"])
-        for key in ("overdue_events", "today_events", "tomorrow_events"):
+        tabs = {tab["key"]: tab for tab in response.context["event_tabs"]}
+        texts = lambda key: [row.text for row in tabs[key]["rows"]["all"]]
+        self.assertEqual(texts("overdue"), ["Vėluoja"])
+        self.assertIn("Šiandien vėliau", texts("today"))
+        # The horizons nest: today is inside this week, which is inside all.
+        # "Overdue" cuts across them — an event late today is in both.
+        self.assertEqual(texts("week"), ["Vėluoja", "Šiandien vėliau", "Rytoj"])
+        self.assertEqual(texts("all"), ["Vėluoja", "Šiandien vėliau", "Rytoj"])
+        for key in tabs:
             self.assertNotIn("Kolegos", texts(key))
-        # Each tab reports how many it holds, so its badge is not the visible
-        # slice. "Today" is 2: the overdue one is also due today.
-        tabs = {key: rows["total"] for key, rows, _ in response.context["dash_reminder_tabs"]}
-        self.assertEqual((tabs["today"], tabs["tomorrow"]), (2, 1))
+        # The tab label carries its own count, and "today" is the one that opens.
+        self.assertEqual(tabs["today"]["rows"]["total"], 2)
+        self.assertTrue(tabs["today"].get("active"))
+        self.assertContains(response, "(2)")
 
     def test_dashboard_counts_my_week_activity_by_type(self):
         person = self._person("Veiklus")
@@ -190,8 +195,8 @@ class AnalyticsTests(TestCase):
         self.assertEqual(response.context["recent_companies"]["visible"][0].city, "Vilnius")
         self.assertEqual(response.context["recent_activities"]["visible"][0].text, "Uzrasas")
 
-    def test_dashboard_hides_extra_rows_behind_show_more(self):
-        """Cards share a height, so anything past the fixed count folds away."""
+    def test_dashboard_card_shows_a_few_rows_and_its_popup_shows_the_rest(self):
+        """Cards share a height; the whole list lives in the block's popup."""
         from contacts.analytics_views import DASH_VISIBLE
         for index in range(DASH_VISIBLE + 3):
             self._person("Eile%d" % index)
@@ -199,18 +204,68 @@ class AnalyticsTests(TestCase):
         response = self.client.get(reverse("contacts:home"))
         rows = response.context["recent_people"]
         self.assertEqual(len(rows["visible"]), DASH_VISIBLE)
-        self.assertEqual(len(rows["rest"]), 3)
-        self.assertContains(response, "Rodyti daugiau")
-        # Hidden, but present — expanding must not need another request.
-        self.assertContains(response, str(rows["rest"][0]))
-        # The tab badge counts everything, not just the visible slice.
+        self.assertEqual(len(rows["all"]), DASH_VISIBLE + 3)
         self.assertEqual(rows["total"], DASH_VISIBLE + 3)
+        # The popup is rendered with the page: opening it needs no request.
+        self.assertContains(response, 'id="dlg-recent-people"')
+        self.assertContains(response, str(rows["all"][-1]))
 
-    def test_dashboard_omits_show_more_when_everything_fits(self):
-        self._person("Vienintelis")
+    def test_every_dashboard_block_opens_a_popup(self):
+        """Item 12: the number, and the rows it is made of, are one click apart."""
         response = self.client.get(reverse("contacts:home"))
-        self.assertEqual(response.context["recent_people"]["rest"], [])
-        self.assertNotContains(response, "Rodyti daugiau")
+        for dialog in ("dlg-recent-people", "dlg-recent-companies", "dlg-week-activity",
+                       "dlg-events-overdue", "dlg-month-activity", "dlg-new-people",
+                       "dlg-recent-activities", "dlg-events-today"):
+            with self.subTest(dialog=dialog):
+                self.assertContains(response, 'data-dash-open="%s"' % dialog)
+                self.assertContains(response, 'id="%s"' % dialog)
+
+    def test_agenda_filters_by_event_type_and_marks_overdue_in_red(self):
+        person = self._person("Tipiškas")
+        now = timezone.now()
+        Reminder.objects.create(person=person, text="Vėluojantis skambutis", kind=Reminder.KIND_CALL,
+                                created_by=self.user, due_at=now - timedelta(hours=2))
+        Reminder.objects.create(person=person, text="Būsimas priminimas", kind=Reminder.KIND_REMINDER,
+                                created_by=self.user, due_at=now + timedelta(hours=2))
+        response = self.client.get(reverse("contacts:home"))
+        body = response.content.decode()
+        # The chips the filter works on, and the kind each row carries.
+        for kind, _label in Reminder.KIND_CHOICES:
+            self.assertIn('data-dash-kind="%s"' % kind, body)
+        self.assertIn('data-kind="call"', body)
+        # An event whose time has passed reads as overdue wherever it appears.
+        self.assertIn("is-overdue-row", body)
+
+    def test_a_meeting_that_is_over_leaves_the_agenda_by_itself(self):
+        person = self._person("Susitikęs")
+        past = timezone.now() - timedelta(hours=3)
+        Reminder.objects.create(person=person, text="Praėjęs susitikimas", kind=Reminder.KIND_MEETING,
+                                created_by=self.user, due_at=past, end_at=past + timedelta(hours=1))
+        Reminder.objects.create(person=person, text="Praėjęs skambutis", kind=Reminder.KIND_CALL,
+                                created_by=self.user, due_at=past, end_at=past + timedelta(hours=1))
+        response = self.client.get(reverse("contacts:home"))
+        tabs = {tab["key"]: tab for tab in response.context["event_tabs"]}
+        self.assertEqual([row.text for row in tabs["overdue"]["rows"]["all"]], ["Praėjęs skambutis"])
+        self.assertEqual(response.context["overdue_total"], 1)
+
+    def test_ticking_an_event_off_from_a_popup_comes_back_to_the_dashboard(self):
+        person = self._person("Atliktas")
+        event = Reminder.objects.create(person=person, text="Pažymėti", created_by=self.user,
+                                        due_at=timezone.now() - timedelta(hours=1))
+        response = self.client.post(reverse("contacts:reminder-complete", args=[event.pk]),
+                                    {"next": reverse("contacts:home")})
+        self.assertRedirects(response, reverse("contacts:home"))
+        event.refresh_from_db()
+        self.assertIsNotNone(event.completed_at)
+
+    def test_completion_redirect_refuses_to_leave_the_site(self):
+        person = self._person("Nukreiptas")
+        event = Reminder.objects.create(person=person, text="Pažymėti", created_by=self.user,
+                                        due_at=timezone.now() - timedelta(hours=1))
+        response = self.client.post(reverse("contacts:reminder-complete", args=[event.pk]),
+                                    {"next": "https://kitas.example.com/"})
+        self.assertEqual(response["Location"], person.get_absolute_url())
+
 
     def test_chart_helpers_survive_empty_and_flat_input(self):
         """The dashboard renders on day one, when there is nothing to plot."""
@@ -537,7 +592,7 @@ class CalendarTests(TestCase):
         self.assertFalse(future.is_past)
         response = self.client.get(reverse("contacts:calendar"),
                                    {"view": "day", "date": timezone.localtime(now).date().isoformat()})
-        self.assertContains(response, "cal-event is-past")
+        self.assertContains(response, "is-past")
 
     def test_record_picker_returns_phone_and_address_and_respects_visibility(self):
         from contacts.models import UserProfile
@@ -555,6 +610,157 @@ class CalendarTests(TestCase):
                                    record_visibility=UserProfile.VISIBILITY_OWN)
         hidden = self.client.get(reverse("contacts:calendar-records"), {"q": "Gorin"}).json()["results"]
         self.assertEqual(hidden, [])
+
+    def test_grid_geometry_is_written_unlocalised(self):
+        """A decimal comma is not a CSS length: under lt the browser dropped
+        `top:68,4%` and every event fell to the foot of its column."""
+        self._event(text="Vidurdienis", due_at=self.start.replace(hour=12), end_at=self.start.replace(hour=13))
+        with translation.override("lt"):
+            response = self.client.get(reverse("contacts:calendar"),
+                                       {"view": "day", "date": self.start.date().isoformat()})
+        body = response.content.decode()
+        self.assertIn("top:50.0%", body)
+        self.assertNotIn("top:50,0%", body)
+        # The now-line rides on the same kind of value.
+        self.assertNotRegex(body, r'class="cal-now" style="top:\d+,')
+
+    def test_event_carries_its_kind_description_and_meeting_link(self):
+        due = self.start.strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("contacts:calendar-event-create"), {
+            "text": "Susitikimas", "due_at": due, "kind": "meeting",
+            "description": "Ką aptarti", "meeting_url": "https://meet.example.com/a",
+            "record_kind": "person", "record_id": self.person.pk,
+        })
+        event = Reminder.objects.get(text="Susitikimas")
+        self.assertEqual(event.kind, Reminder.KIND_MEETING)
+        self.assertEqual(event.description, "Ką aptarti")
+        self.assertEqual(event.meeting_url, "https://meet.example.com/a")
+
+    def test_joining_link_belongs_to_a_meeting_only(self):
+        due = self.start.strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("contacts:calendar-event-create"), {
+            "text": "Skambutis", "due_at": due, "kind": "call",
+            "meeting_url": "https://meet.example.com/a",
+        })
+        self.assertEqual(Reminder.objects.get(text="Skambutis").meeting_url, "")
+
+    def test_picking_a_contact_fills_in_their_company_and_the_other_way_round(self):
+        from contacts.models import PersonCompanyLink
+
+        PersonCompanyLink.objects.create(person=self.person, company=self.company, is_primary=True)
+        due = self.start.strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("contacts:calendar-event-create"),
+                         {"text": "Per kontaktą", "due_at": due, "record_kind": "person",
+                          "record_id": self.person.pk})
+        through_person = Reminder.objects.get(text="Per kontaktą")
+        self.assertEqual((through_person.person, through_person.company), (self.person, self.company))
+
+        self.client.post(reverse("contacts:calendar-event-create"),
+                         {"text": "Per įmonę", "due_at": due, "record_kind": "company",
+                          "record_id": self.company.pk})
+        through_company = Reminder.objects.get(text="Per įmonę")
+        self.assertEqual((through_company.person, through_company.company), (self.person, self.company))
+        # The picker offers the counterpart before anything is saved.
+        results = self.client.get(reverse("contacts:calendar-records"), {"q": "Gorin"}).json()["results"]
+        self.assertEqual(results[0]["partner"], "AB Regitra")
+
+    def test_reminder_lead_time_defaults_to_five_minutes_when_none_is_chosen(self):
+        due = self.start.strftime("%Y-%m-%dT%H:%M")
+        self.client.post(reverse("contacts:calendar-event-create"),
+                         {"text": "Be laiko", "due_at": due, "notify": "1"})
+        self.assertEqual(Reminder.objects.get(text="Be laiko").notify_before, 5)
+
+        self.client.post(reverse("contacts:calendar-event-create"),
+                         {"text": "Su laiku", "due_at": due, "notify": "1", "notify_before": "1440"})
+        self.assertEqual(Reminder.objects.get(text="Su laiku").notify_before, 1440)
+
+        self.client.post(reverse("contacts:calendar-event-create"),
+                         {"text": "Nesiųsti", "due_at": due, "notify_before": "1440"})
+        self.assertIsNone(Reminder.objects.get(text="Nesiųsti").notify_before)
+
+    def test_a_meeting_closes_itself_once_it_is_over_but_a_call_waits(self):
+        from contacts.reminder_queries import autocomplete_past_meetings, pending_reminders
+
+        past = timezone.now() - timedelta(hours=2)
+        meeting = self._event(text="Praėjęs susitikimas", due_at=past, end_at=past + timedelta(minutes=30),
+                              kind=Reminder.KIND_MEETING)
+        call = self._event(text="Praėjęs skambutis", due_at=past, end_at=past + timedelta(minutes=30),
+                           kind=Reminder.KIND_CALL)
+        self.assertTrue(meeting.is_done)
+        self.assertFalse(call.is_done)
+        # The lists agree with the property before the worker has run at all.
+        open_texts = set(pending_reminders(self.user).values_list("text", flat=True))
+        self.assertEqual(open_texts, {"Praėjęs skambutis"})
+
+        self.assertEqual(autocomplete_past_meetings(), 1)
+        meeting.refresh_from_db()
+        call.refresh_from_db()
+        self.assertIsNotNone(meeting.completed_at)
+        self.assertIsNone(call.completed_at)
+        # Idempotent: a second pass finds nothing left to close.
+        self.assertEqual(autocomplete_past_meetings(), 0)
+
+    def test_an_event_can_be_ticked_off_from_the_calendar_dialog(self):
+        event = self._event(text="Atlikti", due_at=self.start)
+        self.client.post(reverse("contacts:calendar-event-complete", args=[event.pk]))
+        event.refresh_from_db()
+        self.assertIsNotNone(event.completed_at)
+
+        theirs = Reminder.objects.create(text="Svetimas", due_at=self.start,
+                                         created_by=self.mate, assigned_to=self.mate)
+        self.client.post(reverse("contacts:calendar-event-complete", args=[theirs.pk]))
+        theirs.refresh_from_db()
+        self.assertIsNone(theirs.completed_at)
+
+    def test_a_colleagues_calendar_is_listed_paged_and_fetched_uncached(self):
+        response = self.client.get(reverse("contacts:calendar"))
+        self.assertContains(response, 'data-colleague="%d"' % self.mate.pk)
+        # Your own calendar is the grid, not an overlay on it.
+        self.assertNotContains(response, 'data-colleague="%d"' % self.user.pk)
+
+        theirs = Reminder.objects.create(text="Kolegos įvykis", due_at=self.start,
+                                         created_by=self.mate, assigned_to=self.mate)
+        feed = self.client.get(reverse("contacts:calendar-colleague-events", args=[self.mate.pk]),
+                               {"view": "week", "date": self.start.date().isoformat()})
+        payload = feed.json()
+        self.assertEqual([row["text"] for row in payload["events"]], ["Kolegos įvykis"])
+        self.assertEqual(payload["owner"], perm.user_label(self.mate))
+        # Somebody else's agenda is read live, never stored along the way.
+        self.assertIn("no-cache", feed.headers["Cache-Control"])
+        self.assertEqual(theirs.pk, payload["events"][0]["id"])
+
+    def test_colleague_list_pages_ten_at_a_time_and_respects_visibility(self):
+        from contacts.calendar_views import COLLEAGUE_PAGE
+
+        User = get_user_model()
+        for index in range(COLLEAGUE_PAGE + 2):
+            User.objects.create_user("kolega%02d" % index, password="very-secure-password",
+                                     first_name="Vardas%02d" % index)
+        response = self.client.get(reverse("contacts:calendar"))
+        self.assertEqual(len(response.context["colleagues"]), COLLEAGUE_PAGE)
+        rest = self.client.get(reverse("contacts:calendar-colleagues"),
+                               {"offset": COLLEAGUE_PAGE}).json()
+        self.assertEqual(len(rest["results"]) + COLLEAGUE_PAGE, rest["total"])
+        self.assertFalse(rest["has_more"])
+        # The first page is the head of the assignable list, and the second
+        # carries on from where it stopped rather than repeating it.
+        expected = [perm.user_label(other) for other
+                    in perm.assignable_users_for(self.user).exclude(pk=self.user.pk)]
+        first_page = [row["label"] for row in response.context["colleagues"]]
+        self.assertEqual(first_page, expected[:COLLEAGUE_PAGE])
+        self.assertEqual([row["label"] for row in rest["results"]], expected[COLLEAGUE_PAGE:])
+
+    def test_you_cannot_read_the_calendar_of_someone_you_may_not_see(self):
+        from contacts.models import Team, UserProfile
+
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_MEMBER,
+                                   record_visibility=UserProfile.VISIBILITY_TEAM)
+        Team.objects.create(name="Mano komanda").members.add(self.user)
+        response = self.client.get(reverse("contacts:calendar"))
+        self.assertEqual(response.context["colleagues"], [])
+        self.assertEqual(
+            self.client.get(reverse("contacts:calendar-colleague-events"
+                                    , args=[self.mate.pk])).status_code, 404)
 
 
 class ReminderAssignmentTests(TestCase):

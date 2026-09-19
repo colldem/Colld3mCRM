@@ -2,77 +2,125 @@
 {% block title %}{% translate 'Kalendorius' %} - CRM{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>{% translate 'Kalendorius' %}</h1><p>{% translate 'Tik jūsų suplanuoti priminimai.' %}</p></div>
+  <div><h1>{% translate 'Kalendorius' %}</h1><p>{% translate 'Jūsų suplanuoti įvykiai; kolegų kalendorius galima uždėti ant viršaus.' %}</p></div>
   {% if crm_caps.can_edit %}<div class="page-actions"><button class="btn primary" type="button" data-cal-new>＋ {% translate 'Naujas įvykis' %}</button></div>{% endif %}
 </div>
 
-<div class="cal-toolbar">
-  <div class="cal-nav">
-    <a class="btn" href="?view={{ calendar_view }}&amp;date={{ prev_date|date:'Y-m-d' }}" aria-label="{% translate 'Ankstesnis' %}">‹</a>
-    <a class="btn" href="?view={{ calendar_view }}&amp;date={{ today|date:'Y-m-d' }}">{% translate 'Šiandien' %}</a>
-    <a class="btn" href="?view={{ calendar_view }}&amp;date={{ next_date|date:'Y-m-d' }}" aria-label="{% translate 'Kitas' %}">›</a>
-    <strong class="cal-range">
-      {% if calendar_view == 'month' %}{{ anchor|date:"Y F" }}
-      {% elif calendar_view == 'day' %}{{ anchor|date:date_format }}
-      {% else %}{{ range_start|date:date_format }} – {{ range_end|date:date_format }}{% endif %}
-    </strong>
-  </div>
-  <div class="cal-views segmented" role="group" aria-label="{% translate 'Rodinys' %}">
-    <a class="{% if calendar_view == 'day' %}is-on{% endif %}" href="?view=day&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Diena' %}</a>
-    <a class="{% if calendar_view == 'week' %}is-on{% endif %}" href="?view=week&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Savaitė' %}</a>
-    <a class="{% if calendar_view == 'month' %}is-on{% endif %}" href="?view=month&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Mėnuo' %}</a>
+<div class="cal-shell">
+  {% include "calendar/_sidebar.html" %}
+
+  <div class="cal-main">
+    <div class="cal-toolbar">
+      <div class="cal-nav">
+        <a class="btn" href="?view={{ calendar_view }}&amp;date={{ prev_date|date:'Y-m-d' }}" aria-label="{% translate 'Ankstesnis' %}">‹</a>
+        <a class="btn" href="?view={{ calendar_view }}&amp;date={{ today|date:'Y-m-d' }}">{% translate 'Šiandien' %}</a>
+        <a class="btn" href="?view={{ calendar_view }}&amp;date={{ next_date|date:'Y-m-d' }}" aria-label="{% translate 'Kitas' %}">›</a>
+      </div>
+      <strong class="cal-range">
+        {% if calendar_view == 'month' %}{{ anchor|date:"Y F" }}
+        {% elif calendar_view == 'day' %}{{ anchor|date:date_format }}
+        {% else %}{{ range_start|date:date_format }} – {{ range_end|date:date_format }}{% endif %}
+      </strong>
+      <span class="cal-legend" data-cal-overlay-legend hidden></span>
+    </div>
+
+    {% if calendar_view == 'month' %}
+      {% include "calendar/_month.html" %}
+    {% else %}
+      {% include "calendar/_timegrid.html" %}
+    {% endif %}
   </div>
 </div>
 
-{% if calendar_view == 'month' %}
-  {% include "calendar/_month.html" %}
-{% else %}
-  {% include "calendar/_timegrid.html" %}
-{% endif %}
-
-<dialog class="cal-dialog" id="cal-dialog">
+<dialog class="cal-dialog" id="cal-dialog" aria-labelledby="cal-dialog-title">
   <form method="post" id="cal-form" action="{% url 'contacts:calendar-event-create' %}">
     {% csrf_token %}
     <input type="hidden" name="view" value="{{ calendar_view }}">
     <input type="hidden" name="date" value="{{ anchor|date:'Y-m-d' }}">
     <input type="hidden" name="record_kind" id="cal-record-kind" value="">
     <input type="hidden" name="record_id" id="cal-record-id" value="">
-    <h2 id="cal-dialog-title">{% translate 'Naujas įvykis' %}</h2>
 
-    <label for="cal-text">{% translate 'Pastaba' %}
-      <input id="cal-text" name="text" maxlength="500" required placeholder="{% translate 'pvz. Perskambinti dėl sutarties' %}">
-    </label>
+    <header class="cal-dialog-head">
+      <h2 id="cal-dialog-title">{% translate 'Naujas įvykis' %}</h2>
+      <button class="cal-dialog-x" type="button" data-cal-close aria-label="{% translate 'Uždaryti' %}">✕</button>
+    </header>
 
-    <div class="cal-times">
-      <label for="cal-start">{% translate 'Pradžia' %}<input id="cal-start" name="due_at" type="datetime-local" required></label>
-      <label for="cal-end">{% translate 'Pabaiga' %}<input id="cal-end" name="end_at" type="datetime-local"></label>
+    <div class="cal-dialog-body">
+      <fieldset class="cal-kinds">
+        <legend>{% translate 'Tipas' %}</legend>
+        {% for value, label in event_kinds %}
+          <label class="cal-kind kind-{{ value }}">
+            <input type="radio" name="kind" value="{{ value }}"{% if value == 'reminder' %} checked{% endif %}>
+            <span>{{ label }}</span>
+          </label>
+        {% endfor %}
+      </fieldset>
+
+      <label for="cal-text">{% translate 'Tema' %}
+        <input id="cal-text" name="text" maxlength="500" required placeholder="{% translate 'pvz. Perskambinti dėl sutarties' %}">
+      </label>
+
+      <label for="cal-record">{% translate 'Kontaktas arba įmonė' %}
+        <input id="cal-record" type="text" autocomplete="off" role="combobox" aria-expanded="false"
+               aria-controls="cal-record-list" placeholder="{% translate 'Įveskite bent 2 simbolius…' %}"
+               data-records-url="{% url 'contacts:calendar-records' %}">
+        <small>{% translate 'Neprivaloma. Pasirinkus kontaktą įsirašo jo pagrindinė įmonė, pasirinkus įmonę — jos pagrindinis kontaktas.' %}</small>
+      </label>
+      <div class="cal-record-list" id="cal-record-list" hidden></div>
+      <dl class="cal-record-info" id="cal-record-info" hidden>
+        <div data-record-row="partner"><dt>{% translate 'Susijęs įrašas' %}</dt><dd id="cal-record-partner">–</dd></div>
+        <div data-record-row="phone"><dt>{% translate 'Telefonas' %}</dt><dd id="cal-record-phone">–</dd></div>
+        <div data-record-row="address"><dt>{% translate 'Adresas' %}</dt><dd id="cal-record-address">–</dd></div>
+      </dl>
+
+      <div class="cal-times">
+        <label for="cal-start">{% translate 'Data ir pradžia' %}<input id="cal-start" name="due_at" type="datetime-local" required></label>
+        <label for="cal-end">{% translate 'Pabaiga' %}<input id="cal-end" name="end_at" type="datetime-local"></label>
+      </div>
+
+      {% comment %}Only a meeting has a joining link; the field is hidden for the other kinds.{% endcomment %}
+      <label class="cal-online" for="cal-meeting-url" id="cal-online-field" hidden>{% translate 'Nuotolinis susitikimas' %}
+        <input id="cal-meeting-url" name="meeting_url" type="url" maxlength="500" placeholder="https://…">
+        <a class="cal-online-link" id="cal-meeting-link" href="#" target="_blank" rel="noopener noreferrer" hidden></a>
+        <small id="cal-online-hint" hidden>{% translate 'Dukart spustelėkite nuorodą, kad redaguotumėte.' %}</small>
+      </label>
+
+      <label for="cal-description">{% translate 'Aprašymas' %}
+        <textarea id="cal-description" name="description" rows="3" maxlength="5000"></textarea>
+      </label>
+
+      <fieldset class="cal-notify">
+        <legend>{% translate 'Priminimas' %}</legend>
+        <label class="cal-notify-toggle"><input type="checkbox" name="notify" id="cal-notify" value="1"> {% translate 'Siųsti priminimą el. paštu' %}</label>
+        <div class="cal-notify-body" id="cal-notify-body" hidden>
+          <div class="cal-notify-quick">
+            {% for minutes, label in notify_quick_picks %}
+              <button type="button" class="cal-quick" data-minutes="{{ minutes }}">{{ label }}</button>
+            {% endfor %}
+          </div>
+          <label for="cal-notify-before">{% translate 'Prieš' %}
+            <select id="cal-notify-before" name="notify_before">
+              <option value="">{% translate 'Nepasirinkta (prieš 5 min.)' %}</option>
+              {% for minutes, label in notify_choices %}<option value="{{ minutes }}">{{ label }}</option>{% endfor %}
+            </select>
+          </label>
+        </div>
+      </fieldset>
+
+      <label for="cal-repeat" id="cal-repeat-field">{% translate 'Kartojimas' %}
+        <select id="cal-repeat" name="recurrence_freq">
+          <option value="">{% translate 'Nekartoti' %}</option>
+          <option value="daily">{% translate 'Kasdien' %}</option>
+          <option value="weekly">{% translate 'Kas savaitę' %}</option>
+          <option value="monthly">{% translate 'Kas mėnesį' %}</option>
+          <option value="yearly">{% translate 'Kasmet' %}</option>
+        </select>
+      </label>
     </div>
-
-    <label for="cal-repeat">{% translate 'Kartojimas' %}
-      <select id="cal-repeat" name="recurrence_freq">
-        <option value="">{% translate 'Nekartoti' %}</option>
-        <option value="daily">{% translate 'Kasdien' %}</option>
-        <option value="weekly">{% translate 'Kas savaitę' %}</option>
-        <option value="monthly">{% translate 'Kas mėnesį' %}</option>
-        <option value="yearly">{% translate 'Kasmet' %}</option>
-      </select>
-    </label>
-
-    <label for="cal-record">{% translate 'Kontaktas arba įmonė' %}
-      <input id="cal-record" type="text" autocomplete="off" role="combobox" aria-expanded="false"
-             aria-controls="cal-record-list" placeholder="{% translate 'Įveskite bent 2 simbolius…' %}"
-             data-records-url="{% url 'contacts:calendar-records' %}">
-      <small>{% translate 'Neprivaloma — įvykis gali būti ir be įrašo.' %}</small>
-    </label>
-    <div class="cal-record-list" id="cal-record-list" hidden></div>
-    <dl class="cal-record-info" id="cal-record-info" hidden>
-      <dt>{% translate 'Telefonas' %}</dt><dd id="cal-record-phone">–</dd>
-      <dt>{% translate 'Adresas' %}</dt><dd id="cal-record-address">–</dd>
-    </dl>
 
     <div class="cal-dialog-actions">
       <button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button>
-      <button class="btn" type="button" data-cal-close>{% translate 'Atšaukti' %}</button>
+      <button class="btn" type="submit" id="cal-complete" formaction="" formnovalidate hidden>✓ {% translate 'Atlikta' %}</button>
       <a class="btn cal-open-record" id="cal-open-record" href="#" hidden>{% translate 'Atidaryti įrašą' %}</a>
       <button class="btn danger" type="submit" id="cal-delete" formaction="" formnovalidate hidden
               data-confirm="{% translate 'Pašalinti šį įvykį?' %}">{% translate 'Pašalinti' %}</button>
@@ -83,5 +131,8 @@
 <script id="cal-config" type="application/json">{"snap": {{ snap_minutes }}, "defaultMinutes": {{ default_minutes }},
   "createUrl": "{% url 'contacts:calendar-event-create' %}",
   "updateUrl": "{% url 'contacts:calendar-event-update' 0 %}",
-  "deleteUrl": "{% url 'contacts:calendar-event-delete' 0 %}"}</script>
+  "completeUrl": "{% url 'contacts:calendar-event-complete' 0 %}",
+  "deleteUrl": "{% url 'contacts:calendar-event-delete' 0 %}",
+  "colleagueUrl": "{% url 'contacts:calendar-colleague-events' 0 %}",
+  "view": "{{ calendar_view }}", "date": "{{ anchor|date:'Y-m-d' }}"}</script>
 {% endblock %}

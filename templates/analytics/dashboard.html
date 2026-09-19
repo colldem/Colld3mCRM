@@ -9,38 +9,39 @@
       <div class="quick-menu">
         <a href="{% url 'contacts:person-create' %}">{% translate 'Kontaktą' %}</a>
         <a href="{% url 'contacts:company-create' %}">{% translate 'Įmonę' %}</a>
-        <a href="{% url 'contacts:calendar' %}">{% translate 'Priminimą' %}</a>
+        <a href="{% url 'contacts:calendar' %}">{% translate 'Įvykį' %}</a>
       </div>
     </details>{% endif %}
   </div>
 </div>
 
-{% comment %}Four summary cards: the number, its 30-day change, and the shape behind it.{% endcomment %}
+{% comment %}Four summary cards: the number, its 30-day change, and the shape
+behind it. Each one opens the list its number is made of.{% endcomment %}
 <div class="kpi-row">
-  <a class="kpi-card tone-contacts" href="{% url 'contacts:list' %}">
+  <button class="kpi-card tone-contacts" type="button" data-dash-open="dlg-recent-people">
     <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20"/><circle cx="9" cy="7" r="4"/></svg></span>
     <span class="kpi-label">{% translate 'Kontaktai' %}</span>
     <b class="kpi-number">{{ people_total }}</b>
     <span class="kpi-foot"><span class="kpi-delta">↗ +{{ new_people }} {% translate 'per 30 d.' %}</span>{% include "analytics/_sparkline.html" with spark=spark_people %}</span>
-  </a>
-  <a class="kpi-card tone-companies" href="{% url 'contacts:company-list' %}">
+  </button>
+  <button class="kpi-card tone-companies" type="button" data-dash-open="dlg-recent-companies">
     <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V4h10v17M15 9h4v12M8 7h4M8 11h4M8 15h4"/></svg></span>
     <span class="kpi-label">{% translate 'Įmonės' %}</span>
     <b class="kpi-number">{{ companies_total }}</b>
     <span class="kpi-foot"><span class="kpi-delta">↗ +{{ new_companies }} {% translate 'per 30 d.' %}</span>{% include "analytics/_sparkline.html" with spark=spark_companies %}</span>
-  </a>
-  <a class="kpi-card tone-activity" href="{% url 'contacts:analytics-communication' %}">
+  </button>
+  <button class="kpi-card tone-activity" type="button" data-dash-open="dlg-week-activity">
     <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4"/></svg></span>
     <span class="kpi-label">{% translate 'Mano veiklos šią savaitę' %}</span>
     <b class="kpi-number">{{ week_activity_total }}</b>
     <span class="kpi-foot">{% include "analytics/_sparkline.html" with spark=spark_activity %}</span>
-  </a>
-  <a class="kpi-card tone-overdue{% if overdue_total %} is-warn{% endif %}" href="{% url 'contacts:calendar' %}">
+  </button>
+  <button class="kpi-card tone-overdue{% if overdue_total %} is-warn{% endif %}" type="button" data-dash-open="dlg-events-overdue">
     <span class="kpi-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
-    <span class="kpi-label">{% translate 'Vėluojantys priminimai' %}</span>
+    <span class="kpi-label">{% translate 'Vėluojantys įvykiai' %}</span>
     <b class="kpi-number">{{ overdue_total }}</b>
     <span class="kpi-foot">{% include "analytics/_sparkline.html" with spark=spark_overdue %}</span>
-  </a>
+  </button>
 </div>
 
 <div class="dash-grid">
@@ -63,6 +64,7 @@
         {% endfor %}
       </ul>
     </div>
+    <div class="dash-card-foot"><button class="dash-more" type="button" data-dash-open="dlg-month-activity">{% translate 'Žiūrėti visus' %}</button></div>
   </section>
 
   <section class="dash-card">
@@ -70,6 +72,8 @@
       <div><h2>{% translate 'Nauji kontaktai ir įmonės' %}</h2><p>{% translate 'Paskutinių 6 mėnesių dinamika' %}</p></div>
     </div>
     {% if growth_chart %}
+      {% comment %}The chart is capped at its own viewBox width: scaled past it,
+      the SVG text scales with the drawing and dwarfs every other card.{% endcomment %}
       {% localize off %}<svg class="growth-chart" viewBox="0 0 {{ growth_chart.width }} {{ growth_chart.height }}" role="img" aria-label="{% translate 'Nauji kontaktai ir įmonės' %}">
         {% for line in growth_chart.axis %}
           <line x1="{{ growth_chart.x0 }}" y1="{{ line.y }}" x2="{{ growth_chart.x1 }}" y2="{{ line.y }}" class="grid"></line>
@@ -83,29 +87,32 @@
         <li><i style="background:#2f6fbe"></i>{% translate 'Įmonės' %}</li>
       </ul>
     {% else %}<p class="muted">{% translate 'Duomenų dar nėra.' %}</p>{% endif %}
+    <div class="dash-card-foot"><button class="dash-more" type="button" data-dash-open="dlg-new-people">{% translate 'Žiūrėti visus' %}</button></div>
   </section>
 
-  {% comment %}Tabs reuse static/js/tabs.js — same data-tabs / data-tab / data-panel
-  convention as the record cards, so no new script is needed.{% endcomment %}
-  <section class="dash-card dash-reminders" data-tabs>
+  {% comment %}The agenda. Tabs pick the horizon, the chips filter by type; both
+  are plain buttons driven by static/js/dashboard.js.{% endcomment %}
+  <section class="dash-card dash-events" data-tabs data-dash-events>
     <div class="dash-card-head">
-      <div><h2>{% translate 'Artimiausi priminimai' %}</h2></div>
-      <a class="dash-more" href="{% url 'contacts:calendar' %}">{% translate 'Žiūrėti visus' %}</a>
+      <div><h2>{% translate 'Mano įvykiai' %}</h2></div>
     </div>
-    <div class="dash-tabs" role="tablist">
-      {% for key, rows, empty_text in dash_reminder_tabs %}
-        <button class="tab{% if forloop.first %} is-active{% endif %}" type="button" role="tab" data-tab="{{ key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
-          {% if key == 'upcoming' %}{% translate 'Artimiausi' %}{% elif key == 'today' %}{% translate 'Šiandien' %}{% else %}{% translate 'Rytoj' %}{% endif %}
-          {% if rows.total %}<span>{{ rows.total }}</span>{% endif %}
-        </button>
+    <div class="dash-kinds" role="group" aria-label="{% translate 'Įvykio tipas' %}">
+      {% for value, label in event_kinds %}
+        <button class="dash-kind is-on kind-{{ value }}" type="button" data-dash-kind="{{ value }}" aria-pressed="true">{{ label }}</button>
       {% endfor %}
     </div>
-    {% for key, rows, empty_text in dash_reminder_tabs %}
-      <div class="tab-panel dash-panel{% if forloop.first %} is-active{% endif %}" data-panel="{{ key }}" role="tabpanel"{% if not forloop.first %} hidden{% endif %}>
+    <div class="dash-tabs" role="tablist">
+      {% for tab in event_tabs %}
+        <button class="tab{% if tab.active %} is-active{% endif %}{% if tab.tone %} is-{{ tab.tone }}{% endif %}" type="button" role="tab"
+                data-tab="{{ tab.key }}" aria-selected="{% if tab.active %}true{% else %}false{% endif %}">{{ tab.label }} ({{ tab.rows.total }})</button>
+      {% endfor %}
+    </div>
+    {% for tab in event_tabs %}
+      <div class="tab-panel dash-panel{% if tab.active %} is-active{% endif %}" data-panel="{{ tab.key }}" role="tabpanel"{% if not tab.active %} hidden{% endif %}>
         <ul class="event-list">
-          {% for row in rows.visible %}{% include "analytics/_row_reminder.html" %}{% empty %}<li class="muted">{{ empty_text }}</li>{% endfor %}
+          {% for row in tab.rows.visible %}{% include "analytics/_row_reminder.html" %}{% empty %}<li class="muted">{{ tab.empty }}</li>{% endfor %}
         </ul>
-        {% if rows.rest %}{% include "analytics/_more_rows.html" with rest=rows.rest row_template="analytics/_row_reminder.html" list_class="event-list" %}{% endif %}
+        <div class="dash-card-foot"><button class="dash-more" type="button" data-dash-open="dlg-events-{{ tab.key }}">{% translate 'Žiūrėti visus' %}</button></div>
       </div>
     {% endfor %}
   </section>
@@ -113,34 +120,41 @@
   <section class="dash-card">
     <div class="dash-card-head">
       <div><h2>{% translate 'Paskutiniai kontaktai' %}</h2></div>
-      <a class="dash-more" href="{% url 'contacts:list' %}">{% translate 'Žiūrėti visus' %}</a>
     </div>
     <ul class="record-list">
       {% for row in recent_people.visible %}{% include "analytics/_row_person.html" %}{% empty %}<li class="muted">{% translate 'Kontaktų dar nėra.' %}</li>{% endfor %}
     </ul>
-    {% if recent_people.rest %}{% include "analytics/_more_rows.html" with rest=recent_people.rest row_template="analytics/_row_person.html" list_class="record-list" %}{% endif %}
+    <div class="dash-card-foot"><button class="dash-more" type="button" data-dash-open="dlg-recent-people">{% translate 'Žiūrėti visus' %}</button></div>
   </section>
 
   <section class="dash-card">
     <div class="dash-card-head">
       <div><h2>{% translate 'Paskutinės įmonės' %}</h2></div>
-      <a class="dash-more" href="{% url 'contacts:company-list' %}">{% translate 'Žiūrėti visas' %}</a>
     </div>
     <ul class="record-list">
       {% for row in recent_companies.visible %}{% include "analytics/_row_company.html" %}{% empty %}<li class="muted">{% translate 'Įmonių dar nėra.' %}</li>{% endfor %}
     </ul>
-    {% if recent_companies.rest %}{% include "analytics/_more_rows.html" with rest=recent_companies.rest row_template="analytics/_row_company.html" list_class="record-list" %}{% endif %}
+    <div class="dash-card-foot"><button class="dash-more" type="button" data-dash-open="dlg-recent-companies">{% translate 'Žiūrėti visas' %}</button></div>
   </section>
 
   <section class="dash-card">
     <div class="dash-card-head">
       <div><h2>{% translate 'Paskutiniai įrašai' %}</h2></div>
-      <a class="dash-more" href="{% url 'contacts:analytics-communication' %}">{% translate 'Žiūrėti visus' %}</a>
     </div>
     <ul class="record-list">
       {% for row in recent_activities.visible %}{% include "analytics/_row_activity.html" %}{% empty %}<li class="muted">{% translate 'Įrašų dar nėra.' %}</li>{% endfor %}
     </ul>
-    {% if recent_activities.rest %}{% include "analytics/_more_rows.html" with rest=recent_activities.rest row_template="analytics/_row_activity.html" list_class="record-list" %}{% endif %}
+    <div class="dash-card-foot"><button class="dash-more" type="button" data-dash-open="dlg-recent-activities">{% translate 'Žiūrėti visus' %}</button></div>
   </section>
 </div>
+
+{% include "analytics/_dash_dialog.html" with dialog_id="dlg-week-activity" dialog_title=_('Mano veiklos šią savaitę') rows=week_activity_rows.all row_template="analytics/_row_activity.html" list_class="record-list" empty_text=_('Įrašų dar nėra.') %}
+{% include "analytics/_dash_dialog.html" with dialog_id="dlg-month-activity" dialog_title=_('Šio mėnesio veiklos') rows=month_activity_rows.all row_template="analytics/_row_activity.html" list_class="record-list" empty_text=_('Įrašų dar nėra.') %}
+{% include "analytics/_dash_dialog.html" with dialog_id="dlg-new-people" dialog_title=_('Nauji kontaktai') rows=new_people_rows.all row_template="analytics/_row_person.html" list_class="record-list" empty_text=_('Kontaktų dar nėra.') %}
+{% include "analytics/_dash_dialog.html" with dialog_id="dlg-recent-people" dialog_title=_('Paskutiniai kontaktai') rows=recent_people.all row_template="analytics/_row_person.html" list_class="record-list" empty_text=_('Kontaktų dar nėra.') %}
+{% include "analytics/_dash_dialog.html" with dialog_id="dlg-recent-companies" dialog_title=_('Paskutinės įmonės') rows=recent_companies.all row_template="analytics/_row_company.html" list_class="record-list" empty_text=_('Įmonių dar nėra.') %}
+{% include "analytics/_dash_dialog.html" with dialog_id="dlg-recent-activities" dialog_title=_('Paskutiniai įrašai') rows=recent_activities.all row_template="analytics/_row_activity.html" list_class="record-list" empty_text=_('Įrašų dar nėra.') %}
+{% for tab in event_tabs %}
+  {% include "analytics/_dash_dialog.html" with dialog_id="dlg-events-"|add:tab.key dialog_title=tab.label rows=tab.rows.all row_template="analytics/_row_reminder.html" list_class="event-list" empty_text=tab.empty %}
+{% endfor %}
 {% endblock %}

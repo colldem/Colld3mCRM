@@ -62,7 +62,8 @@ FIELDS = {
     "PersonCompanyLink.role": "A",
     "Activity.text": "L", "Activity.submission_token": "T", "Activity.message_id": "T",  # nosec B105
     "Attachment.file": "L", "Attachment.original_name": "L",
-    "Reminder.text": "L", "Reminder.submission_token": "T",  # nosec B105
+    "Reminder.text": "L", "Reminder.description": "L", "Reminder.meeting_url": "L",
+    "Reminder.submission_token": "T",  # nosec B105
     "CustomValue.value": "L",
     "SavedFilter.filters": "L", "SavedFilter.name": "L",
     "UserProfile.avatar": "D", "UserProfile.directory_subject": "D", "UserProfile.directory_groups": "D",

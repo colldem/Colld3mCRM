@@ -1,0 +1,53 @@
+{% load i18n %}{% comment %}Calendar sidebar: view switch, month picker, the
+event-type filter and the colleagues whose calendars can be laid over yours.
+{% endcomment %}
+<aside class="cal-side">
+  <div class="cal-views segmented" role="group" aria-label="{% translate 'Rodinys' %}">
+    <a class="{% if calendar_view == 'day' %}is-on{% endif %}" href="?view=day&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Diena' %}</a>
+    <a class="{% if calendar_view == 'week' %}is-on{% endif %}" href="?view=week&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Savaitė' %}</a>
+    <a class="{% if calendar_view == 'month' %}is-on{% endif %}" href="?view=month&amp;date={{ anchor|date:'Y-m-d' }}">{% translate 'Mėnuo' %}</a>
+  </div>
+
+  <div class="cal-mini">
+    <div class="cal-mini-head">
+      <a href="?view={{ calendar_view }}&amp;date={{ mini_prev|date:'Y-m-d' }}" aria-label="{% translate 'Ankstesnis mėnuo' %}">‹</a>
+      <strong>{{ anchor|date:"F Y" }}</strong>
+      <a href="?view={{ calendar_view }}&amp;date={{ mini_next|date:'Y-m-d' }}" aria-label="{% translate 'Kitas mėnuo' %}">›</a>
+    </div>
+    <a class="cal-mini-today" href="?view={{ calendar_view }}&amp;date={{ today|date:'Y-m-d' }}">{% translate 'Šiandien' %}</a>
+    <table class="cal-mini-grid">
+      <thead><tr>{% for day in mini_month.0 %}<th scope="col" abbr="{{ day.date|date:'l' }}">{{ day.date|date:"D"|slice:":2" }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for week in mini_month %}
+          <tr>{% for day in week %}
+            <td><a class="{% if day.is_anchor %}is-anchor{% endif %}{% if day.is_today %} is-today{% endif %}{% if day.is_other_month %} is-muted{% endif %}"
+                   href="?view={{ calendar_view }}&amp;date={{ day.date|date:'Y-m-d' }}">{{ day.date|date:"j" }}</a></td>
+          {% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="cal-filter" data-cal-filter>
+    <h3>{% translate 'Rodomi įvykiai' %}</h3>
+    {% for value, label in event_kinds %}
+      <button type="button" class="cal-filter-chip is-on kind-{{ value }}" data-kind="{{ value }}" aria-pressed="true">{{ label }}</button>
+    {% endfor %}
+  </div>
+
+  {% if colleagues %}
+    <div class="cal-people" data-cal-people>
+      <h3>{% translate 'Kolegų kalendoriai' %}</h3>
+      <div class="cal-people-scroll">
+        <ul class="cal-people-list" id="cal-people-list">
+          {% for person in colleagues %}{% include "calendar/_colleague.html" %}{% endfor %}
+        </ul>
+      </div>
+      {% if colleague_total > colleague_page %}
+        <button type="button" class="cal-people-more" data-cal-people-more data-offset="{{ colleague_page }}"
+                data-url="{% url 'contacts:calendar-colleagues' %}">{% translate 'Užkrauti daugiau' %}</button>
+      {% endif %}
+      <p class="cal-people-hint">{% translate 'Kolegos kalendorius užkraunamas tik jį pasirinkus.' %}</p>
+    </div>
+  {% endif %}
+</aside>

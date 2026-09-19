@@ -1,4 +1,8 @@
-{% load i18n %}
+{% load i18n l10n %}{% comment %}Positions are percentages written straight into
+`style`, so they must stay machine-readable: under a locale with a decimal
+comma "68,4%" is not a length and the browser drops it, which used to leave
+every event stacked at the foot of its column. Hence `localize off`.
+{% endcomment %}
 <div class="cal-grid{% if calendar_view == 'day' %} cal-grid-day{% endif %}" data-cal-grid>
   <div class="cal-head">
     <div class="cal-gutter"></div>
@@ -16,25 +20,35 @@
       {% for day in days %}
         <div class="cal-day{% if day.is_today %} is-today{% endif %}" data-date="{{ day.date|date:'Y-m-d' }}">
           {% for hour in hours %}<div class="cal-slot"></div>{% endfor %}
-          {% if day.is_today %}<div class="cal-now" style="top:{{ now_pct }}%" aria-hidden="true"></div>{% endif %}
+          {% if day.is_today %}{% localize off %}<div class="cal-now" style="top:{{ now_pct }}%" data-cal-now aria-hidden="true"></div>{% endlocalize %}{% endif %}
           {% for item in day.events %}
-            <button type="button" class="cal-event{% if item.is_past %} is-past{% endif %}{% if item.done %} is-done{% endif %}"
+            {% localize off %}
+            <button type="button" class="cal-event kind-{{ item.reminder.kind }}{% if item.is_past %} is-past{% endif %}{% if item.done %} is-done{% endif %}"
                     style="top:{{ item.top_pct }}%;height:{{ item.height_pct }}%;left:{{ item.left_pct }}%;width:{{ item.width_pct }}%"
                     data-cal-event
+                    data-start-min="{{ item.start_min }}"
+                    data-end-min="{{ item.end_min }}"
                     data-id="{{ item.reminder.pk }}"
+                    data-kind="{{ item.reminder.kind }}"
                     data-text="{{ item.reminder.text }}"
+                    data-description="{{ item.reminder.description }}"
+                    data-meeting-url="{{ item.reminder.meeting_url }}"
+                    data-notify-before="{{ item.reminder.notify_before|default_if_none:'' }}"
+                    data-done="{{ item.done|yesno:'1,' }}"
                     data-start="{{ item.reminder.due_at|date:'Y-m-d\TH:i' }}"
                     data-end="{{ item.reminder.finish_at|date:'Y-m-d\TH:i' }}"
                     data-record-kind="{% if item.reminder.person_id %}person{% elif item.reminder.company_id %}company{% endif %}"
                     data-record-id="{{ item.reminder.person_id|default:item.reminder.company_id|default:'' }}"
                     data-record-label="{{ item.reminder.record|default:'' }}"
                     data-record-url="{{ item.reminder.record_url }}"
+                    data-partner="{% if item.reminder.person_id %}{{ item.reminder.company|default:'' }}{% else %}{{ item.reminder.person|default:'' }}{% endif %}"
                     data-phone="{{ item.reminder.contact_phone }}"
                     data-address="{{ item.reminder.contact_address }}">
               <b>{{ item.label }}</b>
               <span>{{ item.reminder.text }}</span>
-              {% if item.reminder.record %}<small>{{ item.reminder.record }}</small>{% endif %}
+              {% if item.tall and item.reminder.record %}<small>{{ item.reminder.record }}</small>{% endif %}
             </button>
+            {% endlocalize %}
           {% endfor %}
         </div>
       {% endfor %}

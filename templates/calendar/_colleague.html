@@ -1,0 +1,8 @@
+{% comment %}One colleague row in the sidebar. `person` is {id, label, colour}.
+The switch is what triggers the fetch — nothing is loaded until it is on.
+{% endcomment %}
+<li><label class="cal-person">
+  <input type="checkbox" data-colleague="{{ person.id }}" data-colour="{{ person.colour }}">
+  <i aria-hidden="true" style="background:{{ person.colour }}"></i>
+  <span>{{ person.label }}</span>
+</label></li>

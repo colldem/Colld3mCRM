@@ -20,6 +20,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import ActivityForm, CompanyForm, DuplicateSettingsForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
@@ -35,6 +36,7 @@ from .filters import (
 )
 from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, SystemSettings, Tag, Team, UserProfile, WebLink
 from .permissions import visible_companies, visible_people, visible_reminders
+from .reminder_queries import open_q
 from .sanitizers import csv_safe, safe_url
 from .antivirus import check_upload
 from .audit import log as audit_log
@@ -1947,7 +1949,7 @@ def contact_detail(request, pk):
     from .detail_editing import grouped_detail_fields
     person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
-    open_reminders = person.reminders.filter(completed_at__isnull=True, deleted_at__isnull=True)
+    open_reminders = person.reminders.filter(open_q(now), deleted_at__isnull=True)
     activities = sorted((a for a in person.activities.all() if a.deleted_at is None),
                         key=lambda a: a.created_at, reverse=True)
     return render(request, "contacts/detail.html", {
@@ -2129,6 +2131,11 @@ def reminder_complete(request, pk):
             from .webhooks import emit
             reminder.completed_at = now
             emit("reminder.completed", reminder)
+    # Ticked off from a dashboard popup: go back to the list, not to the record.
+    back = request.POST.get("next", "")
+    if back and url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()},
+                                                require_https=request.is_secure()):
+        return redirect(back)
     return redirect(reminder.record or reverse("contacts:calendar"))
 
 
@@ -2350,9 +2357,11 @@ def company_detail(request, pk):
         Q(company=company) | Q(person__pk__in=visible_linked_ids)
     ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at"))
     now = timezone.now()
+    # An event planned straight on the company belongs on its card too, not
+    # only the ones hanging off its contacts.
     linked_reminders = Reminder.objects.filter(
-        person__pk__in=visible_linked_ids,
-        completed_at__isnull=True, deleted_at__isnull=True,
+        Q(person__pk__in=visible_linked_ids) | Q(person__isnull=True, company=company),
+        open_q(now), deleted_at__isnull=True,
     )
     next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
     return render(request, "companies/detail.html", {

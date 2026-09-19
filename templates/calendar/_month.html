@@ -10,16 +10,22 @@
              data-date="{{ day.date|date:'Y-m-d' }}" data-cal-month-cell>
           <a class="cal-month-date" href="?view=day&amp;date={{ day.date|date:'Y-m-d' }}">{{ day.date|date:"j" }}</a>
           {% for item in day.events|slice:":4" %}
-            <button type="button" class="cal-chip{% if item.is_past %} is-past{% endif %}{% if item.done %} is-done{% endif %}"
+            <button type="button" class="cal-chip kind-{{ item.reminder.kind }}{% if item.is_past %} is-past{% endif %}{% if item.done %} is-done{% endif %}"
                     data-cal-event
                     data-id="{{ item.reminder.pk }}"
+                    data-kind="{{ item.reminder.kind }}"
                     data-text="{{ item.reminder.text }}"
+                    data-description="{{ item.reminder.description }}"
+                    data-meeting-url="{{ item.reminder.meeting_url }}"
+                    data-notify-before="{{ item.reminder.notify_before|default_if_none:'' }}"
+                    data-done="{{ item.done|yesno:'1,' }}"
                     data-start="{{ item.reminder.due_at|date:'Y-m-d\TH:i' }}"
                     data-end="{{ item.reminder.finish_at|date:'Y-m-d\TH:i' }}"
                     data-record-kind="{% if item.reminder.person_id %}person{% elif item.reminder.company_id %}company{% endif %}"
                     data-record-id="{{ item.reminder.person_id|default:item.reminder.company_id|default:'' }}"
                     data-record-label="{{ item.reminder.record|default:'' }}"
                     data-record-url="{{ item.reminder.record_url }}"
+                    data-partner="{% if item.reminder.person_id %}{{ item.reminder.company|default:'' }}{% else %}{{ item.reminder.person|default:'' }}{% endif %}"
                     data-phone="{{ item.reminder.contact_phone }}"
                     data-address="{{ item.reminder.contact_address }}">
               <b>{{ item.label }}</b> {{ item.reminder.text }}

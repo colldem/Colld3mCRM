@@ -33,14 +33,21 @@ lives inside the app: **Settings → Documentation**.
 - **Record pages.** Inline editing of every field, communication history, file
   attachments, reminders and comments.
 - **Dashboard and analytics.** Summary cards with 30-day trends, this month's
-  activity by type, six months of growth, upcoming reminders split into
-  today/tomorrow, and the latest contacts, companies and entries; plus
-  relationship care, communication, reminder follow-through and database growth.
-  Analytics opens as one overview page — a KPI strip and a condensed band per
-  section, each linking through to the full page — all charted as inline SVG
-  with no external libraries.
-- **Calendar.** Day, week and month views, recurring reminders, and an `.ics`
-  subscription URL for Google, Outlook or Apple Calendar. Reminders are created
+  activity by type, six months of growth, an agenda split into
+  all/today/this week/overdue and filtered by event type, and the latest
+  contacts, companies and entries. Every block opens a popup listing the rows
+  its number is made of, with a "done" tick on each event. Plus relationship
+  care, communication, reminder follow-through and database growth. Analytics
+  opens as one overview page — a KPI strip and a condensed band per section,
+  each linking through to the full page — all charted as inline SVG with no
+  external libraries.
+- **Calendar.** Day, week and month views with a sidebar (view switch, month
+  picker, event-type filter, colleagues). Events are calls, meetings or
+  reminders, optionally carrying a description, an online-meeting link and an
+  email reminder; a meeting closes itself once it is over. A colleague's
+  calendar can be laid over your own — fetched on demand, never cached, and
+  limited to the people your role lets you see. Recurring events and an `.ics`
+  subscription URL for Google, Outlook or Apple Calendar. Events are created
   and browsed here, in the header bell, and on the record cards — there is no
   separate reminders page.
 - **Tasks.** Assign work to a colleague with a priority and a due date.

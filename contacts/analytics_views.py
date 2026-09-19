@@ -17,6 +17,7 @@ from django.utils.translation import gettext as tr, gettext_lazy as tr_lazy
 from . import charts
 from .models import Activity, AuditLog, Category, Company, Person, Reminder, Tag
 from .permissions import visible_companies, visible_people, visible_reminders
+from .reminder_queries import mine_q, open_q
 
 # Short month names for the dashboard's six-month chart. Indexed by month - 1;
 # lazy so the list is not frozen into one language at import time.
@@ -30,6 +31,8 @@ LIST_LIMIT = 100
 # are fetched at all. The cards share a height, so the visible count is fixed.
 DASH_VISIBLE = 5
 DASH_FETCH = 12
+# How many rows a card's popup lists before it starts scrolling past usefulness.
+POPUP_LIMIT = 50
 
 
 def _day_bounds(day):
@@ -65,12 +68,13 @@ def _monthly_counts(queryset, today, months=6):
     return rows, window_start
 
 
-def _split_rows(rows):
-    """Split a dashboard list into what a card shows and what hides behind
-    "show more". Evaluates the queryset once."""
-    rows = list(rows)
-    # `total` is counted here because a template cannot add two filtered lengths.
-    return {"visible": rows[:DASH_VISIBLE], "rest": rows[DASH_VISIBLE:], "total": len(rows)}
+def _card_rows(rows, total=None):
+    """A dashboard list, twice over: the few rows the card has room for, and the
+    fuller list its popup shows. Evaluates the queryset once."""
+    rows = list(rows[:POPUP_LIMIT])
+    # `total` is passed in when the real count is larger than what we fetched.
+    return {"visible": rows[:DASH_VISIBLE], "all": rows,
+            "total": len(rows) if total is None else total}
 
 
 def _daily_counts(queryset, today, days=30):
@@ -88,14 +92,16 @@ def dashboard(request):
     now = timezone.now()
     today = timezone.localdate()
     day_start, day_end = _day_bounds(today)
-    tomorrow_end = day_end + timedelta(days=1)
     week_start, _ = _day_bounds(today - timedelta(days=today.weekday()))
+    # "This week" runs from today to the end of the current week: a superset of
+    # today, and disjoint from what is already overdue.
+    week_end = week_start + timedelta(days=7)
 
-    agenda = (Reminder.objects.filter(created_by=request.user, deleted_at__isnull=True,
-                                      completed_at__isnull=True)
+    agenda = (Reminder.objects.filter(mine_q(request.user), open_q(now), deleted_at__isnull=True)
               .select_related("person", "company")
               # The agenda cards show the contact's phone and address.
-              .prefetch_related("person__phones", "person__addresses"))
+              .prefetch_related("person__phones", "person__addresses")
+              .order_by("due_at"))
     counts = dict(Activity.objects.filter(created_by=request.user, deleted_at__isnull=True,
                                           created_at__gte=week_start)
                   .values_list("activity_type").annotate(total=Count("id")))
@@ -122,25 +128,33 @@ def dashboard(request):
               for index, row in enumerate(people_months)]
 
     my_activities = Activity.objects.filter(created_by=request.user, deleted_at__isnull=True)
-    today_events = agenda.filter(due_at__gte=day_start, due_at__lt=day_end).order_by("due_at")
-    tomorrow_events = agenda.filter(due_at__gte=day_end, due_at__lt=tomorrow_end).order_by("due_at")
-    # Soonest first, so anything already overdue heads the list.
-    upcoming_events = agenda.order_by("due_at")[:DASH_FETCH]
+    month_activities = my_activities.filter(created_at__gte=month_start)
+    week_activities = my_activities.filter(created_at__gte=week_start)
+    new_people = people.filter(created_at__gte=month_ago)
+    new_companies = companies.filter(created_at__gte=month_ago)
+    overdue_rows = _card_rows(overdue)
     return render(request, "analytics/dashboard.html", {
-        "today_events": today_events,
-        "tomorrow_events": tomorrow_events,
-        "overdue_events": overdue.order_by("due_at")[:10],
-        "overdue_total": overdue.count(),
-        "upcoming_events": upcoming_events,
-        "dash_reminder_tabs": [
-            ("upcoming", _split_rows(upcoming_events), tr("Aktyvių priminimų nėra.")),
-            ("today", _split_rows(today_events), tr("Šiandien įvykių nėra.")),
-            ("tomorrow", _split_rows(tomorrow_events), tr("Rytoj įvykių nėra.")),
+        # The agenda card: one tab per horizon, plus a type filter over the rows.
+        # "Today" is the one that opens, because it is the one people act on.
+        "event_tabs": [
+            {"key": "all", "label": tr("Visi"), "rows": _card_rows(agenda),
+             "empty": tr("Suplanuotų įvykių nėra.")},
+            {"key": "today", "label": tr("Šiandien"), "active": True,
+             "rows": _card_rows(agenda.filter(due_at__gte=day_start, due_at__lt=day_end)),
+             "empty": tr("Šiandien įvykių nėra.")},
+            {"key": "week", "label": tr("Šią savaitę"),
+             "rows": _card_rows(agenda.filter(due_at__gte=day_start, due_at__lt=week_end)),
+             "empty": tr("Šią savaitę įvykių nėra.")},
+            {"key": "overdue", "label": tr("Vėluojantys"), "tone": "warn", "rows": overdue_rows,
+             "empty": tr("Vėluojančių įvykių nėra.")},
         ],
+        "event_kinds": Reminder.KIND_CHOICES,
+        "overdue_events": overdue_rows,
+        "overdue_total": overdue.count(),
         "week_activity": week_activity,
         "week_activity_total": sum(item["total"] for item in week_activity),
-        "new_people": people.filter(created_at__gte=month_ago).count(),
-        "new_companies": companies.filter(created_at__gte=month_ago).count(),
+        "new_people": new_people.count(),
+        "new_companies": new_companies.count(),
         "people_total": people.count(),
         "companies_total": companies.count(),
         # Summary-card trends: the shape behind each number over the last 30 days.
@@ -152,14 +166,20 @@ def dashboard(request):
         "activity_by_type": by_type,
         "activity_month_total": sum(row["total"] for row in by_type),
         "growth_chart": charts.grouped_bars(growth, ["people", "companies"], width=460, height=230),
-        "recent_people": _split_rows(people.order_by("-created_at")
-                                     .prefetch_related("phones", "company_links__company")[:DASH_FETCH]),
-        "recent_companies": _split_rows(companies.order_by("-created_at")[:DASH_FETCH]),
-        "recent_activities": _split_rows(
-            my_activities.select_related("person", "company", "created_by")
-                         .order_by("-created_at")[:DASH_FETCH]),
+        "recent_people": _card_rows(people.order_by("-created_at")
+                                    .prefetch_related("phones", "company_links__company")),
+        "recent_companies": _card_rows(companies.order_by("-created_at")),
+        "recent_activities": _card_rows(
+            my_activities.select_related("person", "company", "created_by").order_by("-created_at")),
+        # Each summary card opens a popup listing what its number is made of.
+        "week_activity_rows": _card_rows(
+            week_activities.select_related("person", "company", "created_by").order_by("-created_at")),
+        "month_activity_rows": _card_rows(
+            month_activities.select_related("person", "company", "created_by").order_by("-created_at")),
+        "new_people_rows": _card_rows(
+            new_people.order_by("-created_at").prefetch_related("phones", "company_links__company")),
+        "new_companies_rows": _card_rows(new_companies.order_by("-created_at")),
     })
-
 
 def _care_querysets(user, days):
     """The four relationship-care lists, before slicing."""

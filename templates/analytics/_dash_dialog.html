@@ -1,0 +1,15 @@
+{% comment %}The popup behind a dashboard block: the rows its number is made of.
+Takes `dialog_id`, `dialog_title`, `rows` (a list), `row_template`, `list_class`
+and `empty_text`. Opened by any button carrying data-dash-open="<dialog_id>".
+{% endcomment %}{% load i18n %}
+<dialog class="dash-dialog" id="{{ dialog_id }}" aria-labelledby="{{ dialog_id }}-title">
+  <header class="dash-dialog-head">
+    <h2 id="{{ dialog_id }}-title">{{ dialog_title }}</h2>
+    <button class="cal-dialog-x" type="button" data-dash-close aria-label="{% translate 'Uždaryti' %}">✕</button>
+  </header>
+  <div class="dash-dialog-body">
+    <ul class="{{ list_class }}">
+      {% for row in rows %}{% include row_template %}{% empty %}<li class="muted">{{ empty_text }}</li>{% endfor %}
+    </ul>
+  </div>
+</dialog>

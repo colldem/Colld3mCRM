@@ -129,6 +129,6 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   stilius ar vertimas. Pridėjus naują aplinkos kintamąjį — įrašyti į
   `.env.example` **ir** `docs/DEPLOYMENT.md` lentelę.
 - `deploy/helm/crm/` — Helm chart'as Kubernetes'ui (web Deployment, migracijų Job
-  kaip `pre-upgrade` hook, 8 CronJob'ai vietoj `crm-worker`, nginx Ingress;
+  kaip `pre-upgrade` hook, 9 CronJob'ai vietoj `crm-worker`, nginx Ingress;
   DB ir failų saugykla — išorinės). Instrukcija: `docs/KUBERNETES.md`.
   Atvaizdas į GHCR keliamas `publish-image.yml` uždėjus `v*` žymą.

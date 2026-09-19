@@ -333,7 +333,10 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `deleted_at` | DateTimeField | ne | T |
 | `person` | ryšys → Person | ne | R |
 | `company` | ryšys → Company | ne | R |
+| `kind` | CharField | taip | T |
 | `text` | CharField | taip | L |
+| `description` | TextField | ne | L |
+| `meeting_url` | CharField | ne | L |
 | `due_at` | DateTimeField | taip | T |
 | `end_at` | DateTimeField | ne | T |
 | `completed_at` | DateTimeField | ne | T |

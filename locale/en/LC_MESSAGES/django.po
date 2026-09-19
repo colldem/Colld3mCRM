@@ -3895,3 +3895,102 @@ msgstr "Allow calendar subscription links (.ics)"
 
 msgid "Nuoroda veikia be prisijungimo (žetonas adrese), kad išoriniai kalendoriai galėtų ją skaityti. Išjungus visos nuorodos iškart nustoja veikti."
 msgstr "The link works without signing in (a token in the address) so external calendars can read it. Turning it off stops every link at once."
+
+msgid "5 min."
+msgstr "5 min."
+
+msgid "2 dienos"
+msgstr "2 days"
+
+msgid "prieš 2 d."
+msgstr "2 days before"
+
+msgid "prieš 1 d."
+msgstr "1 day before"
+
+msgid "prieš valandą"
+msgstr "1 hour before"
+
+msgid "Jūsų suplanuoti įvykiai; kolegų kalendorius galima uždėti ant viršaus."
+msgstr "Your scheduled events; a colleague's calendar can be laid over the top."
+
+msgid "Ankstesnis mėnuo"
+msgstr "Previous month"
+
+msgid "Kitas mėnuo"
+msgstr "Next month"
+
+msgid "Rodomi įvykiai"
+msgstr "Events shown"
+
+msgid "Kolegų kalendoriai"
+msgstr "Colleagues' calendars"
+
+msgid "Užkrauti daugiau"
+msgstr "Load more"
+
+msgid "Kolegos kalendorius užkraunamas tik jį pasirinkus."
+msgstr "A colleague's calendar is loaded only when you switch it on."
+
+msgid "Tema"
+msgstr "Subject"
+
+msgid "Neprivaloma. Pasirinkus kontaktą įsirašo jo pagrindinė įmonė, pasirinkus įmonę — jos pagrindinis kontaktas."
+msgstr "Optional. Picking a contact fills in their main company; picking a company fills in its main contact."
+
+msgid "Susijęs įrašas"
+msgstr "Related record"
+
+msgid "Data ir pradžia"
+msgstr "Date and start"
+
+msgid "Nuotolinis susitikimas"
+msgstr "Online meeting"
+
+msgid "Dukart spustelėkite nuorodą, kad redaguotumėte."
+msgstr "Double-click the link to edit it."
+
+msgid "Siųsti priminimą el. paštu"
+msgstr "Send an email reminder"
+
+msgid "Prieš"
+msgstr "Before"
+
+msgid "Nepasirinkta (prieš 5 min.)"
+msgstr "Not chosen (5 min. before)"
+
+msgid "Uždaryti"
+msgstr "Close"
+
+msgid "Įvykio tipas"
+msgstr "Event type"
+
+msgid "Mano įvykiai"
+msgstr "My events"
+
+msgid "Vėluojantys įvykiai"
+msgstr "Overdue events"
+
+msgid "Šio mėnesio veiklos"
+msgstr "This month's activities"
+
+msgid "Nauji kontaktai"
+msgstr "New contacts"
+
+msgid "Įvykį"
+msgstr "Event"
+
+msgid "Šią savaitę"
+msgstr "This week"
+
+msgid "Vėluojantys"
+msgstr "Overdue"
+
+msgid "Suplanuotų įvykių nėra."
+msgstr "No scheduled events."
+
+msgid "Šią savaitę įvykių nėra."
+msgstr "No events this week."
+
+msgid "Vėluojančių įvykių nėra."
+msgstr "No overdue events."

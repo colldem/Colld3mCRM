@@ -11,7 +11,8 @@ from django.urls import reverse
 
 
 # Pre-event email lead time, set per reminder when planning it.
-NOTIFY_LEAD_CHOICES = ((0, tr("Nesiųsti")), (15, tr("15 min.")), (60, tr("1 val.")), (1440, tr("1 diena")))
+NOTIFY_LEAD_CHOICES = ((0, tr("Nesiųsti")), (5, tr("5 min.")), (15, tr("15 min.")), (60, tr("1 val.")),
+                       (1440, tr("1 diena")), (2880, tr("2 dienos")))
 
 
 class RecordDetailsModel(models.Model):
@@ -504,6 +505,14 @@ class Reminder(TimestampedModel):
 
     It can hang off a contact, a company, or neither (a plain calendar entry).
     """
+    KIND_CALL = "call"
+    KIND_MEETING = "meeting"
+    KIND_REMINDER = "reminder"
+    KIND_CHOICES = (
+        (KIND_CALL, tr("Skambutis")),
+        (KIND_MEETING, tr("Susitikimas")),
+        (KIND_REMINDER, tr("Priminimas")),
+    )
     PRIORITY_LOW = "low"
     PRIORITY_NORMAL = "normal"
     PRIORITY_HIGH = "high"
@@ -525,7 +534,11 @@ class Reminder(TimestampedModel):
 
     person = models.ForeignKey(Person, null=True, blank=True, on_delete=models.CASCADE, related_name="reminders")
     company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="reminders")
+    kind = models.CharField(max_length=8, choices=KIND_CHOICES, default=KIND_REMINDER, db_index=True)
     text = models.CharField(max_length=500)
+    description = models.TextField(blank=True, max_length=5000)
+    # Joining link for an online meeting; only meaningful for KIND_MEETING.
+    meeting_url = models.URLField(max_length=500, blank=True)
     due_at = models.DateTimeField(db_index=True)
     end_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -595,6 +608,16 @@ class Reminder(TimestampedModel):
         from django.utils import timezone
 
         return self.finish_at < timezone.now()
+
+    @property
+    def auto_completes(self):
+        """A meeting is over once its slot has passed. A call or a plain
+        reminder stays open until somebody ticks it off."""
+        return self.kind == self.KIND_MEETING
+
+    @property
+    def is_done(self):
+        return self.completed_at is not None or (self.auto_completes and self.is_past)
 
     @property
     def contact_phone(self):

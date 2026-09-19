@@ -119,6 +119,9 @@ worker:
     extend-recurrences:
       command: extend_recurrences
       schedule: "17 2 * * *"
+    complete-past-meetings:
+      command: complete_past_meetings
+      schedule: "*/15 * * * *"
     deactivate-inactive-users:
       command: deactivate_inactive_users
       schedule: "37 2 * * *"
