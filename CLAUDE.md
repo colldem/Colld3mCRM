@@ -74,6 +74,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
   `record_blocks.py` — kortelės vidurinės kolonos blokai (Regitros integracijos
   sąlyčio taškas; `register_block`, žr. `docs/REGITRA-INTEGRACIJA.md`);
+  `record_blocks_demo.py` — tų blokų pavyzdiniai duomenys (`CRM_DEMO_BLOCKS=1`,
+  tik ne produkcijoje); `validators.py` — asmens kodo tikrinimas;
   `menu.py` — asmeninė šoninė juosta (branduolys / naudotojo nuorodos / „Daugiau“ klostė;
   konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);

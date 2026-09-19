@@ -1,0 +1,6 @@
+{% load i18n %}{% comment %}Sample rows, shown only when CRM_DEMO_BLOCKS is on — the shape the
+Regitra integration's own templates will take.{% endcomment %}
+<ul class="reg-list">
+  {% for row in block.rows %}<li><b>{{ row.title }}</b><small>{{ row.detail }}</small></li>{% endfor %}
+</ul>
+<p class="muted rec-extra-soon">{% translate 'Pavyzdiniai duomenys — tikri bus prijungus Regitrą.' %}</p>

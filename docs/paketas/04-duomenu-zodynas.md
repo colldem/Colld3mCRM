@@ -284,6 +284,7 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `favourite` | BooleanField | taip | T |
 | `first_name` | CharField | taip | A |
 | `last_name` | CharField | taip | A |
+| `personal_code` | CharField | ne | A |
 | `job_title` | CharField | ne | A |
 | `responsibles` | ryšys → User (daug) | — | D |
 | `companies` | ryšys → Company (daug) | — | R |

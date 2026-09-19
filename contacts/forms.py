@@ -353,8 +353,8 @@ class PersonForm(forms.ModelForm):
 
     class Meta:
         model = Person
-        fields = ["first_name", "last_name", "job_title", "description", "companies", "tags", "categories"]
-        labels = {"first_name": tr("Vardas"), "last_name": tr("Pavardė"), "job_title": tr("Pareigos"), "description": tr("Aprašymas"), "tags": tr("Žymos"), "categories": tr("Kategorijos")}
+        fields = ["first_name", "last_name", "personal_code", "job_title", "description", "companies", "tags", "categories"]
+        labels = {"first_name": tr("Vardas"), "last_name": tr("Pavardė"), "personal_code": tr("Asmens kodas"), "job_title": tr("Pareigos"), "description": tr("Aprašymas"), "tags": tr("Žymos"), "categories": tr("Kategorijos")}
         widgets = {"tags": forms.CheckboxSelectMultiple, "categories": forms.CheckboxSelectMultiple, "description": forms.Textarea(attrs={"rows": 4})}
 
     def clean_tags(self):

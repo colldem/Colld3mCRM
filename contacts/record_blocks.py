@@ -37,6 +37,11 @@ def register_block(key, title, hint="", template=None, loader=None, kinds=None):
                     "kinds": tuple(kinds) if kinds else (existing or {}).get("kinds", BOTH)}
 
 
+def block(key):
+    """A registered block, or None — how a caller reads a declaration back."""
+    return _BLOCKS.get(key)
+
+
 def record_blocks(record):
     """What the middle column renders for `record`, in order."""
     from .models import Company

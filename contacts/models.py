@@ -9,6 +9,8 @@ from django.core.validators import URLValidator
 from django.db import models
 from django.urls import reverse
 
+from .validators import validate_personal_code
+
 
 # Pre-event email lead time, set per reminder when planning it.
 NOTIFY_LEAD_CHOICES = ((0, tr("Nesiųsti")), (5, tr("5 min.")), (15, tr("15 min.")), (60, tr("1 val.")),
@@ -377,6 +379,10 @@ class Person(RecordDetailsModel, TimestampedModel):
     favourite = models.BooleanField(default=False, db_index=True)
     first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100, db_index=True)
+    # The national identity number. Indexed because it is how the service desk
+    # finds the one right person; validated by `validate_personal_code`.
+    personal_code = models.CharField(max_length=11, blank=True, db_index=True,
+                                     validators=[validate_personal_code])
     job_title = models.CharField(max_length=160, blank=True)
     companies = models.ManyToManyField(Company, through="PersonCompanyLink", related_name="people", blank=True)
     tags = models.ManyToManyField(Tag, related_name="people", blank=True)

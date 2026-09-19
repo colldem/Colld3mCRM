@@ -4132,3 +4132,18 @@ msgstr "Messages recently sent to this record's number."
 
 msgid "Bus rodoma prijungus Regitros duomenis."
 msgstr "Shown once the Regitra data is connected."
+
+msgid "Asmens kodas"
+msgstr "Personal code"
+
+msgid "Asmens kodą sudaro 11 skaitmenų."
+msgstr "A personal code is 11 digits."
+
+msgid "Neteisingas asmens kodas."
+msgstr "Not a valid personal code."
+
+msgid "Neteisingas asmens kodas — nesutampa kontrolinis skaitmuo."
+msgstr "Not a valid personal code — the check digit does not match."
+
+msgid "Pavyzdiniai duomenys — tikri bus prijungus Regitrą."
+msgstr "Sample data — the real rows arrive with the Regitra integration."
