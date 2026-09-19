@@ -128,6 +128,13 @@ def teammate_ids(user):
     return ids
 
 
+def in_any_team(user):
+    """True when `user` belongs to at least one team."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return Team.objects.filter(members=user).exists()
+
+
 def responsible_person_ids(user_or_ids):
     """Person ids where the given user (or any of the given user ids) is a responsible."""
     from .models import Person

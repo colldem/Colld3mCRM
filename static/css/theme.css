@@ -153,9 +153,14 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .rec-warn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;padding:9px 14px;border:1px solid #e8c9a0;border-radius:var(--radius);background:#fdf1e3;color:#96540f;font-size:var(--fs-sm);font-weight:600}
 .rec-warn button{padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer}
 
-.record-detail{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+/* Three columns: the record itself, the integration blocks, the rail. The
+   record's own half is what the middle column was carved out of. */
+.record-detail{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 300px;gap:16px;align-items:start}
 .rec-main{display:grid;gap:16px;min-width:0}
+.rec-extras{display:grid;gap:12px;align-content:start;min-width:0}
 .rec-rail{display:grid;gap:12px;align-content:start;min-width:0}
+.rec-extra>summary h2{font-size:var(--fs-sm)}
+.rec-extra p{margin:0;font-size:var(--fs-sm)}
 @media(max-width:1100px){.record-detail{grid-template-columns:1fr}}
 
 .detail-card{border:1px solid var(--line);border-radius:var(--radius-lg);background:#fff;padding:16px 18px}

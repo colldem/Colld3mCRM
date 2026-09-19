@@ -85,6 +85,8 @@ class AnalyticsTests(TestCase):
         self.now = timezone.localtime()
 
     def _person(self, first, **kwargs):
+        # The dashboard opens on "mine", so a fixture without an owner is nobody's.
+        kwargs.setdefault("owner", self.user)
         return Person.objects.create(first_name=first, last_name="Testas", **kwargs)
 
     @patch("django.utils.timezone.now")
@@ -168,7 +170,7 @@ class AnalyticsTests(TestCase):
 
     def test_dashboard_charts_six_months_of_new_records(self):
         self._person("Naujas")
-        Company.objects.create(name="UAB Nauja")
+        Company.objects.create(name="UAB Nauja", owner=self.user)
         response = self.client.get(reverse("contacts:home"))
         chart = response.context["growth_chart"]
         # Two series across six buckets, and this month's two records are in it.
@@ -208,7 +210,7 @@ class AnalyticsTests(TestCase):
         old = self._person("Senas")
         Person.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=40))
         fresh = self._person("Naujausias")
-        Company.objects.create(name="UAB Naujausia", city="Vilnius")
+        Company.objects.create(name="UAB Naujausia", city="Vilnius", owner=self.user)
         Activity.objects.create(person=fresh, activity_type="note", text="Uzrasas", created_by=self.user)
 
         response = self.client.get(reverse("contacts:home"))
@@ -307,8 +309,44 @@ class AnalyticsTests(TestCase):
         flat = charts.sparkline([0, 0, 0], height=40, pad=3)
         self.assertEqual({round(float(p.split(",")[1])) for p in flat["points"].split(" ")}, {20})
 
+    def test_the_dashboard_only_offers_the_scopes_a_role_reaches(self):
+        """A scope you cannot reach is not a choice: someone who only ever sees
+        their own records gets no picker at all."""
+        from contacts.models import Team, UserProfile
+        # No team, but full visibility: mine, or everybody's.
+        keys = [key for key, _label in self.client.get(reverse("contacts:home")).context["dash_scopes"]]
+        self.assertEqual(keys, ["mine", "all"])
+
+        loner = get_user_model().objects.create_user("vienas", password="very-secure-password")
+        UserProfile.objects.create(user=loner, role=UserProfile.ROLE_MEMBER,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        self.client.force_login(loner)
+        self.assertEqual(self.client.get(reverse("contacts:home")).context["dash_scopes"], [])
+
+        # In a team, but still walled in to his own records: still no choice.
+        Team.objects.create(name="Skyrius").members.add(loner)
+        self.assertEqual(self.client.get(reverse("contacts:home")).context["dash_scopes"], [])
+
+        UserProfile.objects.filter(user=loner).update(record_visibility=UserProfile.VISIBILITY_TEAM)
+        keys = [key for key, _label in self.client.get(reverse("contacts:home")).context["dash_scopes"]]
+        self.assertEqual(keys, ["mine", "team"])
+
+    def test_the_dashboard_scope_widens_from_mine_to_the_team_to_everyone(self):
+        from contacts.models import Team
+        stranger = get_user_model().objects.create_user("kitur", password="very-secure-password")
+        Team.objects.create(name="Skyrius").members.add(self.user, self.mate)
+        self._person("Mano")
+        self._person("Kolegos", owner=self.mate)
+        self._person("Svetimas", owner=stranger)
+        totals = {scope: self.client.get(reverse("contacts:home"), {"scope": scope}).context["people_total"]
+                  for scope in ("mine", "team", "all")}
+        self.assertEqual(totals, {"mine": 1, "team": 2, "all": 3})
+        # An unknown scope, or one this user may not pick, falls back to "mine".
+        self.assertEqual(self.client.get(reverse("contacts:home"), {"scope": "kazkas"}).context["dash_scope"],
+                         "mine")
+
     def test_care_lists_group_contacts_that_need_attention(self):
-        quiet = self._person("Nutiles")
+        quiet = self._person("Nutiles", owner=None)
         old = Activity.objects.create(person=quiet, activity_type="call", text="Seniai", created_by=self.user)
         Activity.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(days=75))
         fresh = self._person("Sviezias", owner=self.user)
@@ -1183,6 +1221,20 @@ class ContactViewTests(TestCase):
         PersonCompanyLink.objects.create(person=self.person, company=self.company, is_primary=True)
         PhoneNumber.objects.create(person=self.person, number="+370 645 21 987", is_primary=True)
         EmailAddress.objects.create(person=self.person, email="ruta@example.lt", is_primary=True)
+
+    def test_the_record_card_keeps_a_middle_column_for_the_registry_blocks(self):
+        """Half of the record's own width goes to the blocks the Regitra
+        integration will fill; until it is wired each says what it will hold."""
+        self.client.force_login(self.user)
+        for url in (self.person.get_absolute_url(), self.company.get_absolute_url()):
+            with self.subTest(url=url):
+                page = self.client.get(url).content.decode()
+                extras = page.split('class="rec-extras"')[1].split("<aside")[0]
+                for title in ("Automobiliai", "Valstybiniai numeriai",
+                              "Neseniai suteiktos paslaugos", "Išsiųsti SMS"):
+                    self.assertIn(title, extras)
+        css = (settings.BASE_DIR / "static/css/theme.css").read_text()
+        self.assertIn("grid-template-columns:minmax(0,1fr) minmax(0,1fr) 300px", css)
 
     def _import_file(self, upload):
         """Upload a file for import and confirm it (the two-step wizard)."""

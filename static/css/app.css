@@ -102,6 +102,7 @@ input[type=date],input[type=datetime-local],input[type=time]{-webkit-appearance:
 .page-head h1,.contact-head h1{margin-bottom:4px}
 .page-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .page-actions .chip{margin:0}
+.page-scope{display:flex;gap:6px}
 
 /* --- Lists: tables, row menus, filter drawers, bulk actions ------------ */
 .table-wrap{overflow:auto;border-top:1px solid var(--line)}

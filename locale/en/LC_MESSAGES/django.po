@@ -3994,3 +3994,48 @@ msgstr "No events this week."
 
 msgid "Vėluojančių įvykių nėra."
 msgstr "No overdue events."
+
+msgid "Mano"
+msgstr "Mine"
+
+msgid "Mano komandos"
+msgstr "My teams"
+
+msgid "Apimtis"
+msgstr "Scope"
+
+msgid "Komandos veiklos šią savaitę"
+msgstr "Team activity this week"
+
+msgid "Visos veiklos šią savaitę"
+msgstr "All activity this week"
+
+msgid "Automobiliai"
+msgstr "Vehicles"
+
+msgid "Transporto priemonės pagal VIN su techniniais duomenimis. Bus rodoma prijungus Regitros duomenis."
+msgstr "Vehicles by VIN with their technical details. Shown once the Regitra data is connected."
+
+msgid "Valstybiniai numeriai"
+msgstr "Registration plates"
+
+msgid "Turimi valstybinio numerio ženklai. Bus rodoma prijungus Regitros duomenis."
+msgstr "Registration plates held. Shown once the Regitra data is connected."
+
+msgid "Neseniai suteiktos paslaugos"
+msgstr "Recent services"
+
+msgid "Paskutinės suteiktos paslaugos. Bus rodoma prijungus Regitros duomenis."
+msgstr "The most recent services provided. Shown once the Regitra data is connected."
+
+msgid "Išsiųsti SMS"
+msgstr "Text messages sent"
+
+msgid "Neseniai į šio įrašo numerį siųsti pranešimai. Bus rodoma prijungus Regitros duomenis."
+msgstr "Messages recently sent to this record's number. Shown once the Regitra data is connected."
+
+msgid "Komandos įvykiai"
+msgstr "Team events"
+
+msgid "Visi įvykiai"
+msgstr "All events"

@@ -15,9 +15,11 @@ from django.utils import timezone
 from django.utils.translation import gettext as tr, gettext_lazy as tr_lazy
 
 from . import charts
-from .models import Activity, AuditLog, Category, Company, Person, Reminder, Tag
-from .permissions import visible_companies, visible_people, visible_reminders
-from .reminder_queries import mine_q, open_q
+from .models import Activity, AuditLog, Category, Company, Person, Reminder, Tag, UserProfile
+from .permissions import (in_any_team, record_visibility, responsible_company_ids,
+                          responsible_person_ids, sees_all_records, teammate_ids,
+                          visible_companies, visible_people, visible_reminders)
+from .reminder_queries import open_q
 
 # Short month names for the dashboard's six-month chart. Indexed by month - 1;
 # lazy so the list is not frozen into one language at import time.
@@ -33,6 +35,51 @@ DASH_VISIBLE = 5
 DASH_FETCH = 12
 # How many rows a card's popup lists before it starts scrolling past usefulness.
 POPUP_LIMIT = 50
+
+
+# The dashboard's scope picker: whose records the page is about.
+SCOPE_MINE, SCOPE_TEAM, SCOPE_ALL = "mine", "team", "all"
+
+
+def dashboard_scopes(user):
+    """The scopes `user` may choose between, as [(key, label)].
+
+    Everyone has their own records. A team scope means something only for
+    someone who is in a team and whose visibility reaches past themselves, and
+    everyone's records only for someone who may see everyone's. A list of one
+    is no choice at all, and the page then offers no picker.
+    """
+    scopes = [(SCOPE_MINE, tr("Mano"))]
+    if in_any_team(user) and record_visibility(user) != UserProfile.VISIBILITY_OWN:
+        scopes.append((SCOPE_TEAM, tr("Mano komandos")))
+    if sees_all_records(user):
+        scopes.append((SCOPE_ALL, tr("Visi")))
+    return scopes
+
+
+def _scope_owners(scope, user):
+    """The user ids whose records the scope covers, or None for everybody's."""
+    if scope == SCOPE_ALL:
+        return None
+    if scope == SCOPE_TEAM:
+        return teammate_ids(user)
+    return {user.pk}
+
+
+def _owned_reminders(owners):
+    """Reminders owned by `owners` — assigned to them, or theirs and unassigned."""
+    if owners is None:
+        return Q()
+    return Q(assigned_to_id__in=owners) | Q(assigned_to__isnull=True, created_by_id__in=owners)
+
+
+# The two cards that are about people rather than records say whose they are.
+_ACTIVITY_LABELS = {SCOPE_MINE: tr_lazy("Mano veiklos šią savaitę"),
+                    SCOPE_TEAM: tr_lazy("Komandos veiklos šią savaitę"),
+                    SCOPE_ALL: tr_lazy("Visos veiklos šią savaitę")}
+_AGENDA_LABELS = {SCOPE_MINE: tr_lazy("Mano įvykiai"),
+                  SCOPE_TEAM: tr_lazy("Komandos įvykiai"),
+                  SCOPE_ALL: tr_lazy("Visi įvykiai")}
 
 
 def _day_bounds(day):
@@ -97,26 +144,36 @@ def dashboard(request):
     # today, and disjoint from what is already overdue.
     week_end = week_start + timedelta(days=7)
 
-    agenda = (Reminder.objects.filter(mine_q(request.user), open_q(now), deleted_at__isnull=True)
+    scopes = dashboard_scopes(request.user)
+    scope = request.GET.get("scope", SCOPE_MINE)
+    if scope not in dict(scopes):
+        scope = SCOPE_MINE
+    owners = _scope_owners(scope, request.user)
+
+    agenda = (Reminder.objects.filter(_owned_reminders(owners), open_q(now), deleted_at__isnull=True)
               # An agenda row shows the subject, the record it sits on and the
               # time: the record's own details are a click away, not here.
               .select_related("person", "company")
               .order_by("due_at"))
-    counts = dict(Activity.objects.filter(created_by=request.user, deleted_at__isnull=True,
-                                          created_at__gte=week_start)
+    scoped_activities = Activity.objects.filter(deleted_at__isnull=True)
+    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
+    if owners is not None:
+        scoped_activities = scoped_activities.filter(created_by_id__in=owners)
+        people = people.filter(Q(owner_id__in=owners) | Q(pk__in=responsible_person_ids(owners)))
+        companies = companies.filter(Q(owner_id__in=owners) | Q(pk__in=responsible_company_ids(owners)))
+
+    counts = dict(scoped_activities.filter(created_at__gte=week_start)
                   .values_list("activity_type").annotate(total=Count("id")))
     week_activity = [{"label": label, "total": counts.get(key, 0)}
                      for key, label in Activity.TYPE_CHOICES]
 
-    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
-    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
     month_ago = now - timedelta(days=30)
     overdue = agenda.filter(due_at__lt=now)
 
     # "This month" for the type ring, six calendar months for the growth chart.
     month_start, _ = _day_bounds(today.replace(day=1))
-    month_counts = dict(Activity.objects.filter(created_by=request.user, deleted_at__isnull=True,
-                                                created_at__gte=month_start)
+    month_counts = dict(scoped_activities.filter(created_at__gte=month_start)
                         .values_list("activity_type").annotate(total=Count("id")))
     by_type = [{"label": label, "total": month_counts.get(key, 0)}
                for key, label in Activity.TYPE_CHOICES]
@@ -127,13 +184,17 @@ def dashboard(request):
                "values": {"people": row["value"], "companies": company_months[index]["value"]}}
               for index, row in enumerate(people_months)]
 
-    my_activities = Activity.objects.filter(created_by=request.user, deleted_at__isnull=True)
-    month_activities = my_activities.filter(created_at__gte=month_start)
-    week_activities = my_activities.filter(created_at__gte=week_start)
+    month_activities = scoped_activities.filter(created_at__gte=month_start)
+    week_activities = scoped_activities.filter(created_at__gte=week_start)
     new_people = people.filter(created_at__gte=month_ago)
     new_companies = companies.filter(created_at__gte=month_ago)
     overdue_rows = _card_rows(overdue)
     return render(request, "analytics/dashboard.html", {
+        "dash_scope": scope,
+        # One option is no choice: the picker only appears when there is one.
+        "dash_scopes": scopes if len(scopes) > 1 else [],
+        "activity_kpi_label": _ACTIVITY_LABELS[scope],
+        "agenda_label": _AGENDA_LABELS[scope],
         # The agenda card: one tab per horizon, plus a type filter over the rows.
         # "Today" is the one that opens, because it is the one people act on.
         "event_tabs": [
@@ -160,7 +221,7 @@ def dashboard(request):
         # Summary-card trends: the shape behind each number over the last 30 days.
         "spark_people": charts.sparkline(_daily_counts(people, today)),
         "spark_companies": charts.sparkline(_daily_counts(companies, today)),
-        "spark_activity": charts.sparkline(_daily_counts(my_activities, today)),
+        "spark_activity": charts.sparkline(_daily_counts(scoped_activities, today)),
         "spark_overdue": charts.sparkline(_daily_counts(overdue, today)),
         "activity_ring": charts.donut_multi(by_type),
         "activity_by_type": by_type,
@@ -170,7 +231,7 @@ def dashboard(request):
                                     .prefetch_related("phones", "company_links__company")),
         "recent_companies": _card_rows(companies.order_by("-created_at")),
         "recent_activities": _card_rows(
-            my_activities.select_related("person", "company", "created_by").order_by("-created_at")),
+            scoped_activities.select_related("person", "company", "created_by").order_by("-created_at")),
         # Each summary card opens a popup listing what its number is made of.
         "week_activity_rows": _card_rows(
             week_activities.select_related("person", "company", "created_by").order_by("-created_at")),
