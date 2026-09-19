@@ -120,6 +120,27 @@ class AnalyticsTests(TestCase):
         self.assertTrue(tabs["today"].get("active"))
         self.assertContains(response, "(2)")
 
+    def test_dashboard_costs_the_same_whichever_horizons_have_events(self):
+        """Each horizon is its own query, and a per-row prefetch would only run
+        for the ones that found rows — so an empty tab filling up would quietly
+        add queries. The rows carry nothing that needs fetching per row."""
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        def queries():
+            self.client.get(reverse("contacts:home"))  # warm the per-process caches
+            with CaptureQueriesContext(connection) as captured:
+                self.client.get(reverse("contacts:home"))
+            return len(captured.captured_queries)
+
+        person = self._person("Darbotvarkė")
+        Reminder.objects.create(person=person, text="Rytoj", created_by=self.user,
+                                due_at=self.now + timedelta(days=1))
+        ahead_only = queries()
+        Reminder.objects.create(person=person, text="Vėluoja", created_by=self.user,
+                                due_at=self.now - timedelta(hours=3))
+        self.assertEqual(queries(), ahead_only)
+
     def test_dashboard_counts_my_week_activity_by_type(self):
         person = self._person("Veiklus")
         Activity.objects.create(person=person, activity_type="call", text="Skambinta", created_by=self.user)

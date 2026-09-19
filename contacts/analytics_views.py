@@ -98,9 +98,9 @@ def dashboard(request):
     week_end = week_start + timedelta(days=7)
 
     agenda = (Reminder.objects.filter(mine_q(request.user), open_q(now), deleted_at__isnull=True)
+              # An agenda row shows the subject, the record it sits on and the
+              # time: the record's own details are a click away, not here.
               .select_related("person", "company")
-              # The agenda cards show the contact's phone and address.
-              .prefetch_related("person__phones", "person__addresses")
               .order_by("due_at"))
     counts = dict(Activity.objects.filter(created_by=request.user, deleted_at__isnull=True,
                                           created_at__gte=week_start)
