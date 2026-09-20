@@ -15,7 +15,7 @@ on:
       app_dir:
         description: "Directory on the NAS"
         required: true
-        default: "/opt/crm-regitra-staging"
+        default: "/volume1/docker/crm-regitra-staging"
 
 permissions:
   contents: read

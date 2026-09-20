@@ -7,7 +7,7 @@ registrų kolona, asmens kodas, paieška su pagrindu ir prieigos seansai.
 | | Vieša staging | Regitros staging |
 | --- | --- | --- |
 | Šaka | `main` | `regitra` |
-| Katalogas NAS | `/opt/crm-staging` | `/opt/crm-regitra-staging` |
+| Katalogas NAS | `/volume1/docker/crm-staging` | `/volume1/docker/crm-regitra-staging` |
 | Compose projektas | `crm-staging` | `crm-regitra-staging` |
 | Diegia | `deploy-staging.yml` | `deploy-regitra-staging.yml` |
 
@@ -24,7 +24,7 @@ atlikti ir sąranką — terminalo nereikia.
 atidarykite projektą `crm-runner`, jo `compose.yaml` prie `volumes` pridėkite
 
 ```yaml
-      - /opt/crm-regitra-staging:/opt/crm-regitra-staging
+      - /volume1/docker/crm-regitra-staging:/volume1/docker/crm-regitra-staging
 ```
 
 ir perkurkite projektą. Katalogą Docker susikurs pats — jo kurti nereikia.
@@ -61,9 +61,9 @@ Toliau — kas tame `.env` atsiranda ir ką reiškia, jei norite daryti rankomis
 **1. Katalogas ir `.env`.**
 
 ```bash
-sudo mkdir -p /opt/crm-regitra-staging
-sudo chown "$USER" /opt/crm-regitra-staging
-cd /opt/crm-regitra-staging
+sudo mkdir -p /volume1/docker/crm-regitra-staging
+sudo chown "$USER" /volume1/docker/crm-regitra-staging
+cd /volume1/docker/crm-regitra-staging
 ```
 
 Sukurkite `.env`:
@@ -107,7 +107,7 @@ Actions → Variables):
 
 | Kintamasis | Reikšmė |
 | --- | --- |
-| `CRM_REGITRA_STAGING_DIR` | `/opt/crm-regitra-staging` |
+| `CRM_REGITRA_STAGING_DIR` | `/volume1/docker/crm-regitra-staging` |
 | `CRM_REGITRA_STAGING_URL` | `https://crm-regitra-staging.<tailnet>.ts.net` |
 
 Kol `CRM_REGITRA_STAGING_DIR` nenustatytas, diegimo žingsnis **praleidžiamas** —
@@ -122,7 +122,7 @@ Apsaugos taisyklių jai nereikia.
 staging" nusideploy'ins pats. Arba rankiniu būdu iš NAS:
 
 ```bash
-cd /opt/crm-regitra-staging
+cd /volume1/docker/crm-regitra-staging
 docker compose build --pull && docker compose up -d
 ```
 

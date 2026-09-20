@@ -15,7 +15,7 @@
 set -eu
 
 TAILNET="${1:-}"
-APP="${2:-/opt/crm-regitra-staging}"
+APP="${2:-/volume1/docker/crm-regitra-staging}"
 HOSTNAME_="crm-regitra-staging"
 
 [ -n "$TAILNET" ] || { echo "usage: sh scripts/setup-regitra-staging.sh <tailnet-domain> [app-dir]"; exit 2; }

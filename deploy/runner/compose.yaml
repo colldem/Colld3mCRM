@@ -28,9 +28,9 @@ services:
       # The app directories the deploy scripts write to — named individually
       # rather than mounting their parent, which holds unrelated stacks. A new
       # instance needs its line here before the runner can deploy to it.
-      - /opt/crm:/opt/crm
-      - /opt/crm-staging:/opt/crm-staging
-      - /opt/crm-regitra-staging:/opt/crm-regitra-staging
+      - /volume1/docker/crm:/volume1/docker/crm
+      - /volume1/docker/crm-staging:/volume1/docker/crm-staging
+      - /volume1/docker/crm-regitra-staging:/volume1/docker/crm-regitra-staging
       - runner-work:/tmp/runner
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]

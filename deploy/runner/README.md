@@ -2,7 +2,8 @@
 
 A single ephemeral runner on the NAS that runs the `deploy` job of
 `.github/workflows/deploy.yml`. It needs the Docker socket (to build and start
-the app) and the app directory `/opt/crm`.
+the app) and each app directory it deploys to. On this NAS the stacks live
+under `/volume1/docker/`, not `/opt/` — the paths below are the real ones.
 
 ## One-time setup
 
@@ -15,7 +16,7 @@ the app) and the app directory `/opt/crm`.
 
 2. **Configure and pin the image**
 
-   `/opt/crm-runner` on the NAS is already provisioned: `compose.yaml`,
+   `/volume1/docker/crm-runner` on the NAS is already provisioned: `compose.yaml`,
    a `.env` (mode 600) with `REPO_URL` and the verified `DOCKER_GID=121`, and
    `RUNNER_IMAGE` pinned to the pulled digest. Only the token is missing — put
    the PAT from step 1 on the `ACCESS_TOKEN=` line, replacing the placeholder.
@@ -23,7 +24,7 @@ the app) and the app directory `/opt/crm`.
    To re-pin the image later (do this when you rotate the PAT — `.env` never
    leaves the NAS, so Dependabot cannot bump it):
    ```sh
-   cd /opt/crm-runner
+   cd /volume1/docker/crm-runner
    docker compose pull
    docker inspect --format '{{index .RepoDigests 0}}' $(docker compose config --images)
    # put that name@sha256:... into RUNNER_IMAGE in .env
@@ -55,7 +56,7 @@ the app) and the app directory `/opt/crm`.
 
 The runner mounts each app directory by name rather than their parent, so a new
 instance needs a line in `compose.yaml` before the runner can deploy it — as
-`/opt/crm-regitra-staging` has. Docker creates the host directory on first
+`/volume1/docker/crm-regitra-staging` has. Docker creates the host directory on first
 start, so no shell is needed: edit the `crm-runner` project in the NAS's Docker
 app, add the volume line, and recreate the project.
 
@@ -67,7 +68,7 @@ app, add the volume line, and recreate the project.
 - **Manual / rollback**: GitHub → *Actions → Deploy → Run workflow*, enter a tag
   or SHA.
 - **Rollback the data too**: restore the matching `pre-<version>-<ts>.dump` from
-  `/opt/crm/` (procedure: in-app docs → *Kopijos ir atkūrimas*).
+  `/volume1/docker/crm/` (procedure: in-app docs → *Kopijos ir atkūrimas*).
 
 ## Security notes
 

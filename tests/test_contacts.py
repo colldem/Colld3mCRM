@@ -8278,5 +8278,9 @@ class RegitraStagingOverlayTests(TestCase):
         self.assertIn("setup-regitra-staging.sh", setup)
         # The runner mounts each app directory by name; without this line it
         # could not write the new instance's .env at all.
-        self.assertIn("/opt/crm-regitra-staging:/opt/crm-regitra-staging",
-                      self._read("deploy/runner/compose.yaml"))
+        # The NAS keeps its stacks under /volume1/docker, not /opt: a path that
+        # does not exist there would fail only once, in production.
+        runner = self._read("deploy/runner/compose.yaml")
+        self.assertIn("/volume1/docker/crm-regitra-staging:/volume1/docker/crm-regitra-staging",
+                      runner)
+        self.assertNotIn("/opt/crm", runner)
