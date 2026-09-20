@@ -4147,3 +4147,9 @@ msgstr "Not a valid personal code — the check digit does not match."
 
 msgid "Pavyzdiniai duomenys — tikri bus prijungus Regitrą."
 msgstr "Sample data — the real rows arrive with the Regitra integration."
+
+msgid "Palikti sąraše, kol yra aktyvus priminimas"
+msgstr "Keep in the list while a reminder is open"
+
+msgid "Paprastai kontaktas iš sąrašo dingsta dienos pabaigoje. Su šia varnele jis lieka tol, kol tam pačiam darbuotojui priskirtas priminimas nėra užbaigtas — kad ilgas darbas su klientu nedingtų kas naktį."
+msgstr "A contact normally leaves the list at the end of the day. With this ticked it stays until a reminder assigned to that same person is finished, so that long work on a client does not disappear every night."

@@ -43,7 +43,11 @@ kurios tą terminą pratęsia, kad mėnesį trunkantis darbas nedingtų kas nakt
 
 - **Atviras priminimas** — įrašas lieka, kol priminimas neužbaigtas. Terminas
   nebegalioja. Tai pagrindinis būdas ilgam darbui, ir jis nieko naujo nereikalauja:
-  pradėdamas darbą su klientu, darbuotojas ir taip susikuria priminimą.
+  pradėdamas darbą su klientu, darbuotojas ir taip susikuria priminimą. Priminimas
+  turi būti priskirtas **tam pačiam** darbuotojui — kolegos priminimas jo sąraše
+  įrašo nelaiko. Ar rolė taip gali, nustatoma Nustatymai → Rolės ir teisės,
+  varnelė „Palikti sąraše, kol yra aktyvus priminimas“
+  (`can_keep_with_reminder`); numatytai įjungta abiem naudotojų rolėms.
 - **Veikla ant įrašo** — įrašius pastabą, skambutį ar susitikimą, terminas
   atnaujinamas iki tos dienos pabaigos. Kelias dienas trunkantis darbas be
   priminimo pats savaime tęsiasi, kol prie jo grįžtama.

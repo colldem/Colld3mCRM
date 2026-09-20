@@ -7895,3 +7895,51 @@ class RecordAccessTests(TestCase):
         self.assertIsNone(find("Jo"))                   # too short to be a search
         self.assertIsNone(find("Jonas"))                # two people answer to it
         self.assertEqual(find("Jonas Petraitis"), self.person)
+
+
+class KeepWithReminderTests(TestCase):
+    """Whether an open reminder holds a record is a role's setting, not a law."""
+
+    def setUp(self):
+        from contacts.models import UserProfile
+
+        self.user = get_user_model().objects.create_user("saugotojas", password="very-secure-password")
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_MEMBER)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis")
+
+    def _expired_access_with_an_open_reminder(self):
+        from contacts.models import RecordAccess
+        from contacts.record_access import grant
+
+        access = grant(self.user, self.person, "documents")
+        RecordAccess.objects.filter(pk=access.pk).update(
+            expires_at=timezone.now() - timedelta(days=2))
+        Reminder.objects.create(person=self.person, text="Tęsiamas darbas",
+                                due_at=timezone.now() + timedelta(days=5),
+                                created_by=self.user, assigned_to=self.user)
+
+    def _visible(self):
+        from contacts.record_access import accessible_person_ids
+
+        return set(accessible_person_ids(self.user))
+
+    def test_the_capability_decides_whether_the_record_stays(self):
+        from contacts.models import RolePermissions, UserProfile
+        from contacts.permissions import CAPABILITY_KEYS
+
+        self._expired_access_with_an_open_reminder()
+        self.assertEqual(self._visible(), {self.person.pk})   # on by default
+
+        RolePermissions.objects.update_or_create(
+            role=UserProfile.ROLE_MEMBER,
+            defaults={"permissions": {key: key != "can_keep_with_reminder" for key in CAPABILITY_KEYS}})
+        self.assertEqual(self._visible(), set())
+
+    def test_the_settings_page_explains_what_the_tick_does(self):
+        """The rule is subtle, so the table says it in words, not just a name."""
+        admin = get_user_model().objects.create_superuser("virsininkas", password="very-secure-password")
+        self.client.force_login(admin)
+        page = self.client.get(reverse("contacts:settings-permissions")).content.decode()
+        self.assertIn("Palikti sąraše, kol yra aktyvus priminimas", page)
+        self.assertIn("kad ilgas darbas su klientu nedingtų kas naktį", page)
+        self.assertIn('class="cap-hint"', page)

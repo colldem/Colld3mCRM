@@ -1086,7 +1086,7 @@ def settings_teams(request):
 
 @login_required
 def settings_permissions(request):
-    from .permissions import CAPABILITIES, capability_matrix, is_admin
+    from .permissions import CAPABILITIES, CAPABILITY_HINTS, capability_matrix, is_admin
     from .models import RolePermissions
 
     if not is_admin(request.user):
@@ -1109,7 +1109,7 @@ def settings_permissions(request):
     role_labels = dict(UserProfile.ROLE_CHOICES)
     return render(request, "settings/permissions.html", {
         "settings_section": "permissions",
-        "capabilities": CAPABILITIES,
+        "capabilities": CAPABILITIES, "capability_hints": CAPABILITY_HINTS,
         "roles": [{"key": role, "label": role_labels.get(role, role), "caps": matrix[role]} for role in editable_roles],
         "readonly_role": UserProfile.ROLE_READONLY, "readonly_caps": READONLY_CAPABILITIES,
     })

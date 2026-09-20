@@ -5,7 +5,9 @@ the end of the day. Three things extend that, so a month-long piece of work does
 not vanish every midnight:
 
 * an open reminder assigned to that user on that record — no expiry at all
-  while it is open, and the ordinary way a long engagement is carried;
+  while it is open, and the ordinary way a long engagement is carried; whether
+  a role gets this is a checkbox in Settings → Roles and permissions
+  (`can_keep_with_reminder`);
 * logging an activity on the record — pushes the lease to the end of that day;
 * "take into work" — a deliberate 30 days, for what has no reminder.
 
@@ -85,9 +87,29 @@ def live_for(users, now=None):
     same user is open on the same record — the work is evidently not over.
     """
     now = now or timezone.now()
-    ids = users if isinstance(users, (set, list, tuple, frozenset)) else [users]
-    rows = RecordAccess.objects.filter(user__in=ids, ended_at__isnull=True)
-    return rows.filter(Q(expires_at__gt=now) | _kept_by_reminder(now))
+    given = users if isinstance(users, (set, list, tuple, frozenset)) else [users]
+    # Callers pass users or their ids; everything below works in ids.
+    ids = [getattr(user, "pk", user) for user in given]
+    rows = RecordAccess.objects.filter(user_id__in=ids, ended_at__isnull=True)
+    kept = _may_keep_with_reminder(ids)
+    live = Q(expires_at__gt=now)
+    if kept:
+        live |= Q(user_id__in=kept) & _kept_by_reminder(now)
+    return rows.filter(live)
+
+
+def _may_keep_with_reminder(ids):
+    """Of these users, the ones whose role lets a reminder hold a record.
+
+    Settings → Roles decides it per role, so two people looking at the same
+    record can honestly get different answers.
+    """
+    from django.contrib.auth import get_user_model
+
+    from .permissions import has_capability
+
+    users = get_user_model().objects.filter(pk__in=ids).select_related("crm_profile")
+    return [user.pk for user in users if has_capability(user, "can_keep_with_reminder")]
 
 
 def _kept_by_reminder(now):

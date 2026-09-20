@@ -6,6 +6,9 @@ from .models import RolePermissions, Team, UserProfile
 
 # (key, human label) — the capabilities an admin can grant per role.
 CAPABILITIES = [
+    # First, because it is the one that changes what people see rather than
+    # what they may do — and the only one whose effect needs explaining.
+    ("can_keep_with_reminder", _("Palikti sąraše, kol yra aktyvus priminimas")),
     ("can_import", _("Importuoti duomenis")),
     ("can_export", _("Eksportuoti duomenis")),
     ("can_delete", _("Archyvuoti ir atkurti įrašus")),
@@ -19,15 +22,26 @@ CAPABILITIES = [
 ]
 CAPABILITY_KEYS = [key for key, _label in CAPABILITIES]
 
+# Plain-language notes for the settings table, where a capability's name is not
+# enough on its own. Only the ones that really need it — a note beside every
+# row would be noise.
+CAPABILITY_HINTS = {
+    "can_keep_with_reminder": _(
+        "Paprastai kontaktas iš sąrašo dingsta dienos pabaigoje. Su šia varnele jis "
+        "lieka tol, kol tam pačiam darbuotojui priskirtas priminimas nėra užbaigtas — "
+        "kad ilgas darbas su klientu nedingtų kas naktį."
+    ),
+}
+
 _CAPABILITY_DEFAULTS = {
     UserProfile.ROLE_MEMBER: {
-        "can_import": True, "can_export": True, "can_delete": True,
+        "can_keep_with_reminder": True, "can_import": True, "can_export": True, "can_delete": True,
         "can_merge_duplicates": True, "can_bulk_edit": True, "can_reassign_owner": True,
         "can_manage_custom_fields": False, "can_manage_taxonomy": False,
         "can_manage_automations": False, "can_view_audit": False,
     },
     UserProfile.ROLE_RESTRICTED: {
-        "can_import": False, "can_export": True, "can_delete": True,
+        "can_keep_with_reminder": True, "can_import": False, "can_export": True, "can_delete": True,
         "can_merge_duplicates": False, "can_bulk_edit": False, "can_reassign_owner": False,
         "can_manage_custom_fields": False, "can_manage_taxonomy": False,
         "can_manage_automations": False, "can_view_audit": False,
@@ -35,7 +49,7 @@ _CAPABILITY_DEFAULTS = {
     UserProfile.ROLE_READONLY: {key: False for key in CAPABILITY_KEYS},
 }
 # A reader changes nothing; only these read-side capabilities can be granted.
-READONLY_CAPABILITIES = {"can_export", "can_view_audit"}
+READONLY_CAPABILITIES = {"can_export", "can_view_audit", "can_keep_with_reminder"}
 EDITABLE_ROLES = (UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY)
 
 
