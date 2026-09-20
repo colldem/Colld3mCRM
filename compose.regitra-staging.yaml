@@ -13,7 +13,10 @@
 #
 # Everything a stack keeps lives under its own directory (runtime/postgres,
 # runtime/media, runtime/tailscale-state), so the two share no data. What they
-# would share is host ports, hence the different defaults below.
+# would share is host ports, which is why the .env above sets CRM_PORT and
+# CRM_LAN_PORT — the base files already read them, and this overlay must not
+# declare ports itself: behind Tailscale the app shares that container's
+# network namespace, and a container in one cannot publish ports of its own.
 #
 # Setting it up on the NAS: docs/REGITRA-STAGING.md
 name: crm-regitra-staging
@@ -22,7 +25,6 @@ services:
   crm-web:
     # Its own tag, so building here never replaces the public staging's image.
     image: crm-web:regitra-staging
-    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_PORT:-8082}:8080"]
 
   crm-worker:
     image: crm-web:regitra-staging
@@ -32,6 +34,3 @@ services:
 
   crm-backup:
     image: crm-backup:regitra-staging
-
-  crm-tailscale:
-    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_LAN_PORT:-18083}:8080"]

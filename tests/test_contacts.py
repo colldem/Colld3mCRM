@@ -8241,11 +8241,11 @@ class RegitraStagingOverlayTests(TestCase):
         self.assertIn("name: crm-regitra-staging", overlay)
         # Its own image tags, or a build here would replace the other stack's.
         self.assertIn("image: crm-web:regitra-staging", overlay)
-        # Host ports are the one thing the two really share.
-        for setting in ("CRM_PORT:-8082", "CRM_LAN_PORT:-18083"):
-            self.assertIn(setting, overlay)
-        plain = self._read("compose.staging.yaml")
-        self.assertNotIn("8082", plain)
+        # Host ports come from the instance's .env, which the base files already
+        # read. Declaring them here breaks the app behind Tailscale, which
+        # shares that container's network namespace and may publish nothing.
+        self.assertNotIn("ports:", overlay)
+        self.assertIn("ports: !reset []", self._read("compose.tailscale.yaml"))
 
     def test_the_deploy_refuses_a_directory_that_is_not_this_flavour(self):
         script = self._read("scripts/deploy-staging.sh")
