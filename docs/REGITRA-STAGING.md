@@ -135,7 +135,10 @@ CRM_STAGING_DIR=/volume1/docker/crm-regitra-staging \
 ```
 
 Skriptas atsisako dirbti, jei nurodytas katalogas nėra staging
-(`CRM_ENVIRONMENT=staging`), o produkcijoje tik skaito (`pg_dump`).
+(`CRM_ENVIRONMENT=staging`), o produkcijoje tik skaito (`pg_dump`). Šios
+instancijos bazė prieš atkūrimą išmetama ir sukuriama iš naujo — kitaip joje
+liktų šios šakos stulpeliai, kurių produkcijos `django_migrations` nepažįsta, ir
+kitas `migrate` lūžtų bandydamas pridėti jau esantį stulpelį.
 
 ## Ko tikėtis
 

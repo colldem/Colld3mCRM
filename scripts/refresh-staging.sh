@@ -45,10 +45,21 @@ done
 # Piped rather than staged through a file: the deploy already leaves dated dumps
 # in the production directory if one is ever needed, and this way the refresh
 # needs no writable path on the host, which the deploy leaves owned by root.
+#
+# The database is dropped and recreated first. --clean --if-exists is not enough:
+# whatever it fails to drop survives into the clone, and a leftover column from a
+# branch production does not have leaves the schema ahead of the restored
+# django_migrations table — the next migrate then tries to add a column that is
+# already there and the app never starts. An empty database cannot do that.
+echo ">>> recreating the staging database"
+$STAGING_COMPOSE exec -T crm-db psql -U crm -d postgres -v ON_ERROR_STOP=1 \
+  -c 'DROP DATABASE IF EXISTS crm WITH (FORCE)' \
+  -c 'CREATE DATABASE crm OWNER crm' < /dev/null
+
 echo ">>> streaming production -> staging"
 $PROD_COMPOSE exec -T crm-db pg_dump -U crm -d crm -Fc < /dev/null \
-  | $STAGING_COMPOSE exec -T crm-db pg_restore --clean --if-exists --no-owner \
-      --no-privileges -U crm -d crm \
+  | $STAGING_COMPOSE exec -T crm-db pg_restore --no-owner --no-privileges \
+      -U crm -d crm \
   || echo "    (pg_restore reported notices; checked below)"
 
 # --- 3. bring the app back and make the clone harmless ------------------

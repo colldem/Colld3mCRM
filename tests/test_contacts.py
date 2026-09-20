@@ -7072,6 +7072,13 @@ class StagingAnonymisationTests(TestCase):
         script = (settings.BASE_DIR / "scripts" / "refresh-staging.sh").read_text()
         self.assertLess(script.index("copying media"), script.index("manage.py sanitize_staging"))
 
+    def test_refresh_script_restores_into_an_empty_database(self):
+        """A leftover column from this branch would break the next migrate."""
+        script = (settings.BASE_DIR / "scripts" / "refresh-staging.sh").read_text()
+        self.assertLess(script.index("DROP DATABASE"), script.index("pg_restore"))
+        restore = script[script.index("pg_restore"):].split("\n\n", 1)[0]
+        self.assertNotIn("--clean", restore)
+
 
 
 class DataSubjectRequestTests(TestCase):
