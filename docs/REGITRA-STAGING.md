@@ -15,6 +15,21 @@ Viena kitos jos neliečia: visi duomenys (`runtime/postgres`, `runtime/media`,
 `runtime/tailscale-state`) guli po instancijos katalogu, o projekto vardas
 skiria konteinerius. Bendri lieka tik host'o portai — todėl žemiau jie kiti.
 
+## Greitas kelias: vienas skriptas
+
+NAS'e, CRM kataloge:
+
+```bash
+sh scripts/setup-regitra-staging.sh <jūsų-tailnet>.ts.net
+```
+
+Jis sukuria katalogą, sugeneruoja `DJANGO_SECRET_KEY`, `CRM_SECRETS_KEY` ir
+`POSTGRES_PASSWORD`, surašo `.env` (teisės 600) ir atspausdina, kuriuos du
+GitHub kintamuosius dar reikia nustatyti. Esamo `.env` jis neperrašo.
+Tailscale rakto paprašys arba jį galima paduoti per `TS_AUTHKEY`.
+
+Toliau — kas tame `.env` atsiranda ir ką reiškia, jei norite daryti rankomis.
+
 ## Ką reikia padaryti NAS'e (vieną kartą)
 
 **1. Katalogas ir `.env`.**
@@ -69,7 +84,8 @@ Actions → Variables):
 | `CRM_REGITRA_STAGING_DIR` | `/opt/crm-regitra-staging` |
 | `CRM_REGITRA_STAGING_URL` | `https://crm-regitra-staging.<tailnet>.ts.net` |
 
-Jei `CRM_REGITRA_STAGING_DIR` liks nenustatytas, diegimas **nutrūks** —
+Kol `CRM_REGITRA_STAGING_DIR` nenustatytas, diegimo žingsnis **praleidžiamas** —
+workflow lieka žalias, o ne raudonas po kiekvieno push'o. Nustačius jį neteisingai, diegimas **nutrūks** —
 `scripts/deploy-staging.sh` reikalauja, kad tikslinio katalogo `.env` turėtų
 `CRM_FLAVOUR=regitra`, tad viešoji staging nebus perrašyta per klaidą.
 

@@ -42,8 +42,13 @@ jobs:
 
   deploy:
     needs: verify
-    # A fork must never drive this repository's runner.
-    if: github.repository == 'colldem/Colld3mCRM' && github.event_name != 'pull_request'
+    # A fork must never drive this repository's runner. The directory variable
+    # is the switch that says the instance exists on the NAS yet: until it is
+    # set, this job is skipped rather than failing on every push.
+    if: >-
+      github.repository == 'colldem/Colld3mCRM'
+      && github.event_name != 'pull_request'
+      && vars.CRM_REGITRA_STAGING_DIR != ''
     runs-on: [self-hosted, crm-nas]
     environment:
       name: Regitra staging

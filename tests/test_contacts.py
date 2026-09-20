@@ -8257,3 +8257,16 @@ class RegitraStagingOverlayTests(TestCase):
         # And it follows this branch, not main.
         self.assertIn("branches: [regitra]", workflow)
         self.assertIn("branches: [main]", self._read(".github/workflows/deploy-staging.yml"))
+        # Until the instance exists on the NAS, the deploy step is skipped
+        # rather than failing red on every push.
+        self.assertIn("vars.CRM_REGITRA_STAGING_DIR != ''", workflow)
+
+    def test_the_setup_script_generates_its_own_keys_and_keeps_the_env_private(self):
+        script = self._read("scripts/setup-regitra-staging.sh")
+        for line in ("refusing to overwrite", "chmod 600", "CRM_FLAVOUR=regitra",
+                     "TS_SERVE_CONFIG=/config/serve-staging.json"):
+            self.assertIn(line, script)
+        # Its own keys, never another tier's.
+        for key in ("DJANGO_SECRET_KEY", "CRM_SECRETS_KEY", "POSTGRES_PASSWORD"):
+            self.assertIn(key, script)
+        self.assertIn("openssl rand", script)
