@@ -107,11 +107,10 @@ Actions → Variables):
 
 | Kintamasis | Reikšmė |
 | --- | --- |
-| `CRM_REGITRA_STAGING_DIR` | `/volume1/docker/crm-regitra-staging` |
-| `CRM_REGITRA_STAGING_URL` | `https://crm-regitra-staging.<tailnet>.ts.net` |
+| `CRM_REGITRA_STAGING_DIR` | `/volume1/docker/crm-regitra-staging` — **neprivaloma**, tai numatytoji reikšmė workflow faile |
+| `CRM_REGITRA_STAGING_URL` | `https://crm-regitra-staging.<tailnet>.ts.net` — neprivaloma, tik nuoroda GitHub aplinkoje |
 
-Kol `CRM_REGITRA_STAGING_DIR` nenustatytas, diegimo žingsnis **praleidžiamas** —
-workflow lieka žalias, o ne raudonas po kiekvieno push'o. Nustačius jį neteisingai, diegimas **nutrūks** —
+Nustačius `CRM_REGITRA_STAGING_DIR` neteisingai, diegimas **nutrūks** —
 `scripts/deploy-staging.sh` reikalauja, kad tikslinio katalogo `.env` turėtų
 `CRM_FLAVOUR=regitra`, tad viešoji staging nebus perrašyta per klaidą.
 
