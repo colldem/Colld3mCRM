@@ -73,7 +73,9 @@ TS_CERT_DOMAIN=${DOMAIN}
 TS_SERVE_CONFIG=/config/serve-staging.json
 
 CRM_DOMAIN=${DOMAIN}
-DJANGO_ALLOWED_HOSTS=${DOMAIN}
+# 127.0.0.1 is not optional: the container's health check calls
+# http://127.0.0.1:8080/health/ready, and Django rejects a host it was not told about.
+DJANGO_ALLOWED_HOSTS=${DOMAIN},localhost,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=https://${DOMAIN}
 CRM_BASE_URL=https://${DOMAIN}
 

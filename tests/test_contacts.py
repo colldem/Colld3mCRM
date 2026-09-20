@@ -8270,6 +8270,10 @@ class RegitraStagingOverlayTests(TestCase):
         for key in ("DJANGO_SECRET_KEY", "CRM_SECRETS_KEY", "POSTGRES_PASSWORD"):
             self.assertIn(key, script)
         self.assertIn("openssl rand", script)
+        # The container health check calls http://127.0.0.1:8080/health/ready,
+        # and Django rejects a host it was not told about — leave this out and
+        # the instance never becomes healthy.
+        self.assertIn("DJANGO_ALLOWED_HOSTS=${DOMAIN},localhost,127.0.0.1", script)
         # It also runs as a job on the NAS runner, where there is no terminal
         # to answer a prompt.
         self.assertIn("[ -t 0 ]", script)

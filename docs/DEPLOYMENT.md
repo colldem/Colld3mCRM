@@ -57,7 +57,10 @@ settings do that on purpose, and both are the first thing people trip over:
 - `CRM_BIND_IP=127.0.0.1` means the port is not published to the network. To
   reach it from another machine while testing, set `CRM_BIND_IP=0.0.0.0` — but
   only on a trusted network, since the app speaks plain HTTP.
-- `DJANGO_ALLOWED_HOSTS` lists the names the app answers to. Reach it by any
+- `DJANGO_ALLOWED_HOSTS` lists the names the app answers to. Always keep
+  `localhost,127.0.0.1` in the list: the container's health check calls
+  `http://127.0.0.1:8080/health/ready`, and without it the container never
+  becomes healthy and every deploy fails. Reach it by any
   other name or IP and Django replies **400 Bad Request** rather than serving
   the page. Add the name you actually use, e.g.
   `DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.50`.
@@ -82,7 +85,7 @@ Compose. Point your proxy at the published port and set:
 ```sh
 CRM_BIND_IP=127.0.0.1
 CRM_PORT=8080
-DJANGO_ALLOWED_HOSTS=crm.example.com
+DJANGO_ALLOWED_HOSTS=crm.example.com,localhost,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=https://crm.example.com
 DJANGO_FORCE_HTTPS=true
 CRM_BASE_URL=https://crm.example.com
@@ -121,7 +124,7 @@ and 443 reachable from the internet (Let's Encrypt validates over port 80).
 COMPOSE_FILE=compose.yaml:compose.caddy.yaml
 CRM_DOMAIN=crm.example.com
 CRM_ACME_EMAIL=admin@example.com
-DJANGO_ALLOWED_HOSTS=crm.example.com
+DJANGO_ALLOWED_HOSTS=crm.example.com,localhost,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=https://crm.example.com
 DJANGO_FORCE_HTTPS=true
 CRM_BASE_URL=https://crm.example.com
@@ -141,7 +144,7 @@ COMPOSE_FILE=compose.yaml:compose.tailscale.yaml
 TS_AUTHKEY=tskey-auth-...
 TS_HOSTNAME=crm
 TS_CERT_DOMAIN=crm.your-tailnet.ts.net
-DJANGO_ALLOWED_HOSTS=crm.your-tailnet.ts.net
+DJANGO_ALLOWED_HOSTS=crm.your-tailnet.ts.net,localhost,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=https://crm.your-tailnet.ts.net
 DJANGO_FORCE_HTTPS=true
 CRM_BASE_URL=https://crm.your-tailnet.ts.net

@@ -81,7 +81,7 @@ TS_CERT_DOMAIN=crm-regitra-staging.<jūsų-tailnet>.ts.net
 TS_SERVE_CONFIG=/config/serve-staging.json
 
 CRM_DOMAIN=crm-regitra-staging.<jūsų-tailnet>.ts.net
-DJANGO_ALLOWED_HOSTS=crm-regitra-staging.<jūsų-tailnet>.ts.net
+DJANGO_ALLOWED_HOSTS=crm-regitra-staging.<jūsų-tailnet>.ts.net,localhost,127.0.0.1
 DJANGO_CSRF_TRUSTED_ORIGINS=https://crm-regitra-staging.<jūsų-tailnet>.ts.net
 CRM_BASE_URL=https://crm-regitra-staging.<jūsų-tailnet>.ts.net
 
