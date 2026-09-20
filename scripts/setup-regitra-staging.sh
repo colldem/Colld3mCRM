@@ -21,6 +21,21 @@ HOSTNAME_="crm-regitra-staging"
 [ -n "$TAILNET" ] || { echo "usage: sh scripts/setup-regitra-staging.sh <tailnet-domain> [app-dir]"; exit 2; }
 DOMAIN="${HOSTNAME_}.${TAILNET}"
 
+# On the NAS runner the app directory is a bind mount from the host. Without it
+# this would write into the container and vanish with the job, so say so plainly
+# instead of appearing to succeed.
+if [ -n "${GITHUB_ACTIONS:-}" ] && ! mountpoint -q "$APP" 2>/dev/null; then
+  echo "FATAL: $APP is not mounted into the runner."
+  echo
+  echo "Add this line to the crm-runner project's compose.yaml on the NAS,"
+  echo "under 'volumes:', and recreate the project:"
+  echo
+  echo "      - ${APP}:${APP}"
+  echo
+  echo "See deploy/runner/README.md and docs/REGITRA-STAGING.md."
+  exit 1
+fi
+
 if [ -e "$APP/.env" ]; then
   echo "FATAL: $APP/.env already exists — refusing to overwrite it."
   echo "       Delete it by hand if you really mean to start over."
