@@ -51,6 +51,14 @@ the app) and the app directory `/opt/crm`.
    for all outside collaborators**. On a public repository this is the setting
    that keeps a stranger's pull request off this machine. See *Security notes*.
 
+## Adding an instance
+
+The runner mounts each app directory by name rather than their parent, so a new
+instance needs a line in `compose.yaml` before the runner can deploy it — as
+`/opt/crm-regitra-staging` has. Docker creates the host directory on first
+start, so no shell is needed: edit the `crm-runner` project in the NAS's Docker
+app, add the volume line, and recreate the project.
+
 ## Deploying
 
 - **Normal**: `git tag v0.52.0 && git push origin v0.52.0` → CI-equivalent checks

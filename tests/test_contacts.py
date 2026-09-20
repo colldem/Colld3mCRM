@@ -8270,3 +8270,13 @@ class RegitraStagingOverlayTests(TestCase):
         for key in ("DJANGO_SECRET_KEY", "CRM_SECRETS_KEY", "POSTGRES_PASSWORD"):
             self.assertIn(key, script)
         self.assertIn("openssl rand", script)
+        # It also runs as a job on the NAS runner, where there is no terminal
+        # to answer a prompt.
+        self.assertIn("[ -t 0 ]", script)
+        setup = self._read(".github/workflows/setup-regitra-staging.yml")
+        self.assertIn("runs-on: [self-hosted, crm-nas]", setup)
+        self.assertIn("setup-regitra-staging.sh", setup)
+        # The runner mounts each app directory by name; without this line it
+        # could not write the new instance's .env at all.
+        self.assertIn("/opt/crm-regitra-staging:/opt/crm-regitra-staging",
+                      self._read("deploy/runner/compose.yaml"))

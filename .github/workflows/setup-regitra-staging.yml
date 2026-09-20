@@ -1,0 +1,34 @@
+name: Set up Regitra staging
+
+# One-shot, by hand: create the Regitra staging instance's directory and .env
+# on the NAS, using the runner that already deploys there. This exists so the
+# setup needs no shell on the NAS — see docs/REGITRA-STAGING.md.
+#
+# Run it once. It refuses to touch an .env that already exists.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tailnet:
+        description: "Tailnet domain, e.g. tailb8493f.ts.net"
+        required: true
+      app_dir:
+        description: "Directory on the NAS"
+        required: true
+        default: "/opt/crm-regitra-staging"
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    if: github.repository == 'colldem/Colld3mCRM'
+    runs-on: [self-hosted, crm-nas]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Create the directory and its .env
+        env:
+          # Optional. Without it the .env is written with TS_AUTHKEY empty, to
+          # be filled in before the instance is first started.
+          TS_AUTHKEY: ${{ secrets.REGITRA_STAGING_TS_AUTHKEY }}
+        run: sh scripts/setup-regitra-staging.sh "${{ inputs.tailnet }}" "${{ inputs.app_dir }}"

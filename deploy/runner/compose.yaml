@@ -25,10 +25,12 @@ services:
       - ${DOCKER_GID:?set DOCKER_GID to the host docker group id}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # The two app directories the deploy scripts write to — named individually
-      # rather than mounting the app directory's parent, which holds unrelated stacks.
+      # The app directories the deploy scripts write to — named individually
+      # rather than mounting their parent, which holds unrelated stacks. A new
+      # instance needs its line here before the runner can deploy to it.
       - /opt/crm:/opt/crm
       - /opt/crm-staging:/opt/crm-staging
+      - /opt/crm-regitra-staging:/opt/crm-regitra-staging
       - runner-work:/tmp/runner
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]

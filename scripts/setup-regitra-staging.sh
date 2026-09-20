@@ -33,10 +33,12 @@ secret_key="$(openssl rand -base64 64 | tr -d '\n' | tr '+/' '-_')"
 fernet_key="$(openssl rand -base64 32 | tr '+/' '-_')"
 db_password="$(openssl rand -base64 30 | tr -d '\n' | tr '+/' '-_')"
 
-if [ -z "${TS_AUTHKEY:-}" ]; then
+# Asked for at a terminal; passed in as TS_AUTHKEY when this runs as a job.
+if [ -z "${TS_AUTHKEY:-}" ] && [ -t 0 ]; then
   printf 'Tailscale auth key (tskey-auth-...), or Enter to fill it in later: '
   read -r TS_AUTHKEY || TS_AUTHKEY=""
 fi
+TS_AUTHKEY="${TS_AUTHKEY:-}"
 
 mkdir -p "$APP"
 umask 077

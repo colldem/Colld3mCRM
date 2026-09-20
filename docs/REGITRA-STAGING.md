@@ -15,7 +15,33 @@ Viena kitos jos neliečia: visi duomenys (`runtime/postgres`, `runtime/media`,
 `runtime/tailscale-state`) guli po instancijos katalogu, o projekto vardas
 skiria konteinerius. Bendri lieka tik host'o portai — todėl žemiau jie kiti.
 
-## Greitas kelias: vienas skriptas
+## Greičiausias kelias: be terminalo
+
+NAS'e jau sukasi GitHub Actions runner'is, kuris ten ir diegia. Juo galima
+atlikti ir sąranką — terminalo nereikia.
+
+**1. Leisti runner'iui matyti naują katalogą.** NAS'o Docker programoje
+atidarykite projektą `crm-runner`, jo `compose.yaml` prie `volumes` pridėkite
+
+```yaml
+      - /opt/crm-regitra-staging:/opt/crm-regitra-staging
+```
+
+ir perkurkite projektą. Katalogą Docker susikurs pats — jo kurti nereikia.
+(Repozitorijoje `deploy/runner/compose.yaml` ta eilutė jau yra; NAS'e gyvenantis
+failas atskiras, todėl jį reikia pataisyti ranka.)
+
+**2. Jei turite Tailscale raktą** — GitHub → Settings → Secrets and variables →
+Actions → Secrets → `REGITRA_STAGING_TS_AUTHKEY`. Neprivaloma: be jo `.env`
+bus sukurtas su tuščiu `TS_AUTHKEY`, kurį įrašysite vėliau.
+
+**3. GitHub → Actions → „Set up Regitra staging" → Run workflow**, įveskite
+savo tailnet domeną (pvz. `tailb8493f.ts.net`). Jis sukurs `.env` su naujai
+sugeneruotais raktais ir žurnale parodys, ką dar nustatyti.
+
+Esamo `.env` jis neperrašo, tad paleisti antrą kartą nepavojinga.
+
+## Tas pats iš terminalo
 
 NAS'e, CRM kataloge:
 
