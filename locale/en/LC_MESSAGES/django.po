@@ -4153,3 +4153,18 @@ msgstr "Keep in the list while a reminder is open"
 
 msgid "Paprastai kontaktas iš sąrašo dingsta dienos pabaigoje. Su šia varnele jis lieka tol, kol tam pačiam darbuotojui priskirtas priminimas nėra užbaigtas — kad ilgas darbas su klientu nedingtų kas naktį."
 msgstr "A contact normally leaves the list at the end of the day. With this ticked it stays until a reminder assigned to that same person is finished, so that long work on a client does not disappear every night."
+
+msgid "Vadovai"
+msgstr "Leads"
+
+msgid "Vadovas mato, su kuriais įrašais jo komanda dirba dabar — kad galėtų prižiūrėti ir pavaduoti. Visos bazės tai jam neatveria. Pasirinkti galima tik komandos narius."
+msgstr "A lead sees which records their team is working on right now, so that they can supervise and stand in. It does not open the whole base to them. Only team members can be picked."
+
+msgid "Vadovas (visi įrašai)"
+msgstr "Manager (all records)"
+
+msgid "Tik komandos aktyvūs įrašai"
+msgstr "Only the team's active records"
+
+msgid "Tik savo aktyvūs įrašai"
+msgstr "Only my active records"

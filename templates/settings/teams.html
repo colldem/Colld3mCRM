@@ -23,6 +23,13 @@
             {% for user in users %}{% if row.team.pk in directory_team_ids and user.pk in directory_user_ids %}<label title="{% translate 'Valdoma per katalogo grupę' %}"><input type="checkbox" disabled{% if user.pk in row.member_ids %} checked{% endif %}> {{ user.get_full_name|default:user.username }} <small class="badge">AD</small></label>{% else %}<label><input type="checkbox" name="members" value="{{ user.pk }}"{% if user.pk in row.member_ids %} checked{% endif %}> {{ user.get_full_name|default:user.username }}</label>{% endif %}{% empty %}<small>{% translate 'Naudotojų dar nėra.' %}</small>{% endfor %}
           </div>
         </fieldset>
+        <fieldset class="team-members">
+          <legend>{% translate 'Vadovai' %}</legend>
+          <p class="field-hint">{% translate 'Vadovas mato, su kuriais įrašais jo komanda dirba dabar — kad galėtų prižiūrėti ir pavaduoti. Visos bazės tai jam neatveria. Pasirinkti galima tik komandos narius.' %}</p>
+          <div class="team-members-grid">
+            {% for user in users %}<label><input type="checkbox" name="leads" value="{{ user.pk }}"{% if user.pk in row.lead_ids %} checked{% endif %}> {{ user.get_full_name|default:user.username }}</label>{% empty %}<small>{% translate 'Naudotojų dar nėra.' %}</small>{% endfor %}
+          </div>
+        </fieldset>
         <div class="team-row-actions">
           <button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button>
           <button class="btn danger" type="submit" name="action" value="delete" formnovalidate>{% translate 'Pašalinti komandą' %}</button>

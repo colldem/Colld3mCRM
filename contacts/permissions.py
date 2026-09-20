@@ -34,6 +34,14 @@ CAPABILITY_HINTS = {
 }
 
 _CAPABILITY_DEFAULTS = {
+    UserProfile.ROLE_MANAGER: {
+        "can_keep_with_reminder": True, "can_import": True, "can_export": True,
+        "can_delete": True, "can_merge_duplicates": True, "can_bulk_edit": True,
+        "can_reassign_owner": True, "can_manage_custom_fields": False,
+        "can_manage_taxonomy": False, "can_manage_automations": False,
+        # A manager answers for what their people do, so the log is theirs to read.
+        "can_view_audit": True,
+    },
     UserProfile.ROLE_MEMBER: {
         "can_keep_with_reminder": True, "can_import": True, "can_export": True, "can_delete": True,
         "can_merge_duplicates": True, "can_bulk_edit": True, "can_reassign_owner": True,
@@ -50,7 +58,8 @@ _CAPABILITY_DEFAULTS = {
 }
 # A reader changes nothing; only these read-side capabilities can be granted.
 READONLY_CAPABILITIES = {"can_export", "can_view_audit", "can_keep_with_reminder"}
-EDITABLE_ROLES = (UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY)
+EDITABLE_ROLES = (UserProfile.ROLE_MANAGER, UserProfile.ROLE_MEMBER,
+                  UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY)
 
 
 def capability_matrix():
@@ -85,7 +94,11 @@ def has_capability(user, capability):
         return bool(row.permissions[capability])
     return _CAPABILITY_DEFAULTS[role].get(capability, False)
 
-_VIS_ORDER = {UserProfile.VISIBILITY_ALL: 0, UserProfile.VISIBILITY_TEAM: 1, UserProfile.VISIBILITY_OWN: 2}
+# Loosest to strictest; `record_visibility` takes the strictest that applies.
+_VIS_ORDER = {UserProfile.VISIBILITY_ALL: 0, UserProfile.VISIBILITY_TEAM: 1,
+              UserProfile.VISIBILITY_OWN: 2, UserProfile.VISIBILITY_TEAM_ACTIVE: 3,
+              UserProfile.VISIBILITY_OWN_ACTIVE: 4}
+ACTIVE_VISIBILITIES = (UserProfile.VISIBILITY_TEAM_ACTIVE, UserProfile.VISIBILITY_OWN_ACTIVE)
 
 
 def role_of(user):
@@ -108,14 +121,16 @@ def is_admin(user):
 
 
 def record_visibility(user):
-    """Effective record visibility for `user`: 'all', 'team' or 'own'.
+    """Effective record visibility for `user` — one of `VISIBILITY_CHOICES`.
 
     The strictest of the user's own setting and any team the user belongs to
-    that is marked "team records only" wins. Admins always see everything.
+    that is marked "team records only" wins. Admins and managers always see
+    everything. The two "active" modes show only what the user is working on
+    right now; see :mod:`contacts.record_access`.
     """
     if not getattr(user, "is_authenticated", False):
         return UserProfile.VISIBILITY_ALL
-    if is_admin(user):
+    if is_admin(user) or role_of(user) == UserProfile.ROLE_MANAGER:
         return UserProfile.VISIBILITY_ALL
     profile = getattr(user, "crm_profile", None)
     candidates = [profile.record_visibility if profile and profile.record_visibility else UserProfile.VISIBILITY_ALL]
@@ -125,6 +140,21 @@ def record_visibility(user):
     if Team.objects.filter(members=user, visibility=Team.VISIBILITY_TEAM).exists():
         candidates.append(UserProfile.VISIBILITY_TEAM)
     return max(candidates, key=lambda value: _VIS_ORDER[value])
+
+
+def active_viewer_ids(user):
+    """Whose live access counts as this user's own list.
+
+    A lead sees what the teams they lead are working on, so that they can
+    supervise and stand in. Leading no team, "team's active" is the same as
+    one's own — a profile setting alone must not open a team up.
+    """
+    ids = {user.pk}
+    if record_visibility(user) == UserProfile.VISIBILITY_TEAM_ACTIVE:
+        ids |= set(Team.members.through.objects.filter(
+            team_id__in=Team.objects.filter(leads=user).values("id")
+        ).values_list("user_id", flat=True))
+    return ids
 
 
 def sees_all_records(user):
@@ -175,6 +205,12 @@ def _person_visibility_q(user):
     vis = record_visibility(user)
     if vis == UserProfile.VISIBILITY_ALL:
         return None
+    if vis in ACTIVE_VISIBILITIES:
+        # Nothing is visible by default here, not even an unowned record: it is
+        # in the list because someone opened it for a reason, or not at all.
+        from .record_access import accessible_person_ids
+
+        return Q(pk__in=accessible_person_ids(active_viewer_ids(user)))
     if vis == UserProfile.VISIBILITY_OWN:
         return Q(owner=user) | Q(pk__in=responsible_person_ids(user.pk)) | Q(owner__isnull=True)
     ids = teammate_ids(user)
@@ -187,6 +223,12 @@ def _company_visibility_q(user):
     vis = record_visibility(user)
     if vis == UserProfile.VISIBILITY_ALL:
         return None
+    if vis in ACTIVE_VISIBILITIES:
+        # Nothing is visible by default here, not even an unowned record: it is
+        # in the list because someone opened it for a reason, or not at all.
+        from .record_access import accessible_company_ids
+
+        return Q(pk__in=accessible_company_ids(active_viewer_ids(user)))
     if vis == UserProfile.VISIBILITY_OWN:
         return Q(owner=user) | Q(pk__in=responsible_company_ids(user.pk)) | Q(owner__isnull=True)
     ids = teammate_ids(user)

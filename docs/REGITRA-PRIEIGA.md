@@ -19,7 +19,12 @@ duomenų tvarkymas, tad jis turi turėti tikslą, ir tas tikslas turi būti
 | Vadybininkas / specialistas | savo **aktyvius** įrašus |
 | Skaitytojas | kaip iki šiol, be pakeitimų |
 
-Komandos vadovas nurodomas komandoje (`Team.leads`). Vadovui aktyvūs įrašai
+Rolė nustatoma Nustatymai → Naudotojai; du paskutiniai variantai atitinka
+įrašų matomumą „Tik savo aktyvūs įrašai“ ir „Tik komandos aktyvūs įrašai“.
+Vadovui (manager) matomumo nustatymas negalioja — rolė visada atveria viską.
+Komandos vadovas pažymimas Nustatymai → Komandos (`Team.leads`); juo galima
+pažymėti tik komandos narį, o nevadovaujant jokiai komandai „komandos aktyvūs“
+reiškia tą patį, ką „savo aktyvūs“ — profilio laukas vienas komandos neatveria. Vadovui aktyvūs įrašai
 matomi todėl, kad jis turi galėti pavaduoti ir prižiūrėti, o ne todėl, kad jam
 priklauso visa bazė — jam jie irgi baigiasi.
 

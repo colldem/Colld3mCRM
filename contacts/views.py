@@ -1053,11 +1053,17 @@ def settings_teams(request):
                 visibility = request.POST.get("visibility") if request.POST.get("visibility") in dict(Team.VISIBILITY_CHOICES) else team.visibility
                 member_ids = [int(v) for v in request.POST.getlist("members") if v.isdigit()]
                 new_members = list(User.objects.filter(pk__in=member_ids, is_active=True))
+                lead_ids = [int(v) for v in request.POST.getlist("leads") if v.isdigit()]
+                # Leading a team you are not in means nothing, so leads are
+                # taken from the members the same save just set.
+                new_leads = [user for user in new_members if user.pk in set(lead_ids)]
                 if team.pk in directory_team_ids:
                     # Directory-managed users' membership of a mapped team follows their groups.
                     new_members = [m for m in new_members if m.pk not in directory_user_ids]
                     new_members += list(team.members.filter(pk__in=directory_user_ids))
-                old = {"name": team.name, "visibility": team.visibility, "members": sorted(team.members.values_list("username", flat=True))}
+                old = {"name": team.name, "visibility": team.visibility,
+                       "members": sorted(team.members.values_list("username", flat=True)),
+                       "leads": sorted(team.leads.values_list("username", flat=True))}
                 if name and name.lower() != team.name.lower() and Team.objects.filter(name__iexact=name).exclude(pk=team.pk).exists():
                     messages.error(request, tr("Tokia komanda jau yra."))
                     return redirect("contacts:settings-teams")
@@ -1066,8 +1072,11 @@ def settings_teams(request):
                 team.visibility = visibility
                 team.save(update_fields=["name", "visibility"])
                 team.members.set(new_members)
-                new = {"name": team.name, "visibility": team.visibility, "members": sorted(m.username for m in new_members)}
-                for key in ("name", "visibility", "members"):
+                team.leads.set(new_leads)
+                new = {"name": team.name, "visibility": team.visibility,
+                       "members": sorted(m.username for m in new_members),
+                       "leads": sorted(m.username for m in new_leads)}
+                for key in ("name", "visibility", "members", "leads"):
                     if old[key] != new[key]:
                         audit_log(AuditLog.UPDATE, request=request, target=team, target_type="team", field=key,
                                   old=", ".join(old[key]) if isinstance(old[key], list) else old[key],
@@ -1075,8 +1084,10 @@ def settings_teams(request):
                 messages.success(request, tr("Komanda atnaujinta."))
         return redirect("contacts:settings-teams")
     users = list(User.objects.filter(is_active=True).order_by("first_name", "last_name", "username"))
-    teams = Team.objects.prefetch_related("members").all()
-    rows = [{"team": team, "member_ids": set(team.members.values_list("id", flat=True))} for team in teams]
+    teams = Team.objects.prefetch_related("members", "leads").all()
+    rows = [{"team": team,
+             "member_ids": set(team.members.values_list("id", flat=True)),
+             "lead_ids": set(team.leads.values_list("id", flat=True))} for team in teams]
     return render(request, "settings/teams.html", {
         "settings_section": "teams", "rows": rows, "users": users,
         "visibility_choices": Team.VISIBILITY_CHOICES,

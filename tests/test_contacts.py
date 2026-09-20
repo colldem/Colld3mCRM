@@ -7943,3 +7943,119 @@ class KeepWithReminderTests(TestCase):
         self.assertIn("Palikti sąraše, kol yra aktyvus priminimas", page)
         self.assertIn("kad ilgas darbas su klientu nedingtų kas naktį", page)
         self.assertIn('class="cap-hint"', page)
+
+
+class ActiveVisibilityTests(TestCase):
+    """A list shows what you are working on. Who sees more, and why."""
+
+    def setUp(self):
+        from contacts.models import Team, UserProfile
+
+        self.Team, self.UserProfile = Team, UserProfile
+        self.lead = self._user("vadovas", UserProfile.VISIBILITY_TEAM_ACTIVE)
+        self.clerk = self._user("vadybininkas", UserProfile.VISIBILITY_OWN_ACTIVE)
+        self.mate = self._user("kolega", UserProfile.VISIBILITY_OWN_ACTIVE)
+        self.outsider = self._user("kito-skyriaus", UserProfile.VISIBILITY_OWN_ACTIVE)
+        self.team = Team.objects.create(name="TPR skyrius")
+        self.team.members.add(self.lead, self.clerk, self.mate)
+        self.team.leads.add(self.lead)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis")
+
+    def _user(self, username, visibility, role=None):
+        from contacts.models import UserProfile
+
+        user = get_user_model().objects.create_user(username, password="very-secure-password")
+        UserProfile.objects.create(user=user, role=role or UserProfile.ROLE_MEMBER,
+                                   record_visibility=visibility)
+        return user
+
+    def _sees(self, user):
+        from contacts.permissions import visible_people
+
+        return set(visible_people(user, Person.objects.all()).values_list("pk", flat=True))
+
+    def test_nothing_is_in_the_list_until_it_was_opened_for_a_reason(self):
+        from contacts.record_access import grant
+
+        self.assertEqual(self._sees(self.clerk), set())
+        grant(self.clerk, self.person, "call")
+        self.assertEqual(self._sees(self.clerk), {self.person.pk})
+        # An unowned record is not a free-for-all any more.
+        self.assertEqual(self._sees(self.mate), set())
+
+    def test_a_lead_sees_what_the_team_they_lead_is_working_on(self):
+        from contacts.record_access import grant
+
+        grant(self.clerk, self.person, "call")
+        self.assertEqual(self._sees(self.lead), {self.person.pk})
+        # Someone outside the team is unaffected either way.
+        self.assertEqual(self._sees(self.outsider), set())
+
+    def test_leading_no_team_makes_the_team_setting_mean_only_your_own(self):
+        """Otherwise a profile field alone would open a whole team up."""
+        from contacts.record_access import grant
+
+        self.team.leads.remove(self.lead)
+        grant(self.clerk, self.person, "call")
+        self.assertEqual(self._sees(self.lead), set())
+        grant(self.lead, self.person, "internal")
+        self.assertEqual(self._sees(self.lead), {self.person.pk})
+
+    def test_an_admin_and_a_manager_see_every_record(self):
+        from contacts.models import UserProfile
+        from contacts.permissions import record_visibility
+
+        manager = self._user("skyriaus-vadovas", UserProfile.VISIBILITY_OWN_ACTIVE,
+                             role=UserProfile.ROLE_MANAGER)
+        admin = get_user_model().objects.create_superuser("virsininkas", password="very-secure-password")
+        # A manager's own profile cannot narrow them: the role decides.
+        self.assertEqual(record_visibility(manager), UserProfile.VISIBILITY_ALL)
+        self.assertEqual(self._sees(manager), {self.person.pk})
+        self.assertEqual(self._sees(admin), {self.person.pk})
+
+    def test_a_manager_administers_nothing(self):
+        from contacts.models import UserProfile
+        from contacts.permissions import is_admin
+
+        manager = self._user("valdytojas", UserProfile.VISIBILITY_ALL,
+                             role=UserProfile.ROLE_MANAGER)
+        self.assertFalse(is_admin(manager))
+        self.client.force_login(manager)
+        self.assertEqual(self.client.get(reverse("contacts:settings-permissions")).status_code, 404)
+
+    def test_the_lease_running_out_empties_the_list_again(self):
+        from contacts.models import RecordAccess
+        from contacts.record_access import grant
+
+        grant(self.clerk, self.person, "call")
+        RecordAccess.objects.update(expires_at=timezone.now() - timedelta(minutes=1))
+        self.assertEqual(self._sees(self.clerk), set())
+        self.assertEqual(self._sees(self.lead), set())
+
+    def test_companies_follow_the_same_rule(self):
+        from contacts.permissions import visible_companies
+        from contacts.record_access import grant
+
+        company = Company.objects.create(name="UAB Vežėjas")
+        self.assertEqual(visible_companies(self.clerk, Company.objects.all()).count(), 0)
+        grant(self.clerk, company, "inbound")
+        self.assertEqual(
+            set(visible_companies(self.lead, Company.objects.all()).values_list("pk", flat=True)),
+            {company.pk})
+
+    def test_a_team_lead_is_set_in_settings_and_must_be_a_member(self):
+        admin = get_user_model().objects.create_superuser("valdytojas", password="very-secure-password")
+        self.client.force_login(admin)
+        page = self.client.get(reverse("contacts:settings-teams")).content.decode()
+        self.assertIn('name="leads"', page)
+
+        response = self.client.post(reverse("contacts:settings-teams"), {
+            "action": "update", "team_id": self.team.pk, "name": self.team.name,
+            "visibility": self.team.visibility,
+            "members": [self.clerk.pk, self.mate.pk],
+            # The lead is dropped from the members in the same save, and the
+            # outsider was never in the team: neither may end up leading it.
+            "leads": [self.lead.pk, self.clerk.pk, self.outsider.pk],
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(set(self.team.leads.values_list("pk", flat=True)), {self.clerk.pk})

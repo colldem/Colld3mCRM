@@ -116,11 +116,15 @@ class SavedFilter(models.Model):
 
 class UserProfile(models.Model):
     ROLE_ADMIN = "admin"
+    # Sees every record, like an admin, but administers nothing: the settings
+    # that configure the system stay behind `is_admin`.
+    ROLE_MANAGER = "manager"
     ROLE_MEMBER = "member"
     ROLE_RESTRICTED = "restricted"
     ROLE_READONLY = "readonly"
     ROLE_CHOICES = (
         (ROLE_ADMIN, tr("Administratorius")),
+        (ROLE_MANAGER, tr("Vadovas (visi įrašai)")),
         (ROLE_MEMBER, tr("Naudotojas (visi įrašai)")),
         (ROLE_RESTRICTED, tr("Naudotojas (tik savi įrašai)")),
         (ROLE_READONLY, tr("Skaitytojas (tik peržiūra)")),
@@ -129,15 +133,21 @@ class UserProfile(models.Model):
     VISIBILITY_ALL = "all"
     VISIBILITY_TEAM = "team"
     VISIBILITY_OWN = "own"
+    # The two the Regitra build runs on: a list is what you are working on, not
+    # what you own. See contacts/record_access.py.
+    VISIBILITY_TEAM_ACTIVE = "team_active"
+    VISIBILITY_OWN_ACTIVE = "own_active"
     VISIBILITY_CHOICES = (
         (VISIBILITY_ALL, tr("Visi įrašai")),
         (VISIBILITY_TEAM, tr("Tik komandos įrašai")),
         (VISIBILITY_OWN, tr("Tik savo įrašai")),
+        (VISIBILITY_TEAM_ACTIVE, tr("Tik komandos aktyvūs įrašai")),
+        (VISIBILITY_OWN_ACTIVE, tr("Tik savo aktyvūs įrašai")),
     )
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="crm_profile")
     role = models.CharField(max_length=12, choices=ROLE_CHOICES, default=ROLE_MEMBER)
-    record_visibility = models.CharField(max_length=8, choices=VISIBILITY_CHOICES, default=VISIBILITY_ALL)
+    record_visibility = models.CharField(max_length=12, choices=VISIBILITY_CHOICES, default=VISIBILITY_ALL)
     language = models.CharField(max_length=5, choices=(("lt", "Lietuvių"), ("en", "English")), default="lt")
     timezone = models.CharField(max_length=64, default="Europe/Vilnius")
     avatar = models.FileField(upload_to="avatars/%Y/%m/", blank=True)

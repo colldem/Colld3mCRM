@@ -325,6 +325,8 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .team-members{border:1px solid var(--border);border-radius:8px;padding:8px 10px}
 .team-members legend{font-weight:600;padding:0 4px}
 .team-members-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 12px}
+/* A line of explanation above a group of tick boxes. */
+.team-members .field-hint{max-width:72ch;margin:0 0 8px;color:var(--muted);font-size:var(--fs-xs);line-height:1.45}
 .team-members-grid label{display:flex;align-items:center;gap:8px;font-weight:400}
 .team-row-actions{display:flex;gap:8px;flex-wrap:wrap}
 .reminder-popover{z-index:1045;max-width:calc(100vw - 24px)}
