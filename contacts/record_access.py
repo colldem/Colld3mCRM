@@ -80,18 +80,71 @@ def touch(user, record):
     return access
 
 
+def assignable_users(actor):
+    """The people `actor` may put a record in front of.
+
+    An admin or a manager may hand work to anyone; a team lead only to the
+    teams they lead, which is the whole of what leading one gives them here.
+    Nobody else may assign at all, and the empty queryset says so.
+    """
+    from django.contrib.auth import get_user_model
+
+    from .models import Team, UserProfile
+    from .permissions import is_admin, role_of
+
+    User = get_user_model()
+    if not getattr(actor, "is_authenticated", False):
+        return User.objects.none()
+    everyone = User.objects.filter(is_active=True).order_by("first_name", "last_name", "username")
+    if is_admin(actor) or role_of(actor) == UserProfile.ROLE_MANAGER:
+        return everyone
+    led = Team.objects.filter(leads=actor)
+    if not led.exists():
+        return User.objects.none()
+    return everyone.filter(crm_teams__in=led).distinct()
+
+
+def assign(actor, target, record, purpose, note=""):
+    """Put `record` in `target`'s list on `actor`'s say-so."""
+    return grant(target, record, purpose, source=RecordAccess.SOURCE_ASSIGNED, note=note,
+                 granted_by=actor)
+
+
+def end(access, now=None):
+    """Close an access early. The row stays; only the lease ends."""
+    access.ended_at = now or timezone.now()
+    access.save(update_fields=["ended_at"])
+    return access
+
+
+def live_on(record, now=None):
+    """Who currently has this record in their list, and why."""
+    rows = RecordAccess.objects.filter(_record_q(record), ended_at__isnull=True)
+    return (_still_live(rows, rows.values_list("user_id", flat=True), now)
+            .select_related("user", "granted_by").order_by("-created_at"))
+
+
 def live_for(users, now=None):
     """`RecordAccess` rows that still put a record in someone's list.
 
     A lease that has run out still counts while a reminder assigned to that
     same user is open on the same record — the work is evidently not over.
     """
-    now = now or timezone.now()
     given = users if isinstance(users, (set, list, tuple, frozenset)) else [users]
     # Callers pass users or their ids; everything below works in ids.
     ids = [getattr(user, "pk", user) for user in given]
     rows = RecordAccess.objects.filter(user_id__in=ids, ended_at__isnull=True)
-    kept = _may_keep_with_reminder(ids)
+    return _still_live(rows, ids, now)
+
+
+def _still_live(rows, candidate_ids, now=None):
+    """Of `rows`, the ones whose lease has not run out.
+
+    `candidate_ids` are the users those rows belong to: whether a reminder may
+    hold a record past its lease is decided per role, one user at a time.
+    """
+    now = now or timezone.now()
+    kept = _may_keep_with_reminder(candidate_ids)
     live = Q(expires_at__gt=now)
     if kept:
         live |= Q(user_id__in=kept) & _kept_by_reminder(now)

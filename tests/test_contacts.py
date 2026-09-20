@@ -8137,3 +8137,94 @@ class RecordSearchPageTests(TestCase):
         response = self.client.post(self.url, {"q": "302000123", "purpose": "inbound"})
         self.assertRedirects(response, company.get_absolute_url())
         self.assertTrue(RecordAccess.objects.filter(user=self.user, company=company).exists())
+
+
+class RecordAssignmentTests(TestCase):
+    """A lead puts a record in one of their people's lists, and can take it back."""
+
+    def setUp(self):
+        from contacts.models import Team, UserProfile
+
+        self.lead = self._user("vadovas", UserProfile.VISIBILITY_TEAM_ACTIVE)
+        self.clerk = self._user("vadybininkas", UserProfile.VISIBILITY_OWN_ACTIVE)
+        self.outsider = self._user("kito-skyriaus", UserProfile.VISIBILITY_OWN_ACTIVE)
+        team = Team.objects.create(name="TPR skyrius")
+        team.members.add(self.lead, self.clerk)
+        team.leads.add(self.lead)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis")
+        self.url = reverse("contacts:record-assign", args=["person", self.person.pk])
+
+    def _user(self, username, visibility, role=None):
+        from contacts.models import UserProfile
+
+        user = get_user_model().objects.create_user(username, password="very-secure-password")
+        UserProfile.objects.create(user=user, role=role or UserProfile.ROLE_MEMBER,
+                                   record_visibility=visibility)
+        return user
+
+    def test_a_lead_can_assign_within_their_team_and_nowhere_else(self):
+        from contacts.models import RecordAccess
+        from contacts.record_access import accessible_person_ids
+
+        self.client.force_login(self.lead)
+        response = self.client.post(self.url, {"user": self.clerk.pk, "purpose": "documents",
+                                               "note": "Perimk bylą"})
+        self.assertRedirects(response, self.person.get_absolute_url())
+        access = RecordAccess.objects.get(user=self.clerk, person=self.person)
+        self.assertEqual((access.source, access.granted_by, access.note),
+                         (RecordAccess.SOURCE_ASSIGNED, self.lead, "Perimk bylą"))
+        self.assertEqual(set(accessible_person_ids(self.clerk)), {self.person.pk})
+
+        self.client.post(self.url, {"user": self.outsider.pk, "purpose": "documents"})
+        self.assertFalse(RecordAccess.objects.filter(user=self.outsider).exists())
+
+    def test_someone_who_leads_nothing_cannot_assign(self):
+        from contacts.models import RecordAccess
+
+        self.client.force_login(self.clerk)
+        response = self.client.post(self.url, {"user": self.lead.pk, "purpose": "call"})
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(RecordAccess.objects.exists())
+
+    def test_the_panel_is_only_shown_to_someone_who_may_assign(self):
+        from contacts.record_access import grant
+
+        grant(self.clerk, self.person, "call", note="Skambutis 14:20")
+        self.client.force_login(self.lead)
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        self.assertIn("Kas dirba su šiuo įrašu", page)
+        self.assertIn("Skambutis 14:20", page)
+        self.assertIn("Priskirti darbuotojui", page)
+
+        self.client.force_login(self.clerk)
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        self.assertNotIn("Kas dirba su šiuo įrašu", page)
+
+    def test_access_can_be_withdrawn_by_the_lead_or_given_up_by_its_owner(self):
+        from contacts.models import RecordAccess
+        from contacts.record_access import accessible_person_ids, grant
+
+        access = grant(self.clerk, self.person, "call")
+        url = reverse("contacts:record-access-end", args=[access.pk])
+
+        # An unrelated colleague may not touch it.
+        self.client.force_login(self.outsider)
+        self.client.post(url)
+        self.assertEqual(set(accessible_person_ids(self.clerk)), {self.person.pk})
+
+        self.client.force_login(self.lead)
+        self.assertEqual(self.client.post(url).status_code, 302)
+        self.assertEqual(set(accessible_person_ids(self.clerk)), set())
+        # The row stays: the log of who held it, and why, is the point.
+        access.refresh_from_db()
+        self.assertIsNotNone(access.ended_at)
+        self.assertEqual(access.purpose, "call")
+        self.assertEqual(RecordAccess.objects.count(), 1)
+
+    def test_giving_up_your_own_access_returns_you_to_the_search(self):
+        from contacts.record_access import grant
+
+        access = grant(self.clerk, self.person, "call")
+        self.client.force_login(self.clerk)
+        response = self.client.post(reverse("contacts:record-access-end", args=[access.pk]))
+        self.assertRedirects(response, reverse("contacts:record-search"))

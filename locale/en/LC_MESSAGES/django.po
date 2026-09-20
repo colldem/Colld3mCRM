@@ -4246,3 +4246,42 @@ msgstr "Assigned by a lead"
 
 msgid "Kita"
 msgstr "Other"
+
+msgid "Kas dirba su šiuo įrašu"
+msgstr "Who is working on this record"
+
+msgid "Su šiuo įrašu niekas nedirba."
+msgstr "Nobody is working on this record."
+
+msgid "Priskirti darbuotojui"
+msgstr "Assign to someone"
+
+msgid "Darbuotojas"
+msgstr "Person"
+
+msgid "Kodėl priskiriate"
+msgstr "Why you are assigning it"
+
+msgid "Nutraukti"
+msgstr "End access"
+
+msgid "Nutraukti šią prieigą?"
+msgstr "End this access?"
+
+msgid "Neturite teisės priskirti šiam darbuotojui."
+msgstr "You may not assign records to that person."
+
+msgid "Pasirinkite, kodėl priskiriate įrašą."
+msgstr "Choose why you are assigning the record."
+
+msgid "Įrašas priskirtas."
+msgstr "Record assigned."
+
+msgid "Neturite teisės nutraukti šios prieigos."
+msgstr "You may not end that access."
+
+msgid "Prieiga nutraukta."
+msgstr "Access ended."
+
+msgid "priskirta"
+msgstr "assigned"

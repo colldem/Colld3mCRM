@@ -168,6 +168,46 @@
       </div>
     </details>
 
+    {% comment %}Who has this record open, and a way for a lead to put it in
+    one of their people's lists. Only shown to someone who may assign.{% endcomment %}
+    {% if assignable_users %}
+      <section class="detail-card org-card rec-access">
+        <h2>{% translate 'Kas dirba su šiuo įrašu' %}</h2>
+        <ul class="rec-access-list">
+          {% for access in access_rows %}
+            <li>
+              <b>{{ access.user.get_full_name|default:access.user.username }}</b>
+              <small>{{ access.get_purpose_display }}{% if access.note %} · {{ access.note }}{% endif %}
+                · {% blocktranslate with until=access.expires_at|date:"m-d H:i" %}iki {{ until }}{% endblocktranslate %}
+                {% if access.granted_by %} · {% blocktranslate with who=access.granted_by.get_full_name|default:access.granted_by.username %}priskyrė {{ who }}{% endblocktranslate %}{% endif %}</small>
+              <form method="post" action="{% url 'contacts:record-access-end' access.pk %}">{% csrf_token %}
+                <button type="submit" data-confirm="{% translate 'Nutraukti šią prieigą?' %}">{% translate 'Nutraukti' %}</button>
+              </form>
+            </li>
+          {% empty %}<li class="muted">{% translate 'Su šiuo įrašu niekas nedirba.' %}</li>{% endfor %}
+        </ul>
+        <details class="rec-assign">
+          <summary>{% translate 'Priskirti darbuotojui' %}</summary>
+          <form method="post" class="stack-form" action="{% url 'contacts:record-assign' inline_kind record.pk %}">{% csrf_token %}
+            <label for="ra-user">{% translate 'Darbuotojas' %}
+              <select id="ra-user" name="user" required>
+                {% for user in assignable_users %}<option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>{% endfor %}
+              </select>
+            </label>
+            <label for="ra-purpose">{% translate 'Kodėl priskiriate' %}
+              <select id="ra-purpose" name="purpose" required>
+                {% for value, label in access_purposes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+              </select>
+            </label>
+            <label for="ra-note">{% translate 'Komentaras' %}
+              <input id="ra-note" name="note" maxlength="200">
+            </label>
+            <div><button class="btn primary" type="submit">{% translate 'Priskirti' %}</button></div>
+          </form>
+        </details>
+      </section>
+    {% endif %}
+
     <section class="detail-card meta-card">
       <h2 class="sr-only">{% translate 'Įrašo informacija' %}</h2>
       <dl class="aside-meta">

@@ -36,8 +36,11 @@ pasirenka pagrindą iš sąrašo (skambutis klientui, kliento kreipimasis, vidin
 patikrinimas, skundo nagrinėjimas, dokumentų tvarkymas, kita) ir, jei nori,
 prirašo komentarą. Radus — įrašas atsiranda jo sąraše.
 
-**2. Priskyrimas.** Komandos vadovas arba administratorius gali įdėti įrašą į
-darbuotojo sąrašą. Paieškos tam nereikia; užfiksuojama, kas priskyrė.
+**2. Priskyrimas.** Komandos vadovas, administratorius arba vadovas (manager)
+įrašo kortelėje mato, kas su juo dirba, ir gali įdėti jį į darbuotojo sąrašą.
+Paieškos tam nereikia; užfiksuojama, kas priskyrė. Komandos vadovas gali
+priskirti tik savo komandų nariams — kitiems adresas grąžina 404. Prieigą
+galima nutraukti anksčiau laiko: eilutė lieka, baigiasi tik terminas.
 
 **3. Priminimas.** Jei naudotojui priskirtas neužbaigtas priminimas ant įrašo,
 įrašas jo sąraše yra tol, kol priminimas atviras.
