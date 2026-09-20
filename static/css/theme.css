@@ -225,6 +225,13 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .contact-line-copy:hover{background:var(--soft)}
 .contact-line-copy.copied{background:var(--soft);border-color:var(--navy-950);color:var(--navy-950)}
 
+/* Covered asmens kodas: the value and the button that asks the server for it. */
+.pc-covered{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.pc-covered [data-covered]{font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.pc-reveal{padding:1px 8px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:var(--fs-2xs);line-height:1.6;cursor:pointer}
+.pc-reveal:hover{background:var(--soft);color:var(--navy-950)}
+.pc-reveal:disabled{opacity:.6;cursor:default}
+
 /* Job title in the subtitle — inline editable, no label or border chrome */
 .subtitle-field{display:inline-block}
 /* Outside .record-detail, so the shared field border has to be cleared here too. */

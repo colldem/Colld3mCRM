@@ -7745,16 +7745,57 @@ class PersonalCodeTests(TestCase):
         self.person.refresh_from_db()
         self.assertEqual(self.person.personal_code, self.VALID)
 
-    def test_the_code_is_shown_on_the_card_and_found_by_search(self):
+    def test_the_card_covers_the_code_and_search_still_finds_it(self):
         Person.objects.filter(pk=self.person.pk).update(personal_code=self.VALID)
         Person.objects.create(first_name="Ona", last_name="Kazlauskienė",
                               owner=self.user, personal_code=self.OTHER)
         page = self.client.get(self.person.get_absolute_url()).content.decode()
         self.assertIn("Asmens kodas", page)
-        self.assertIn(self.VALID, page)
+        self.assertIn("3890101****", page)
+        # Not in the displayed value, and not in the editor's input either.
+        self.assertNotIn(self.VALID, page)
 
         found = self.client.get(reverse("contacts:search"), {"q": self.VALID}).context["results"]["people"]
         self.assertEqual([person.pk for person in found], [self.person.pk])
+
+    def test_covering_keeps_the_last_four_digits_hidden(self):
+        from contacts.personal_code import cover
+
+        self.assertEqual(cover(self.VALID), "3890101****")
+        self.assertEqual(cover(""), "")
+        # Nothing shorter than the covered part may leak through as itself.
+        self.assertEqual(cover("123"), "***")
+
+    def test_uncovering_the_code_hands_it_over_and_writes_it_down(self):
+        from contacts.models import AuditLog
+
+        Person.objects.filter(pk=self.person.pk).update(personal_code=self.VALID)
+        url = reverse("contacts:personal-code-reveal", args=[self.person.pk])
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["value"], self.VALID)
+
+        entry = AuditLog.objects.filter(action=AuditLog.PERSONAL_CODE).get()
+        self.assertEqual(entry.actor, self.user)
+        self.assertEqual(entry.target_id, str(self.person.pk))
+        # The log says whose code was looked at, never what the code is.
+        self.assertNotIn(self.VALID, entry.new_value + entry.old_value + str(entry.detail))
+
+    def test_only_a_post_uncovers_a_code(self):
+        Person.objects.filter(pk=self.person.pk).update(personal_code=self.VALID)
+        url = reverse("contacts:personal-code-reveal", args=[self.person.pk])
+        self.assertEqual(self.client.get(url).status_code, 405)
+
+    def test_a_code_on_a_card_you_may_not_see_stays_covered(self):
+        from contacts.models import AuditLog, UserProfile
+
+        stranger = get_user_model().objects.create_user("svetimas", password="very-secure-password")
+        UserProfile.objects.create(user=stranger, record_visibility=UserProfile.VISIBILITY_OWN)
+        Person.objects.filter(pk=self.person.pk).update(personal_code=self.VALID)
+        self.client.force_login(stranger)
+        url = reverse("contacts:personal-code-reveal", args=[self.person.pk])
+        self.assertEqual(self.client.post(url).status_code, 404)
+        self.assertFalse(AuditLog.objects.filter(action=AuditLog.PERSONAL_CODE).exists())
 
 
 class DemoBlockTests(TestCase):

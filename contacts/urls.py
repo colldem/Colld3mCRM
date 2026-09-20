@@ -3,6 +3,7 @@ from django.urls import path
 from . import analytics_views, calendar_views, record_access_views, views
 from .inline_views import update_inline
 from .detail_editing import edit_contact_field, edit_company_field
+from .personal_code import personal_code_reveal
 from .reminder_live import reminder_snapshot
 
 
@@ -12,6 +13,7 @@ urlpatterns = [
     path("reminders/snapshot/", reminder_snapshot, name="reminder-snapshot"),
     path("companies/<int:pk>/field/", edit_company_field, name="company-field-edit"),
     path("contacts/<int:pk>/field/", edit_contact_field, name="field-edit"),
+    path("contacts/<int:pk>/asmens-kodas/", personal_code_reveal, name="personal-code-reveal"),
     path("inline/<str:kind>/<int:pk>/", update_inline, name="inline-update"),
     path("", analytics_views.dashboard, name="home"),
     path("analytics/", analytics_views.analytics_overview, name="analytics-overview"),

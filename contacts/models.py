@@ -746,6 +746,8 @@ class AuditLog(models.Model):
     LOGIN_FAILED = "login_failed"
     # Opening a record that the viewer's list did not already hold.
     ACCESS = "access"
+    # Uncovering one person's asmens kodas on their card.
+    PERSONAL_CODE = "personal_code"
     ACTION_CHOICES = (
         (CREATE, tr("Sukūrimas")),
         (UPDATE, tr("Keitimas")),
@@ -760,6 +762,7 @@ class AuditLog(models.Model):
         (LOGOUT, tr("Atsijungimas")),
         (LOGIN_FAILED, tr("Nepavykęs prisijungimas")),
         (ACCESS, tr("Prieiga prie įrašo")),
+        (PERSONAL_CODE, tr("Asmens kodo peržiūra")),
     )
 
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_entries")

@@ -83,6 +83,8 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   sąlyčio taškas; `register_block`, žr. `docs/REGITRA-INTEGRACIJA.md`);
   `record_blocks_demo.py` — tų blokų pavyzdiniai duomenys (`CRM_DEMO_BLOCKS=1`,
   tik ne produkcijoje); `validators.py` — asmens kodo tikrinimas;
+  `personal_code.py` — asmens kodo uždengimas kortelėje (`cover`) ir atidengimas
+  su įrašu žurnale (`AuditLog.PERSONAL_CODE`);
   `menu.py` — asmeninė šoninė juosta (branduolys / naudotojo nuorodos / „Daugiau“ klostė;
   konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);

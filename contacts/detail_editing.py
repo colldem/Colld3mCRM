@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from .models import AuditLog, Company, DuplicateSettings, Person, PersonCompanyLink, PhoneNumber, EmailAddress, PostalAddress, WebLink
 from .forms import CompanyForm
+from .personal_code import cover
 from .permissions import has_capability, user_label as _user_label, visible_companies, visible_people
 from .sanitizers import safe_url
 from .duplicates import find_company_duplicates, find_person_duplicates
@@ -77,12 +78,17 @@ FIELD_KINDS = {"description": "textarea"}
 def _scalar_context(record, field, label):
     """Field context for a plain model attribute, with a `kind` the editor branches on."""
     value = getattr(record, field)
+    # The asmens kodas is never written into the page in full — not in the
+    # displayed value and not in the editor's input. Both are filled in by the
+    # reveal endpoint, which logs who asked.
+    covered = field == "personal_code" and bool(value)
     context = {
         "field": field,
         "label": label,
         "kind": FIELD_KINDS.get(field, "text"),
-        "value": value or "",
-        "entries": [{"text": value}] if value else [],
+        "value": "" if covered else (value or ""),
+        "entries": [{"text": cover(value)}] if covered else ([{"text": value}] if value else []),
+        "covered": covered,
     }
     context["person" if isinstance(record, Person) else "company"] = record
     return context

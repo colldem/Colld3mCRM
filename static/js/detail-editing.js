@@ -1,11 +1,50 @@
+// Asmens kodas is served covered. Uncovering it is a request to the server, so
+// that every look at somebody's code leaves a line in the audit log.
+async function revealValue(block) {
+  const response = await fetch(block.dataset.revealUrl, {
+    method: 'POST', headers: {'X-CSRFToken': block.dataset.csrf || ''},
+  });
+  if (!response.ok) throw new Error(gettext('Nepavyko parodyti reikšmės.'));
+  return (await response.json()).value;
+}
+
+function bindCoveredValue(block, display) {
+  const button = display?.querySelector('.pc-reveal');
+  if (!button) return;
+  button.addEventListener('click', async event => {
+    // The display opens the editor on click; uncovering must not also do that.
+    event.stopPropagation();
+    button.disabled = true;
+    try {
+      const value = await revealValue(block);
+      display.querySelector('[data-covered]').textContent = value;
+      const copy = block.closest('.contact-line')?.querySelector('.copy-value');
+      if (copy) copy.dataset.copy = value;
+      button.remove();
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = error.message;
+    }
+  });
+  button.addEventListener('dblclick', event => event.stopPropagation());
+}
+
 function bindDetailField(block) {
   const display = block.querySelector('.field-display');
   const form = block.querySelector('.field-editor');
+  bindCoveredValue(block, display);
   if (!form) return;  // read-only role: no editor rendered
   const status = form.querySelector('[role=status]');
   let linkTimer;
-  const open = () => {
+  const open = async () => {
     clearTimeout(linkTimer);
+    // A covered field is not in the page, so editing it starts by asking for it
+    // — which is logged, exactly as pressing „Rodyti“ would be.
+    const input = form.querySelector('input[name=value]');
+    if (block.dataset.revealUrl && input && !input.value) {
+      try { input.value = await revealValue(block); }
+      catch (error) { status.textContent = error.message; return; }
+    }
     display.hidden = true; form.hidden = false;
     form.querySelector('input:not([type=hidden]):not(:disabled),textarea,button')?.focus();
   };

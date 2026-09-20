@@ -4285,3 +4285,11 @@ msgstr "Access ended."
 
 msgid "priskirta"
 msgstr "assigned"
+
+#: templates/contacts/detail_field.html
+msgid "Rodyti asmens kodą"
+msgstr "Show the personal code"
+
+#: contacts/models.py
+msgid "Asmens kodo peržiūra"
+msgstr "Personal code viewed"

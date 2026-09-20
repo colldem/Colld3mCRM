@@ -64,3 +64,7 @@ msgstr "No file chosen"
 #: static/js/forms.js
 msgid "Failai nepasirinkti"
 msgstr "No files chosen"
+
+#: static/js/detail-editing.js
+msgid "Nepavyko parodyti reikšmės."
+msgstr "The value could not be shown."

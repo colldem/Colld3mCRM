@@ -1,8 +1,8 @@
 {% load i18n %}
-<div class="detail-field" data-field="{{ item.field }}">
+<div class="detail-field" data-field="{{ item.field }}"{% if item.covered %} data-reveal-url="{% url 'contacts:personal-code-reveal' item.person.pk %}" data-csrf="{{ csrf_token }}"{% endif %}>
   <div class="field-display" tabindex="0" role="group" aria-label="{% translate item.label %}: {% translate 'dukart spustelėkite redaguoti' %}">
     <strong>{% translate item.label %}</strong>
-    <div class="field-values">{% for entry in item.entries %}<div>{% if entry.href %}<a href="{{ entry.href }}"{% if item.field == 'web_links' or item.field == 'url' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ entry.text }}</a>{% else %}{{ entry.text|default:"-" }}{% endif %}</div>{% empty %}<span>{% translate 'Nepriskirta' %}</span>{% endfor %}</div>
+    <div class="field-values">{% if item.covered %}<div class="pc-covered"><span data-covered>{{ item.entries.0.text }}</span><button type="button" class="pc-reveal" aria-label="{% translate 'Rodyti asmens kodą' %}">{% translate 'Rodyti' %}</button></div>{% else %}{% for entry in item.entries %}<div>{% if entry.href %}<a href="{{ entry.href }}"{% if item.field == 'web_links' or item.field == 'url' %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ entry.text }}</a>{% else %}{{ entry.text|default:"-" }}{% endif %}</div>{% empty %}<span>{% translate 'Nepriskirta' %}</span>{% endfor %}{% endif %}</div>
   </div>
   {% if crm_caps.can_edit %}<form class="field-editor" method="post" action="{% if item.company %}{% url 'contacts:company-field-edit' item.company.pk %}{% else %}{% url 'contacts:field-edit' item.person.pk %}{% endif %}" hidden>
     {% csrf_token %}<input type="hidden" name="field" value="{{ item.field }}">

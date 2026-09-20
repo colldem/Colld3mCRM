@@ -73,6 +73,22 @@ ji atsirado (paieška / priskyrimas / priminimas), kas priskyrė, kada baigėsi.
 Tai ir yra atsakomybės mechanizmas — ne draudimas atverti, o tai, kad kiekvienas
 atvėrimas turi vardą ir priežastį.
 
+## Asmens kodas
+
+Kortelėje jis rodomas uždengtas — `3890101****`. Visą reikšmę atiduoda tik
+`POST /kontaktai/<pk>/asmens-kodas/` (`contacts/personal_code.py`), ir kiekvienas
+toks atidavimas įrašomas į žurnalą kaip „Asmens kodo peržiūra" su peržiūrėtojo
+vardu ir asmeniu, kurio kodas žiūrėtas. Paties kodo žurnale nėra.
+
+Uždengta ir kortelės HTML: nei rodomoje reikšmėje, nei redagavimo laukelyje
+tikro kodo nėra, todėl jo nepamatysi nei puslapio šaltinyje, nei atsitiktinai
+per petį. Redaguojant laukas pirma užklausia serverio — taigi ir redagavimas
+lieka žurnale.
+
+Kas gali peržiūrėti: tas, kas mato tą kortelę. Atskiros teisės nėra sąmoningai —
+klientų aptarnavimo specialistui kodas reikalingas kasdien, tad ribojimas
+trukdytų, o atsakomybę sukuria žurnalas.
+
 ## Ko šis modelis nedaro
 
 Jis neriboja, kiek įrašų galima atsiverti, ir netikrina, ar pagrindas teisingas.
