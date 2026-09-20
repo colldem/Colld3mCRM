@@ -5487,6 +5487,42 @@ class ApiTests(TestCase):
         self.assertEqual(ok.status_code, 201)
         self.assertEqual(ok.json()["assigned_to_id"], self.owner.pk)
 
+    def test_the_api_carries_the_whole_event_both_ways(self):
+        """A meeting made over the API has to come back as a meeting: kind, its
+        description and the joining link, not just a line of text and a date."""
+        body = {"text": "Susitikimas", "kind": "meeting", "due_at": "2030-01-01T10:00:00Z",
+                "end_at": "2030-01-01T11:00:00Z", "description": "Dienotvarkė",
+                "meeting_url": "https://meet.example.lt/abc"}
+        created = self._post_json(reverse("api:reminders"), body, self.raw_write_token)
+        self.assertEqual(created.status_code, 201)
+        payload = created.json()
+        self.assertEqual(payload["kind"], "meeting")
+        self.assertEqual(payload["description"], "Dienotvarkė")
+        self.assertEqual(payload["meeting_url"], "https://meet.example.lt/abc")
+        self.assertEqual(payload["end_at"][:16], "2030-01-01T11:00")
+
+        listed = self.client.get(reverse("api:reminders"), **self._auth(self.raw_read_token)).json()
+        self.assertEqual([r["kind"] for r in listed["results"]], ["meeting"])
+
+    def test_a_joining_link_belongs_to_a_meeting_and_an_end_cannot_precede_the_start(self):
+        call = self._post_json(reverse("api:reminders"),
+                               {"text": "Skambutis", "kind": "call", "due_at": "2030-01-01T10:00:00Z",
+                                "meeting_url": "https://meet.example.lt/abc"}, self.raw_write_token)
+        self.assertEqual(call.status_code, 201)
+        self.assertEqual(call.json()["meeting_url"], "")
+
+        backwards = self._post_json(reverse("api:reminders"),
+                                    {"text": "Atbulas", "due_at": "2030-01-01T10:00:00Z",
+                                     "end_at": "2030-01-01T09:00:00Z"}, self.raw_write_token)
+        self.assertEqual(backwards.status_code, 400)
+
+    def test_an_unknown_kind_falls_back_to_a_plain_reminder(self):
+        response = self._post_json(reverse("api:reminders"),
+                                   {"text": "Kažkas", "kind": "šventė", "due_at": "2030-01-01T10:00:00Z"},
+                                   self.raw_write_token)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["kind"], "reminder")
+
     # --- pagination -----------------------------------------------------------
 
     def test_pagination_limit_is_capped_and_offset_is_respected(self):
@@ -7458,10 +7494,44 @@ class PostgresReportingRoleTests(TransactionTestCase):
             with self.assertRaises((psycopg.errors.ReadOnlySqlTransaction, psycopg.errors.InsufficientPrivilege)):
                 conn.execute("DELETE FROM reporting.tags")
 
+    def test_the_reminder_view_carries_the_event_shape_but_no_free_text(self):
+        from io import StringIO
+        from django.core.management import call_command
+        with patch.dict(os.environ, {"REPORTING_PASSWORD": self.PASSWORD}):
+            call_command("create_reporting_role", "--name", self.ROLE, stdout=StringIO())
+        with self.connect_as_role() as conn:
+            columns = [d.name for d in conn.execute("SELECT * FROM reporting.reminders LIMIT 0").description]
+        self.assertIn("kind", columns)
+        self.assertIn("end_at", columns)
+        for free_text in ("text", "description", "meeting_url"):
+            self.assertNotIn(free_text, columns)
+
     def test_weak_password_is_refused(self):
         from django.core.management import CommandError, call_command
         with patch.dict(os.environ, {"REPORTING_PASSWORD": "short"}), self.assertRaises(CommandError):
             call_command("create_reporting_role", "--name", self.ROLE)
+
+
+class ReportingViewDefinitionTests(TestCase):
+    """The reporting SQL is checked here too, because the role tests above only
+    run where PostgreSQL does — on SQLite they skip, and a wrong view would then
+    reach the warehouse unnoticed."""
+
+    def test_the_reminder_view_adds_the_event_columns_and_keeps_text_out(self):
+        import importlib
+        import pkgutil
+
+        from contacts import migrations
+
+        # Found by suffix: this branch numbers its migrations differently, and a
+        # hard-coded number would only break on the next cherry-pick.
+        name = next(module.name for module in pkgutil.iter_modules(migrations.__path__)
+                    if module.name.endswith("_reporting_reminder_kind"))
+        sql = importlib.import_module("contacts.migrations." + name).REMINDERS.lower()
+        for column in ("kind", "end_at", "due_at", "completed_at"):
+            self.assertIn(column, sql)
+        for free_text in (" text", "description", "meeting_url"):
+            self.assertNotIn(free_text, sql)
 
 
 class TranslationStorageTests(TestCase):

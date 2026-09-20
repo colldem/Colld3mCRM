@@ -25,6 +25,10 @@ galiojimo terminą.
 - Endpoint'ai: `GET /me`; `GET/POST /contacts`, `GET/PATCH/DELETE /contacts/<id>`
   (DELETE = archyvavimas); tas pats `/companies`; `GET/POST /activities`;
   `GET/POST /reminders`. Puslapiavimas `?limit` (≤100) ir `?offset`, `X-Total-Count`.
+- Priminimas API'je yra kalendoriaus įvykis: `kind` (`reminder` / `call` / `meeting`),
+  `description`, `meeting_url` ir `end_at` — ir skaitant, ir kuriant. Nežinomas
+  `kind` tampa `reminder`, `meeting_url` išsaugomas tik susitikimui, o `end_at`
+  anksčiau už `due_at` atmetamas (400).
 - Kiekvienai integracijai — **atskiras raktas** su aiškiu pavadinimu (pvz.
   „Svetainės forma"), minimaliu scope ir trumpiausiu tinkamu galiojimu. Raktas
   veikia su jį sukūrusio naudotojo teisėmis, todėl integracijoms verta sukurti
@@ -46,7 +50,7 @@ CRM duomenų bazėje (PostgreSQL) yra schema `reporting` su rodiniais:
 | `reporting.companies` | id, name, company_code, vat_code, city, owner_id, created_by_id, created_at, updated_at, archived_at |
 | `reporting.person_companies` | person_id, company_id, role, is_primary |
 | `reporting.activities` | id, person_id, company_id, activity_type, created_by_id, created_at, archived_at |
-| `reporting.reminders` | id, person_id, company_id, due_at, completed_at, priority, created_by_id, assigned_to_id, created_at, archived_at |
+| `reporting.reminders` | id, person_id, company_id, kind, due_at, end_at, completed_at, priority, created_by_id, assigned_to_id, created_at, archived_at |
 | `reporting.tags`, `person_tags`, `company_tags` | žymos ir jų ryšiai |
 | `reporting.categories`, `person_categories`, `company_categories` | kategorijos ir jų ryšiai |
 | `reporting.users` | id, username, first_name, last_name, is_active, role |

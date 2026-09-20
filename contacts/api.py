@@ -204,7 +204,9 @@ def serialize_activity(a):
 
 def serialize_reminder(r):
     return {
-        "id": r.pk, "type": "reminder", "text": r.text, "priority": r.priority,
+        "id": r.pk, "type": "reminder", "kind": r.kind, "text": r.text,
+        "description": r.description, "meeting_url": r.meeting_url,
+        "priority": r.priority,
         "due_at": r.due_at.isoformat() if r.due_at else None,
         "end_at": r.end_at.isoformat() if r.end_at else None,
         "completed_at": r.completed_at.isoformat() if r.completed_at else None,
@@ -491,8 +493,16 @@ def reminders_collection(request, token):
         if not (data.get("text") or "").strip() or due_at is None:
             raise ApiError(400, "text and a valid ISO due_at are required")
         priority = data.get("priority") if data.get("priority") in {p[0] for p in Reminder.PRIORITY_CHOICES} else Reminder.PRIORITY_NORMAL
+        kind = data.get("kind") if data.get("kind") in dict(Reminder.KIND_CHOICES) else Reminder.KIND_REMINDER
+        end_at = parse_datetime(data.get("end_at") or "") if data.get("end_at") else None
+        if end_at is not None and end_at < due_at:
+            raise ApiError(400, "end_at cannot be before due_at")
         reminder = Reminder.objects.create(
             person=person, company=company, text=str(data["text"])[:500], due_at=due_at,
+            end_at=end_at, kind=kind,
+            description=str(data.get("description") or "")[:5000],
+            # A joining link belongs to a meeting, exactly as in the calendar.
+            meeting_url=(str(data.get("meeting_url") or "")[:500] if kind == Reminder.KIND_MEETING else ""),
             priority=priority, created_by=token.created_by,
             assigned_to=_assignable_user(token.created_by, data.get("assigned_to_id")) or token.created_by)
         _audit(token, AuditLog.CREATE, person or company or reminder, field="API reminder", new=reminder.text[:150])
