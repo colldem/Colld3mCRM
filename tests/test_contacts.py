@@ -7460,9 +7460,15 @@ class ReportingViewDefinitionTests(TestCase):
 
     def test_the_reminder_view_adds_the_event_columns_and_keeps_text_out(self):
         import importlib
+        import pkgutil
 
-        migration = importlib.import_module("contacts.migrations.0055_reporting_reminder_kind")
-        sql = migration.REMINDERS.lower()
+        from contacts import migrations
+
+        # Found by suffix: the regitra branch numbers its migrations differently,
+        # and a hard-coded number would only break on the next cherry-pick.
+        name = next(module.name for module in pkgutil.iter_modules(migrations.__path__)
+                    if module.name.endswith("_reporting_reminder_kind"))
+        sql = importlib.import_module("contacts.migrations." + name).REMINDERS.lower()
         for column in ("kind", "end_at", "due_at", "completed_at"):
             self.assertIn(column, sql)
         for free_text in (" text", "description", "meeting_url"):
