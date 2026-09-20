@@ -2,8 +2,12 @@
 # Refresh staging with a fresh copy of the production database.
 #
 # Run by hand on the NAS when you want staging to match production again:
-#   CRM_APP_DIR=/opt/crm CRM_STAGING_DIR=/opt/crm-staging \
-#     sh /opt/crm-staging/scripts/refresh-staging.sh [--with-media]
+#   CRM_APP_DIR=/volume1/docker/crm CRM_STAGING_DIR=/volume1/docker/crm-staging \
+#     sh /volume1/docker/crm-staging/scripts/refresh-staging.sh [--with-media]
+#
+# The Regitra staging instance is refreshed the same way, only pointed elsewhere:
+#   CRM_APP_DIR=/volume1/docker/crm CRM_STAGING_DIR=/volume1/docker/crm-regitra-staging \
+#     sh /volume1/docker/crm-regitra-staging/scripts/refresh-staging.sh
 #
 # Reads production, writes only staging. The production stack is never modified:
 # the only thing done there is a read-only pg_dump.
@@ -51,7 +55,12 @@ $PROD_COMPOSE exec -T crm-db pg_dump -U crm -d crm -Fc < /dev/null \
 $STAGING_COMPOSE up -d
 ok=""
 for _ in $(seq 1 30); do
-  [ "$(docker inspect --format '{{.State.Health.Status}}' crm-staging-crm-web-1 2>/dev/null)" = "healthy" ] && { ok=1; break; }
+  # Asked through compose, so this works for every staging instance: the
+  # container name carries the project name, which differs per overlay.
+  cid="$($STAGING_COMPOSE ps -q crm-web 2>/dev/null)"
+  [ -n "$cid" ] \
+    && [ "$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null)" = "healthy" ] \
+    && { ok=1; break; }
   sleep 3
 done
 [ -n "$ok" ] || { echo "FATAL: staging crm-web did not become healthy"; exit 1; }

@@ -125,8 +125,17 @@ cd /volume1/docker/crm-regitra-staging
 docker compose build --pull && docker compose up -d
 ```
 
-**5. Duomenys.** `scripts/refresh-staging.sh` nukopijuoja produkcijos bazę;
-paleiskite jį nurodę šį katalogą. Po kopijavimo — `manage.py sanitize_staging`.
+**5. Duomenys.** `scripts/refresh-staging.sh` nukopijuoja produkcijos bazę ir
+pats paleidžia `manage.py sanitize_staging`. Nurodykite šį katalogą:
+
+```bash
+CRM_APP_DIR=/volume1/docker/crm \
+CRM_STAGING_DIR=/volume1/docker/crm-regitra-staging \
+  sh /volume1/docker/crm-regitra-staging/scripts/refresh-staging.sh
+```
+
+Skriptas atsisako dirbti, jei nurodytas katalogas nėra staging
+(`CRM_ENVIRONMENT=staging`), o produkcijoje tik skaito (`pg_dump`).
 
 ## Ko tikėtis
 
