@@ -75,8 +75,9 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
   `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
-  `record_access.py` — kam, kokiu pagrindu ir kiek laiko įrašas yra sąraše
-  (`RecordAccess`, `grant` / `touch` / `take_into_work` / `live_for`; žr.
+  `record_access.py` + `record_access_views.py` — kam, kokiu pagrindu ir kiek laiko
+  įrašas yra sąraše, ir paieškos su pagrindu puslapis (`/paieska/`)
+  (`RecordAccess`, `grant` / `touch` / `take_into_work` / `live_for` / `find`; žr.
   `docs/REGITRA-PRIEIGA.md`);
   `record_blocks.py` — kortelės vidurinės kolonos blokai (Regitros integracijos
   sąlyčio taškas; `register_block`, žr. `docs/REGITRA-INTEGRACIJA.md`);

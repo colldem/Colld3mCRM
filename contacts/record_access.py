@@ -133,21 +133,24 @@ def accessible_company_ids(users, now=None):
     return live_for(users, now).filter(company__isnull=False).values_list("company_id", flat=True)
 
 
-def find(query, user=None):
+def find(query):
     """The one record a purposeful search turns up, or None.
 
-    A personal code matches exactly and is the way the desk is meant to search;
-    a name matches only when it picks out a single person, because a list of
-    candidates is the browsing this build is built to avoid.
+    A code — a personal code, or a company's registration code — matches
+    exactly, and that is how the desk is meant to search. A name matches only
+    when it picks out exactly one record, because a list of candidates is the
+    browsing this build exists to avoid.
     """
     query = (query or "").strip()
     if len(query) < 3:
         return None
     people = Person.objects.filter(deleted_at__isnull=True)
+    companies = Company.objects.filter(deleted_at__isnull=True)
     if query.isdigit():
-        return people.filter(personal_code=query).first()
-    terms = query.split()
-    for term in terms:
+        return (people.filter(personal_code=query).first()
+                or companies.filter(company_code=query).first())
+    for term in query.split():
         people = people.filter(Q(first_name__icontains=term) | Q(last_name__icontains=term))
-    matches = list(people[:2])
+        companies = companies.filter(name__icontains=term)
+    matches = list(people[:2]) or list(companies[:2])
     return matches[0] if len(matches) == 1 else None

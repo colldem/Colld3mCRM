@@ -8059,3 +8059,81 @@ class ActiveVisibilityTests(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(set(self.team.leads.values_list("pk", flat=True)), {self.clerk.pk})
+
+
+class RecordSearchPageTests(TestCase):
+    """The purposeful search: one field, one reason, one record or nothing."""
+
+    VALID = "38901010003"
+
+    def setUp(self):
+        from contacts.models import UserProfile
+
+        self.user = get_user_model().objects.create_user("vadybininkas", password="very-secure-password")
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_MEMBER,
+                                   record_visibility=UserProfile.VISIBILITY_OWN_ACTIVE)
+        self.client.force_login(self.user)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis",
+                                            personal_code=self.VALID)
+        self.url = reverse("contacts:record-search")
+
+    def test_a_found_record_is_opened_with_its_reason_and_logged(self):
+        from contacts.models import AuditLog, RecordAccess
+
+        response = self.client.post(self.url, {"q": self.VALID, "purpose": "call",
+                                               "note": "Skambino dėl numerių"})
+        self.assertRedirects(response, self.person.get_absolute_url())
+        access = RecordAccess.objects.get(user=self.user, person=self.person)
+        self.assertEqual((access.purpose, access.note, access.source),
+                         ("call", "Skambino dėl numerių", RecordAccess.SOURCE_SEARCH))
+        entry = AuditLog.objects.filter(action=AuditLog.ACCESS).latest("id")
+        self.assertEqual(entry.actor, self.user)
+        self.assertIn("Skambutis klientui", entry.field)
+
+    def test_a_reason_is_required(self):
+        from contacts.models import RecordAccess
+
+        response = self.client.post(self.url, {"q": self.VALID, "purpose": ""})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pasirinkite, kodėl atveriate įrašą.")
+        self.assertFalse(RecordAccess.objects.exists())
+
+    def test_nothing_found_says_only_that(self):
+        """Not finding someone must not answer whether they are in the base."""
+        Person.objects.create(first_name="Ona", last_name="Slapta", personal_code="48507121239")
+        response = self.client.post(self.url, {"q": "Slapta Ona Kazlauskiene", "purpose": "call"})
+        self.assertContains(response, "Pagal šią užklausą įrašo nerasta.")
+        self.assertNotContains(response, "Slapta<")
+
+    def test_taking_it_into_work_buys_the_longer_lease(self):
+        from contacts.models import RecordAccess
+        from contacts.record_access import LONG_LEASE_DAYS
+
+        self.client.post(self.url, {"q": self.VALID, "purpose": "documents", "long": "1"})
+        access = RecordAccess.objects.get(user=self.user, person=self.person)
+        self.assertGreater(access.expires_at, timezone.now() + timedelta(days=LONG_LEASE_DAYS - 1))
+
+    def test_the_page_lists_what_is_open_and_the_menu_offers_it(self):
+        self.client.post(self.url, {"q": self.VALID, "purpose": "call", "note": "Byla 14"})
+        page = self.client.get(self.url).content.decode()
+        self.assertIn("Jonas Petraitis", page)
+        self.assertIn("Byla 14", page)
+        # The entry is in the side menu for a list that starts empty.
+        self.assertIn(self.url, self.client.get(reverse("contacts:home")).content.decode())
+
+    def test_someone_who_already_sees_everything_is_told_so(self):
+        from contacts.models import UserProfile
+
+        UserProfile.objects.filter(user=self.user).update(
+            record_visibility=UserProfile.VISIBILITY_ALL)
+        page = self.client.get(self.url).content.decode()
+        self.assertIn("čia atverti nieko nereikia", page)
+        self.assertNotIn(self.url, self.client.get(reverse("contacts:home")).content.decode())
+
+    def test_a_company_is_found_by_its_code(self):
+        from contacts.models import RecordAccess
+
+        company = Company.objects.create(name="UAB Vežėjas", company_code="302000123")
+        response = self.client.post(self.url, {"q": "302000123", "purpose": "inbound"})
+        self.assertRedirects(response, company.get_absolute_url())
+        self.assertTrue(RecordAccess.objects.filter(user=self.user, company=company).exists())

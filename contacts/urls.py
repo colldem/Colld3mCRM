@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import analytics_views, calendar_views, views
+from . import analytics_views, calendar_views, record_access_views, views
 from .inline_views import update_inline
 from .detail_editing import edit_contact_field, edit_company_field
 from .reminder_live import reminder_snapshot
@@ -21,6 +21,7 @@ urlpatterns = [
     path("analytics/growth/", analytics_views.growth, name="analytics-growth"),
     path("analytics/system/", analytics_views.system_usage, name="analytics-system"),
     path("search/", views.global_search, name="search"),
+    path("paieska/", record_access_views.record_search, name="record-search"),
     path("search/suggest/", views.search_suggest, name="search-suggest"),
     path("contacts/", views.contact_list, name="list"),
     path("contacts/bulk/", views.contact_bulk_action, name="bulk-action"),

@@ -326,6 +326,20 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .team-members legend{font-weight:600;padding:0 4px}
 .team-members-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 12px}
 /* A line of explanation above a group of tick boxes. */
+/* The purposeful search: the form and what is open now, side by side. */
+.search-shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:900px){.search-shell{grid-template-columns:1fr}}
+.rs-purposes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 12px}
+/* A grid item, not a floated line above the options. */
+.rs-purposes legend{grid-column:1/-1;float:none;padding:0;margin-bottom:2px;font-size:var(--fs-sm);font-weight:650}
+/* Beats `.stack-form label`, which would stack the radio above its text. */
+.stack-form .rs-purpose{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);font-weight:500}
+/* And `.stack-form input`, which sizes text fields — a tick box is not one. */
+.stack-form .rs-purpose input,.stack-form .rs-long input{flex:none;width:auto;min-height:0;padding:0;margin:0;border:0;background:none}
+/* The form is a page here, not a side panel. */
+.search-shell .stack-form{max-width:none;margin-bottom:0}
+.search-shell .rs-long{display:flex;align-items:center;gap:8px;font-size:var(--fs-sm)}
+.rs-hint{color:var(--muted);font-size:var(--fs-xs);line-height:1.45}
 .team-members .field-hint{max-width:72ch;margin:0 0 8px;color:var(--muted);font-size:var(--fs-xs);line-height:1.45}
 .team-members-grid label{display:flex;align-items:center;gap:8px;font-weight:400}
 .team-row-actions{display:flex;gap:8px;flex-wrap:wrap}

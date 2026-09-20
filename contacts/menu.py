@@ -32,6 +32,7 @@ _ICONS = {
     "duplicates": "M8 8h12v12H8zM4 16V4h12",
     "settings": "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6M4 12h1M19 12h1M12 4v1M12 19v1M6 6l1 1M17 17l1 1M18 6l-1 1M7 17l-1 1",
     "record": "M6 3h9l4 4v14H6zM8 9h8M8 13h8M8 17h5",
+    "record-search": "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M16 16l4 4",
     "action": "M12 5v14M5 12h14",
 }
 
@@ -50,6 +51,9 @@ OPTIONAL_KEYS = ("calendar", "analytics", "import-export", "archive", "duplicate
 
 _PAGES = {
     "home": (tr_lazy("Darbastalis"), "contacts:home", None),
+    # Only for the roles whose lists start empty: everyone else already sees
+    # the base, and has nothing to unlock.
+    "record-search": (tr_lazy("Rasti įrašą"), "contacts:record-search", "needs_search"),
     "contacts": (tr_lazy("Kontaktai"), "contacts:list", None),
     "companies": (tr_lazy("Įmonės"), "contacts:company-list", None),
     "calendar": (tr_lazy("Kalendorius"), "contacts:calendar", None),
@@ -72,15 +76,20 @@ ACTIONS = {
 def page_choices(capabilities):
     """(key, label) for every page the user may put in the menu."""
     return [(key, _PAGES[key][0]) for key in _PAGES
-            if key not in ("home", "settings") and _allowed(key, capabilities)]
+            if key not in ("home", "settings", "record-search") and _allowed(key, capabilities)]
 
 
 def capabilities_for(user):
     """The capability flags menu entries are gated on, plus ``can_edit`` (not a reader)."""
     from .permissions import CAPABILITY_KEYS, has_capability, is_read_only
 
+    from .permissions import ACTIVE_VISIBILITIES, record_visibility
+
     capabilities = {key: has_capability(user, key) for key in CAPABILITY_KEYS}
     capabilities["can_edit"] = not is_read_only(user)
+    # Not a capability but a fact about the user, and the menu gates on it the
+    # same way: the search only means something to a list that starts empty.
+    capabilities["needs_search"] = record_visibility(user) in ACTIVE_VISIBILITIES
     return capabilities
 
 
@@ -141,7 +150,10 @@ def build(request):
             or (key == "settings" and current.startswith("settings"))
         return Item(key, label, url, _ICONS.get(key, _ICONS["record"]), active, fixed)
 
-    core = [make(key, fixed=True) for key in ("home", "contacts", "companies")]
+    fixed_keys = ["home", "contacts", "companies"]
+    if capabilities.get("needs_search"):
+        fixed_keys.insert(1, "record-search")
+    core = [make(key, fixed=True) for key in fixed_keys]
     core += [make(key) for key in OPTIONAL_KEYS
              if key not in hidden and _allowed(key, capabilities)]
     more = [make(key) for key in OPTIONAL_KEYS

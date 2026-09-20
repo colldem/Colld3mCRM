@@ -30,7 +30,8 @@ priklauso visa bazė — jam jie irgi baigiasi.
 
 ## Kaip įrašas atsiranda sąraše
 
-**1. Paieška su pagrindu.** Naudotojas įveda asmens kodą arba vardą ir pavardę,
+**1. Paieška su pagrindu** (`/paieska/`, meniu „Rasti įrašą“; rodoma tik toms
+rolėms, kurių sąrašas prasideda tuščias). Naudotojas įveda asmens kodą arba vardą ir pavardę,
 pasirenka pagrindą iš sąrašo (skambutis klientui, kliento kreipimasis, vidinis
 patikrinimas, skundo nagrinėjimas, dokumentų tvarkymas, kita) ir, jei nori,
 prirašo komentarą. Radus — įrašas atsiranda jo sąraše.

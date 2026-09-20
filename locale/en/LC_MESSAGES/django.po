@@ -4168,3 +4168,81 @@ msgstr "Only the team's active records"
 
 msgid "Tik savo aktyvūs įrašai"
 msgstr "Only my active records"
+
+msgid "Rasti įrašą"
+msgstr "Find a record"
+
+msgid "Įveskite asmens kodą arba vardą ir pavardę, pasirinkite, kodėl atveriate, ir įrašas atsiras jūsų sąraše."
+msgstr "Enter a personal code or a name, say why you are opening it, and the record appears in your list."
+
+msgid "Jūsų rolė ir taip mato visus įrašus — čia atverti nieko nereikia. Paieška veikia, ir atvėrimas bus užfiksuotas žurnale."
+msgstr "Your role already sees every record, so there is nothing here to unlock. The search still works, and opening a record is still logged."
+
+msgid "Asmens kodas arba vardas ir pavardė"
+msgstr "Personal code, or first and last name"
+
+msgid "pvz. 38901010003 arba Jonas Petraitis"
+msgstr "e.g. 38901010003 or Jonas Petraitis"
+
+msgid "Kodėl atveriate"
+msgstr "Why you are opening it"
+
+msgid "Komentaras"
+msgstr "Note"
+
+msgid "Neprivaloma. Pvz. skambučio numeris ar prašymo nr."
+msgstr "Optional. The caller's number or an application number, say."
+
+msgid "Imu į darbą ilgesniam laikui (%(long_days)s d.)"
+msgstr "Taking it into work for longer (%(long_days)s days)"
+
+msgid "Nepažymėjus įrašas iš sąrašo dingsta dienos pabaigoje. Jei jam sukursite priminimą, jis liks tol, kol priminimas neužbaigtas."
+msgstr "Left unticked, the record leaves your list at the end of the day. Give it a reminder and it stays until the reminder is finished."
+
+msgid "Rasti ir atverti"
+msgstr "Find and open"
+
+msgid "Su kuo dirbate dabar"
+msgstr "What you are working on"
+
+msgid "iki %(until)s"
+msgstr "until %(until)s"
+
+msgid "priskyrė %(who)s"
+msgstr "assigned by %(who)s"
+
+msgid "Kol kas nieko neatvėrėte."
+msgstr "You have not opened anything yet."
+
+msgid "Pasirinkite, kodėl atveriate įrašą."
+msgstr "Choose why you are opening the record."
+
+msgid "Pagal šią užklausą įrašo nerasta."
+msgstr "Nothing matches that."
+
+msgid "Prieiga prie įrašo"
+msgstr "Record opened"
+
+msgid "Skambutis klientui"
+msgstr "Call to a client"
+
+msgid "Kliento kreipimasis"
+msgstr "Client got in touch"
+
+msgid "Dokumentų tvarkymas"
+msgstr "Handling documents"
+
+msgid "Skundo nagrinėjimas"
+msgstr "Handling a complaint"
+
+msgid "Vidinis patikrinimas"
+msgstr "Internal check"
+
+msgid "Paieška su pagrindu"
+msgstr "Purposeful search"
+
+msgid "Priskyrė vadovas"
+msgstr "Assigned by a lead"
+
+msgid "Kita"
+msgstr "Other"

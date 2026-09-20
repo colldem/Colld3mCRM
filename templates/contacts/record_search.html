@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Rasti įrašą' %} - CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate 'Rasti įrašą' %}</h1>
+    <p>{% translate 'Įveskite asmens kodą arba vardą ir pavardę, pasirinkite, kodėl atveriate, ir įrašas atsiras jūsų sąraše.' %}</p></div>
+</div>
+
+{% if unlocks_nothing %}
+  <p class="rec-warn">{% translate 'Jūsų rolė ir taip mato visus įrašus — čia atverti nieko nereikia. Paieška veikia, ir atvėrimas bus užfiksuotas žurnale.' %}</p>
+{% endif %}
+
+<div class="search-shell">
+  <section class="dash-card">
+    {% comment %}One field and one reason. Deliberately no list of near misses:
+    either the record that answers, or nothing.{% endcomment %}
+    <form method="post" class="stack-form" action="{% url 'contacts:record-search' %}">
+      {% csrf_token %}
+      <label for="rs-q">{% translate 'Asmens kodas arba vardas ir pavardė' %}
+        <input id="rs-q" name="q" value="{{ query }}" required autofocus maxlength="120"
+               placeholder="{% translate 'pvz. 38901010003 arba Jonas Petraitis' %}">
+      </label>
+
+      <fieldset class="rs-purposes">
+        <legend>{% translate 'Kodėl atveriate' %}</legend>
+        {% for value, label in purposes %}
+          <label class="rs-purpose"><input type="radio" name="purpose" value="{{ value }}"{% if value == purpose %} checked{% endif %} required> {{ label }}</label>
+        {% endfor %}
+      </fieldset>
+
+      <label for="rs-note">{% translate 'Komentaras' %}
+        <input id="rs-note" name="note" value="{{ note }}" maxlength="200"
+               placeholder="{% translate 'Neprivaloma. Pvz. skambučio numeris ar prašymo nr.' %}">
+      </label>
+
+      <label class="rs-long"><input type="checkbox" name="long" value="1"{% if long_lease %} checked{% endif %}>
+        {% blocktranslate %}Imu į darbą ilgesniam laikui ({{ long_days }} d.){% endblocktranslate %}</label>
+      <small class="rs-hint">{% translate 'Nepažymėjus įrašas iš sąrašo dingsta dienos pabaigoje. Jei jam sukursite priminimą, jis liks tol, kol priminimas neužbaigtas.' %}</small>
+
+      <div><button class="btn primary" type="submit">{% translate 'Rasti ir atverti' %}</button></div>
+    </form>
+  </section>
+
+  <section class="dash-card">
+    <div class="dash-card-head"><div><h2>{% translate 'Su kuo dirbate dabar' %}</h2></div></div>
+    <ul class="record-list">
+      {% for access in open_now %}
+        {% with record=access.company|default:access.person %}
+          <li>
+            <a href="{{ record.get_absolute_url }}">{{ record }}</a>
+            <small>{{ access.get_purpose_display }}{% if access.note %} · {{ access.note }}{% endif %}
+              · {% blocktranslate with until=access.expires_at|date:"m-d H:i" %}iki {{ until }}{% endblocktranslate %}
+              {% if access.granted_by %} · {% blocktranslate with who=access.granted_by.get_full_name|default:access.granted_by.username %}priskyrė {{ who }}{% endblocktranslate %}{% endif %}</small>
+          </li>
+        {% endwith %}
+      {% empty %}
+        <li class="muted">{% translate 'Kol kas nieko neatvėrėte.' %}</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}
