@@ -4293,3 +4293,26 @@ msgstr "Show the personal code"
 #: contacts/models.py
 msgid "Asmens kodo peržiūra"
 msgstr "Personal code viewed"
+
+#: templates/settings/layout.html templates/settings/record_blocks.html
+#: contacts/views.py
+msgid "Registrų blokai"
+msgstr "Registry blocks"
+
+#: templates/settings/record_blocks.html
+msgid "Blokas"
+msgstr "Block"
+
+#: templates/settings/record_blocks.html
+msgid ""
+"Kortelės viduryje rodomi registro duomenų blokai. Pažymėkite, kuriuos mato "
+"kiekviena rolė; nepažymėtas blokas tai rolei nerodomas visai. "
+"Administratorius visada mato visus."
+msgstr ""
+"The middle of a card shows blocks of registry data. Tick which ones each "
+"role sees; an unticked block is not shown to that role at all. An "
+"administrator always sees them all."
+
+#: contacts/views.py
+msgid "Blokų matomumas išsaugotas."
+msgstr "Block visibility saved."

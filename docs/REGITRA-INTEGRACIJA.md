@@ -59,6 +59,12 @@ class RegitraConfig(AppConfig):
 `loader(record)` gauna `Person` arba `Company` ir grąžina šablono kontekstą.
 CRM niekur neimportuoja `regitra` — be jos kortelė veikia lygiai taip pat.
 
+Kiekvieną bloką mato tik tos rolės, kurioms jis pažymėtas Nustatymai → **Registrų
+blokai** (saugoma `RolePermissions.blocks`, numatytai — matomas visiems).
+Nematomas blokas kortelėje nerenderinamas visai, tad `loader` jam net
+nekviečiamas: registro užklausos už tą bloką nedaromos. Užregistravus naują
+bloką jis iškart matomas visiems — susiaurinti yra administratoriaus sprendimas.
+
 Kitos jau esamos prieigos, kurių nereikia kurti iš naujo: `/api/v1/` REST
 sluoksnis (`contacts/api.py`), webhook'ai (`contacts/webhooks.py`), automatikos
 taisyklės (`contacts/automation.py`) ir dinaminiai laukai (`CustomField`)

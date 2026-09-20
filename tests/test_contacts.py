@@ -7903,6 +7903,70 @@ class DemoBlockTests(TestCase):
         self.assertIn("Autentiškumo patikrinimas", str(by_key["services"]["context"]))
 
 
+class BlockVisibilityTests(TestCase):
+    """A desk sees the registry blocks its work needs, and not the rest."""
+
+    def setUp(self):
+        from contacts.models import UserProfile
+
+        self.admin = get_user_model().objects.create_superuser("admin", email="a@local",
+                                                               password="very-secure-password")
+        self.clerk = get_user_model().objects.create_user("aptarnavimas", password="very-secure-password")
+        UserProfile.objects.create(user=self.clerk, role=UserProfile.ROLE_MEMBER)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis", owner=self.clerk)
+
+    def _keys(self, viewer):
+        from contacts.record_blocks import record_blocks
+
+        return [block["key"] for block in record_blocks(self.person, viewer)]
+
+    def test_every_block_is_visible_until_an_admin_says_otherwise(self):
+        from contacts.record_blocks import block_keys, record_blocks
+
+        shown = {block["key"] for block in record_blocks(self.person, self.clerk)}
+        person_blocks = {block["key"] for block in record_blocks(self.person)}
+        self.assertEqual(shown, person_blocks)
+        self.assertIn("mandates", block_keys())
+
+    def test_a_hidden_block_disappears_for_that_role_only(self):
+        from contacts.models import RolePermissions, UserProfile
+
+        RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER,
+                                       blocks={"mandates": False, "vehicles": True})
+        self.assertNotIn("mandates", self._keys(self.clerk))
+        self.assertIn("vehicles", self._keys(self.clerk))
+        # The admin sees everything, whatever the row says.
+        self.assertIn("mandates", self._keys(self.admin))
+
+    def test_the_card_stops_rendering_a_hidden_block(self):
+        from contacts.models import RolePermissions, UserProfile
+
+        RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER, blocks={"mandates": False})
+        self.client.force_login(self.clerk)
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        self.assertNotIn("Įgaliojimai", page)
+        self.assertIn("Automobiliai", page)
+
+    def test_only_an_admin_opens_the_settings_page_and_saving_keeps_capabilities(self):
+        from contacts.models import RolePermissions, UserProfile
+
+        url = reverse("contacts:settings-record-blocks")
+        self.client.force_login(self.clerk)
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+        RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER,
+                                       permissions={"can_export": True})
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        response = self.client.post(url, {"block_" + UserProfile.ROLE_MEMBER: ["vehicles"]})
+        self.assertEqual(response.status_code, 302)
+        row = RolePermissions.objects.get(role=UserProfile.ROLE_MEMBER)
+        self.assertTrue(row.blocks["vehicles"])
+        self.assertFalse(row.blocks["mandates"])
+        # The two pages write different columns; one must not clear the other.
+        self.assertEqual(row.permissions, {"can_export": True})
+
+
 class RecordAccessTests(TestCase):
     """A record is in someone's list because there is a reason and a lease."""
 

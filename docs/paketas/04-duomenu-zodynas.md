@@ -380,6 +380,7 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 |---|---|---|---|
 | `role` | CharField | taip | T |
 | `permissions` | JSONField | ne | T |
+| `blocks` | JSONField | ne | T |
 
 ## SavedFilter (`contacts_savedfilter`)
 

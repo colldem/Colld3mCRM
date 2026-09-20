@@ -84,6 +84,7 @@ urlpatterns = [
     path("settings/users/", views.settings_users, name="settings-users"),
     path("settings/teams/", views.settings_teams, name="settings-teams"),
     path("settings/permissions/", views.settings_permissions, name="settings-permissions"),
+    path("settings/record-blocks/", views.settings_record_blocks, name="settings-record-blocks"),
     path("settings/custom-fields/", views.settings_custom_fields, name="settings-custom-fields"),
     path("settings/custom-fields/<int:pk>/delete/", views.custom_field_delete, name="custom-field-delete"),
     path("settings/audit/", views.settings_audit, name="settings-audit"),

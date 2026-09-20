@@ -127,6 +127,12 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
    under the role columns. */
 .permissions-table th:first-child,.permissions-table td:first-child{width:46%;min-width:260px}
 .permissions-table .cap-hint{display:block;margin-top:3px;color:var(--muted);font-size:var(--fs-xs);font-weight:400;line-height:1.45;white-space:normal}
+/* Four roles and a hint on every row: the name column has to give way, and
+   a narrow window scrolls the table rather than cutting the last role off. */
+.blocks-wrap{overflow-x:auto}
+.blocks-table th:first-child,.blocks-table td:first-child{width:auto;min-width:200px}
+.blocks-table thead th:not(:first-child){width:92px;white-space:normal;line-height:1.3}
+.blocks-table th,.blocks-table td{padding:8px 10px}
 .user-row-teams{display:block;color:var(--muted);font-weight:400;margin-top:4px}
 
 /* --- Contact / company record page ------------------------------------

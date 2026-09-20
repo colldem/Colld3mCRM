@@ -239,6 +239,10 @@ class RolePermissions(models.Model):
     """Per-role capability toggles. Admins always have every capability."""
     role = models.CharField(max_length=12, unique=True)
     permissions = models.JSONField(default=dict, blank=True)
+    # Which registry blocks this role sees on a card, {block key: bool}. Kept
+    # apart from `permissions` because the two are edited on different pages,
+    # and saving one must not wipe the other.
+    blocks = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return self.role

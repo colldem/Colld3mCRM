@@ -80,7 +80,9 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   (`RecordAccess`, `grant` / `touch` / `take_into_work` / `live_for` / `find`; žr.
   `docs/REGITRA-PRIEIGA.md`);
   `record_blocks.py` — kortelės vidurinės kolonos blokai (Regitros integracijos
-  sąlyčio taškas; `register_block`, žr. `docs/REGITRA-INTEGRACIJA.md`);
+  sąlyčio taškas; `register_block`, `block_keys`, matomumas pagal rolę per
+  `permissions.can_see_block` / Nustatymai → Registrų blokai;
+  žr. `docs/REGITRA-INTEGRACIJA.md`);
   `record_blocks_demo.py` — tų blokų pavyzdiniai duomenys (`CRM_DEMO_BLOCKS=1`,
   tik ne produkcijoje); `validators.py` — asmens kodo tikrinimas;
   `personal_code.py` — asmens kodo uždengimas kortelėje (`cover`) ir atidengimas

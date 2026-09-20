@@ -42,15 +42,28 @@ def block(key):
     return _BLOCKS.get(key)
 
 
-def record_blocks(record):
-    """What the middle column renders for `record`, in order."""
+def block_keys():
+    """Every registered block, in order — what the settings page lists."""
+    return list(_ORDER)
+
+
+def record_blocks(record, viewer=None):
+    """What the middle column renders for `record`, in order.
+
+    With a `viewer`, blocks their role is not shown are left out: a desk that
+    has no business with mandates does not see the block at all, rather than an
+    empty one that says what it would hold.
+    """
     from .models import Company
+    from .permissions import can_see_block
 
     kind = COMPANY if isinstance(record, Company) else PERSON
     blocks = []
     for key in _ORDER:
         block = _BLOCKS[key]
         if kind not in block["kinds"]:
+            continue
+        if viewer is not None and not can_see_block(viewer, key):
             continue
         context = block["loader"](record) if block["loader"] else None
         blocks.append({**block, "context": context})

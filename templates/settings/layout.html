@@ -30,6 +30,7 @@
       <a class="{% if settings_section == 'users' %}active{% endif %}" href="{% url 'contacts:settings-users' %}">{% translate 'Naudotojai' %}</a>
       <a class="{% if settings_section == 'teams' %}active{% endif %}" href="{% url 'contacts:settings-teams' %}">{% translate 'Komandos' %}</a>
       <a class="{% if settings_section == 'permissions' %}active{% endif %}" href="{% url 'contacts:settings-permissions' %}">{% translate 'Rolės ir teisės' %}</a>
+      <a class="{% if settings_section == 'record-blocks' %}active{% endif %}" href="{% url 'contacts:settings-record-blocks' %}">{% translate 'Registrų blokai' %}</a>
     </div>
     {% endif %}
 

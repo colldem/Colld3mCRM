@@ -94,6 +94,39 @@ def has_capability(user, capability):
         return bool(row.permissions[capability])
     return _CAPABILITY_DEFAULTS[role].get(capability, False)
 
+# --- registry blocks -------------------------------------------------------
+#
+# The middle column of a card carries registry data, and not every desk needs
+# every part of it: a role can be shown the vehicles without being shown the
+# mandates. Blocks are visible unless an admin says otherwise, so installing an
+# integration does not silently hide what people were already using.
+
+def block_matrix():
+    """{role: {block key: bool}} for the non-admin roles, stored value over the
+    default (visible)."""
+    from .record_blocks import block_keys
+
+    stored = {row.role: row.blocks or {} for row in RolePermissions.objects.all()}
+    return {role: {key: bool(stored.get(role, {}).get(key, True)) for key in block_keys()}
+            for role in EDITABLE_ROLES}
+
+
+def can_see_block(user, key):
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if is_admin(user):
+        return True
+    role = role_of(user)
+    if role not in _CAPABILITY_DEFAULTS:
+        return False
+    # A card renders a dozen blocks; read the role's row once per user object.
+    rows = user.__dict__.setdefault("_crm_role_permissions", {})
+    if role not in rows:
+        rows[role] = RolePermissions.objects.filter(role=role).first()
+    row = rows[role]
+    return bool((row.blocks or {}).get(key, True)) if row else True
+
+
 # Loosest to strictest; `record_visibility` takes the strictest that applies.
 _VIS_ORDER = {UserProfile.VISIBILITY_ALL: 0, UserProfile.VISIBILITY_TEAM: 1,
               UserProfile.VISIBILITY_OWN: 2, UserProfile.VISIBILITY_TEAM_ACTIVE: 3,

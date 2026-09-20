@@ -1,0 +1,21 @@
+{% extends "settings/layout.html" %}{% load i18n crm_format %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Registrų blokai' %}</h2><p>{% translate 'Kortelės viduryje rodomi registro duomenų blokai. Pažymėkite, kuriuos mato kiekviena rolė; nepažymėtas blokas tai rolei nerodomas visai. Administratorius visada mato visus.' %}</p></div></div>
+
+<form method="post">{% csrf_token %}
+  <div class="table-wrap blocks-wrap"><table class="permissions-table blocks-table">
+    <thead><tr><th>{% translate 'Blokas' %}</th>{% for role in roles %}<th>{{ role.label }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      {% for block in blocks %}
+        <tr>
+          <td>{{ block.title }}<small class="cap-hint">{{ block.hint }}</small></td>
+          {% for role in roles %}
+            <td class="permissions-cell"><label><input type="checkbox" name="block_{{ role.key }}" value="{{ block.key }}"{% if role.blocks|get_item:block.key %} checked{% endif %}> <span class="sr-only">{{ block.title }} — {{ role.label }}</span></label></td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="settings-section-head"><button class="btn primary" type="submit">{% translate 'Išsaugoti' %}</button></div>
+</form>
+{% endblock %}

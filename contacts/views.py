@@ -1126,6 +1126,35 @@ def settings_permissions(request):
     })
 
 
+@login_required
+def settings_record_blocks(request):
+    """Which registry blocks each role sees on a card."""
+    from .permissions import EDITABLE_ROLES, block_matrix, is_admin
+    from .record_blocks import block, block_keys
+    from .models import RolePermissions
+
+    if not is_admin(request.user):
+        raise Http404
+    keys = block_keys()
+    if request.method == "POST":
+        for role in EDITABLE_ROLES:
+            shown = set(request.POST.getlist("block_" + role))
+            RolePermissions.objects.update_or_create(
+                role=role, defaults={"blocks": {key: (key in shown) for key in keys}})
+        audit_log(AuditLog.SETTING, request=request, target_type="setting",
+                  target_label=str(tr("Registrų blokai")), new=str(tr("atnaujinta")))
+        messages.success(request, tr("Blokų matomumas išsaugotas."))
+        return redirect("contacts:settings-record-blocks")
+    matrix = block_matrix()
+    role_labels = dict(UserProfile.ROLE_CHOICES)
+    return render(request, "settings/record_blocks.html", {
+        "settings_section": "record-blocks",
+        "blocks": [block(key) for key in keys],
+        "roles": [{"key": role, "label": role_labels.get(role, role), "blocks": matrix[role]}
+                  for role in EDITABLE_ROLES],
+    })
+
+
 def _audit_csv(request, entries):
     """The filtered audit trail as UTF-8 CSV, streamed; the export itself is audited."""
     import csv
@@ -1967,7 +1996,7 @@ def contact_detail(request, pk):
                         key=lambda a: a.created_at, reverse=True)
     return render(request, "contacts/detail.html", {
         "person": person,
-        "record_blocks": record_blocks(person),
+        "record_blocks": record_blocks(person, request.user),
         **assignment_context(request.user, person),
         **grouped_detail_fields(person, viewer=request.user),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
@@ -2383,7 +2412,7 @@ def company_detail(request, pk):
     next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
     return render(request, "companies/detail.html", {
         "company": company,
-        "record_blocks": record_blocks(company),
+        "record_blocks": record_blocks(company, request.user),
         **assignment_context(request.user, company),
         **grouped_detail_fields(company, viewer=request.user),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
