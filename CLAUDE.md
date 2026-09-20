@@ -2,7 +2,9 @@
 
 Django 5.2 CRM (kontaktai, įmonės, veiklos, priminimai). Produkcija: UGREEN NAS
 Docker, pasiekiama per Tailscale HTTPS (`https://crm.example.com`).
-GitHub: `github.com/colldem/Colld3mCRM` (`main`).
+GitHub: `github.com/colldem/Colld3mCRM`. **Ši šaka — `regitra`**, Regitros
+versija; bendrinis produktas gyvena `main`. Iš `main` imti tik `cherry-pick`,
+niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
 
 ## Taisyklės KIEKVIENAM pakeitimui
 
@@ -123,6 +125,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `docs/DIEGIMAS-ORGANIZACIJOJE.md` — organizacinis diegimas: tinklo srautai, proxy, resursai (CI `load`), atnaujinimo ir rollback runbook.
 - `docs/ORACLE.md` — Oracle suderinamumo patikros rezultatai (CI `oracle-compatibility`, tik ataskaita).
   Naujame kode vengti `.distinct()`/`annotate(Count)` ant modelių su `TextField` — žr. ten.
+- `docs/REGITRA-SAKA.md` — šios šakos santykis su `main` ir kas joje yra papildomai.
 - `docs/REGITRA-INTEGRACIJA.md` — Regitros dalis atskirame repozitorijuje ir keturios
   aplinkos (CRM prod/staging, Regitra prod/staging).
 - `docs/INTEGRACIJOS.md` — integracijų kanalai; `reporting` schema (migracija 0051) ir `create_reporting_role`
