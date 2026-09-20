@@ -1,0 +1,67 @@
+# Prieiga prie įrašų: paieška su pagrindu ir aktyvus darbas
+
+Regitros versijoje kontaktų ir įmonių sąrašas nustoja būti visos bazės langu.
+Sąraše matyti tik tie įrašai, su kuriais naudotojas **dirba dabar**, ir kiekvienas
+jų ten atsirado dėl užfiksuotos priežasties. Visą bazę mato tik administratorius
+ir vadovas (manager).
+
+Pagrindas: su registro duomenimis kortelėje kiekvienas atvėrimas yra asmens
+duomenų tvarkymas, tad jis turi turėti tikslą, ir tas tikslas turi būti
+įrašytas.
+
+## Rolės
+
+| Rolė | Ką mato sąraše |
+| --- | --- |
+| Administratorius | visus įrašus |
+| Vadovas (manager) | visus įrašus |
+| Skyriaus vadovas (komandos vadovas) | savo komandos narių **aktyvius** įrašus |
+| Vadybininkas / specialistas | savo **aktyvius** įrašus |
+| Skaitytojas | kaip iki šiol, be pakeitimų |
+
+Komandos vadovas nurodomas komandoje (`Team.leads`). Vadovui aktyvūs įrašai
+matomi todėl, kad jis turi galėti pavaduoti ir prižiūrėti, o ne todėl, kad jam
+priklauso visa bazė — jam jie irgi baigiasi.
+
+## Kaip įrašas atsiranda sąraše
+
+**1. Paieška su pagrindu.** Naudotojas įveda asmens kodą arba vardą ir pavardę,
+pasirenka pagrindą iš sąrašo (skambutis klientui, kliento kreipimasis, vidinis
+patikrinimas, skundo nagrinėjimas, dokumentų tvarkymas, kita) ir, jei nori,
+prirašo komentarą. Radus — įrašas atsiranda jo sąraše.
+
+**2. Priskyrimas.** Komandos vadovas arba administratorius gali įdėti įrašą į
+darbuotojo sąrašą. Paieškos tam nereikia; užfiksuojama, kas priskyrė.
+
+**3. Priminimas.** Jei naudotojui priskirtas neužbaigtas priminimas ant įrašo,
+įrašas jo sąraše yra tol, kol priminimas atviras.
+
+## Kiek laiko įrašas lieka
+
+Numatytai — **iki dienos pabaigos** (vietos laiku 00:00). Toliau eina taisyklės,
+kurios tą terminą pratęsia, kad mėnesį trunkantis darbas nedingtų kas naktį:
+
+- **Atviras priminimas** — įrašas lieka, kol priminimas neužbaigtas. Terminas
+  nebegalioja. Tai pagrindinis būdas ilgam darbui, ir jis nieko naujo nereikalauja:
+  pradėdamas darbą su klientu, darbuotojas ir taip susikuria priminimą.
+- **Veikla ant įrašo** — įrašius pastabą, skambutį ar susitikimą, terminas
+  atnaujinamas iki tos dienos pabaigos. Kelias dienas trunkantis darbas be
+  priminimo pats savaime tęsiasi, kol prie jo grįžtama.
+- **„Imu į darbą"** — sąmoningas veiksmas, pratęsiantis 30 d.; matomas vadovui
+  kartu su pagrindu. Skirtas tam, kas tęsis ilgai ir neturi priminimo.
+
+Pasibaigus terminui įrašas iš sąrašo dingsta. Jo niekas netrina — tik prieiga
+baigiasi, ir norint vėl jį atverti reikia naujos paieškos su nauju pagrindu.
+
+## Ką matyti žurnale
+
+Kiekviena prieiga — eilutė: kas, kurį įrašą, kada atvėrė, kokiu pagrindu, kaip
+ji atsirado (paieška / priskyrimas / priminimas), kas priskyrė, kada baigėsi.
+Tai ir yra atsakomybės mechanizmas — ne draudimas atverti, o tai, kad kiekvienas
+atvėrimas turi vardą ir priežastį.
+
+## Ko šis modelis nedaro
+
+Jis neriboja, kiek įrašų galima atsiverti, ir netikrina, ar pagrindas teisingas.
+Tai sąmoninga: griežtesnis ribojimas trukdytų darbui, o piktnaudžiavimą gaudo
+žurnalas ir peržiūra, ne forma.

@@ -183,6 +183,9 @@ class Team(models.Model):
     name = models.CharField(max_length=80, unique=True)
     visibility = models.CharField(max_length=8, choices=VISIBILITY_CHOICES, default=VISIBILITY_ALL)
     members = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="crm_teams")
+    # A lead sees what their team is actively working on, so that they can
+    # supervise and stand in — not because the whole base belongs to them.
+    leads = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="crm_teams_led")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -988,3 +991,55 @@ class Translation(models.Model):
     def save(self, *args, **kwargs):
         self.msgid_hash = self.hash_of(self.msgid)
         return super().save(*args, **kwargs)
+
+
+class RecordAccess(models.Model):
+    """Why one user has a record in their list right now, and until when.
+
+    The Regitra build's lists show what someone is working on, not the whole
+    base: a row here is what puts a contact or a company in a list, and it
+    carries the purpose it was opened for. Rows are never deleted — access
+    ends, the reason it existed stays for the log.
+    """
+
+    SOURCE_SEARCH = "search"
+    SOURCE_ASSIGNED = "assigned"
+    SOURCE_CHOICES = (
+        (SOURCE_SEARCH, tr("Paieška su pagrindu")),
+        (SOURCE_ASSIGNED, tr("Priskyrė vadovas")),
+    )
+
+    # Why the record was opened. A short list rather than free text, so the
+    # log can be counted; the note beside it carries the specifics.
+    PURPOSES = (
+        ("call", tr("Skambutis klientui")),
+        ("inbound", tr("Kliento kreipimasis")),
+        ("documents", tr("Dokumentų tvarkymas")),
+        ("complaint", tr("Skundo nagrinėjimas")),
+        ("internal", tr("Vidinis patikrinimas")),
+        ("other", tr("Kita")),
+    )
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="record_access")
+    person = models.ForeignKey("Person", null=True, blank=True, on_delete=models.CASCADE,
+                               related_name="access_grants")
+    company = models.ForeignKey("Company", null=True, blank=True, on_delete=models.CASCADE,
+                                related_name="access_grants")
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default=SOURCE_SEARCH)
+    purpose = models.CharField(max_length=12, choices=PURPOSES)
+    note = models.CharField(max_length=200, blank=True)
+    granted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name="record_access_granted")
+    created_at = models.DateTimeField(auto_now_add=True)
+    # End of the day it was opened, unless something extends it.
+    expires_at = models.DateTimeField(db_index=True)
+    # Set when access is given up early; the row stays for the log.
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "expires_at"])]
+
+    def __str__(self):
+        return f"{self.user}: {self.person or self.company}"

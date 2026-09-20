@@ -74,6 +74,9 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
   `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
+  `record_access.py` — kam, kokiu pagrindu ir kiek laiko įrašas yra sąraše
+  (`RecordAccess`, `grant` / `touch` / `take_into_work` / `live_for`; žr.
+  `docs/REGITRA-PRIEIGA.md`);
   `record_blocks.py` — kortelės vidurinės kolonos blokai (Regitros integracijos
   sąlyčio taškas; `register_block`, žr. `docs/REGITRA-INTEGRACIJA.md`);
   `record_blocks_demo.py` — tų blokų pavyzdiniai duomenys (`CRM_DEMO_BLOCKS=1`,
@@ -126,6 +129,7 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
 - `docs/ORACLE.md` — Oracle suderinamumo patikros rezultatai (CI `oracle-compatibility`, tik ataskaita).
   Naujame kode vengti `.distinct()`/`annotate(Count)` ant modelių su `TextField` — žr. ten.
 - `docs/REGITRA-SAKA.md` — šios šakos santykis su `main` ir kas joje yra papildomai.
+- `docs/REGITRA-PRIEIGA.md` — paieška su pagrindu, prieigos galiojimas ir rolės.
 - `docs/REGITRA-INTEGRACIJA.md` — Regitros dalis atskirame repozitorijuje ir keturios
   aplinkos (CRM prod/staging, Regitra prod/staging).
 - `docs/INTEGRACIJOS.md` — integracijų kanalai; `reporting` schema (migracija 0051) ir `create_reporting_role`

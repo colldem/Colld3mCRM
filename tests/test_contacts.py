@@ -7783,3 +7783,115 @@ class DemoBlockTests(TestCase):
         self.assertIn("Vairuotojo pažymėjimo keitimas", str(by_key["services"]["context"]))
         by_key = {block["key"]: block for block in registry.record_blocks(company)}
         self.assertIn("Autentiškumo patikrinimas", str(by_key["services"]["context"]))
+
+
+class RecordAccessTests(TestCase):
+    """A record is in someone's list because there is a reason and a lease."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user("vadybininkas", password="very-secure-password")
+        self.mate = get_user_model().objects.create_user("kolega", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis",
+                                            personal_code="38901010003")
+        self.company = Company.objects.create(name="UAB Vežėjas")
+
+    def _ids(self, user=None):
+        from contacts.record_access import accessible_person_ids
+
+        return set(accessible_person_ids(user or self.user))
+
+    def test_a_search_puts_the_record_in_the_list_until_midnight(self):
+        from contacts.record_access import end_of_day, grant
+
+        access = grant(self.user, self.person, "call")
+        self.assertEqual(access.expires_at, end_of_day())
+        self.assertEqual(self._ids(), {self.person.pk})
+        # It is one user's list, not everybody's.
+        self.assertEqual(self._ids(self.mate), set())
+
+    def test_the_lease_runs_out_and_the_row_stays_for_the_log(self):
+        from contacts.record_access import grant
+        from contacts.models import RecordAccess
+
+        access = grant(self.user, self.person, "call", note="Skambino dėl numerių")
+        RecordAccess.objects.filter(pk=access.pk).update(
+            expires_at=timezone.now() - timedelta(minutes=1))
+        self.assertEqual(self._ids(), set())
+        # The reason it was ever opened is still on record.
+        access.refresh_from_db()
+        self.assertEqual((access.purpose, access.note), ("call", "Skambino dėl numerių"))
+
+    def test_an_open_reminder_holds_the_record_past_its_lease(self):
+        """A month-long engagement must not evaporate every midnight."""
+        from contacts.record_access import grant
+        from contacts.models import RecordAccess
+
+        access = grant(self.user, self.person, "documents")
+        RecordAccess.objects.filter(pk=access.pk).update(
+            expires_at=timezone.now() - timedelta(days=3))
+        reminder = Reminder.objects.create(person=self.person, text="Paruošti dokumentus",
+                                           due_at=timezone.now() + timedelta(days=10),
+                                           created_by=self.user, assigned_to=self.user)
+        self.assertEqual(self._ids(), {self.person.pk})
+
+        # Someone else's reminder is their reason to hold it, not this user's.
+        reminder.assigned_to = self.mate
+        reminder.save(update_fields=["assigned_to"])
+        self.assertEqual(self._ids(), set())
+
+        # Finished work lets go of the record.
+        reminder.assigned_to = self.user
+        reminder.completed_at = timezone.now()
+        reminder.save(update_fields=["assigned_to", "completed_at"])
+        self.assertEqual(self._ids(), set())
+
+    def test_working_on_a_record_pushes_its_lease_to_the_end_of_that_day(self):
+        from contacts.record_access import end_of_day, grant, touch
+        from contacts.models import RecordAccess
+
+        access = grant(self.user, self.person, "call")
+        RecordAccess.objects.filter(pk=access.pk).update(
+            expires_at=timezone.now() + timedelta(minutes=1))
+        touch(self.user, self.person)
+        access.refresh_from_db()
+        self.assertEqual(access.expires_at, end_of_day())
+        # Touching a record nobody granted does not invent access to it.
+        self.assertIsNone(touch(self.mate, self.person))
+        self.assertEqual(self._ids(self.mate), set())
+
+    def test_taking_a_record_into_work_buys_thirty_days(self):
+        from contacts.record_access import LONG_LEASE_DAYS, take_into_work
+
+        access = take_into_work(self.user, self.person, "documents")
+        self.assertGreater(access.expires_at, timezone.now() + timedelta(days=LONG_LEASE_DAYS - 1))
+
+    def test_opening_the_same_record_again_is_one_engagement_not_two(self):
+        from contacts.record_access import grant, take_into_work
+        from contacts.models import RecordAccess
+
+        take_into_work(self.user, self.person, "documents")
+        long_expiry = RecordAccess.objects.get(user=self.user, person=self.person).expires_at
+        grant(self.user, self.person, "call", note="Perskambinta")
+        rows = RecordAccess.objects.filter(user=self.user, person=self.person)
+        self.assertEqual(rows.count(), 1)
+        row = rows.get()
+        self.assertEqual((row.purpose, row.note), ("call", "Perskambinta"))
+        # A shorter reason must not cut a longer lease short.
+        self.assertEqual(row.expires_at, long_expiry)
+
+    def test_a_company_is_granted_the_same_way_as_a_contact(self):
+        from contacts.record_access import accessible_company_ids, grant
+
+        grant(self.user, self.company, "inbound")
+        self.assertEqual(set(accessible_company_ids(self.user)), {self.company.pk})
+        self.assertEqual(self._ids(), set())
+
+    def test_the_search_answers_with_one_record_or_nothing(self):
+        from contacts.record_access import find
+
+        Person.objects.create(first_name="Jonas", last_name="Jonaitis")
+        self.assertEqual(find("38901010003"), self.person)
+        self.assertIsNone(find("38901010004"))          # a code nobody has
+        self.assertIsNone(find("Jo"))                   # too short to be a search
+        self.assertIsNone(find("Jonas"))                # two people answer to it
+        self.assertEqual(find("Jonas Petraitis"), self.person)

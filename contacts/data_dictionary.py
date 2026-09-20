@@ -36,6 +36,8 @@ MODELS = {
     "SavedFilter": ("Naudotojo išsaugoti sąrašų filtrai", "kol naudotojas juos laiko", "R"),
     "UserProfile": ("CRM naudotojo profilis, rolė, nustatymai, katalogo susiejimas", "kol yra naudotojo paskyra", "T"),
     "Team": ("Komandos", "kol naudojamos", "R"),
+    "RecordAccess": ("Kam, kada ir kokiu pagrindu įrašas buvo atvertas; kiek laiko prieiga galioja",
+                     "kartu su įrašu — eilutė lieka žurnalui ir pasibaigus prieigai", "T"),
     "DirectoryGroupMapping": ("AD grupių susiejimas su rolėmis ir komandomis", "kol naudojamas", "T"),
     "RolePermissions": ("Rolių teisių lentelė", "nuolat", "T"),
     "DuplicateSettings": ("Dublikatų tikrinimo nustatymai", "nuolat", "T"),
@@ -71,6 +73,8 @@ FIELDS = {
     "UserProfile.unsubscribe_token": "S", "UserProfile.calendar_token": "S", "UserProfile.user": "D",  # nosec B105
     "SystemSettings.email_host_password": "S", "SystemSettings.imap_password": "S",
     "SystemSettings.oidc_client_secret": "S", "SystemSettings.email_host_user": "D", "SystemSettings.imap_user": "D",
+    "RecordAccess.purpose": "T", "RecordAccess.note": "L", "RecordAccess.user": "D",
+    "RecordAccess.granted_by": "D",
     "AuditLog.actor": "D", "AuditLog.actor_label": "D", "AuditLog.ip": "D", "AuditLog.target_label": "L",
     "AuditLog.old_value": "L", "AuditLog.new_value": "L", "AuditLog.detail": "L",
     "IncomingMail.from_addr": "A", "IncomingMail.to_addrs": "A", "IncomingMail.subject": "L", "IncomingMail.body": "L",

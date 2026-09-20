@@ -323,6 +323,23 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `address` | CharField | taip | A |
 | `label` | CharField | ne | T |
 
+## RecordAccess (`contacts_recordaccess`)
+
+**Paskirtis:** Kam, kada ir kokiu pagrindu įrašas buvo atvertas; kiek laiko prieiga galioja. **Saugojimas:** kartu su įrašu — eilutė lieka žurnalui ir pasibaigus prieigai.
+
+| Laukas | Tipas | Privalomas | Kategorija |
+|---|---|---|---|
+| `user` | ryšys → User | taip | D |
+| `person` | ryšys → Person | ne | T |
+| `company` | ryšys → Company | ne | T |
+| `source` | CharField | taip | T |
+| `purpose` | CharField | taip | T |
+| `note` | CharField | ne | L |
+| `granted_by` | ryšys → User | ne | D |
+| `created_at` | DateTimeField | ne | T |
+| `expires_at` | DateTimeField | taip | T |
+| `ended_at` | DateTimeField | ne | T |
+
 ## Reminder (`contacts_reminder`)
 
 **Paskirtis:** Priminimai, užduotys, kalendoriaus įvykiai. **Saugojimas:** kartu su įrašu.
@@ -445,6 +462,7 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `visibility` | CharField | taip | T |
 | `created_at` | DateTimeField | ne | T |
 | `members` | ryšys → User (daug) | — | D |
+| `leads` | ryšys → User (daug) | — | R |
 
 ## Translation (`contacts_translation`)
 
