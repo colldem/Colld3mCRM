@@ -1,7 +1,7 @@
 {% extends "settings/layout.html" %}{% load i18n %}
 {% block settings_content %}
 <div class="settings-section-head"><div><h2>{% translate 'Mano meniu' %}</h2>
-  <p>{% translate 'Kaip atrodo jūsų šoninė juosta. Neparinkti punktai nedingsta — jie susiskleidžia po „Daugiau“.' %}</p></div></div>
+  <p>{% translate 'Kaip atrodo jūsų šoninė juosta. Neparinkti punktai meniu nerodomi — pažymėkite juos čia, kai prireiks.' %}</p></div></div>
 
 <form method="post" class="menu-form">{% csrf_token %}
   {{ form.non_field_errors }}

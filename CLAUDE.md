@@ -72,8 +72,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
   `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
-  `menu.py` — asmeninė šoninė juosta (branduolys / naudotojo nuorodos / „Daugiau“ klostė;
-  konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
+  `menu.py` — asmeninė šoninė juosta (branduolys ir naudotojo nuorodos; nepažymėti
+  punktai nerodomi, konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);
   `notifications.py` + `management/commands/send_notifications.py` — el. pašto pranešimai;
   `recurrence.py` + `management/commands/extend_recurrences.py` — pasikartojantys priminimai;
