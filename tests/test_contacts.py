@@ -2576,8 +2576,8 @@ class ContactViewTests(TestCase):
         self.assertNotContains(profile, "is-wide")
 
     def test_each_user_shapes_their_own_side_menu(self):
-        """Unticked entries fold under "Daugiau" instead of disappearing, and up
-        to five shortcuts sit right after the core entries."""
+        """Unticked entries leave the menu, and up to five shortcuts sit right
+        after the core entries."""
         from contacts.models import UserProfile
 
         self.client.force_login(self.user)
@@ -2604,9 +2604,12 @@ class ContactViewTests(TestCase):
         # The record shortcut carries the record's own name and link.
         self.assertEqual([item.label for item in menu["shortcuts"]][1], str(self.person))
         self.assertEqual(menu["shortcuts"][1].url, self.person.get_absolute_url())
-        # Nothing vanished — the unticked entries moved into the fold.
-        self.assertEqual(sorted(item.key for item in menu["more"]),
-                         ["archive", "duplicates", "import-export"])
+        # The unticked entries are gone from the menu, and nothing is folded away.
+        self.assertNotIn("more", menu)
+        for key in ("archive", "duplicates", "import-export"):
+            self.assertNotIn(key, [item.key for item in menu["core"]])
+        # Their pages stay reachable: hiding a menu row is not a permission.
+        self.assertEqual(self.client.get(reverse("contacts:archive-list")).status_code, 200)
 
     def test_menu_shortcuts_are_capped_and_drop_targets_that_disappeared(self):
         from contacts.models import UserProfile

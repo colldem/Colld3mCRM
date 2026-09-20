@@ -158,7 +158,7 @@ class UserProfile(models.Model):
     digest_sent_on = models.DateField(null=True, blank=True)
     unsubscribe_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
     calendar_token = models.CharField(max_length=48, unique=True, default=token_urlsafe, editable=False)
-    # Personal side menu: which optional entries are folded away under "Daugiau",
+    # Personal side menu: which optional entries are switched off,
     # and up to five shortcuts of the user's own. See contacts/menu.py.
     menu_config = models.JSONField(default=dict, blank=True)
     # Directory (AD) access, see contacts/directory.py. While `directory_managed`

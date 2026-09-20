@@ -87,8 +87,8 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   tik ne produkcijoje); `validators.py` — asmens kodo tikrinimas;
   `personal_code.py` — asmens kodo uždengimas kortelėje (`cover`) ir atidengimas
   su įrašu žurnale (`AuditLog.PERSONAL_CODE`);
-  `menu.py` — asmeninė šoninė juosta (branduolys / naudotojo nuorodos / „Daugiau“ klostė;
-  konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
+  `menu.py` — asmeninė šoninė juosta (branduolys ir naudotojo nuorodos; nepažymėti
+  punktai nerodomi, konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);
   `notifications.py` + `management/commands/send_notifications.py` — el. pašto pranešimai;
   `recurrence.py` + `management/commands/extend_recurrences.py` — pasikartojantys priminimai;

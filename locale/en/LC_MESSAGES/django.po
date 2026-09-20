@@ -3471,9 +3471,6 @@ msgid "Mano nuorodos"
 msgstr "My shortcuts"
 
 #: templates/base.html
-msgid "Daugiau"
-msgstr "More"
-
 #: templates/settings/layout.html
 msgid "Mano meniu"
 msgstr "My menu"
@@ -3535,8 +3532,8 @@ msgid "įrašo numeris iš jo adreso, pvz. /contacts/"
 msgstr "the record number from its address, e.g. /contacts/"
 
 #: templates/settings/menu.html
-msgid "Kaip atrodo jūsų šoninė juosta. Neparinkti punktai nedingsta — jie susiskleidžia po „Daugiau“."
-msgstr "How your side menu looks. Unticked entries do not disappear — they fold away under “More”."
+msgid "Kaip atrodo jūsų šoninė juosta. Neparinkti punktai meniu nerodomi — pažymėkite juos čia, kai prireiks."
+msgstr "How your side menu looks. Unticked entries are not shown in the menu — tick them here when you need them."
 
 #: templates/settings/menu.html
 msgid "Darbastalis, Kontaktai, Įmonės ir Nustatymai rodomi visada."

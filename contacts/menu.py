@@ -1,12 +1,15 @@
 """The side menu, per user.
 
-Three bands, in this order:
+Two bands, in this order:
 
-1. **Core** — always visible, the things every CRM day starts with.
+1. **Core** — the pages every CRM day starts with, plus the optional ones the
+   user left switched on.
 2. **Shortcuts** — up to five entries the user picked themselves: another CRM
    page, a specific contact or company, or an action.
-3. **"Daugiau"** — a fold holding every optional entry the user switched off.
-   Nothing ever disappears; it only moves out of the way.
+
+Switched-off entries are simply not in the menu. They are never out of reach:
+Settings → My menu lists them all, and the page itself stays reachable by its
+address, so switching one back on is one tick.
 
 The stored shape lives on ``UserProfile.menu_config``::
 
@@ -156,12 +159,9 @@ def build(request):
     core = [make(key, fixed=True) for key in fixed_keys]
     core += [make(key) for key in OPTIONAL_KEYS
              if key not in hidden and _allowed(key, capabilities)]
-    more = [make(key) for key in OPTIONAL_KEYS
-            if key in hidden and _allowed(key, capabilities)]
     picked = [_shortcut_item(entry, capabilities) for entry in shortcuts]
     return {
         "core": [item for item in core if item],
         "shortcuts": [item for item in picked if item],
-        "more": [item for item in more if item],
         "settings_item": make("settings", fixed=True),
     }

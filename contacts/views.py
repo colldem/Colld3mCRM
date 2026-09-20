@@ -777,8 +777,8 @@ def settings_page(request):
 
 @login_required
 def settings_menu(request):
-    """Each user shapes their own side menu — nothing is hidden from them, only
-    folded away under "Daugiau"."""
+    """Each user shapes their own side menu: which optional pages it carries,
+    and their own shortcuts."""
     from .forms import MenuForm
     from .menu import ACTIONS, MAX_SHORTCUTS, capabilities_for, page_choices
 

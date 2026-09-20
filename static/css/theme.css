@@ -7,14 +7,8 @@ body{font-family:var(--bs-body-font-family);line-height:1.5;background:#f4f6f9}
 .brand{height:72px;padding:0 25px;font-size:var(--fs-2xl);border-bottom:1px solid #ffffff18}
 .app-sidebar .sidebar-wrapper{padding:0;height:calc(100vh - 72px);overflow-y:auto}
 .crm-navigation{display:flex;flex-direction:column;min-height:100%;padding:12px 10px;gap:4px}
-/* Personal menu: a band label over the user's own shortcuts, and a "Daugiau"
-   fold holding the entries they switched off — nothing ever disappears. */
+/* Personal menu: a band label over the user's own shortcuts. */
 .nav-band{padding:14px 15px 4px;color:#ffffff8c;font-size:var(--fs-2xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-.nav-more{display:flex;flex-direction:column;gap:4px}
-.nav-more>summary{list-style:none;cursor:pointer}
-.nav-more>summary::-webkit-details-marker{display:none}
-.nav-more .nav-chev{margin-left:auto;font-size:var(--fs-sm);transition:transform .15s}
-.nav-more[open] .nav-chev{transform:rotate(180deg)}
 .menu-form{display:grid;gap:24px;max-width:560px}
 .menu-block>h3{margin:0 0 4px;font-size:var(--fs-md);font-weight:700;color:var(--navy-950)}
 .menu-block>p{margin:0 0 12px}
