@@ -1,0 +1,37 @@
+# Overlay: a second staging instance, running the Regitra build beside the
+# public one. Both are isolated copies of production data; this one additionally
+# carries the registry column, the personal code and the purposeful search.
+#
+# It is listed last, so its `name:` decides the project and the two stacks never
+# share containers. In the staging directory's .env:
+#
+#   COMPOSE_FILE=compose.yaml:compose.tailscale.yaml:compose.staging.yaml:compose.regitra-staging.yaml
+#   COMPOSE_PROJECT_NAME=crm-regitra-staging
+#   CRM_FLAVOUR=regitra                 refuses a deploy aimed at the wrong tier
+#   CRM_ENVIRONMENT=staging
+#   TS_SERVE_CONFIG=/config/serve-staging.json
+#
+# Everything a stack keeps lives under its own directory (runtime/postgres,
+# runtime/media, runtime/tailscale-state), so the two share no data. What they
+# would share is host ports, hence the different defaults below.
+#
+# Setting it up on the NAS: docs/REGITRA-STAGING.md
+name: crm-regitra-staging
+
+services:
+  crm-web:
+    # Its own tag, so building here never replaces the public staging's image.
+    image: crm-web:regitra-staging
+    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_PORT:-8082}:8080"]
+
+  crm-worker:
+    image: crm-web:regitra-staging
+
+  crm-init:
+    image: crm-backup:regitra-staging
+
+  crm-backup:
+    image: crm-backup:regitra-staging
+
+  crm-tailscale:
+    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_LAN_PORT:-18083}:8080"]

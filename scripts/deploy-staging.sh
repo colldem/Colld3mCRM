@@ -6,7 +6,11 @@
 # No database backup here, unlike scripts/deploy.sh: staging data is disposable
 # and reloaded on demand by scripts/refresh-staging.sh.
 #
-#   CRM_STAGING_DIR  where staging lives (default /opt/crm-staging)
+#   CRM_STAGING_DIR     where staging lives (default /opt/crm-staging)
+#   CRM_EXPECT_FLAVOUR  when set, the target's .env must declare the same
+#                       CRM_FLAVOUR. There is more than one staging instance
+#                       now, and a misconfigured directory variable must fail
+#                       rather than quietly overwrite the other one.
 set -eu
 
 APP="${CRM_STAGING_DIR:-/opt/crm-staging}"
@@ -22,6 +26,11 @@ grep -q '^CRM_ENVIRONMENT=staging$' "$APP/.env" || {
   echo "FATAL: $APP/.env must set CRM_ENVIRONMENT=staging — refusing to deploy"; exit 1; }
 grep -q '^COMPOSE_FILE=.*compose\.staging\.yaml' "$APP/.env" || {
   echo "FATAL: $APP/.env COMPOSE_FILE must include compose.staging.yaml"; exit 1; }
+if [ -n "${CRM_EXPECT_FLAVOUR:-}" ]; then
+  grep -q "^CRM_FLAVOUR=${CRM_EXPECT_FLAVOUR}\$" "$APP/.env" || {
+    echo "FATAL: expected a '${CRM_EXPECT_FLAVOUR}' instance, but $APP/.env does not say"
+    echo "       CRM_FLAVOUR=${CRM_EXPECT_FLAVOUR} — refusing to deploy over another tier"; exit 1; }
+fi
 # The Tailscale overlay defaults to serve.json, which enables Funnel and would
 # publish this clone of production data to the public internet.
 if grep -q '^COMPOSE_FILE=.*compose\.tailscale\.yaml' "$APP/.env"; then

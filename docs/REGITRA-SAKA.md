@@ -7,7 +7,7 @@ kodas ir (toliau) specializuota paieška su pagrindu bei prieigos seansai.
 | Šaka | Kas tai | Diegiama |
 | --- | --- | --- |
 | `main` | bendrinis, viešas CRM | `v*` žyma → produkcija |
-| `regitra` | ši versija | dar nediegiama |
+| `regitra` | ši versija | push → Regitros staging (`docs/REGITRA-STAGING.md`) |
 
 Atsišakojo nuo `regitra-base-0.79.0` (`3c41a72`).
 

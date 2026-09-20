@@ -8228,3 +8228,32 @@ class RecordAssignmentTests(TestCase):
         self.client.force_login(self.clerk)
         response = self.client.post(reverse("contacts:record-access-end", args=[access.pk]))
         self.assertRedirects(response, reverse("contacts:record-search"))
+
+
+class RegitraStagingOverlayTests(TestCase):
+    """Two staging stacks on one host must not land on top of each other."""
+
+    def _read(self, name):
+        return (settings.BASE_DIR / name).read_text()
+
+    def test_the_overlay_names_its_own_project_images_and_ports(self):
+        overlay = self._read("compose.regitra-staging.yaml")
+        self.assertIn("name: crm-regitra-staging", overlay)
+        # Its own image tags, or a build here would replace the other stack's.
+        self.assertIn("image: crm-web:regitra-staging", overlay)
+        # Host ports are the one thing the two really share.
+        for setting in ("CRM_PORT:-8082", "CRM_LAN_PORT:-18083"):
+            self.assertIn(setting, overlay)
+        plain = self._read("compose.staging.yaml")
+        self.assertNotIn("8082", plain)
+
+    def test_the_deploy_refuses_a_directory_that_is_not_this_flavour(self):
+        script = self._read("scripts/deploy-staging.sh")
+        self.assertIn("CRM_EXPECT_FLAVOUR", script)
+        self.assertIn("refusing to deploy over another tier", script)
+        workflow = self._read(".github/workflows/deploy-regitra-staging.yml")
+        self.assertIn("CRM_EXPECT_FLAVOUR: regitra", workflow)
+        self.assertIn("CRM_REGITRA_STAGING_DIR", workflow)
+        # And it follows this branch, not main.
+        self.assertIn("branches: [regitra]", workflow)
+        self.assertIn("branches: [main]", self._read(".github/workflows/deploy-staging.yml"))

@@ -1,0 +1,61 @@
+name: Deploy Regitra staging
+
+# Every push to `regitra` lands on the Regitra staging instance — a second,
+# separate stack beside the public one, with its own directory, database and
+# hostname on the NAS. Setting it up: docs/REGITRA-STAGING.md
+#
+# The public staging is untouched by this; it follows `main`.
+
+on:
+  push:
+    branches: [regitra]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or SHA to deploy to Regitra staging"
+        required: true
+        default: "regitra"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-regitra-staging
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -r requirements.txt -r requirements-dev.txt
+      - run: ruff check .
+      - run: ./scripts/release-check.sh
+        env:
+          PYTHON_BIN: python
+
+  deploy:
+    needs: verify
+    # A fork must never drive this repository's runner.
+    if: github.repository == 'colldem/Colld3mCRM' && github.event_name != 'pull_request'
+    runs-on: [self-hosted, crm-nas]
+    environment:
+      name: Regitra staging
+      url: ${{ vars.CRM_REGITRA_STAGING_URL }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+      - name: Deploy to Regitra staging
+        env:
+          CRM_STAGING_DIR: ${{ vars.CRM_REGITRA_STAGING_DIR }}
+          # If that variable is unset or wrong, the deploy stops rather than
+          # landing on the public staging instance.
+          CRM_EXPECT_FLAVOUR: regitra
+        run: sh scripts/deploy-staging.sh

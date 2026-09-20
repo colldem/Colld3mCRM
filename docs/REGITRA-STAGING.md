@@ -1,0 +1,98 @@
+# Regitros staging aplinka
+
+Antra staging instancija šalia viešosios. Abi laiko produkcijos duomenų kopiją,
+abi izoliuotos (`CRM_ENVIRONMENT=staging`), bet tai — Regitros versija:
+registrų kolona, asmens kodas, paieška su pagrindu ir prieigos seansai.
+
+| | Vieša staging | Regitros staging |
+| --- | --- | --- |
+| Šaka | `main` | `regitra` |
+| Katalogas NAS | `/opt/crm-staging` | `/opt/crm-regitra-staging` |
+| Compose projektas | `crm-staging` | `crm-regitra-staging` |
+| Diegia | `deploy-staging.yml` | `deploy-regitra-staging.yml` |
+
+Viena kitos jos neliečia: visi duomenys (`runtime/postgres`, `runtime/media`,
+`runtime/tailscale-state`) guli po instancijos katalogu, o projekto vardas
+skiria konteinerius. Bendri lieka tik host'o portai — todėl žemiau jie kiti.
+
+## Ką reikia padaryti NAS'e (vieną kartą)
+
+**1. Katalogas ir `.env`.**
+
+```bash
+sudo mkdir -p /opt/crm-regitra-staging
+sudo chown "$USER" /opt/crm-regitra-staging
+cd /opt/crm-regitra-staging
+```
+
+Sukurkite `.env`:
+
+```sh
+COMPOSE_FILE=compose.yaml:compose.tailscale.yaml:compose.staging.yaml:compose.regitra-staging.yaml
+COMPOSE_PROJECT_NAME=crm-regitra-staging
+CRM_FLAVOUR=regitra
+CRM_ENVIRONMENT=staging
+
+# Tailscale: atskiras mazgas, atskiras vardas.
+TS_AUTHKEY=tskey-auth-...
+TS_HOSTNAME=crm-regitra-staging
+TS_CERT_DOMAIN=crm-regitra-staging.<jūsų-tailnet>.ts.net
+TS_SERVE_CONFIG=/config/serve-staging.json
+
+CRM_DOMAIN=crm-regitra-staging.<jūsų-tailnet>.ts.net
+DJANGO_ALLOWED_HOSTS=crm-regitra-staging.<jūsų-tailnet>.ts.net
+DJANGO_CSRF_TRUSTED_ORIGINS=https://crm-regitra-staging.<jūsų-tailnet>.ts.net
+CRM_BASE_URL=https://crm-regitra-staging.<jūsų-tailnet>.ts.net
+
+# Kiti portai nei viešoji staging — jie vieninteliai bendri.
+CRM_PORT=8082
+CRM_LAN_PORT=18083
+
+# Savi raktai. NEKOPIJUOKITE iš kitos instancijos.
+DJANGO_SECRET_KEY=<naujas>
+CRM_SECRETS_KEY=<naujas>
+POSTGRES_PASSWORD=<naujas>
+```
+
+Naujus raktus sugeneruoti:
+
+```bash
+python3 -c 'import secrets; print(secrets.token_urlsafe(64))'                      # DJANGO_SECRET_KEY
+python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'  # CRM_SECRETS_KEY
+```
+
+**2. GitHub repozitorijos kintamieji** (Settings → Secrets and variables →
+Actions → Variables):
+
+| Kintamasis | Reikšmė |
+| --- | --- |
+| `CRM_REGITRA_STAGING_DIR` | `/opt/crm-regitra-staging` |
+| `CRM_REGITRA_STAGING_URL` | `https://crm-regitra-staging.<tailnet>.ts.net` |
+
+Jei `CRM_REGITRA_STAGING_DIR` liks nenustatytas, diegimas **nutrūks** —
+`scripts/deploy-staging.sh` reikalauja, kad tikslinio katalogo `.env` turėtų
+`CRM_FLAVOUR=regitra`, tad viešoji staging nebus perrašyta per klaidą.
+
+**3. GitHub aplinka** (Settings → Environments): sukurti `Regitra staging`.
+Apsaugos taisyklių jai nereikia.
+
+**4. Pirmas paleidimas.** Įkėlus bet ką į `regitra` šaką, „Deploy Regitra
+staging" nusideploy'ins pats. Arba rankiniu būdu iš NAS:
+
+```bash
+cd /opt/crm-regitra-staging
+docker compose build --pull && docker compose up -d
+```
+
+**5. Duomenys.** `scripts/refresh-staging.sh` nukopijuoja produkcijos bazę;
+paleiskite jį nurodę šį katalogą. Po kopijavimo — `manage.py sanitize_staging`.
+
+## Ko tikėtis
+
+- Prisijungimai tie patys kaip produkcijoje (duomenų kopija).
+- El. paštas, IMAP, Entra ir webhook'ai išjungti — `CRM_ENVIRONMENT=staging`.
+- `crm-worker` ir `crm-backup` nepaleisti (0 replikų) — niekas neveikia pagal
+  laikmatį ant kopijuotų duomenų.
+- Registrų blokai užpildyti pavyzdiniais duomenimis (`CRM_DEMO_BLOCKS=1` ateina
+  iš `compose.staging.yaml`), pažymėtais prierašu.
+- Viršuje — geltona juosta, sakanti, kad tai izoliuota kopija.

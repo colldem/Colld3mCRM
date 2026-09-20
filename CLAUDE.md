@@ -131,6 +131,9 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
 - `docs/ORACLE.md` — Oracle suderinamumo patikros rezultatai (CI `oracle-compatibility`, tik ataskaita).
   Naujame kode vengti `.distinct()`/`annotate(Count)` ant modelių su `TextField` — žr. ten.
 - `docs/REGITRA-SAKA.md` — šios šakos santykis su `main` ir kas joje yra papildomai.
+- `docs/REGITRA-STAGING.md` — antra staging instancija šiai šakai
+  (`compose.regitra-staging.yaml`, `deploy-regitra-staging.yml`); push į `regitra`
+  nusideploy'ina ten, viešosios staging neliečia.
 - `docs/REGITRA-PRIEIGA.md` — paieška su pagrindu, prieigos galiojimas ir rolės.
 - `docs/REGITRA-INTEGRACIJA.md` — Regitros dalis atskirame repozitorijuje ir keturios
   aplinkos (CRM prod/staging, Regitra prod/staging).
