@@ -8,7 +8,7 @@
    the end. Media queries live together at the bottom. */
 
 /* --- Design tokens and element defaults -------------------------------- */
-:root{--navy-950:#062b63;--navy-900:#052454;--blue-600:#0b5ed7;--ink:#111318;--muted:#667085;--line:#d9e1ea;--soft:#f5f8fc;--selected:#eaf2ff;--success:#168a45;--danger:#c92a2a;--radius:6px;--radius-sm:4px;--radius-lg:8px;--radius-pill:999px;--control-h:40px;--control-h-sm:32px;--control-h-lg:48px;--fs-2xs:11px;--fs-xs:12px;--fs-sm:13px;--fs-base:14px;--fs-md:16px;--fs-lg:20px;--fs-xl:24px;--fs-2xl:28px;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff}
+:root{--navy-950:#062b63;--navy-900:#052454;--blue-600:#0b5ed7;--ink:#111318;--muted:#667085;--line:#d9e1ea;--soft:#f5f8fc;--selected:#eaf2ff;--success:#168a45;--danger:#c92a2a;--radius:6px;--radius-sm:4px;--radius-lg:8px;--radius-pill:999px;--control-h:40px;--control-h-sm:32px;--control-h-lg:48px;--fs-2xs:11px;--fs-xs:12px;--fs-sm:13px;--fs-base:14px;--fs-md:16px;--fs-lg:20px;--fs-xl:24px;--btn-pad-y:9px;--btn-pad-x:13px;--btn-pad-y-sm:6px;--btn-pad-x-sm:12px;--line-control:#bfc6cf;--focus-ring:#88b6f7;--fs-2xl:28px;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:#fff}
 *{box-sizing:border-box}
 body{margin:0;background:#fff;color:var(--ink);font-size:14px;accent-color:var(--navy-950)}
 input,select,textarea{width:100%;border:1px solid #cbd1d8;border-radius:var(--radius);background:#fff;padding:11px 12px;color:var(--ink);font:inherit}
@@ -66,7 +66,11 @@ input[type=date],input[type=datetime-local],input[type=time]{-webkit-appearance:
 .language-switch select{width:65px;min-height:40px;padding:6px 22px 6px 6px;border:1px solid var(--line);background-color:#fff;border-radius:4px;background-position:right 7px center}
 
 /* --- Buttons, chips and small controls --------------------------------- */
-.btn{display:inline-flex;min-height:40px;align-items:center;justify-content:center;border:1px solid #bfc6cf;border-radius:var(--radius);background:#fff;color:var(--ink);padding:9px 15px;text-decoration:none;font-weight:600;cursor:pointer}
+.btn{display:inline-flex;min-height:var(--control-h);align-items:center;justify-content:center;border:1px solid var(--line-control);border-radius:var(--radius);background:#fff;color:var(--ink);padding:var(--btn-pad-y) var(--btn-pad-x);font-size:var(--fs-base);line-height:20px;text-decoration:none;font-weight:600;cursor:pointer}
+/* One small button, one size. Every context that wants a compact button
+   asks for .btn.sm; the selector list below is the same rule for the
+   places whose markup predates it. */
+.btn.sm{min-height:var(--control-h-sm);padding:var(--btn-pad-y-sm) var(--btn-pad-x-sm);font-size:var(--fs-xs)}
 .btn.primary{border-color:var(--navy-950);background:var(--navy-950);color:#fff}
 .btn.primary:hover{background:var(--navy-900)}
 .toolbar{display:flex;justify-content:flex-end;margin-bottom:16px}
@@ -187,7 +191,6 @@ input[type=date],input[type=datetime-local],input[type=time]{-webkit-appearance:
 .title-field-editor label{margin:0}
 .title-field-editor .field-actions,.title-field-editor [role=status]{grid-column:1/-1}
 .duplicate-record form{margin-top:12px}
-.merge-button{min-height:32px;padding:6px 12px;font-size:12px}
 .duplicate-pair{align-items:start}
 
 /* --- Reminders --------------------------------------------------------- */
@@ -207,7 +210,6 @@ input[type=date],input[type=datetime-local],input[type=time]{-webkit-appearance:
 .reminder-due.is-overdue{color:var(--danger);font-weight:650}
 .reminder-actions{display:flex;align-items:center;gap:8px}
 .reminder-actions form{margin:0}
-.reminder-actions .btn{min-height:var(--control-h-sm);padding:6px 12px;font-size:var(--fs-xs)}
 .prio-flag{color:var(--danger);font-size:11px;vertical-align:1px}
 .reminder-tabs .tab{border:0;border-bottom:2px solid transparent;background:transparent;padding:10px 0;margin:0;color:var(--muted);font:inherit;font-size:var(--fs-sm);font-weight:650;cursor:pointer}
 .reminder-tabs .tab.active{color:var(--navy-950);border-bottom-color:var(--navy-950)}

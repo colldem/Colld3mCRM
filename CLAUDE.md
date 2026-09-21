@@ -108,6 +108,11 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
   Vienas kortelių apvalkalas visame produkte — `.dash-card` (+ `.dash-grid`,
   `.dash-card-head`, `.kpi-card`); kortelės antraštė visada `--fs-md`/700.
+  Dydžiai imami **tik** iš `app.css :root` skalės (`--control-h`,
+  `--control-h-sm`, `--control-h-lg`, `--btn-pad-*`, `--radius-*`, `--fs-*`) —
+  pikselių mygtukų taisyklėse neberašyti. Kompaktiškas mygtukas yra `.btn.sm`;
+  senesnių šablonų kontekstai surašyti į vieną bendrą taisyklę `theme.css`
+  pradžioje. Saugo `tests/test_theme.py` `ControlScaleTests`.
 - `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
   `deploy.yml` (tag `v*`), abu `runs-on: self-hosted crm-nas`.
   `scripts/backup.sh` (crm-backup image, `deploy/backup/Dockerfile`) — šifruotos kopijos; `scripts/restore.sh` — atkūrimas
