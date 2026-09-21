@@ -4647,6 +4647,31 @@ class IsolatedTierTests(TestCase):
         self.assertNotContains(self.client.get(reverse("login")), "env-banner")
 
     @override_settings(CRM_ENVIRONMENT="staging", CRM_ISOLATED=True)
+    def test_sanitize_staging_replaces_the_personal_code(self):
+        """The one field a staging copy must not carry out of production.
+
+        Names, phones and free text were already replaced; the national identity
+        number was not, so a clone held real codes under made-up names. It has to
+        go, and it has to stay well-formed — the desk searches by it and the model
+        validates its checksum, so a blank would hide the screens under test.
+        """
+        from django.core.management import call_command
+        from contacts.validators import validate_personal_code
+        person = Person.objects.create(first_name="Ona", last_name="Onaitė",
+                                       personal_code="48501011230", created_by=self.admin)
+        without = Person.objects.create(first_name="Be", last_name="Kodo", created_by=self.admin)
+
+        call_command("sanitize_staging")
+
+        person.refresh_from_db()
+        without.refresh_from_db()
+        self.assertNotEqual(person.personal_code, "48501011230")
+        validate_personal_code(person.personal_code)
+        # An empty code stays empty: inventing one would make the copy claim
+        # knowledge production does not have.
+        self.assertEqual(without.personal_code, "")
+
+    @override_settings(CRM_ENVIRONMENT="staging", CRM_ISOLATED=True)
     def test_sanitize_staging_clears_what_the_dump_carried(self):
         from django.core.management import call_command
         from contacts.models import ApiToken, SystemSettings, Webhook

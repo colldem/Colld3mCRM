@@ -6,6 +6,7 @@ and harmless only if nothing in it identifies a person. This keeps the former an
 removes the latter:
 
 * people, companies and their phones, e-mails, addresses, links, descriptions;
+* personal codes (replaced by a well-formed code that belongs to nobody);
 * activity and reminder texts, free-text custom field values;
 * attachment files (replaced by a short placeholder file) and avatars;
 * CRM users' names and e-mails (usernames too, except break-glass/superusers);
@@ -25,6 +26,7 @@ from .audit import sanctioned_delete
 from .models import (Activity, Attachment, AuditLog, AutomationLog, Company, CustomField, CustomValue, EmailAddress,
                      IncomingMail, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter,
                      UserProfile, WebhookDelivery, WebLink)
+from .validators import personal_code_check_digit
 
 PLACEHOLDER_FILE = b"Anonimizuota testinei aplinkai / anonymised for the staging copy.\n"
 
@@ -45,12 +47,32 @@ def _rewrite(queryset, build, fields):
     return count
 
 
+def _fake_personal_code(pk):
+    """A well-formed Lithuanian personal code that identifies nobody.
+
+    The staging copy has to keep the field usable — the desk searches by code,
+    and the model validates the checksum — so a blank or a row of nines would
+    break the very screens that need testing. This keeps the shape and throws
+    the person away: every digit comes from the row id, so nothing of the real
+    code survives, not even the century and sex the first digit carries.
+    """
+    # 3-6: born in the 20th or 21st century. 0 (birth date unknown) would be
+    # valid too, but it is rare enough in real data to stand out as a marker.
+    digits = [3 + pk % 4]
+    # yymmdd, with the day capped at 28 so every month is a real date.
+    digits += [int(c) for c in "%02d%02d%02d" % (pk % 100, pk % 12 + 1, pk % 28 + 1)]
+    digits += [int(c) for c in "%03d" % (pk % 1000)]
+    digits.append(personal_code_check_digit(digits))
+    return "".join(str(d) for d in digits)
+
+
 @transaction.atomic
 def anonymize():
     counts = {}
     counts["people"] = _rewrite(Person.objects.all(), lambda p: {
-        "first_name": "Vardas%d" % p.pk, "last_name": "Pavardė%d" % p.pk, "job_title": "", "description": ""},
-        ["first_name", "last_name", "job_title", "description"])
+        "first_name": "Vardas%d" % p.pk, "last_name": "Pavardė%d" % p.pk, "job_title": "", "description": "",
+        "personal_code": _fake_personal_code(p.pk) if p.personal_code else ""},
+        ["first_name", "last_name", "job_title", "description", "personal_code"])
     _rewrite(PhoneNumber.objects.all(), lambda o: {"number": "+370 600 %05d" % (o.pk % 100000)}, ["number"])
     _rewrite(EmailAddress.objects.all(), lambda o: {"email": "asmuo%d@example.invalid" % o.pk}, ["email"])
     _rewrite(PostalAddress.objects.all(), lambda o: {"address": "Adresas %d" % o.pk}, ["address"])

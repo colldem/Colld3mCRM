@@ -149,3 +149,45 @@ kitas `migrate` lūžtų bandydamas pridėti jau esantį stulpelį.
 - Registrų blokai užpildyti pavyzdiniais duomenimis (`CRM_DEMO_BLOCKS=1` ateina
   iš `compose.staging.yaml`), pažymėtais prierašu.
 - Viršuje — geltona juosta, sakanti, kad tai izoliuota kopija.
+
+## Prieiga iš išorės
+
+Instancija serveriuojama per `serve-staging.json` — HTTPS **tik tailnete**, be
+Funnel. Tai sąmoninga: staging laiko produkcijos duomenų kopiją, ir
+`scripts/deploy-staging.sh` atsisako diegti, jei `.env` nurodo kitą serve failą
+(o `compose.tailscale.yaml` numatytasis `serve.json` Funnel įjungia).
+
+Ką reiškia „iš išorės", lemia sprendimą:
+
+**1. Savo įrenginiai, bet kur pasaulyje — nieko keisti nereikia.** Tailnet nėra
+namų tinklas: įsidiegus Tailscale telefone ar nešiojamajame ir prisijungus prie
+to paties tailneto, `https://crm-regitra-staging.<tailnet>.ts.net` atsidaro iš
+bet kurio interneto ryšio. Jei to ir reikėjo — daugiau nieko daryti nereikia.
+
+**2. Svetimas žmogus (pvz. Regitros darbuotojas) — mazgo dalijimasis.**
+Tailscale administravimo pulte (Machines → mazgas → Share) sugeneruojama
+pakvietimo nuoroda. Gavėjas susikuria nemokamą Tailscale paskyrą, priima
+pakvietimą ir mato **tik šį vieną mazgą** — ne visą tailnetą. Duomenys į viešą
+internetą nepatenka, adresas neindeksuojamas, o prieigą atšaukti galima vienu
+mygtuku. Tai rekomenduojamas kelias demonstracijai ar derinimui su užsakovu.
+
+**3. Viešas internetas — Tailscale Funnel.** Reikia, tik jei žmogus negali
+įsidiegti Tailscale (svetimas kompiuteris, planšetė be teisių). Tada instancija
+skelbiama tuo pačiu būdu, kaip produkcija: reikia `deploy/tailscale/`
+serve failo su `AllowFunnel`, `.env` nuorodos į jį ir atitinkamai praplėstos
+`scripts/deploy-staging.sh` apsaugos — ji šiandien priima **tik**
+`serve-staging.json`, kad Funnel neįsijungtų per neapdairumą.
+
+Prieš renkantis 3 variantą verta žinoti, kas tuomet atsiduria viešame
+internete:
+
+- Duomenys — nuasmeninti. `scripts/refresh-staging.sh` visada paleidžia
+  `manage.py sanitize_staging`, o šis pakeičia ir asmens kodus (anksčiau
+  nekeisdavo — tai ištaisyta). Tikrų asmens duomenų kopijoje nelieka.
+- Prisijungimo langas — vis tiek viešas. `django-axes` riboja bandymus, bet
+  slaptažodžiai kopijoje tie patys, kaip produkcijoje (naudotojų vardai
+  pakeičiami, slaptažodžių maišos — ne). Prieš atveriant į internetą būtina
+  pasikeisti bent administratoriaus slaptažodį šioje instancijoje.
+- Viršuje lieka geltona juosta, sakanti, kad tai izoliuota kopija.
+
+Jei pakanka 1 arba 2 varianto — 3 nereikia, ir apsauga lieka nesugriauta.
