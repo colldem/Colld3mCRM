@@ -21,6 +21,7 @@
     <a class="doc-topic-card" href="?topic=user"><strong>{% translate 'Dirbti su CRM' %}</strong><span>{% translate 'Kontaktai, įmonės, istorija, priminimai, filtrai ir importas.' %}</span></a>
     <a class="doc-topic-card" href="?topic=admin"><strong>{% translate 'Administruoti' %}</strong><span>{% translate 'Naudotojai, slaptažodžiai, blokavimo nuėmimas ir atnaujinimas.' %}</span></a>
     <a class="doc-topic-card" href="?topic=data"><strong>{% translate 'Įvertinti duomenis ir saugą' %}</strong><span>{% translate 'Duomenų vietos, prieigos modelis, ribos ir saugumo nustatymai.' %}</span></a>
+    <a class="doc-topic-card" href="?topic=errors"><strong>{% translate 'Suprasti klaidas' %}</strong><span>{% translate 'Ką reiškia kiekvienas klaidos pranešimas, kodėl jis kyla ir ką daryti.' %}</span></a>
     <a class="doc-topic-card" href="?topic=backup"><strong>{% translate 'Kurti ir tikrinti kopijas' %}</strong><span>{% translate 'PostgreSQL, failų kopijos, atkūrimo procedūra ir patikra.' %}</span></a>
   </div>
   <section class="doc-section"><h4>{% translate 'Sistemos paskirtis' %}</h4><p>CRM skirta bendrame registre tvarkyti kontaktinius asmenis ir įmones, jų ryšius, bendravimo istoriją, failus ir priminimus. Programa veikia naršyklėje, o duomenis saugo UGREEN NAS esančiuose Docker tomuose.</p></section>
@@ -96,6 +97,62 @@ ls -l runtime/backups/</code></pre></section>
   --media runtime/backups/media-…tar.gz.age --identity /saugi/vieta/crm-backup-key.txt</code></pre><p>Skriptas patikrina SHA256 sumas, sustabdo <code>crm-web</code> ir <code>crm-worker</code>, iššifruoja konteineryje (iššifruotas turinys į serverio diską nerašomas), atkuria duomenų bazę viena transakcija (<code>pg_restore --single-transaction</code> — nepavykus niekas nepakeičiama), pakeičia <code>runtime/media</code>, paleidžia CRM, laukia <code>/health/ready</code> ir parodo įrašų skaičių.</p></section>
   <section class="doc-section"><h4>{% translate 'Automatinės atkūrimo pratybos' %}</h4><p>CI darbas <code>backup-restore</code> kiekvieno pakeitimo metu atlieka avarinio atkūrimo pratybas: sukuria kontaktą su priedu, padaro šifruotą kopiją, ištrina duomenų bazę ir failus, patikrina, kad pakeistas failas atmetamas, atkuria ir patikrina kontaktą bei failo turinį. Savo infrastruktūroje atkūrimą vis tiek atlikite bent kartą per ketvirtį ir užrašykite trukmę (RTO). Duomenų praradimo riba (RPO) — ne daugiau vieno kopijavimo intervalo.</p></section>
   <section class="doc-section"><h4>{% translate 'Atkūrimo patikra' %}</h4><ol><li>Paleiskite <code>docker compose up -d</code> ir patikrinkite, kad visos paslaugos yra healthy.</li><li>Patikrinkite <code>/health/live</code> ir <code>/health/ready</code>.</li><li>Prisijunkite bandomuoju naudotoju.</li><li>Palyginkite kontaktų, įmonių, istorijos įrašų ir priminimų skaičius su kopijos suvestine.</li><li>Atidarykite bent vieną kontakto ir įmonės kortelę.</li><li>Atsisiųskite bent vieną seną priedą ir įkelkite naują bandomąjį failą.</li><li>Sukurkite, pakeiskite ir iš naujo atidarykite bandomą kontaktą.</li><li>Užfiksuokite datą, vykdytoją ir rezultatą. Tik sėkmingai praėjusi kopija laikoma tinkama atkūrimui.</li></ol></section>
+
+{% elif documentation_topic == "errors" %}
+  <header class="doc-title"><span>{% translate 'Kai kas nors nepavyksta' %}</span><h3>{% translate 'Klaidos ir ką jos reiškia' %}</h3><p>{% translate 'Kiekvienas pranešimas, kurį gali pamatyti naudotojas: ką jis reiškia, kodėl kyla ir ką daryti. Bendra taisyklė — jei veiksmas nepavyko, jis neįvyko: duomenys lieka tokie, kokie buvo prieš jį.' %}</p></header>
+
+  <section class="doc-section"><h4>{% translate 'Klaidų puslapiai' %}</h4><p>{% translate 'Šie puslapiai pakeičia visą langą. Kiekvienas pasako, kas nepavyko, kodėl taip galėjo nutikti ir ką daryti toliau.' %}</p>
+  <div class="doc-table-wrap"><table class="doc-table codes"><thead><tr><th>{% translate 'Kodas' %}</th><th>{% translate 'Ką reiškia' %}</th><th>{% translate 'Dažniausia priežastis' %}</th></tr></thead><tbody>
+    <tr><td><b>400</b></td><td>{% translate 'Užklausa netinkama' %}</td><td>{% translate 'Sena forma, per didelis įkeliamas failas arba ranka taisytas adresas.' %}</td></tr>
+    <tr><td><b>403</b></td><td>{% translate 'Neturite teisės to atlikti' %}</td><td>{% translate 'Rolė neturi galimybės, įrašas priklauso kitam, arba jūs skaitytojas.' %}</td></tr>
+    <tr><td><b>403</b></td><td>{% translate 'Forma nebegalioja (CSRF)' %}</td><td>{% translate 'Forma stovėjo atidaryta per ilgai arba sesija baigėsi. Atidarykite puslapį iš naujo.' %}</td></tr>
+    <tr><td><b>404</b></td><td>{% translate 'Tokio puslapio nėra' %}</td><td>{% translate 'Įrašas suarchyvuotas, ištrintas, sujungtas kaip dublikatas — arba jūsų rolė jo nemato.' %}</td></tr>
+    <tr><td><b>429</b></td><td>{% translate 'Per daug bandymų' %}</td><td>{% translate 'Penki nepavykę prisijungimai; blokuojama 30 min. arba kol administratorius atrakina.' %}</td></tr>
+    <tr><td><b>500</b></td><td>{% translate 'Sistemos klaida' %}</td><td>{% translate 'Klaida serveryje. Puslapis parodo užklausos numerį — jį pasakius administratorius randa klaidą žurnale.' %}</td></tr>
+  </tbody></table></div>
+  <aside class="doc-callout info"><strong>{% translate 'Kodėl 404, o ne „neleidžiama“' %}</strong><p>{% translate 'Jei įrašas yra, bet jūsų rolė jo nemato, sistema sako „nėra“. Taip daroma sąmoningai: atsakymas „neleidžiama“ patvirtintų, kad toks įrašas egzistuoja, ir tai jau būtų informacijos atskleidimas.' %}</p></aside>
+  </section>
+
+  <section class="doc-section"><h4>{% translate 'Prisijungimas' %}</h4><ul>
+    <li><b>{% translate 'Neteisingas vardas arba slaptažodis' %}</b> — {% translate 'sistema nesako, kuris iš jų neteisingas; kitaip būtų galima tikrinti, ar toks naudotojas yra.' %}</li>
+    <li><b>{% translate 'Paskyra laikinai užblokuota' %}</b> — {% translate 'po penkių nepavykusių bandymų. Atsiblokuoja po 30 minučių savaime arba administratoriui atrakinus.' %}</li>
+    <li><b>{% translate 'Paskyra neaktyvi' %}</b> — {% translate 'administratorius ją išjungė arba ji išjungta automatiškai dėl ilgo neaktyvumo. Kreipkitės į administratorių.' %}</li>
+    <li><b>{% translate 'Prisijungimą valdo organizacijos katalogas' %}</b> — {% translate 'vietinio slaptažodžio tokiai paskyrai nustatyti negalima; junkitės per katalogo mygtuką.' %}</li>
+    <li><b>{% translate 'Slaptažodžio atkūrimo nuoroda nebegalioja' %}</b> — {% translate 'nuoroda vienkartinė ir galioja valandą. Jei ja jau pasinaudota arba slaptažodis pakeistas, prašykite naujos.' %}</li>
+  </ul></section>
+
+  <section class="doc-section"><h4>{% translate 'Failai ir importas' %}</h4><ul>
+    <li><b>{% translate 'Failas nepraėjo antivirusinės patikros' %}</b> — {% translate 'kiekvienas įkeliamas failas tikrinamas. Failas neįrašytas. Patikrinkite jį savo kompiuteryje.' %}</li>
+    <li><b>{% translate 'Nepridėti failai (per dideli, netinkamo tipo arba nepraėjo patikros)' %}</b> — {% translate 'pranešimas įvardija, kurie failai nepriimti; likusieji pridėti sėkmingai.' %}</li>
+    <li><b>{% translate 'Nepavyko perskaityti failo' %}</b> — {% translate 'formatas netinkamas. Priimami CSV ir XLSX iki 10 MB.' %}</li>
+    <li><b>{% translate 'Nepavyko importuoti. Patikrinkite stulpelius' %}</b> — {% translate 'failas perskaitytas, bet stulpelių pavadinimai neatpažinti. Importo lange yra pavyzdinis failas.' %}</li>
+    <li><b>{% translate 'Faile nerasta įrašų' %}</b> — {% translate 'stulpeliai tinkami, bet eilučių nėra arba visos tuščios.' %}</li>
+    <li><b>{% translate 'Importo peržiūra pasibaigė' %}</b> — {% translate 'peržiūra laikoma sesijoje ir turi galiojimą. Įkelkite failą iš naujo.' %}</li>
+  </ul></section>
+
+  <section class="doc-section"><h4>{% translate 'Redaguojant įrašus' %}</h4><ul>
+    <li><b>{% translate 'Toks įrašas jau yra' %}</b> — {% translate 'rastas galimas dublikatas. Pranešimas rodo, kuris; galite jį atverti arba patvirtinti, kad tai kitas asmuo.' %}</li>
+    <li><b>{% translate 'Neturite teisės keisti atsakingo naudotojo' %}</b> — {% translate 'šią galimybę administratorius įjungia Nustatymai → Rolės ir teisės.' %}</li>
+    <li><b>{% translate 'Turi likti bent vienas aktyvus administratorius' %}</b> — {% translate 'paskutinio administratoriaus išjungti negalima; pirma paskirkite kitą.' %}</li>
+    <li><b>{% translate 'Pagrindinio administratoriaus keisti negalima' %}</b> — {% translate 'tai avarinė paskyra, kad neliktumėte užrakinti už sistemos ribų.' %}</li>
+  </ul></section>
+
+  <section class="doc-section"><h4>{% translate 'API klaidos' %}</h4><p>{% translate 'API grąžina JSON su laukais code ir message.' %}</p>
+  <div class="doc-table-wrap"><table class="doc-table codes"><thead><tr><th>{% translate 'Kodas' %}</th><th>{% translate 'Ką reiškia' %}</th></tr></thead><tbody>
+    <tr><td><b>400</b></td><td>{% translate 'Trūksta privalomo lauko arba reikšmė netinkama — pranešime įvardytas laukas.' %}</td></tr>
+    <tr><td><b>401</b></td><td>{% translate 'Nėra rakto, raktas atšauktas arba jo galiojimas pasibaigęs.' %}</td></tr>
+    <tr><td><b>403</b></td><td>{% translate 'Raktas tik skaitymui arba jo savininko rolė neleidžia šio veiksmo.' %}</td></tr>
+    <tr><td><b>404</b></td><td>{% translate 'Įrašo nėra arba rakto savininkas jo nemato.' %}</td></tr>
+    <tr><td><b>429</b></td><td>{% translate 'Viršyta užklausų per minutę riba. Palaukite ir kartokite rečiau.' %}</td></tr>
+  </tbody></table></div></section>
+
+  <section class="doc-section"><h4>{% translate 'Administratoriui: kur ieškoti priežasties' %}</h4><ol>
+    <li>{% translate 'Jei naudotojas praneša užklausos numerį — ieškokite jo žurnaluose pagal request_id; ten bus visa klaidos eilutė.' %}</li>
+    <li>{% translate 'Nustatymai → Žurnalas rodo, kas ir ką keitė; techninės klaidos ten nepatenka.' %}</li>
+    <li>{% translate 'Konteinerių žurnalai: docker compose logs crm-web.' %}</li>
+    <li>{% translate 'Jei nepavyksta siųsti laiškų — Nustatymai → El. paštas (SMTP) turi bandomojo laiško mygtuką.' %}</li>
+  </ol></section>
+
 {% endif %}
 </article>
 {% endblock %}
