@@ -361,8 +361,26 @@ for known CVEs in dependencies, `bandit` static analysis, a Trivy scan of the
 image — and CycloneDX SBOMs of the Python dependencies and of the image,
 downloadable as run artifacts; run the first two locally with
 `scripts/security-check.sh`), `deploy-staging.yml` (every
-push to `main`) and `deploy.yml` (a `v*.*.*` tag). Both deploy jobs run on a
-self-hosted runner on the target host — see [`deploy/runner/README.md`](../deploy/runner/README.md).
+push to `main`), `deploy.yml` (a `v*.*.*` tag) and `release.yml`. Both deploy
+jobs run on a self-hosted runner on the target host — see
+[`deploy/runner/README.md`](../deploy/runner/README.md).
+
+`release.yml` is how a version normally goes out. Run it from Actions and it
+reads the number from `VERSION`, refuses unless `compose.yaml` and the Helm
+chart's `appVersion` carry the same one, refuses to reuse an existing tag,
+creates the tag and calls `deploy.yml`. Nothing is skipped — `deploy.yml` runs
+`ruff` and `scripts/release-check.sh` before the runner is touched, and the
+runner still takes a backup first.
+
+Two things this needs from repository settings. The `Production`
+environment's *Deployment branches and tags* must allow `main` as well as `v*`,
+because a called workflow keeps the caller's ref; without it the deploy job is
+rejected before it starts. And a tag created with `GITHUB_TOKEN` does not start
+another workflow — GitHub blocks that to prevent workflows triggering
+themselves — which is why `release.yml` calls `deploy.yml` directly instead of
+leaving it to fire on the tag.
+
+Pushing a `v*.*.*` tag by hand still works exactly as before.
 
 A fork sets its own paths and URLs as repository variables rather than editing
 the workflows: `CRM_APP_DIR`, `CRM_STAGING_DIR`, `CRM_PROD_URL`,

@@ -2,7 +2,8 @@ name: Deploy
 
 # Deploys on a version tag (v1.2.3) after CI-equivalent checks pass, and only
 # once the "production" environment approval is granted. Also runnable by hand
-# (workflow_dispatch) for a redeploy or rollback to any ref.
+# (workflow_dispatch) for a redeploy or rollback to any ref, and called by
+# release.yml, which creates the tag first so nobody has to type it.
 
 on:
   push:
@@ -13,6 +14,12 @@ on:
         description: "Tag, branch or SHA to deploy"
         required: true
         default: "main"
+  workflow_call:
+    inputs:
+      ref:
+        description: "Tag, branch or SHA to deploy; defaults to the caller's ref"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -27,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.ref }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
@@ -54,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.ref }}
       - name: Deploy
         # Site-specific paths live in repository variables, not in the workflow,
         # so a fork only has to set them once. See docs/DEPLOYMENT.md.

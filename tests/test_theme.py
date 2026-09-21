@@ -368,6 +368,17 @@ class HelmChartTests(TestCase):
         chart = (self.chart / "Chart.yaml").read_text()
         self.assertIn(f'appVersion: "{version}"', chart)
 
+    def test_compose_builds_the_version_it_claims_to(self):
+        """Bumping VERSION and leaving compose.yaml behind rebuilds the previous
+        release under the new number, which is invisible until someone looks at
+        the running image. release.yml refuses the release over this; failing
+        here means it is caught before the push rather than at release time."""
+        version = (settings.BASE_DIR / "VERSION").read_text().strip()
+        compose = (settings.BASE_DIR / "compose.yaml").read_text()
+        for image in ("crm-web", "crm-backup"):
+            with self.subTest(image=image):
+                self.assertIn(f"image: {image}:{version}", compose)
+
     def test_web_pods_never_migrate_and_never_collect(self):
         """Several replicas booting together would race each other."""
         helpers = (self.chart / "templates" / "_helpers.tpl").read_text()
@@ -425,6 +436,17 @@ class HelmChartTests(TestCase):
         self.assertIn("ghcr.io/${{ github.repository_owner }}/crm-web", workflow)
         self.assertIn("Check the tag matches VERSION", workflow)
         self.assertIn("github.repository == 'colldem/Colld3mCRM'", workflow)
+
+    def test_release_creates_the_tag_and_calls_deploy(self):
+        """The tag used to be typed by hand. If release.yml stops creating it,
+        or stops calling Deploy, a release silently becomes a no-op."""
+        workflows = settings.BASE_DIR / ".github" / "workflows"
+        release = (workflows / "release.yml").read_text()
+        self.assertIn("git/refs", release)
+        self.assertIn("uses: ./.github/workflows/deploy.yml", release)
+        # A tag made with GITHUB_TOKEN starts no workflow, so Deploy has to be
+        # callable rather than left to fire on the tag push.
+        self.assertIn("workflow_call:", (workflows / "deploy.yml").read_text())
 
 
 class ObservabilityTests(TestCase):
