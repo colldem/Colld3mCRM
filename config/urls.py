@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-from contacts import views
+from contacts import password_reset, views
 from contacts.metrics import metrics_view
 from django.views.i18n import JavaScriptCatalog
 
@@ -19,6 +19,8 @@ urlpatterns += [
     path("i18n/", include("django.conf.urls.i18n")),
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("slaptazodis/atkurti/", password_reset.password_reset_request, name="password-reset"),
+    path("slaptazodis/<uidb64>/<token>/", password_reset.password_reset_set, name="password-reset-set"),
     # Entra ID (OIDC) — the views 404 unless login through Entra is enabled in Settings.
     path("oidc/", include("mozilla_django_oidc.urls")),
     path("setup/", views.setup_admin, name="setup"),

@@ -388,6 +388,11 @@ body[data-read-only] .favourite-form button,body[data-read-only] .inline-choices
 .login-break-glass summary{cursor:pointer;color:var(--muted);text-align:center}
 .login-break-glass form{margin-top:12px}
 .login-or{margin:16px 0 12px;text-align:center;color:var(--muted);font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.06em}
+.login-note{margin:0 0 18px;color:var(--muted);line-height:1.55}
+.login-submit{width:100%;justify-content:center}
+.login-directory{display:flex;width:100%;align-items:center;justify-content:center;gap:10px}
+.login-directory-icon{width:17px;height:17px;flex:none}
+.login-links{margin:16px 0 0;text-align:center;font-size:var(--fs-sm)}
 @media(min-width:992px) and (max-width:1350px){.record-toolbar{flex-wrap:wrap}.record-toolbar .list-actions{margin-left:auto}}
 @media(max-width:991.98px){
  .sidebar-toggle{display:inline-flex}

@@ -195,6 +195,7 @@ the summary.
 | `CRM_LOG_FORMAT` | `json` (`text` with `DJANGO_DEBUG=true`) | `json` writes one JSON object per line to stdout — application, security and Gunicorn access logs — for a SIEM; `text` is for reading by eye. See *Logs* below |
 | `CRM_LOG_LEVEL` | `INFO` | root log level |
 | `CRM_API_RATE_LIMIT` | `120` | JSON API requests allowed per token per minute (counted in the database, so shared by every process and replica); `0` disables the limit |
+| `CRM_PASSWORD_RESET_TIMEOUT` | `3600` | seconds a password-reset link stays valid; the link is also single use (it stops working once the password changes). Reset by e-mail needs SMTP configured in Settings → El. paštas |
 | `CRM_BREAK_GLASS_USERS` | *(empty)* | comma-separated usernames still allowed a local password when SSO-only sign-in is on (Settings → Prisijungimas); empty means active superusers only |
 | `WORKER_INTERVAL_SECONDS` | `300` | how often `crm-worker` runs the background commands |
 | `BACKUP_KEEP` / `BACKUP_INTERVAL_SECONDS` | `14` / `86400` | how many dumps `crm-backup` keeps, and how often it takes one |

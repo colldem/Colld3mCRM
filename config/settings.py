@@ -185,6 +185,9 @@ CRM_API_RATE_LIMIT = int(os.environ.get("CRM_API_RATE_LIMIT", "120"))
 # Usernames allowed to sign in with a local password while SSO-only mode is on.
 # Empty: active superusers only.
 CRM_BREAK_GLASS_USERS = [name.strip().lower() for name in os.environ.get("CRM_BREAK_GLASS_USERS", "").split(",") if name.strip()]
+# A reset link is a key to an account, and this one travels by e-mail: Django's
+# three-day default is far longer than anyone needs to read their inbox.
+PASSWORD_RESET_TIMEOUT = int(os.environ.get("CRM_PASSWORD_RESET_TIMEOUT", str(60 * 60)))
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = timedelta(minutes=30)
 # Lock the exact (username, ip) pair, and also any single IP that keeps failing

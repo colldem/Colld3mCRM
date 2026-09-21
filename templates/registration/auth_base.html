@@ -1,0 +1,32 @@
+{% load i18n static %}{% get_current_language as LANGUAGE_CODE %}
+{% comment %}The shell every signed-out page shares: sign in, and the two steps
+of a password reset. One place for the head, the banner and the panel.{% endcomment %}
+<!doctype html>
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}{% translate 'Prisijungti' %}{% endblock %} — CRM</title>
+  <link rel="manifest" href="{% url 'pwa-manifest' %}">
+  <meta name="theme-color" content="#062b63">
+  <link rel="icon" href="{% static 'icons/crm-icon.svg' %}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{% static 'icons/crm-icon.svg' %}">
+  <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260921a">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260921a">
+  <script src="{% static 'js/behaviors.js' %}?v=20260913a" defer></script>
+</head>
+<body class="login-page{% if crm_isolated %} has-env-banner{% endif %}">
+{% if crm_isolated %}
+  <div class="env-banner" role="status">{{ crm_environment }} — {% translate 'izoliuota kopija; laiškai, IMAP, katalogo prisijungimas ir webhook’ai išjungti' %}</div>
+{% endif %}
+<main class="login-panel">
+  {% include "language_switch.html" %}
+  <div class="brand">CRM</div>
+  <h1>{% block heading %}{% translate 'Prisijungti' %}{% endblock %}</h1>
+  {% block intro %}{% endblock %}
+  {% for message in messages %}<p class="{% if message.tags == 'error' %}error{% else %}login-note{% endif %}" role="alert">{{ message }}</p>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

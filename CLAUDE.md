@@ -72,6 +72,8 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
   `permissions.py` — rolės (admin / vadovas / visi / savi / skaitytojas), teisės (`CAPABILITIES`,
   paaiškinimai `CAPABILITY_HINTS`) ir įrašų matomumas;
+  `password_reset.py` — savitarnos slaptažodžio atkūrimas el. paštu (nuoroda vienkartinė, galiojimas
+  `CRM_PASSWORD_RESET_TIMEOUT`; katalogo valdomoms paskyroms neveikia);
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
   `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
