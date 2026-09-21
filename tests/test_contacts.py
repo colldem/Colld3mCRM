@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone, translation
 
@@ -8848,3 +8848,73 @@ class StagingPublicSwitchTests(TestCase):
         self.assertIn('options: ["tailnet", "public"]', workflow)
         self.assertIn('default: "tailnet"', workflow)
         self.assertIn("sanitize_staging", workflow)
+
+
+class ErrorPageTests(TestCase):
+    """What a person is told when something fails.
+
+    Before these pages existed the product had no error templates at all, so
+    with DEBUG off Django answered with an unstyled English line — "Not Found" —
+    and nothing else: no cause, no next step, no way back. These tests hold the
+    three things each page must do rather than its wording, which will change.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username="err-qa", password="x" * 14)
+
+    def _assert_helpful(self, response, status):
+        html = response.content.decode()
+        self.assertEqual(response.status_code, status)
+        self.assertIn("<main", html)
+        self.assertIn("<ul>", html)               # why it happened
+        self.assertIn('href="/"', html)                   # a way back
+        self.assertNotIn("<h1>Not Found</h1>", html)
+
+    def test_a_missing_page_says_what_became_of_the_record(self):
+        self.client.force_login(self.user)
+        response = self.client.get("/contacts/999999/")
+        self._assert_helpful(response, 404)
+        self.assertIn("Archyve", response.content.decode())
+
+    def test_an_unknown_address_is_answered_the_same_way(self):
+        self.client.force_login(self.user)
+        self._assert_helpful(self.client.get("/no-such-page/"), 404)
+
+    def test_the_server_error_page_carries_the_request_id(self):
+        """It is the only handle an administrator has on one failure in a log."""
+        from contacts.errors import server_error
+        request = RequestFactory().get("/")
+        request.request_id = "abc123"
+        response = server_error(request)
+        self.assertEqual(response.status_code, 500)
+        html = response.content.decode()
+        self.assertIn("abc123", html)
+        self.assertIn("reference", html)
+
+    def test_the_server_error_page_needs_no_request_context(self):
+        """Django renders handler500 with no context processors: a page that
+        reached for `user` or `request` would render blank exactly here."""
+        from contacts.errors import server_error
+        response = server_error(RequestFactory().get("/"))
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("<main", response.content.decode())
+
+    def test_a_refused_form_explains_itself_rather_than_cookies(self):
+        from contacts.errors import csrf_failure
+        response = csrf_failure(RequestFactory().post("/"), reason="CSRF token missing")
+        self.assertEqual(response.status_code, 403)
+        html = response.content.decode()
+        self.assertIn("<ul>", html)
+        self.assertIn("Niekas nepakeista", html)
+
+    def test_forbidden_names_where_the_roles_are_listed(self):
+        from contacts.errors import permission_denied
+        html = permission_denied(RequestFactory().get("/")).content.decode()
+        self.assertIn("Rolės ir teisės", html)
+
+    def test_every_handler_is_registered(self):
+        """A page nobody wired up is a page Django never reaches for."""
+        import config.urls as urls
+        for name in ("handler400", "handler403", "handler404", "handler500"):
+            self.assertTrue(getattr(urls, name, "").startswith("contacts.errors."), name)
+        self.assertEqual(settings.CSRF_FAILURE_VIEW, "contacts.errors.csrf_failure")

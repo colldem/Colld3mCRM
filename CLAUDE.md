@@ -72,6 +72,11 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
   `permissions.py` — rolės (admin / vadovas / visi / savi / skaitytojas), teisės (`CAPABILITIES`,
   paaiškinimai `CAPABILITY_HINTS`) ir įrašų matomumas;
+  `errors.py` + `templates/errors/error.html` — 400/403/404/500 ir CSRF puslapiai
+  (`handler*` `config/urls.py`, `CSRF_FAILURE_VIEW`); kiekvienas sako, kas nepavyko,
+  kodėl ir ką daryti, 500 rodo `request_id`. Puslapis sąmoningai savarankiškas —
+  be `{% static %}` ir be konteksto procesorių, nes per 500 jų gali nebūti;
+  visos klaidos aprašytos žinyne (Dokumentacija → Klaidos).
   `password_reset.py` — savitarnos slaptažodžio atkūrimas el. paštu (nuoroda vienkartinė, galiojimas
   `CRM_PASSWORD_RESET_TIMEOUT`; katalogo valdomoms paskyroms neveikia);
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;

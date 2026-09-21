@@ -1,0 +1,59 @@
+{% load i18n %}<!doctype html>
+{% comment %}
+Deliberately self-contained: no {% static %}, no shell, no context processors.
+
+Django renders handler500 with an empty context, so this page cannot reach
+`request` or `user`. It also must not depend on the staticfiles manifest: a
+stale or missing manifest raises inside {% static %}, which would turn the
+error page into a second error and hand the person Django's bare fallback —
+the exact failure these pages exist to remove. An error page has to render when
+other things do not, so its styling travels with it.
+
+style-src allows 'unsafe-inline' (contacts/middleware.py), so the block below
+needs no nonce; it would be dropped rather than fail if that ever changed.
+{% endcomment %}
+<html lang="{{ LANGUAGE_CODE|default:'lt' }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} — CRM</title>
+  <style>
+    :root{--ink:#111318;--muted:#667085;--line:#d9e1ea;--soft:#f5f8fc;--navy:#062b63}
+    *{box-sizing:border-box}
+    body{margin:0;display:grid;min-height:100vh;place-items:center;padding:24px;
+         background:var(--soft);color:var(--ink);line-height:1.55;
+         font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    main{width:min(620px,100%);padding:24px;border:1px solid var(--line);border-radius:8px;
+         background:#fff;box-shadow:0 4px 20px #10243e0d}
+    .status{margin:0 0 6px;color:var(--muted);font-size:12px;font-weight:700;
+            letter-spacing:.06em;text-transform:uppercase}
+    h1{margin:0 0 12px;font-size:24px;line-height:1.2}
+    h2{margin:0 0 10px;font-size:16px;font-weight:700}
+    .summary{margin:0 0 24px;font-size:16px}
+    ul{margin:0 0 24px;padding-left:20px;display:grid;gap:8px}
+    .reference{margin:0 0 24px;padding:12px;border-radius:6px;background:var(--soft)}
+    .reference code{font-size:16px;font-weight:700;overflow-wrap:anywhere}
+    .reference small{color:var(--muted)}
+    .back{display:inline-flex;align-items:center;justify-content:center;min-height:40px;
+          padding:9px 13px;border:1px solid var(--navy);border-radius:6px;background:var(--navy);
+          color:#fff;font-size:14px;font-weight:600;text-decoration:none}
+    a:focus-visible{outline:3px solid #88b6f7;outline-offset:2px}
+  </style>
+</head>
+<body>
+  <main role="main">
+    <p class="status">{% translate 'Klaida' %} {{ status }}</p>
+    <h1>{{ title }}</h1>
+    <p class="summary">{{ summary }}</p>
+    {% if causes %}
+      <h2>{% translate 'Kodėl taip galėjo nutikti ir ką daryti' %}</h2>
+      <ul>{% for cause in causes %}<li>{{ cause }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% if status == 500 and request_id %}
+      <p class="reference">{% translate 'Užklausos numeris' %} <code>{{ request_id }}</code><br>
+        <small>{% translate 'Pasakykite šį numerį administratoriui — pagal jį jis žurnale randa būtent šią klaidą.' %}</small></p>
+    {% endif %}
+    <p><a class="back" href="/">{% translate 'Grįžti į pradžią' %}</a></p>
+  </main>
+</body>
+</html>

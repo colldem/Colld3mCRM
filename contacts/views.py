@@ -1893,6 +1893,7 @@ def documentation_page(request):
         ("admin", tr("Administratoriui")),
         ("data", tr("Duomenys ir sauga")),
         ("backup", tr("Kopijos ir atkūrimas")),
+        ("errors", tr("Klaidos")),
     )
     allowed_topics = {key for key, _label in topics}
     topic = request.GET.get("topic", "overview")

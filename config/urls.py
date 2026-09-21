@@ -32,3 +32,10 @@ urlpatterns += [
     path("api/v1/", include("contacts.api_urls")),
     path("", include("contacts.urls")),
 ]
+
+# Without these, Django serves its built-in one-line replies once DEBUG is off.
+# contacts/errors.py says what each page has to answer.
+handler400 = "contacts.errors.bad_request"
+handler403 = "contacts.errors.permission_denied"
+handler404 = "contacts.errors.page_not_found"
+handler500 = "contacts.errors.server_error"

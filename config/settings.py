@@ -248,6 +248,10 @@ STORAGES = {
 }
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Cap a single multipart request: file count and total non-file payload.
+# Django's own CSRF page explains cookies and referers to somebody who was
+# only filling in a form; ours says what to do about it.
+CSRF_FAILURE_VIEW = "contacts.errors.csrf_failure"
+
 DATA_UPLOAD_MAX_NUMBER_FILES = 25
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 LOGIN_URL = "login"

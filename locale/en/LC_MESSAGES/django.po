@@ -4435,3 +4435,291 @@ msgstr ""
 #: templates/email/password_reset.html
 msgid "Pasikeisti slaptažodį"
 msgstr "Change the password"
+
+msgid "Užklausa netinkama"
+msgstr "The request could not be read"
+
+msgid "Serveris gavo užklausą, kurios negali perskaityti, todėl jos neįvykdė. Jūsų duomenys nepakeisti."
+msgstr "The server received a request it cannot make sense of, so it did not carry it out. Your data is unchanged."
+
+msgid "Forma buvo atidaryta labai seniai ir jos laukai nebeatitinka dabartinių."
+msgstr "The form was opened long ago and its fields no longer match the current ones."
+
+msgid "Įkeliamas failas viršijo leidžiamą dydį arba failų skaičių."
+msgstr "The upload exceeded the permitted file size or number of files."
+
+msgid "Adresas buvo redaguotas ranka arba ateina iš pasenusios nuorodos."
+msgstr "The address was edited by hand or comes from an outdated link."
+
+msgid "Neturite teisės to atlikti"
+msgstr "You do not have permission for this"
+
+msgid "Jūs prisijungęs, bet šis veiksmas jūsų rolei neprieinamas. Niekas nepakeista ir niekas neužfiksuota kaip pažeidimas — tiesiog trūksta teisės."
+msgstr "You are signed in, but this action is not available to your role. Nothing was changed and nothing was recorded as a violation — the permission is simply missing."
+
+msgid "Jūsų rolė šios galimybės neturi. Ką kuri rolė gali, mato administratorius Nustatymai → Rolės ir teisės."
+msgstr "Your role does not include this capability. An administrator can see what each role may do under Settings → Roles and permissions."
+
+msgid "Įrašas priklauso kitam naudotojui ar komandai, o jūsų matomumas apribotas savais įrašais."
+msgstr "The record belongs to another user or team, and your visibility is limited to your own records."
+
+msgid "Jūs skaitytojas — ši rolė nieko nekeičia, tik peržiūri."
+msgstr "You are a reader — that role views only and changes nothing."
+
+msgid "Jei teisės tikrai reikia darbui, jos prašykite administratoriaus: pasakykite, kurį puslapį atvėrėte ir ką bandėte daryti."
+msgstr "If you genuinely need this for your work, ask an administrator: tell them which page you opened and what you were trying to do."
+
+msgid "Tokio puslapio nėra"
+msgstr "There is no such page"
+
+msgid "Adresas teisingas savo forma, bet nieko neatitinka. Gali būti, kad įrašas buvo, bet jo nebeliko."
+msgstr "The address is well formed but matches nothing. The record may have existed and be gone now."
+
+msgid "Įrašas suarchyvuotas arba ištrintas. Suarchyvuotus įrašus rasite Archyve."
+msgstr "The record was archived or deleted. Archived records are in the Archive."
+
+msgid "Įrašas sujungtas su kitu kaip dublikatas — atsidarykite tą, į kurį sujungta."
+msgstr "The record was merged into another as a duplicate — open the one it was merged into."
+
+msgid "Adrese yra rašybos klaida arba nuoroda pasenusi."
+msgstr "The address has a typing mistake, or the link is out of date."
+
+msgid "Įrašas yra, bet jūsų rolė jo nemato — tokiu atveju sistema sąmoningai sako „nėra“, o ne „neleidžiama“, kad pats įrašo buvimas neatsiskleistų."
+msgstr "The record exists but your role cannot see it. In that case the system deliberately says \"not found\" rather than \"not allowed\", so that its very existence is not disclosed."
+
+msgid "Sistemos klaida"
+msgstr "System error"
+
+msgid "Nepavyko ne dėl jūsų — klaida įvyko serveryje. Veiksmas neįvykdytas, o duomenys liko tokie, kokie buvo prieš jį."
+msgstr "This is not your fault — the error happened on the server. The action was not carried out and your data is as it was before it."
+
+msgid "Pabandykite dar kartą po kelių minučių — dalis tokių klaidų laikinos."
+msgstr "Try again in a few minutes — some errors of this kind are temporary."
+
+msgid "Jei kartojasi, praneškite administratoriui ir pasakykite žemiau esantį užklausos numerį: pagal jį jis žurnale randa būtent šią klaidą."
+msgstr "If it keeps happening, tell an administrator and give them the request number below: it is how they find this exact failure in the log."
+
+msgid "Nekartokite mokėjimo ar siuntimo veiksmo daug kartų iš eilės — pirma patikrinkite, ar jis tikrai neįvyko."
+msgstr "Do not repeat a payment or a send many times over — first check whether it did go through after all."
+
+msgid "Forma nebegalioja"
+msgstr "The form is no longer valid"
+
+msgid "Forma buvo atidaryta per seniai arba jūsų sesija baigėsi, todėl serveris negali patikrinti, kad ją siunčiate būtent jūs. Tai apsauga nuo svetimo puslapio, kuris bandytų atlikti veiksmą jūsų vardu. Niekas nepakeista."
+msgstr "The form was opened too long ago, or your session ended, so the server cannot confirm that you are the one submitting it. This guards against another site trying to act in your name. Nothing was changed."
+
+msgid "Atsidarykite puslapį iš naujo ir pakartokite veiksmą — įvestą tekstą prieš tai nusikopijuokite, kad nedingtų."
+msgstr "Open the page again and repeat the action — copy anything you typed first, so it is not lost."
+
+msgid "Jei buvote atsijungęs kitame lange, prisijunkite ir bandykite dar kartą."
+msgstr "If you signed out in another window, sign in and try again."
+
+msgid "Jei naršyklė blokuoja slapukus šiai svetainei, juos reikia leisti — be jų prisijungimas neveiks iš viso."
+msgstr "If your browser blocks cookies for this site, they have to be allowed — without them signing in will not work at all."
+
+msgid "Kodėl taip galėjo nutikti ir ką daryti"
+msgstr "Why this may have happened, and what to do"
+
+msgid "Užklausos numeris"
+msgstr "Request number"
+
+msgid "Pasakykite šį numerį administratoriui — pagal jį jis žurnale randa būtent šią klaidą."
+msgstr "Give this number to an administrator — it is how they find this exact failure in the log."
+
+msgid "Grįžti į pradžią"
+msgstr "Back to the start"
+
+msgid "Kai kas nors nepavyksta"
+msgstr "When something goes wrong"
+
+msgid "Klaidos ir ką jos reiškia"
+msgstr "Errors and what they mean"
+
+msgid "Kiekvienas pranešimas, kurį gali pamatyti naudotojas: ką jis reiškia, kodėl kyla ir ką daryti. Bendra taisyklė — jei veiksmas nepavyko, jis neįvyko: duomenys lieka tokie, kokie buvo prieš jį."
+msgstr "Every message a user can meet: what it means, why it happens and what to do. The general rule is that a failed action did not happen — your data stays as it was before it."
+
+msgid "Klaidų puslapiai"
+msgstr "Error pages"
+
+msgid "Šie puslapiai pakeičia visą langą. Kiekvienas pasako, kas nepavyko, kodėl taip galėjo nutikti ir ką daryti toliau."
+msgstr "These replace the whole window. Each one says what failed, why it may have happened and what to do next."
+
+msgid "Kodas"
+msgstr "Code"
+
+msgid "Ką reiškia"
+msgstr "What it means"
+
+msgid "Dažniausia priežastis"
+msgstr "Most common cause"
+
+msgid "Sena forma, per didelis įkeliamas failas arba ranka taisytas adresas."
+msgstr "An old form, an upload that is too large, or an address edited by hand."
+
+msgid "Rolė neturi galimybės, įrašas priklauso kitam, arba jūs skaitytojas."
+msgstr "The role lacks the capability, the record belongs to someone else, or you are a reader."
+
+msgid "Forma nebegalioja (CSRF)"
+msgstr "The form is no longer valid (CSRF)"
+
+msgid "Forma stovėjo atidaryta per ilgai arba sesija baigėsi. Atidarykite puslapį iš naujo."
+msgstr "The form sat open too long, or the session ended. Open the page again."
+
+msgid "Įrašas suarchyvuotas, ištrintas, sujungtas kaip dublikatas — arba jūsų rolė jo nemato."
+msgstr "The record was archived, deleted or merged as a duplicate — or your role cannot see it."
+
+msgid "Per daug bandymų"
+msgstr "Too many attempts"
+
+msgid "Penki nepavykę prisijungimai; blokuojama 30 min. arba kol administratorius atrakina."
+msgstr "Five failed sign-ins; locked for 30 minutes, or until an administrator unlocks it."
+
+msgid "Klaida serveryje. Puslapis parodo užklausos numerį — jį pasakius administratorius randa klaidą žurnale."
+msgstr "An error on the server. The page shows a request number, which lets an administrator find the failure in the log."
+
+msgid "Kodėl 404, o ne „neleidžiama“"
+msgstr "Why 404 rather than \"not allowed\""
+
+msgid "Jei įrašas yra, bet jūsų rolė jo nemato, sistema sako „nėra“. Taip daroma sąmoningai: atsakymas „neleidžiama“ patvirtintų, kad toks įrašas egzistuoja, ir tai jau būtų informacijos atskleidimas."
+msgstr "If a record exists but your role cannot see it, the system says \"not found\". That is deliberate: answering \"not allowed\" would confirm that the record exists, and that is already a disclosure."
+
+msgid "Neteisingas vardas arba slaptažodis"
+msgstr "Wrong username or password"
+
+msgid "sistema nesako, kuris iš jų neteisingas; kitaip būtų galima tikrinti, ar toks naudotojas yra."
+msgstr "the system does not say which of the two is wrong; otherwise it could be used to test whether a user exists."
+
+msgid "Paskyra laikinai užblokuota"
+msgstr "The account is temporarily locked"
+
+msgid "po penkių nepavykusių bandymų. Atsiblokuoja po 30 minučių savaime arba administratoriui atrakinus."
+msgstr "after five failed attempts. It clears itself after 30 minutes, or when an administrator unlocks it."
+
+msgid "Paskyra neaktyvi"
+msgstr "The account is inactive"
+
+msgid "administratorius ją išjungė arba ji išjungta automatiškai dėl ilgo neaktyvumo. Kreipkitės į administratorių."
+msgstr "an administrator disabled it, or it was disabled automatically after long inactivity. Ask an administrator."
+
+msgid "Prisijungimą valdo organizacijos katalogas"
+msgstr "Sign-in is managed by the organisation's directory"
+
+msgid "vietinio slaptažodžio tokiai paskyrai nustatyti negalima; junkitės per katalogo mygtuką."
+msgstr "a local password cannot be set for such an account; use the directory button."
+
+msgid "Slaptažodžio atkūrimo nuoroda nebegalioja"
+msgstr "The password reset link is no longer valid"
+
+msgid "nuoroda vienkartinė ir galioja valandą. Jei ja jau pasinaudota arba slaptažodis pakeistas, prašykite naujos."
+msgstr "the link is single use and lasts an hour. If it was used, or the password changed, ask for a new one."
+
+msgid "Failai ir importas"
+msgstr "Files and import"
+
+msgid "kiekvienas įkeliamas failas tikrinamas. Failas neįrašytas. Patikrinkite jį savo kompiuteryje."
+msgstr "every upload is scanned. The file was not stored. Check it on your own computer."
+
+msgid "pranešimas įvardija, kurie failai nepriimti; likusieji pridėti sėkmingai."
+msgstr "the message names which files were refused; the rest were attached successfully."
+
+msgid "formatas netinkamas. Priimami CSV ir XLSX iki 10 MB."
+msgstr "the format is wrong. CSV and XLSX up to 10 MB are accepted."
+
+msgid "failas perskaitytas, bet stulpelių pavadinimai neatpažinti. Importo lange yra pavyzdinis failas."
+msgstr "the file was read but its column names were not recognised. The import page offers a sample file."
+
+msgid "stulpeliai tinkami, bet eilučių nėra arba visos tuščios."
+msgstr "the columns are right, but there are no rows, or all of them are empty."
+
+msgid "peržiūra laikoma sesijoje ir turi galiojimą. Įkelkite failą iš naujo."
+msgstr "the preview is held in your session and expires. Upload the file again."
+
+msgid "Redaguojant įrašus"
+msgstr "While editing records"
+
+msgid "rastas galimas dublikatas. Pranešimas rodo, kuris; galite jį atverti arba patvirtinti, kad tai kitas asmuo."
+msgstr "a possible duplicate was found. The message shows which; open it, or confirm this is a different person."
+
+msgid "šią galimybę administratorius įjungia Nustatymai → Rolės ir teisės."
+msgstr "an administrator enables this under Settings → Roles and permissions."
+
+msgid "paskutinio administratoriaus išjungti negalima; pirma paskirkite kitą."
+msgstr "the last administrator cannot be disabled; appoint another one first."
+
+msgid "tai avarinė paskyra, kad neliktumėte užrakinti už sistemos ribų."
+msgstr "this is the break-glass account, so that you cannot be locked out of the system."
+
+msgid "API klaidos"
+msgstr "API errors"
+
+msgid "API grąžina JSON su laukais code ir message."
+msgstr "The API answers with JSON carrying code and message."
+
+msgid "Trūksta privalomo lauko arba reikšmė netinkama — pranešime įvardytas laukas."
+msgstr "A required field is missing or a value is invalid — the message names the field."
+
+msgid "Nėra rakto, raktas atšauktas arba jo galiojimas pasibaigęs."
+msgstr "No token, or the token was revoked or has expired."
+
+msgid "Raktas tik skaitymui arba jo savininko rolė neleidžia šio veiksmo."
+msgstr "The token is read-only, or its owner's role does not allow this action."
+
+msgid "Įrašo nėra arba rakto savininkas jo nemato."
+msgstr "The record does not exist, or the token's owner cannot see it."
+
+msgid "Viršyta užklausų per minutę riba. Palaukite ir kartokite rečiau."
+msgstr "The requests-per-minute limit was exceeded. Wait and try less often."
+
+msgid "Administratoriui: kur ieškoti priežasties"
+msgstr "For administrators: where to look for the cause"
+
+msgid "Jei naudotojas praneša užklausos numerį — ieškokite jo žurnaluose pagal request_id; ten bus visa klaidos eilutė."
+msgstr "If a user reports a request number, search the logs for it by request_id; the full error line is there."
+
+msgid "Nustatymai → Žurnalas rodo, kas ir ką keitė; techninės klaidos ten nepatenka."
+msgstr "Settings → Audit log shows who changed what; technical errors do not go there."
+
+msgid "Konteinerių žurnalai: docker compose logs crm-web."
+msgstr "Container logs: docker compose logs crm-web."
+
+msgid "Jei nepavyksta siųsti laiškų — Nustatymai → El. paštas (SMTP) turi bandomojo laiško mygtuką."
+msgstr "If mail will not send, Settings → Email (SMTP) has a test-message button."
+
+msgid "Suprasti klaidas"
+msgstr "Understand the errors"
+
+msgid "Ką reiškia kiekvienas klaidos pranešimas, kodėl jis kyla ir ką daryti."
+msgstr "What each error message means, why it happens and what to do."
+
+msgid "Klaidos"
+msgstr "Errors"
+
+msgid "Nepavyko perskaityti failo"
+msgstr "The file could not be read"
+
+msgid "Turi likti bent vienas aktyvus administratorius"
+msgstr "At least one active administrator must remain"
+
+msgid "Nepavyko importuoti. Patikrinkite stulpelius"
+msgstr "The import failed. Check the columns"
+
+msgid "Importo peržiūra pasibaigė"
+msgstr "The import preview has expired"
+
+msgid "Pagrindinio administratoriaus keisti negalima"
+msgstr "The primary administrator cannot be changed"
+
+msgid "Failas nepraėjo antivirusinės patikros"
+msgstr "The file did not pass the virus scan"
+
+msgid "Nepridėti failai (per dideli, netinkamo tipo arba nepraėjo patikros)"
+msgstr "Some files were not attached (too large, wrong type, or failed the scan)"
+
+msgid "Neturite teisės keisti atsakingo naudotojo"
+msgstr "You may not change the responsible user"
+
+msgid "Faile nerasta įrašų"
+msgstr "No records were found in the file"
+
+msgid "Toks įrašas jau yra"
+msgstr "A record like this already exists"
