@@ -735,3 +735,64 @@ class RoleColumnTests(TestCase):
         defined = set(re.findall(r"(--[a-z0-9-]+)\s*:", "".join(re.findall(r":root\{(.*?)\}", css, re.S))))
         used = set(re.findall(r"var\((--[a-z0-9-]+)\s*\)", css))
         self.assertEqual(sorted(used - defined - {"--overlay-colour"}), [])
+
+
+class ControlScaleTests(TestCase):
+    """Buttons and controls must take their size from the token scale.
+
+    The product had twenty separate rules that each said "a small button" in
+    their own words — eleven spellings of 32px, seven paddings, five font sizes —
+    so two compact buttons side by side were rarely the same height. These tests
+    are what stops that from growing back one convenient override at a time.
+    """
+
+    @staticmethod
+    def _css(name):
+        return (settings.BASE_DIR / "static" / "css" / name).read_text()
+
+    @staticmethod
+    def _rules(css):
+        """(selector, body) for every rule, comments and media queries stripped."""
+        import re
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        return [(m.group(1).strip(), m.group(2))
+                for m in re.finditer(r"([^{}@]+)\{([^{}]*)\}", css)]
+
+    def test_the_scale_is_declared_once(self):
+        root = self._css("app.css").split("}")[0]
+        for token in ("--control-h:", "--control-h-sm:", "--control-h-lg:",
+                      "--btn-pad-y:", "--btn-pad-x:", "--btn-pad-y-sm:", "--btn-pad-x-sm:"):
+            self.assertIn(token, root, "%s must live in the app.css :root scale" % token)
+
+    def test_no_button_rule_hard_codes_its_size(self):
+        """A pixel here is how the drift started; the tokens exist for this."""
+        import re
+        allowed = {
+            # An icon button: one glyph, centred, deliberately not text-sized.
+            ".shortcut-row .btn",
+            # Sits inside a calendar event, so smaller than a compact button.
+            ".event-done .btn",
+        }
+        offenders = []
+        for name in ("app.css", "theme.css"):
+            for selector, body in self._rules(self._css(name)):
+                if ".btn" not in selector:
+                    continue
+                if selector in allowed:
+                    continue
+                for prop in ("min-height", "height", "padding", "font-size"):
+                    for match in re.finditer(r"(?:^|;)\s*%s\s*:([^;]+)" % prop, body):
+                        if "px" in match.group(1) and "var(" not in match.group(1):
+                            offenders.append("%s: %s {%s:%s}" % (name, selector, prop, match.group(1).strip()))
+        self.assertEqual(offenders, [], "use the --control-h / --btn-pad tokens instead")
+
+    def test_one_compact_button_rule_rather_than_twenty(self):
+        """Every compact context shares a rule, so they cannot drift apart."""
+        css = self._css("theme.css")
+        shared = [body for selector, body in self._rules(css)
+                  if ".page-links .btn" in selector and "min-height" in body]
+        self.assertEqual(len(shared), 1, "the compact button is defined in exactly one rule")
+        for context in (".bulk-bar .btn", ".cal-nav .btn", ".dash-card-tools .btn",
+                        ".rec-actions .btn", ".filter-row .btn", ".stack-form .btn"):
+            self.assertIn(context, [s for s, _ in self._rules(css) if ".page-links .btn" in s][0],
+                          "%s must share the compact button rule, not restate it" % context)
