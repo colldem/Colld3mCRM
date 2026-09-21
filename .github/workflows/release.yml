@@ -1,0 +1,94 @@
+name: Release
+
+# One button instead of a hand-made tag.
+#
+# Creating vX.Y.Z by hand was the deliberate gate on a production deploy, but it
+# also meant every release needed someone at a terminal or in the Releases page,
+# typing a number that VERSION already holds. This workflow reads VERSION,
+# checks that everything which should carry that number does, creates the tag
+# and then runs the same Deploy workflow a tag push would have run.
+#
+# Running this workflow is now the deliberate act. It still cannot skip
+# anything: Deploy's own verify job runs ruff and the full release check before
+# the NAS runner is touched, and the runner still takes a backup first.
+#
+# A tag created with GITHUB_TOKEN does not start another workflow — GitHub
+# blocks that to stop workflows triggering themselves — which is why Deploy is
+# called directly here rather than left to fire on the tag.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release; leave empty to use the VERSION file"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Work out the version and check everything agrees on it
+        id: check
+        env:
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          set -eu
+          version="${REQUESTED:-$(cat VERSION)}"
+          version="${version#v}"
+          echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+            echo "FATAL: '$version' is not X.Y.Z"; exit 1; }
+
+          # The classic release mistake is bumping VERSION and leaving the image
+          # tags behind, so the deploy quietly rebuilds the previous number.
+          for image in crm-web crm-backup; do
+            grep -q "image: $image:$version" compose.yaml || {
+              echo "FATAL: compose.yaml does not reference $image:$version"
+              grep -n "image: $image:" compose.yaml || true
+              exit 1; }
+          done
+          grep -q "^appVersion: \"$version\"" deploy/helm/crm/Chart.yaml || {
+            echo "FATAL: deploy/helm/crm/Chart.yaml appVersion is not $version"
+            grep -n '^appVersion:' deploy/helm/crm/Chart.yaml || true
+            exit 1; }
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing $version from ${GITHUB_SHA}"
+
+      - name: Refuse to reuse a tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          set -eu
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "FATAL: v${VERSION} already exists. Bump VERSION (and compose.yaml,"
+            echo "       deploy/helm/crm/Chart.yaml) before releasing again."
+            exit 1
+          fi
+
+      - name: Create the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          set -eu
+          gh api "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f ref="refs/tags/v${VERSION}" -f sha="${GITHUB_SHA}" >/dev/null
+          echo "Tagged v${VERSION} at ${GITHUB_SHA}"
+
+  deploy:
+    needs: tag
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit

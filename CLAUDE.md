@@ -35,12 +35,18 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
    `CRM_ENVIRONMENT=staging` išjungia el. paštą, IMAP, Entra ir webhook'us, ir
    nėra `crm-worker`. Duomenis atnaujinti: `scripts/refresh-staging.sh` (rankiniu
    būdu ant NAS). Į produkciją — tik po patikros staging'e.
-   Jei keitėsi funkcionalumas — bumpinti `VERSION` ir
-   `image: crm-web:X.Y.Z` bei `crm-backup:X.Y.Z` `compose.yaml`. Diegimas: `git tag vX.Y.Z && git push
-   origin vX.Y.Z` → GitHub Actions „Deploy" praeina patikras → runner ant NAS
-   daro backup → build → `up -d` → health check. Patvirtinimo mygtuko **nėra**
-   („Required reviewers" reikalauja mokamo plano privačiam repo), tad sąmoningas
-   veiksmas yra pati žymos įkėlimas. Rankinis atsarginis kelias:
+   Jei keitėsi funkcionalumas — bumpinti `VERSION`,
+   `image: crm-web:X.Y.Z` bei `crm-backup:X.Y.Z` `compose.yaml` ir `appVersion`
+   `deploy/helm/crm/Chart.yaml`. Diegimas: **Actions → „Release" → Run workflow**
+   (`release.yml`) — jis pasiima numerį iš `VERSION`, patikrina, ar visi trys
+   failai jį atitinka, ar tokios žymos dar nėra, sukuria žymą ir iškart iškviečia
+   „Deploy". Rankomis žymos kurti nebereikia; `git tag vX.Y.Z && git push origin
+   vX.Y.Z` tebeveikia kaip anksčiau. Toliau: „Deploy" praeina patikras (ruff +
+   `release-check.sh`) → runner ant NAS daro backup → build → `up -d` → health
+   check. Patvirtinimo mygtuko **nėra** („Required reviewers" reikalauja mokamo
+   plano privačiam repo), tad sąmoningas veiksmas yra pats „Release" paleidimas.
+   `Production` aplinkos „Deployment branches and tags" turi leisti `main` —
+   kitaip iškviestas „Deploy" atmetamas dar nepradėjęs. Rankinis atsarginis kelias:
    `scripts/deploy.sh` arba `docker compose build --pull && up -d`. Perdangos
    parenkamos per `COMPOSE_FILE` NAS `.env` faile. Patikrinti: `crm-db`,
    `crm-web`, `crm-worker` healthy, `/health/ready` = `ready`.
@@ -137,7 +143,9 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   kortelių paraštės — `--card-pad*`, viršutinė juosta ir logotipas —
   `--topbar-h`. Saugo `tests/test_theme.py` `ControlScaleTests`.
 - `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
-  `deploy.yml` (tag `v*`), abu `runs-on: self-hosted crm-nas`.
+  `deploy.yml` (tag `v*` arba `workflow_call`), `release.yml` (rankinis paleidimas:
+  pasiima `VERSION`, patikrina `compose.yaml` ir Chart'o `appVersion`, sukuria žymą,
+  iškviečia „Deploy"), abu diegimo darbai `runs-on: self-hosted crm-nas`.
   `scripts/backup.sh` (crm-backup image, `deploy/backup/Dockerfile`) — šifruotos kopijos; `scripts/restore.sh` — atkūrimas
   (CI `backup-restore` darbas atlieka avarinio atkūrimo pratybas); `scripts/security-check.sh` — pip-audit + bandit (CI `security` darbas; Trivy ir SBOM — `image` darbe);
   `scripts/staging-public.sh` — staging instancijos atvėrimas į viešą internetą
