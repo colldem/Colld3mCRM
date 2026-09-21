@@ -4060,3 +4060,109 @@ msgstr "All events"
 
 
 
+
+#: templates/registration/_credentials.html
+msgid "Prisijungimo vardas"
+msgstr "Username"
+
+#: templates/registration/login.html
+msgid "Pamiršote slaptažodį?"
+msgstr "Forgot your password?"
+
+#: templates/registration/password_reset_request.html
+#: templates/email/password_reset.html contacts/password_reset.py
+msgid "Slaptažodžio atkūrimas"
+msgstr "Password reset"
+
+#: templates/registration/password_reset_request.html
+msgid ""
+"Įveskite savo prisijungimo vardą arba el. pašto adresą. Jei tokia paskyra "
+"yra, atsiųsime nuorodą slaptažodžiui pasikeisti."
+msgstr ""
+"Enter your username or e-mail address. If such an account exists, we will "
+"send a link for changing the password."
+
+#: templates/registration/password_reset_request.html
+msgid "Prisijungimo vardas arba el. paštas"
+msgstr "Username or e-mail"
+
+#: templates/registration/password_reset_request.html
+msgid "Siųsti nuorodą"
+msgstr "Send the link"
+
+#: templates/registration/password_reset_request.html
+msgid ""
+"Šioje sistemoje slaptažodžius tvarko organizacijos katalogas — jį pasikeisti "
+"galima ten, ne CRM."
+msgstr ""
+"Passwords here are managed by the organisation's directory — change yours "
+"there, not in the CRM."
+
+#: templates/registration/password_reset_request.html
+#: templates/registration/password_reset_set.html
+msgid "Grįžti į prisijungimą"
+msgstr "Back to sign in"
+
+#: templates/registration/password_reset_set.html
+msgid "Išsaugoti slaptažodį"
+msgstr "Save the password"
+
+#: templates/registration/password_reset_set.html
+msgid "Nuoroda nebegalioja arba jau buvo panaudota. Paprašykite naujos."
+msgstr "The link has expired or was already used. Ask for a new one."
+
+#: templates/registration/password_reset_set.html
+msgid "Siųsti naują nuorodą"
+msgstr "Send a new link"
+
+#: contacts/password_reset.py
+msgid ""
+"Jei tokia paskyra yra, išsiuntėme nuorodą slaptažodžiui pasikeisti. "
+"Patikrinkite el. paštą."
+msgstr ""
+"If such an account exists, we have sent a link for changing the password. "
+"Please check your e-mail."
+
+#: contacts/password_reset.py
+msgid "Slaptažodis pakeistas. Galite prisijungti."
+msgstr "The password has been changed. You can sign in."
+
+#: contacts/password_reset.py
+msgid "CRM slaptažodžio atkūrimas"
+msgstr "CRM password reset"
+
+#: contacts/password_reset.py
+msgid "pakeistas per atkūrimo nuorodą"
+msgstr "changed through a reset link"
+
+#: templates/email/password_reset.txt
+msgid "SLAPTAŽODŽIO ATKŪRIMAS"
+msgstr "PASSWORD RESET"
+
+#: templates/email/password_reset.txt
+msgid ""
+"Gavome prašymą pakeisti jūsų CRM slaptažodį. Atidarykite šią nuorodą ir "
+"įveskite naują:"
+msgstr ""
+"We received a request to change your CRM password. Open this link and enter "
+"a new one:"
+
+#: templates/email/password_reset.html
+msgid ""
+"Gavome prašymą pakeisti jūsų CRM slaptažodį. Paspauskite mygtuką ir įveskite "
+"naują:"
+msgstr ""
+"We received a request to change your CRM password. Press the button and "
+"enter a new one:"
+
+#: templates/email/password_reset.txt templates/email/password_reset.html
+msgid ""
+"Nuoroda galioja ribotą laiką ir suveikia tik vieną kartą. Jei prašymo "
+"neteikėte, nieko daryti nereikia — slaptažodis liks toks pat."
+msgstr ""
+"The link is valid for a limited time and works only once. If you did not ask "
+"for it, there is nothing to do — your password stays as it is."
+
+#: templates/email/password_reset.html
+msgid "Pasikeisti slaptažodį"
+msgstr "Change the password"

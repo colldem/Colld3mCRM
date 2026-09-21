@@ -24,7 +24,8 @@ from django.utils.translation import gettext as _
 from .models import AuditLog, DirectoryGroupMapping, Team, UserProfile
 
 # Strongest first. A role not listed here (added later) ranks last.
-ROLE_STRENGTH = [UserProfile.ROLE_ADMIN, UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY]
+ROLE_STRENGTH = [UserProfile.ROLE_ADMIN, UserProfile.ROLE_MANAGER, UserProfile.ROLE_MEMBER,
+                 UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY]
 
 
 class DirectoryAccessDenied(Exception):

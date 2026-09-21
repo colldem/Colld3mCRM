@@ -68,7 +68,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
   `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
-  `permissions.py` — rolės (admin / visi / savi / skaitytojas), teisės ir įrašų matomumas;
+  `permissions.py` — rolės (admin / vadovas / visi / savi / skaitytojas), teisės ir įrašų matomumas;
+  `password_reset.py` — savitarnos slaptažodžio atkūrimas el. paštu (nuoroda vienkartinė, galiojimas
+  `CRM_PASSWORD_RESET_TIMEOUT`; katalogo valdomoms paskyroms neveikia);
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
   `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);

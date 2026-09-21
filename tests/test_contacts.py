@@ -5070,6 +5070,22 @@ class RecordVisibilityTests(TestCase):
         self.assertTrue(matrix[UserProfile.ROLE_MEMBER]["can_import"])
         self.assertFalse(matrix[UserProfile.ROLE_RESTRICTED]["can_import"])
 
+    def test_a_manager_sees_every_record_but_configures_nothing(self):
+        """The role an organisation's "manager" AD group maps to: the whole base
+        to supervise, none of the settings."""
+        manager = get_user_model().objects.create_user("vadovas", password="very-secure-password")
+        UserProfile.objects.create(user=manager, role=UserProfile.ROLE_MANAGER,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        # Even "own records only" on the profile does not narrow a manager.
+        self.assertTrue(perm.sees_all_records(manager))
+        self.assertFalse(perm.is_admin(manager))
+        self.assertTrue(perm.has_capability(manager, "can_view_audit"))
+        self.assertFalse(perm.has_capability(manager, "can_manage_automations"))
+        # The settings pages an admin owns stay shut.
+        self.client.force_login(manager)
+        self.assertEqual(self.client.get(reverse("contacts:settings-users")).status_code, 404)
+        self.assertEqual(self.client.get(reverse("contacts:settings-permissions")).status_code, 404)
+
     # --- record_visibility ---------------------------------------------------
 
     def test_anonymous_and_admin_see_everything(self):
@@ -6234,6 +6250,21 @@ class DirectoryAccessTests(TestCase):
         self.assertEqual(result.teams, [self.support, self.sales])
         self.assertEqual(result.denied, "")
 
+    def test_a_manager_group_outranks_a_user_group_but_not_an_admin_one(self):
+        """The three groups an organisation actually keeps: admins, managers,
+        users — and a person in several gets the strongest."""
+        from contacts.directory import evaluate
+        from contacts.integrations import oidc_config
+        from contacts.models import DirectoryGroupMapping
+
+        DirectoryGroupMapping.objects.create(group="CRM-Managers", role=UserProfile.ROLE_MANAGER)
+        config = oidc_config()
+        self.assertEqual(evaluate(self.claims(["CRM-Managers"]), config).role, UserProfile.ROLE_MANAGER)
+        self.assertEqual(evaluate(self.claims(["CRM-Managers", "CRM-Users"]), config).role,
+                         UserProfile.ROLE_MANAGER)
+        self.assertEqual(evaluate(self.claims(["CRM-Managers", "CRM-Admins"]), config).role,
+                         UserProfile.ROLE_ADMIN)
+
     def test_single_string_group_claim_is_accepted(self):
         from contacts.directory import evaluate
         from contacts.integrations import oidc_config
@@ -6409,6 +6440,119 @@ class DirectoryAccessTests(TestCase):
         self.assertContains(response, "Prisijungti su Microsoft")
 
 
+class PasswordResetTests(TestCase):
+    """Forgotten passwords: a link by e-mail that says nothing about who exists."""
+
+    PASSWORD = "very-secure-password"
+    NEW = "another-very-secure-password"
+
+    def setUp(self):
+        from django.core import mail
+        User = get_user_model()
+        self.user = User.objects.create_user("jonas", email="jonas@imone.lt", password=self.PASSWORD)
+        mail.outbox.clear()
+
+    def _ask(self, identifier):
+        return self.client.post(reverse("password-reset"), {"identifier": identifier}, follow=True)
+
+    def _link(self):
+        from django.core import mail
+        body = mail.outbox[-1].body
+        start = body.index("/slaptazodis/")
+        return body[start:].split()[0]
+
+    def test_a_link_arrives_and_sets_a_new_password(self):
+        from django.core import mail
+        response = self._ask("jonas@imone.lt")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertContains(response, "Jei tokia paskyra yra")
+
+        link = self._link()
+        self.assertEqual(self.client.get(link).status_code, 200)
+        self.client.post(link, {"new_password1": self.NEW, "new_password2": self.NEW})
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.NEW))
+
+    def test_the_username_works_too_and_the_link_is_single_use(self):
+        self._ask("jonas")
+        link = self._link()
+        self.client.post(link, {"new_password1": self.NEW, "new_password2": self.NEW})
+        # The token is derived from the password hash, so it dies with the change.
+        again = self.client.post(link, {"new_password1": self.PASSWORD, "new_password2": self.PASSWORD})
+        self.assertContains(again, "nebegalioja")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(self.NEW))
+
+    def test_an_unknown_address_is_answered_exactly_like_a_known_one(self):
+        from django.core import mail
+        known = self._ask("jonas@imone.lt")
+        mail.outbox.clear()
+        unknown = self._ask("niekas@imone.lt")
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertContains(unknown, "Jei tokia paskyra yra")
+        self.assertEqual(known.status_code, unknown.status_code)
+
+    def test_an_inactive_account_gets_nothing(self):
+        from django.core import mail
+        self.user.is_active = False
+        self.user.save(update_fields=["is_active"])
+        self._ask("jonas")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_the_directory_owns_its_accounts(self):
+        """With group sync on, a directory user has no local password to reset —
+        setting one would readmit somebody the organisation removed."""
+        from django.core import mail
+        from contacts.crypto import encrypt
+        from contacts.models import SystemSettings, UserProfile
+
+        UserProfile.objects.create(user=self.user, directory_managed=True)
+        system = SystemSettings.load()
+        system.oidc_enabled, system.oidc_tenant_id = True, DirectoryAccessTests.TENANT
+        system.oidc_client_id, system.oidc_client_secret = "cid", encrypt("csecret")
+        system.oidc_sync_groups = True
+        system.save()
+
+        self._ask("jonas")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_the_mails_stop_after_five_in_an_hour(self):
+        from django.core import mail
+        for _ in range(7):
+            self._ask("jonas")
+        self.assertEqual(len(mail.outbox), 5)
+
+    def test_sso_only_sends_nothing_and_points_at_the_directory(self):
+        from django.core import mail
+        from contacts.crypto import encrypt
+        from contacts.models import SystemSettings
+
+        system = SystemSettings.load()
+        system.oidc_enabled, system.oidc_tenant_id = True, DirectoryAccessTests.TENANT
+        system.oidc_client_id, system.oidc_client_secret = "cid", encrypt("csecret")
+        system.sso_only = True
+        system.save()
+
+        page = self.client.get(reverse("password-reset"))
+        self.assertContains(page, "organizacijos katalogas")
+        self._ask("jonas")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_every_step_is_in_the_audit_log(self):
+        from contacts.models import AuditLog
+
+        self._ask("jonas")
+        self.assertTrue(AuditLog.objects.filter(field="Slaptažodžio atkūrimas", new_value="sent").exists())
+        link = self._link()
+        self.client.post(link, {"new_password1": self.NEW, "new_password2": self.NEW})
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.UPDATE, target_type="user",
+                                                new_value__contains="atkūrimo nuorodą").exists())
+
+    def test_the_login_page_offers_the_way_in(self):
+        page = self.client.get(reverse("login"))
+        self.assertContains(page, reverse("password-reset"))
+
+
 class SsoOnlyAndSessionRefreshTests(TestCase):
     """SSO-only sign-in with break-glass accounts, and directory session re-checks."""
 
@@ -6466,7 +6610,9 @@ class SsoOnlyAndSessionRefreshTests(TestCase):
         self.configure()
         response = self.client.get(reverse("login"))
         self.assertContains(response, "Avarinis vietinis prisijungimas")
-        self.assertContains(response, 'class="btn primary" style="width:100%;justify-content:center" href="/oidc/authenticate/"')
+        # The directory is the primary button; the local form is folded away.
+        self.assertContains(response, 'class="btn primary login-directory" href="/oidc/authenticate/"')
+        self.assertLess(response.content.index(b"login-directory"), response.content.index(b"login-break-glass"))
 
     def test_sso_only_needs_a_break_glass_account_with_a_password(self):
         from contacts.models import SystemSettings

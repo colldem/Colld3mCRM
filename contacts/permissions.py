@@ -20,6 +20,14 @@ CAPABILITIES = [
 CAPABILITY_KEYS = [key for key, _label in CAPABILITIES]
 
 _CAPABILITY_DEFAULTS = {
+    UserProfile.ROLE_MANAGER: {
+        "can_import": True, "can_export": True, "can_delete": True,
+        "can_merge_duplicates": True, "can_bulk_edit": True, "can_reassign_owner": True,
+        "can_manage_custom_fields": False, "can_manage_taxonomy": False,
+        "can_manage_automations": False,
+        # A manager answers for what their people do, so the log is theirs to read.
+        "can_view_audit": True,
+    },
     UserProfile.ROLE_MEMBER: {
         "can_import": True, "can_export": True, "can_delete": True,
         "can_merge_duplicates": True, "can_bulk_edit": True, "can_reassign_owner": True,
@@ -36,7 +44,8 @@ _CAPABILITY_DEFAULTS = {
 }
 # A reader changes nothing; only these read-side capabilities can be granted.
 READONLY_CAPABILITIES = {"can_export", "can_view_audit"}
-EDITABLE_ROLES = (UserProfile.ROLE_MEMBER, UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY)
+EDITABLE_ROLES = (UserProfile.ROLE_MANAGER, UserProfile.ROLE_MEMBER,
+                  UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY)
 
 
 def capability_matrix():
@@ -97,11 +106,12 @@ def record_visibility(user):
     """Effective record visibility for `user`: 'all', 'team' or 'own'.
 
     The strictest of the user's own setting and any team the user belongs to
-    that is marked "team records only" wins. Admins always see everything.
+    that is marked "team records only" wins. Admins and managers always see
+    everything.
     """
     if not getattr(user, "is_authenticated", False):
         return UserProfile.VISIBILITY_ALL
-    if is_admin(user):
+    if is_admin(user) or role_of(user) == UserProfile.ROLE_MANAGER:
         return UserProfile.VISIBILITY_ALL
     profile = getattr(user, "crm_profile", None)
     candidates = [profile.record_visibility if profile and profile.record_visibility else UserProfile.VISIBILITY_ALL]

@@ -114,11 +114,15 @@ class SavedFilter(models.Model):
 
 class UserProfile(models.Model):
     ROLE_ADMIN = "admin"
+    # Sees every record like an admin, configures nothing: the head of a desk,
+    # not of the system.
+    ROLE_MANAGER = "manager"
     ROLE_MEMBER = "member"
     ROLE_RESTRICTED = "restricted"
     ROLE_READONLY = "readonly"
     ROLE_CHOICES = (
         (ROLE_ADMIN, tr("Administratorius")),
+        (ROLE_MANAGER, tr("Vadovas (visi įrašai)")),
         (ROLE_MEMBER, tr("Naudotojas (visi įrašai)")),
         (ROLE_RESTRICTED, tr("Naudotojas (tik savi įrašai)")),
         (ROLE_READONLY, tr("Skaitytojas (tik peržiūra)")),
