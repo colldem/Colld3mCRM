@@ -1095,6 +1095,21 @@ def settings_teams(request):
     })
 
 
+def _role_column(role, role_labels, matrix, key="caps"):
+    """Split "Vadovas (visi įrašai)" into a name and the note under it.
+
+    Every role label names a role and then qualifies it in brackets. Left whole
+    in a narrow column the qualifier wraps wherever it happens to fit — in
+    Lithuanian "Naudotojas (tik savi įrašai)" broke across three ragged lines —
+    so the break is chosen here instead: the name on one line, the qualifier
+    quietly under it. A label without brackets simply has no note.
+    """
+    label = str(role_labels.get(role, role))
+    name, _, note = label.partition(" (")
+    return {"key": role, "label": label, "name": name, "note": note.rstrip(")"),
+            key: matrix[role]}
+
+
 @login_required
 def settings_permissions(request):
     from .permissions import CAPABILITIES, CAPABILITY_HINTS, capability_matrix, is_admin
@@ -1121,7 +1136,10 @@ def settings_permissions(request):
     return render(request, "settings/permissions.html", {
         "settings_section": "permissions",
         "capabilities": CAPABILITIES, "capability_hints": CAPABILITY_HINTS,
-        "roles": [{"key": role, "label": role_labels.get(role, role), "caps": matrix[role]} for role in editable_roles],
+        # A column per editable role no longer fits the 680px settings measure,
+        # and the last one fell off the edge where nobody could reach it.
+        "settings_wide": True,
+        "roles": [_role_column(role, role_labels, matrix) for role in editable_roles],
         "readonly_role": UserProfile.ROLE_READONLY, "readonly_caps": READONLY_CAPABILITIES,
     })
 
@@ -1149,9 +1167,10 @@ def settings_record_blocks(request):
     role_labels = dict(UserProfile.ROLE_CHOICES)
     return render(request, "settings/record_blocks.html", {
         "settings_section": "record-blocks",
+        # Same shape as the permissions table: a column per role needs the page.
+        "settings_wide": True,
         "blocks": [block(key) for key in keys],
-        "roles": [{"key": role, "label": role_labels.get(role, role), "blocks": matrix[role]}
-                  for role in EDITABLE_ROLES],
+        "roles": [_role_column(role, role_labels, matrix, key="blocks") for role in EDITABLE_ROLES],
     })
 
 

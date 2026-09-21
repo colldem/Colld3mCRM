@@ -698,3 +698,40 @@ class DataDictionaryTests(TestCase):
             with self.subTest(field=key):
                 self.assertIn(model_name, MODELS)
                 apps.get_model("contacts", model_name)._meta.get_field(field_name)
+
+
+class RoleColumnTests(TestCase):
+    """Both settings tables put a column under each role, in the narrowest
+    space the product has."""
+
+    def test_headings_are_split_into_a_name_and_a_note(self):
+        """Left whole in a 118px column, "Naudotojas (tik savi įrašai)" wrapped
+        across three ragged lines and the headings stopped lining up."""
+        from contacts.views import _role_column
+        from contacts.models import UserProfile
+        labels = dict(UserProfile.ROLE_CHOICES)
+        column = _role_column(UserProfile.ROLE_RESTRICTED, labels, {UserProfile.ROLE_RESTRICTED: {}})
+        self.assertEqual(column["name"], "Naudotojas")
+        self.assertEqual(column["note"], "tik savi įrašai")
+        self.assertNotIn("(", column["name"] + column["note"])
+
+    def test_a_label_without_a_qualifier_gets_no_note(self):
+        from contacts.views import _role_column
+        column = _role_column("x", {"x": "Administratorius"}, {"x": {}})
+        self.assertEqual(column["name"], "Administratorius")
+        self.assertEqual(column["note"], "")
+
+    def test_the_blocks_table_keeps_its_own_key(self):
+        from contacts.views import _role_column
+        column = _role_column("x", {"x": "Vadovas (visi įrašai)"}, {"x": {"a": True}}, key="blocks")
+        self.assertEqual(column["blocks"], {"a": True})
+
+    def test_no_stylesheet_uses_a_name_that_is_never_defined(self):
+        """An undefined var() is dropped in silence: three rules asked for
+        --border, which has never existed, so these tables drew no lines."""
+        import re
+        css = "".join((settings.BASE_DIR / "static" / "css" / n).read_text()
+                      for n in ("app.css", "theme.css"))
+        defined = set(re.findall(r"(--[a-z0-9-]+)\s*:", "".join(re.findall(r":root\{(.*?)\}", css, re.S))))
+        used = set(re.findall(r"var\((--[a-z0-9-]+)\s*\)", css))
+        self.assertEqual(sorted(used - defined - {"--overlay-colour"}), [])

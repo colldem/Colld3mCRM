@@ -4,7 +4,7 @@
 
 <form method="post">{% csrf_token %}
   <div class="table-wrap blocks-wrap"><table class="permissions-table blocks-table">
-    <thead><tr><th>{% translate 'Blokas' %}</th>{% for role in roles %}<th>{{ role.label }}</th>{% endfor %}</tr></thead>
+    <thead><tr><th>{% translate 'Blokas' %}</th>{% for role in roles %}<th><b>{{ role.name }}</b>{% if role.note %}<span>{{ role.note }}</span>{% endif %}</th>{% endfor %}</tr></thead>
     <tbody>
       {% for block in blocks %}
         <tr>

@@ -109,23 +109,28 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .cf-check{display:flex!important;align-items:center;gap:8px;font-weight:400}
 .cf-multi{display:grid;gap:6px}
 .cf-multi label{display:flex;align-items:center;gap:8px;font-weight:400}
-.responsible-editor{border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:0 0 8px;display:grid;gap:6px}
+.responsible-editor{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 8px;display:grid;gap:6px}
 .responsible-editor legend{font-weight:600;padding:0 4px}
 .responsible-editor small{color:var(--muted)}
 .responsible-editor select[multiple]{min-height:120px}
 .list-hint{margin:0 0 10px;padding:8px 12px;border-radius:8px;background:var(--surface-2,#f1f5f9);color:var(--muted);font-size:13px}
-.permissions-table th,.permissions-table td{padding:8px 12px;border-bottom:1px solid var(--border);text-align:left}
+.permissions-table th,.permissions-table td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left}
 .permissions-table thead th:not(:first-child),.permissions-cell{text-align:center}
 /* A capability whose name is not self-explanatory says what it does. The
    name column is held to a width so the note wraps instead of running
    under the role columns. */
-.permissions-table th:first-child,.permissions-table td:first-child{width:46%;min-width:260px}
+/* A checkbox needs no more width than its heading, and a capability name is
+   a sentence: give the roles a fixed narrow column each and let the first
+   take what is left. The 260px floor here used to push the table past the
+   settings column, leaving the last role off the edge. */
+.permissions-table th:first-child,.permissions-table td:first-child{width:auto}
+.permissions-table thead th:not(:first-child){width:118px;white-space:normal;vertical-align:bottom}
 .permissions-table .cap-hint{display:block;margin-top:3px;color:var(--muted);font-size:var(--fs-xs);font-weight:400;line-height:1.45;white-space:normal}
 /* Four roles and a hint on every row: the name column has to give way, and
    a narrow window scrolls the table rather than cutting the last role off. */
 .blocks-wrap{overflow-x:auto}
 .blocks-table th:first-child,.blocks-table td:first-child{width:auto;min-width:200px}
-.blocks-table thead th:not(:first-child){width:92px;white-space:normal;line-height:1.3}
+.blocks-table thead th:not(:first-child){width:118px;white-space:normal;line-height:1.3;vertical-align:bottom}
 .blocks-table th,.blocks-table td{padding:8px 10px}
 .user-row-teams{display:block;color:var(--muted);font-weight:400;margin-top:4px}
 
@@ -329,7 +334,7 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .team-row{display:grid;gap:10px;margin:0}
 .team-row-head{display:flex;flex-wrap:wrap;gap:12px}
 .team-row-head label{display:grid;gap:4px}
-.team-members{border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+.team-members{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 .team-members legend{font-weight:600;padding:0 4px}
 .team-members-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 12px}
 /* A line of explanation above a group of tick boxes. */
@@ -903,3 +908,7 @@ body.has-env-banner{padding-bottom:28px}
 .import-read-settings>summary::after{content:" ↓";color:var(--muted)}
 .import-read-settings[open]>summary::after{content:" ↑"}
 .import-read-settings .settings-form-grid{margin-top:14px}
+
+/* Role headings: the name, then the bracketed qualifier quietly under it. */
+.permissions-table thead th b,.blocks-table thead th b{display:block}
+.permissions-table thead th span,.blocks-table thead th span{display:block;margin-top:2px;font-weight:400;font-size:var(--fs-2xs);line-height:1.35;color:var(--muted)}
