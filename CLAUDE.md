@@ -127,7 +127,10 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   `--control-h-sm`, `--control-h-lg`, `--btn-pad-*`, `--radius-*`, `--fs-*`) —
   pikselių mygtukų taisyklėse neberašyti. Kompaktiškas mygtukas yra `.btn.sm`;
   senesnių šablonų kontekstai surašyti į vieną bendrą taisyklę `theme.css`
-  pradžioje. Saugo `tests/test_theme.py` `ControlScaleTests`.
+  pradžioje. Kampai — tik `--radius-*`, pakilimas — tik `--shadow-card` /
+  `--shadow-panel` / `--shadow-pop` / `--shadow-modal` / `--shadow-drawer`,
+  kortelių paraštės — `--card-pad*`, viršutinė juosta ir logotipas —
+  `--topbar-h`. Saugo `tests/test_theme.py` `ControlScaleTests`.
 - `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
   `deploy.yml` (tag `v*`), abu `runs-on: self-hosted crm-nas`.
   `scripts/backup.sh` (crm-backup image, `deploy/backup/Dockerfile`) — šifruotos kopijos; `scripts/restore.sh` — atkūrimas

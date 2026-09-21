@@ -796,3 +796,38 @@ class ControlScaleTests(TestCase):
                         ".rec-actions .btn", ".filter-row .btn", ".stack-form .btn"):
             self.assertIn(context, [s for s, _ in self._rules(css) if ".page-links .btn" in s][0],
                           "%s must share the compact button rule, not restate it" % context)
+
+    def test_the_surface_scale_is_declared_once(self):
+        root = self._css("app.css").split("}")[0]
+        for token in ("--card-pad:", "--card-pad-sm:", "--card-pad-lg:", "--topbar-h:",
+                      "--shadow-card:", "--shadow-pop:", "--shadow-modal:", "--line-input:"):
+            self.assertIn(token, root, "%s must live in the app.css :root scale" % token)
+
+    def test_no_corner_or_elevation_is_written_as_a_number(self):
+        """Ten shadows for three jobs, and three radii for one card shape, is how
+        two panels beside each other end up looking like different products."""
+        import re
+        offenders = []
+        for name in ("app.css", "theme.css"):
+            css = re.sub(r"/\*.*?\*/", "", self._css(name), flags=re.S)
+            body = css[css.index("}") + 1:]          # past :root, where the scale lives
+            for prop in ("border-radius", "box-shadow"):
+                for match in re.finditer(r"(?:^|[;{])\s*%s\s*:([^;}]+)" % prop, body):
+                    value = match.group(1).strip()
+                    if "var(" in value or value in ("none", "50%", "0", "inherit"):
+                        continue
+                    offenders.append("%s: %s:%s" % (name, prop, value))
+        self.assertEqual(offenders, [], "use --radius-* / --shadow-* instead")
+
+    def test_the_top_bar_has_one_height(self):
+        """It was 86px in app.css and 72px in theme.css; theme.css won, so the
+        larger number had not rendered in months and still had to be read."""
+        import re
+        for name in ("app.css", "theme.css"):
+            css = re.sub(r"/\*.*?\*/", "", self._css(name), flags=re.S)
+            for selector, body in self._rules(css):
+                if selector.strip() not in (".brand", ".topbar", ".crm-topbar"):
+                    continue
+                for match in re.finditer(r"(?:^|;)\s*(?:min-)?height\s*:([^;]+)", body):
+                    self.assertIn("var(--topbar-h", match.group(1),
+                                  "%s in %s must take the shell height from the token" % (selector, name))
