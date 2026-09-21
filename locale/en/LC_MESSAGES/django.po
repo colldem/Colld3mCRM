@@ -1322,6 +1322,9 @@ msgstr "Administrator"
 msgid "Naudotojas (visi įrašai)"
 msgstr "User (all records)"
 
+msgid "Vadovas (visi įrašai)"
+msgstr "Manager (all records)"
+
 msgid "Naudotojas (tik savi įrašai)"
 msgstr "User (own records only)"
 

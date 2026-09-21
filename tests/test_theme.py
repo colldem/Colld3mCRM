@@ -794,3 +794,21 @@ class ControlScaleTests(TestCase):
                 for match in re.finditer(r"(?:^|;)\s*(?:min-)?height\s*:([^;]+)", body):
                     self.assertIn("var(--topbar-h", match.group(1),
                                   "%s in %s must take the shell height from the token" % (selector, name))
+
+    def test_every_css_variable_in_use_is_defined(self):
+        """An undefined var() is invisible: the browser reports nothing and
+        simply drops the declaration. Three rules referenced --border, which
+        never existed, so the roles table and two editors drew no border at all
+        and nobody could see why."""
+        import re
+        defined, used = set(), set()
+        for name in ("app.css", "theme.css"):
+            css = self._css(name)
+            for block in re.finditer(r":root\{(.*?)\}", css, re.S):
+                defined.update(re.findall(r"(--[a-z0-9-]+)\s*:", block.group(1)))
+            # A fallback (var(--x,#fff)) is a deliberate default, not a typo.
+            used.update(re.findall(r"var\((--[a-z0-9-]+)\s*\)", css))
+        # Set from JavaScript per element rather than declared in a stylesheet.
+        runtime = {"--overlay-colour"}
+        self.assertEqual(sorted(used - defined - runtime), [],
+                         "these var() names are never defined — the declaration is silently dropped")

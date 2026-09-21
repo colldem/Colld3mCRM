@@ -1109,6 +1109,9 @@ def settings_permissions(request):
     role_labels = dict(UserProfile.ROLE_CHOICES)
     return render(request, "settings/permissions.html", {
         "settings_section": "permissions",
+        # A column per editable role: five of them no longer fit the 680px
+        # settings measure, and the last one fell off the edge unreachable.
+        "settings_wide": True,
         "capabilities": CAPABILITIES,
         "roles": [{"key": role, "label": role_labels.get(role, role), "caps": matrix[role]} for role in editable_roles],
         "readonly_role": UserProfile.ROLE_READONLY, "readonly_caps": READONLY_CAPABILITIES,

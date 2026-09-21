@@ -115,12 +115,17 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .cf-check{display:flex!important;align-items:center;gap:8px;font-weight:400}
 .cf-multi{display:grid;gap:6px}
 .cf-multi label{display:flex;align-items:center;gap:8px;font-weight:400}
-.responsible-editor{border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px 12px;margin:0 0 8px;display:grid;gap:6px}
+.responsible-editor{border:1px solid var(--line);border-radius:var(--radius-lg);padding:10px 12px;margin:0 0 8px;display:grid;gap:6px}
 .responsible-editor legend{font-weight:600;padding:0 4px}
 .responsible-editor small{color:var(--muted)}
 .responsible-editor select[multiple]{min-height:120px}
-.list-hint{margin:0 0 10px;padding:8px 12px;border-radius:var(--radius-lg);background:var(--surface-2,#f1f5f9);color:var(--muted);font-size:13px}
-.permissions-table th,.permissions-table td{padding:8px 12px;border-bottom:1px solid var(--border);text-align:left}
+.list-hint{margin:0 0 10px;padding:8px 12px;border-radius:var(--radius-lg);background:var(--soft);color:var(--muted);font-size:13px}
+/* A checkbox needs no more width than its own label, and the capability
+   names are sentences: give the roles a fixed narrow column each and let
+   their headings wrap, so adding a sixth role widens nothing. */
+.permissions-table th,.permissions-table td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left}
+.permissions-table thead th:not(:first-child){width:104px;white-space:normal;vertical-align:bottom}
+.permissions-table td:first-child{white-space:normal}
 .permissions-table thead th:not(:first-child),.permissions-cell{text-align:center}
 .user-row-teams{display:block;color:var(--muted);font-weight:400;margin-top:4px}
 
@@ -299,7 +304,7 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
 .team-row{display:grid;gap:10px;margin:0}
 .team-row-head{display:flex;flex-wrap:wrap;gap:12px}
 .team-row-head label{display:grid;gap:4px}
-.team-members{border:1px solid var(--border);border-radius:var(--radius-lg);padding:8px 10px}
+.team-members{border:1px solid var(--line);border-radius:var(--radius-lg);padding:8px 10px}
 .team-members legend{font-weight:600;padding:0 4px}
 .team-members-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:4px 12px}
 .team-members-grid label{display:flex;align-items:center;gap:8px;font-weight:400}
