@@ -1084,6 +1084,21 @@ def settings_teams(request):
     })
 
 
+def _permission_column(role, role_labels, matrix):
+    """Split "Vadovas (visi įrašai)" into a name and the note under it.
+
+    Every role label names a role and then qualifies it in brackets. Left whole
+    in a narrow column the qualifier wraps wherever it happens to fit — in
+    Lithuanian "Naudotojas (tik savi įrašai)" broke across three ragged lines —
+    so the break is chosen here instead: the name on one line, the qualifier
+    quietly under it. A label without brackets simply has no note.
+    """
+    label = str(role_labels.get(role, role))
+    name, _, note = label.partition(" (")
+    return {"key": role, "label": label, "name": name, "note": note.rstrip(")"),
+            "caps": matrix[role]}
+
+
 @login_required
 def settings_permissions(request):
     from .permissions import CAPABILITIES, capability_matrix, is_admin
@@ -1113,7 +1128,7 @@ def settings_permissions(request):
         # settings measure, and the last one fell off the edge unreachable.
         "settings_wide": True,
         "capabilities": CAPABILITIES,
-        "roles": [{"key": role, "label": role_labels.get(role, role), "caps": matrix[role]} for role in editable_roles],
+        "roles": [_permission_column(role, role_labels, matrix) for role in editable_roles],
         "readonly_role": UserProfile.ROLE_READONLY, "readonly_caps": READONLY_CAPABILITIES,
     })
 

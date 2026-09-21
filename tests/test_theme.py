@@ -834,3 +834,35 @@ class ControlScaleTests(TestCase):
         runtime = {"--overlay-colour"}
         self.assertEqual(sorted(used - defined - runtime), [],
                          "these var() names are never defined — the declaration is silently dropped")
+
+
+class PermissionsTableTests(TestCase):
+    """The roles table is the one place a label has almost no room."""
+
+    def setUp(self):
+        self.client.force_login(get_user_model().objects.create_user(
+            username="perm-qa", is_superuser=True, is_staff=True))
+
+    def test_role_headings_are_split_into_a_name_and_a_note(self):
+        """Left whole in a 118px column, "Naudotojas (tik savi įrašai)" wrapped
+        across three ragged lines and the headings stopped lining up. The break
+        is chosen rather than left to the browser."""
+        from contacts.views import _permission_column
+        from contacts.models import UserProfile
+        labels = dict(UserProfile.ROLE_CHOICES)
+        column = _permission_column(UserProfile.ROLE_RESTRICTED, labels, {UserProfile.ROLE_RESTRICTED: {}})
+        self.assertEqual(column["name"], "Naudotojas")
+        self.assertEqual(column["note"], "tik savi įrašai")
+        self.assertNotIn("(", column["name"] + column["note"])
+
+    def test_a_label_without_a_qualifier_gets_no_note(self):
+        from contacts.views import _permission_column
+        column = _permission_column("x", {"x": "Administratorius"}, {"x": {}})
+        self.assertEqual(column["name"], "Administratorius")
+        self.assertEqual(column["note"], "")
+
+    def test_every_editable_role_still_gets_a_column(self):
+        response = self.client.get(reverse("contacts:settings-permissions"))
+        html = response.content.decode()
+        for name in ("Vadovas", "Naudotojas", "Skaitytojas"):
+            self.assertIn("<b>%s</b>" % name, html)

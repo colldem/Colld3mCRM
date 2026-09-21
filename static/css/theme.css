@@ -124,7 +124,10 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
    names are sentences: give the roles a fixed narrow column each and let
    their headings wrap, so adding a sixth role widens nothing. */
 .permissions-table th,.permissions-table td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left}
-.permissions-table thead th:not(:first-child){width:104px;white-space:normal;vertical-align:bottom}
+.permissions-table thead th:not(:first-child){width:118px;white-space:normal;vertical-align:bottom}
+/* Name and qualifier each get their own line, so nothing wraps ragged. */
+.permissions-table thead th b{display:block}
+.permissions-table thead th span{display:block;margin-top:2px;font-weight:400;font-size:var(--fs-2xs);line-height:1.35;color:var(--muted)}
 .permissions-table td:first-child{white-space:normal}
 .permissions-table thead th:not(:first-child),.permissions-cell{text-align:center}
 .user-row-teams{display:block;color:var(--muted);font-weight:400;margin-top:4px}
