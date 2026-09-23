@@ -172,22 +172,43 @@ internetą nepatenka, adresas neindeksuojamas, o prieigą atšaukti galima vienu
 mygtuku. Tai rekomenduojamas kelias demonstracijai ar derinimui su užsakovu.
 
 **3. Viešas internetas — Tailscale Funnel.** Reikia, tik jei žmogus negali
-įsidiegti Tailscale (svetimas kompiuteris, planšetė be teisių). Tada instancija
-skelbiama tuo pačiu būdu, kaip produkcija: reikia `deploy/tailscale/`
-serve failo su `AllowFunnel`, `.env` nuorodos į jį ir atitinkamai praplėstos
-`scripts/deploy-staging.sh` apsaugos — ji šiandien priima **tik**
-`serve-staging.json`, kad Funnel neįsijungtų per neapdairumą.
+įsidiegti Tailscale (svetimas kompiuteris, planšetė be teisių). Instancija
+skelbiama tuo pačiu būdu, kaip produkcija.
 
-Prieš renkantis 3 variantą verta žinoti, kas tuomet atsiduria viešame
-internete:
+Įjungiama **dviem** eilutėmis NAS'o `/volume1/docker/crm-regitra-staging/.env`:
 
-- Duomenys — nuasmeninti. `scripts/refresh-staging.sh` visada paleidžia
-  `manage.py sanitize_staging`, o šis pakeičia ir asmens kodus (anksčiau
-  nekeisdavo — tai ištaisyta). Tikrų asmens duomenų kopijoje nelieka.
-- Prisijungimo langas — vis tiek viešas. `django-axes` riboja bandymus, bet
-  slaptažodžiai kopijoje tie patys, kaip produkcijoje (naudotojų vardai
-  pakeičiami, slaptažodžių maišos — ne). Prieš atveriant į internetą būtina
-  pasikeisti bent administratoriaus slaptažodį šioje instancijoje.
-- Viršuje lieka geltona juosta, sakanti, kad tai izoliuota kopija.
+```sh
+TS_SERVE_CONFIG=/config/serve-staging-funnel.json
+CRM_STAGING_PUBLIC=1
+```
 
-Jei pakanka 1 arba 2 varianto — 3 nereikia, ir apsauga lieka nesugriauta.
+Abi būtinos. `scripts/deploy-staging.sh` atsisako diegti, jei yra tik viena, ir
+atsisako bet kokio kito serve failo — kad viena nukopijuota eilutė neatvertų
+produkcijos duomenų kopijos internetui. Įrašius abi, kitas push į `regitra`
+nusideploy'ina jau viešai; žurnale pamatysite eilutę
+`>>> this instance is PUBLIC (Funnel)`.
+
+Adresas lieka tas pats (`https://crm-regitra-staging.<tailnet>.ts.net`), tik
+dabar jis atsidaro be Tailscale, iš bet kurios naršyklės.
+
+**Prieš įrašant tas dvi eilutes — keturi dalykai:**
+
+1. **Duomenys nuasmeninti.** `scripts/refresh-staging.sh` visada paleidžia
+   `manage.py sanitize_staging`, o šis keičia ir asmens kodus. Jei kopija
+   atkurta kitaip — paleiskite ranka:
+   `docker compose exec crm-web python manage.py sanitize_staging`.
+2. **Slaptažodžiai — produkcijos.** Nuasmeninimas keičia naudotojų vardus, bet
+   **ne slaptažodžių maišas**, tad produkcijos slaptažodis atidaro ir šią kopiją.
+   Būtina pasikeisti bent administratoriaus slaptažodį šioje instancijoje.
+3. **Prisijungimo langas viešas.** `django-axes` užrakina paskyrą po penkių
+   nepavykusių bandymų 30 minučių — tai ir yra visa apsauga nuo bandymų
+   atspėti. Anoniminių puslapio atidarymų niekas neriboja.
+4. **Adresas nėra paslaptis.** `*.ts.net` vardą galima atspėti ir jis bus
+   aplankytas robotų. Laikykite instanciją matoma.
+
+Viršuje lieka geltona juosta, sakanti, kad tai izoliuota kopija.
+
+**Atgal iš interneto:** `TS_SERVE_CONFIG` grąžinkite į
+`/config/serve-staging.json`, `CRM_STAGING_PUBLIC` ištrinkite, perdiekite.
+
+Jei pakanka 1 arba 2 varianto — 3 nereikia.
