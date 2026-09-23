@@ -8761,6 +8761,71 @@ class LoadThresholdTests(TestCase):
                                         ("/", 1000, 0, 2600)]), 1)
 
 
+class TeamLeadJournalTests(TestCase):
+    """A lead answers for their people, so they can read their people's journal."""
+
+    def setUp(self):
+        from contacts.models import Team, UserProfile
+
+        self.lead = self._user("vadovas", UserProfile.ROLE_MEMBER)
+        self.clerk = self._user("vadybininkas", UserProfile.ROLE_MEMBER)
+        self.outsider = self._user("kito-skyriaus", UserProfile.ROLE_MEMBER)
+        self.admin = self._user("administratorius", UserProfile.ROLE_ADMIN)
+        team = Team.objects.create(name="TPR skyrius")
+        team.members.add(self.lead, self.clerk)
+        team.leads.add(self.lead)
+        self.url = reverse("contacts:settings-audit")
+
+    def _user(self, username, role):
+        from contacts.models import UserProfile
+
+        user = get_user_model().objects.create_user(username, password="very-secure-password")
+        UserProfile.objects.create(user=user, role=role,
+                                   record_visibility=UserProfile.VISIBILITY_OWN_ACTIVE)
+        return user
+
+    def _entry(self, actor, label):
+        from contacts.audit import log
+        from contacts.models import AuditLog
+
+        return log(AuditLog.ACCESS, actor=actor, target_type="person", target_id="1",
+                   target_label=label)
+
+    def test_a_lead_reads_their_own_people_and_nobody_else(self):
+        self._entry(self.clerk, "Savas Irasas")
+        self._entry(self.outsider, "Svetimas Irasas")
+        self.client.force_login(self.lead)
+        page = self.client.get(self.url)
+        self.assertEqual(page.status_code, 200)
+        body = page.content.decode()
+        self.assertIn("Savas Irasas", body)
+        self.assertNotIn("Svetimas Irasas", body)
+        # And the page says the journal is narrowed, rather than looking whole.
+        self.assertIn("ne viso žurnalo", body)
+        # The actor filter names only the people they may read.
+        self.assertNotIn("kito-skyriaus", body)
+
+    def test_the_narrowing_survives_a_filter_and_the_export(self):
+        self._entry(self.outsider, "Svetimas Irasas")
+        self.client.force_login(self.lead)
+        asked = self.client.get(self.url, {"actor": self.outsider.pk}).content.decode()
+        self.assertNotIn("Svetimas Irasas", asked)
+        export = self.client.get(self.url, {"format": "csv"})
+        rows = b"".join(export.streaming_content).decode("utf-8")
+        self.assertNotIn("Svetimas Irasas", rows)
+
+    def test_someone_who_leads_nothing_has_no_journal_at_all(self):
+        self.client.force_login(self.clerk)
+        self.assertEqual(self.client.get(self.url).status_code, 404)
+
+    def test_an_administrator_still_reads_everything(self):
+        self._entry(self.outsider, "Svetimas Irasas")
+        self.client.force_login(self.admin)
+        body = self.client.get(self.url).content.decode()
+        self.assertIn("Svetimas Irasas", body)
+        self.assertNotIn("ne viso žurnalo", body)
+
+
 class RecordAccessHistoryTests(TestCase):
     """Who opened this record, on the card and in the journal — the same event."""
 

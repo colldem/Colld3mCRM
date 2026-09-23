@@ -4739,3 +4739,7 @@ msgstr "digits: %(count)s"
 #: contacts/record_access.py
 msgid "žodžių: %(words)s, simbolių: %(count)s"
 msgstr "words: %(words)s, characters: %(count)s"
+
+#: templates/settings/audit.html
+msgid "Matote savo komandų narių įrašus — ne viso žurnalo."
+msgstr "You are seeing your teams' members' entries, not the whole journal."

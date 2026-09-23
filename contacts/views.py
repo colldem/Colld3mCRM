@@ -1244,11 +1244,18 @@ def _audit_csv(request, entries):
 
 @login_required
 def settings_audit(request):
-    from .permissions import has_capability
+    from .permissions import audit_scope
 
-    if not has_capability(request.user, "can_view_audit"):
+    scope = audit_scope(request.user)
+    if scope is None:
         raise Http404
     entries = AuditLog.objects.select_related("actor").all()
+    people = get_user_model().objects.filter(audit_entries__isnull=False)
+    if scope != "all":
+        # A team lead sees their own people and nobody else — including in the
+        # actor filter, which would otherwise name colleagues they cannot read.
+        entries = entries.filter(actor_id__in=scope)
+        people = people.filter(pk__in=scope)
     actor_id = request.GET.get("actor", "").strip()
     action = request.GET.get("action", "").strip()
     date_from = request.GET.get("date_from", "").strip()
@@ -1290,7 +1297,9 @@ def settings_audit(request):
         "settings_wide": True,
         "page": page,
         "page_numbers": _elided_page_numbers(page),
-        "actors": get_user_model().objects.filter(audit_entries__isnull=False).distinct().order_by("username"),
+        "actors": people.distinct().order_by("username"),
+        # A lead is reading one desk, not the system; the page says so.
+        "scoped_to_team": scope != "all",
         "action_choices": AuditLog.ACTION_CHOICES,
         "audit_retention_days": system.audit_retention_days, "retention_minimum": AUDIT_RETENTION_MINIMUM_DAYS,
         "export_query": list_query.urlencode(),

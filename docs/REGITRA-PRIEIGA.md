@@ -88,6 +88,21 @@ Pačios užklausos žurnale nėra ir nebus. Vienuolika skaitmenų, neradusių ni
 „skaitmenų: 11“ arba „žodžių: 2, simbolių: 10“. Serija tokių eilučių iš to paties
 naudotojo matoma ir be turinio.
 
+## Kas žurnalą mato
+
+Administratorius ir vadovas (manager) — visą. **Komandos vadovas — savo komandų
+narių įrašus**, ir tik juos: filtro sąraše kitų žmonių nėra, o CSV eksportas
+apribotas taip pat. Viršuje rodoma eilutė, sakanti, kad tai ne visas žurnalas —
+kad nesusidarytų įspūdis, jog skyriuje daugiau nieko nevyksta.
+
+Pagrindas paprastas: jei vadovas atsako už savo žmones, jis turi galėti
+patikrinti, kaip jie atveria įrašus. Iki šiol vienintelis būdas buvo eiti per
+korteles po vieną. Naujų duomenų tai jam neatveria — žurnalo eilutė įvardija
+įrašą, kurį jo darbuotojas ir taip buvo atsivėręs.
+
+Kas nevadovauja jokiai komandai ir neturi teisės „Matyti žurnalą“, to adreso
+nepasiekia visai — 404.
+
 ## Tas pats įrašo kortelėje
 
 Kortelės veiklos juostoje yra skiltis **„Prieiga“** — tos pačios eilutės, tik

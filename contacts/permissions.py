@@ -194,6 +194,31 @@ def sees_all_records(user):
     return record_visibility(user) == UserProfile.VISIBILITY_ALL
 
 
+def audit_scope(user):
+    """Whose journal entries `user` may read.
+
+    Three answers, and the middle one is the point: ``None`` for someone with
+    no business here at all, ``"all"`` for the roles the capability is granted
+    to, and a set of user ids for a team lead. A lead answers for the people in
+    their teams, which means answering for how those people open records — and
+    until now the only way to check was to walk the cards one at a time.
+
+    It does not widen what they may see about the records themselves: a journal
+    row names the record its actor already had open.
+    """
+    from .record_access import assignable_users
+
+    if not getattr(user, "is_authenticated", False):
+        return None
+    if has_capability(user, "can_view_audit"):
+        return "all"
+    led = assignable_users(user)
+    if not led.exists():
+        return None
+    # Their own entries too: a lead reviewing the desk is part of the desk.
+    return set(led.values_list("pk", flat=True)) | {user.pk}
+
+
 def teammate_ids(user):
     """User ids sharing at least one team with `user`, plus `user` itself."""
     ids = set(

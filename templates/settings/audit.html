@@ -2,6 +2,7 @@
 {% block settings_content %}
 <div class="settings-section-head"><div><h2>{% translate 'Žurnalas' %}</h2><p>{% translate 'Kas, kada ir ką pakeitė. Įrašų pakeisti ar ištrinti negalima; senesni už saugojimo terminą pašalinami automatiškai.' %}</p></div>
   <a class="btn" href="?{% if export_query %}{{ export_query }}&amp;{% endif %}format=csv">{% translate 'Eksportuoti CSV' %}</a></div>
+{% if scoped_to_team %}<p class="list-hint">{% translate 'Matote savo komandų narių įrašus — ne viso žurnalo.' %}</p>{% endif %}
 {% if is_crm_admin %}
 <form method="post" class="audit-retention">{% csrf_token %}
   <label>{% translate 'Saugoti įrašus (dienų)' %}<input type="number" name="audit_retention_days" min="0" value="{{ audit_retention_days }}"></label>

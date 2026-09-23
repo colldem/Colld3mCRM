@@ -53,14 +53,18 @@ def system_settings(request):
 
 
 def crm_permissions(request):
-    from .permissions import CAPABILITY_KEYS, has_capability, is_admin, is_read_only
+    from .permissions import (CAPABILITY_KEYS, audit_scope, has_capability, is_admin,
+                              is_read_only)
 
     if not request.user.is_authenticated:
-        return {"is_crm_admin": False, "crm_caps": {}}
+        return {"is_crm_admin": False, "crm_caps": {}, "can_read_team_audit": False}
     return {
         "is_crm_admin": is_admin(request.user),
         "crm_caps": {**{key: has_capability(request.user, key) for key in CAPABILITY_KEYS},
                      "can_edit": not is_read_only(request.user)},
+        # A team lead reads the journal for their own people; the capability
+        # alone would hide the entry from them.
+        "can_read_team_audit": audit_scope(request.user) is not None,
     }
 
 
