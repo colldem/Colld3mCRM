@@ -112,12 +112,23 @@ def _apply_custom_filters(queryset, values):
     return queryset
 
 
+def _personal_code_match(term):
+    """A personal code matches only when the whole of it was typed.
+
+    A partial code is a probe: typing four digits and reading the names that
+    come back answers who is in the base, which is exactly what nobody should
+    be able to ask. Eleven digits identify one person and nobody else, so that
+    is the only length worth answering.
+    """
+    return Q(personal_code=term) if len(term) == 11 and term.isdigit() else Q(pk__in=[])
+
+
 def apply_contact_filters(people, values, user=None):
     for term in values["q"].split():
         people = people.filter(
             Q(first_name__icontains=term)
             | Q(last_name__icontains=term)
-            | Q(personal_code__icontains=term)
+            | _personal_code_match(term)
             | Q(job_title__icontains=term)
             | Q(company_links__company__name__icontains=term)
             | Q(phones__number__icontains=term)

@@ -177,11 +177,44 @@ def _search_results(query, per_group, user=None):
     }
 
 
+# Characters a phone number or a personal code is written with.
+_NUMBER_CHARACTERS = set("0123456789+-() ")
+
+
+def names_someone(query):
+    """Whether this query names one person rather than asks who is in the base.
+
+    A viewer who sees the whole base may browse it; a viewer who sees only what
+    they are working on may not, and a search box that answers half a name is
+    browsing by another route. So for them the base stays silent until the
+    query identifies somebody: a full personal code or phone number, or a first
+    name and a surname together.
+    """
+    if not query:
+        return False
+    if set(query) <= _NUMBER_CHARACTERS:
+        # 11 digits is a personal code; a Lithuanian phone number has 8 or more.
+        return len([c for c in query if c.isdigit()]) >= 8
+    return len([term for term in query.split() if len(term) >= 2]) >= 2
+
+
+def _too_vague_for(user, query):
+    """The hint to show instead of results, or "" when the query may be answered."""
+    from .permissions import sees_all_records
+
+    if sees_all_records(user) or names_someone(query):
+        return ""
+    return str(tr("Įveskite visą vardą ir pavardę, telefono numerį arba asmens kodą — "
+                  "matote tik tuos įrašus, su kuriais dirbate, tad dalinė užklausa "
+                  "sąrašo nesiūlo."))
+
+
 @login_required
 def global_search(request):
     query = request.GET.get("q", "").strip()
-    results = _search_results(query, 50, request.user) if len(query) >= 2 else None
-    return render(request, "search.html", {"query": query, "results": results})
+    hint = _too_vague_for(request.user, query)
+    results = _search_results(query, 50, request.user) if len(query) >= 2 and not hint else None
+    return render(request, "search.html", {"query": query, "results": results, "hint": hint})
 
 
 @login_required
@@ -189,6 +222,9 @@ def search_suggest(request):
     query = request.GET.get("q", "").strip()
     if len(query) < 2:
         return JsonResponse({"q": query, "groups": []})
+    hint = _too_vague_for(request.user, query)
+    if hint:
+        return JsonResponse({"q": query, "groups": [], "hint": hint})
     results = _search_results(query, 5, request.user)
     search_url = f"{reverse('contacts:search')}?q={query}"
     groups = []

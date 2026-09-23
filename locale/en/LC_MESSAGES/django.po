@@ -4321,3 +4321,11 @@ msgstr "Access"
 #: templates/contacts/_detail_layout.html
 msgid "Šio įrašo su pagrindu dar niekas neatvėrė."
 msgstr "Nobody has opened this record with a reason yet."
+
+#: contacts/views.py
+msgid ""
+"Įveskite visą vardą ir pavardę, telefono numerį arba asmens kodą — matote "
+"tik tuos įrašus, su kuriais dirbate, tad dalinė užklausa sąrašo nesiūlo."
+msgstr ""
+"Type a full name and surname, a phone number or a personal code — you see "
+"only the records you are working on, so a partial query suggests nothing."

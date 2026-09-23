@@ -3,7 +3,9 @@
 {% block content %}
 <div class="page-head"><div><h1>{% translate 'Paieška' %}</h1>{% if query %}<p>{% translate 'Užklausa:' %} „{{ query }}"</p>{% endif %}</div></div>
 
-{% if not results %}
+{% if hint %}
+  <p class="empty">{{ hint }}</p>
+{% elif not results %}
   <p class="empty">{% translate 'Įveskite bent 2 simbolius.' %}</p>
 {% else %}
   {% if not results.people_count and not results.companies_count and not results.activities_count and not results.reminders_count %}

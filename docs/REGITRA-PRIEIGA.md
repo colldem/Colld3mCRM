@@ -107,6 +107,23 @@ Kas gali peržiūrėti: tas, kas mato tą kortelę. Atskiros teisės nėra sąmo
 klientų aptarnavimo specialistui kodas reikalingas kasdien, tad ribojimas
 trukdytų, o atsakomybę sukuria žurnalas.
 
+## Bendra paieška viršuje
+
+Ji lieka, bet ne kaip antras kelias į bazę. Du apribojimai:
+
+- **Asmens kodas atpažįstamas tik visas.** Įvedus dalį kodo neieškoma pagal jį
+  visai — kitaip keturi skaitmenys ir grįžęs vardų sąrašas atsakytų, kas yra
+  bazėje. Vienuolika skaitmenų nurodo vieną žmogų, tad tik tokio ilgio užklausa
+  ir verta atsakymo. Galioja visiems, įskaitant administratorių.
+- **Kas mato ne visą bazę, variantų negauna, kol užklausa neįvardija žmogaus:**
+  visas vardas ir pavardė, telefono numeris arba asmens kodas. Vietoj sąrašo
+  rodomas paaiškinimas, kodėl tuščia. Matantiems visą bazę niekas nesikeičia —
+  jiems naršyti galima.
+
+Antrasis apribojimas saugo ir tuos matomumo variantus, kuriuose be savininko
+likę įrašai matomi visiems (`Tik savo`, `Tik komandos`) — ten paieškos laukelis
+buvo trečias būdas peržiūrėti bazę be pagrindo.
+
 ## Ko šis modelis nedaro
 
 Jis neriboja, kiek įrašų galima atsiverti, ir netikrina, ar pagrindas teisingas.

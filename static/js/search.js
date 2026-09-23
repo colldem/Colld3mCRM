@@ -17,7 +17,8 @@
     if (!data.groups.length) {
       const empty = document.createElement('p');
       empty.className = 'search-suggest-empty';
-      empty.textContent = gettext('Nieko nerasta.');
+      // A hint means the base said nothing on purpose, not that it found nothing.
+      empty.textContent = data.hint || gettext('Nieko nerasta.');
       panel.append(empty);
     }
     data.groups.forEach((group) => {
@@ -43,11 +44,13 @@
       });
       panel.append(section);
     });
-    const all = document.createElement('a');
-    all.href = data.url;
-    all.className = 'search-suggest-all';
-    all.textContent = gettext('Rodyti visus rezultatus');
-    panel.append(all);
+    if (!data.hint) {
+      const all = document.createElement('a');
+      all.href = data.url;
+      all.className = 'search-suggest-all';
+      all.textContent = gettext('Rodyti visus rezultatus');
+      panel.append(all);
+    }
     panel.hidden = false;
     input.setAttribute('aria-expanded', 'true');
   };

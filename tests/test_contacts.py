@@ -3490,7 +3490,9 @@ class ContactViewTests(TestCase):
         Person.objects.create(first_name="Slaptas", last_name="Zmogus", owner=other)
         restricted = self._restricted_user()
         self.client.force_login(restricted)
-        results = self.client.get(reverse("contacts:search"), {"q": "Slaptas"}).context["results"]
+        # The whole name, because a restricted viewer's half-query is answered
+        # with a hint rather than a list — see SearchNarrownessTests.
+        results = self.client.get(reverse("contacts:search"), {"q": "Slaptas Zmogus"}).context["results"]
         self.assertEqual(results["people_count"], 0)
         export = self.client.get(reverse("contacts:contacts-export"))
         self.assertNotIn("Slaptas", export.content.decode("utf-8"))
@@ -8450,6 +8452,79 @@ class RecordAssignmentTests(TestCase):
         self.client.force_login(self.clerk)
         response = self.client.post(reverse("contacts:record-access-end", args=[access.pk]))
         self.assertRedirects(response, reverse("contacts:record-search"))
+
+
+class SearchNarrownessTests(TestCase):
+    """What the search box answers, and to whom."""
+
+    VALID = "38901010003"
+    OTHER = "48507121239"
+
+    def setUp(self):
+        from contacts.models import UserProfile
+
+        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis",
+                                            personal_code=self.VALID)
+        self.person.phones.create(number="+37060012345")
+        self.admin = self._user("administratorius", UserProfile.ROLE_ADMIN,
+                                UserProfile.VISIBILITY_ALL)
+        self.clerk = self._user("vadybininkas", UserProfile.ROLE_MEMBER,
+                                UserProfile.VISIBILITY_OWN)
+
+    def _user(self, username, role, visibility):
+        from contacts.models import UserProfile
+
+        user = get_user_model().objects.create_user(username, password="very-secure-password")
+        UserProfile.objects.create(user=user, role=role, record_visibility=visibility)
+        return user
+
+    def _suggest(self, query):
+        return self.client.get(reverse("contacts:search-suggest"), {"q": query}).json()
+
+    def test_half_a_personal_code_finds_nobody(self):
+        """Four digits and a list of names would answer who is in the base."""
+        self.client.force_login(self.admin)
+        for partial in ("3890", "389010100", "8901010003"):
+            found = self.client.get(reverse("contacts:search"),
+                                    {"q": partial}).context["results"]["people"]
+            self.assertEqual(list(found), [], partial)
+
+    def test_the_whole_personal_code_still_finds_the_one_person(self):
+        self.client.force_login(self.admin)
+        found = self.client.get(reverse("contacts:search"),
+                                {"q": self.VALID}).context["results"]["people"]
+        self.assertEqual([person.pk for person in found], [self.person.pk])
+
+    def test_someone_who_sees_everything_may_still_browse_by_half_a_name(self):
+        self.client.force_login(self.admin)
+        data = self._suggest("Petr")
+        self.assertNotIn("hint", data)
+        self.assertEqual(data["groups"][0]["items"][0]["label"], "Jonas Petraitis")
+
+    def test_a_restricted_viewer_gets_nothing_until_the_query_names_someone(self):
+        self.client.force_login(self.clerk)
+        vague = self._suggest("Petr")
+        self.assertEqual(vague["groups"], [])
+        self.assertIn("visą vardą ir pavardę", vague["hint"])
+
+        for decisive in ("Jonas Petraitis", self.VALID, "+37060012345"):
+            data = self._suggest(decisive)
+            self.assertNotIn("hint", data, decisive)
+            self.assertEqual(data["groups"][0]["items"][0]["label"], "Jonas Petraitis", decisive)
+
+    def test_the_results_page_says_the_same_as_the_dropdown(self):
+        self.client.force_login(self.clerk)
+        response = self.client.get(reverse("contacts:search"), {"q": "Petr"})
+        self.assertIsNone(response.context["results"])
+        self.assertContains(response, "visą vardą ir pavardę")
+
+    def test_what_counts_as_naming_someone(self):
+        from contacts.views import names_someone
+
+        for query in ("Jonas Petraitis", "38901010003", "+370 600 12345", "60012345"):
+            self.assertTrue(names_someone(query), query)
+        for query in ("", "J", "Petr", "Jonas", "3890", "370", "Jonas P"):
+            self.assertFalse(names_someone(query), query)
 
 
 class RecordAccessHistoryTests(TestCase):
