@@ -4313,3 +4313,11 @@ msgstr ""
 #: contacts/views.py
 msgid "Blokų matomumas išsaugotas."
 msgstr "Block visibility saved."
+
+#: templates/contacts/_detail_layout.html
+msgid "Prieiga"
+msgstr "Access"
+
+#: templates/contacts/_detail_layout.html
+msgid "Šio įrašo su pagrindu dar niekas neatvėrė."
+msgstr "Nobody has opened this record with a reason yet."

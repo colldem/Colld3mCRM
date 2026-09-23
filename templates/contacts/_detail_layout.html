@@ -79,6 +79,7 @@
         <button type="button" role="tab" class="tab" data-tab="comments" id="tab-comments">{% translate 'Komentarai' %} <span>{{ comment_entries|length }}</span></button>
         <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %} <span>{{ attachment_entries|length }}</span></button>
         <button type="button" role="tab" class="tab" data-tab="reminders" id="tab-reminders">{% translate 'Priminimai' %} <span>{{ active_reminders|length }}</span></button>
+        {% if assignable_users %}<button type="button" role="tab" class="tab" data-tab="access">{% translate 'Prieiga' %} <span>{{ access_log|length }}</span></button>{% endif %}
       </div>
 
       <div class="tab-panel is-active" data-panel="all" role="tabpanel">
@@ -118,6 +119,25 @@
           {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:datetime_format }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span>{% if crm_caps.can_edit %}<form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form>{% endif %}</div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
         </div>
       </div>
+
+      {% comment %}Who opened this record and why — one line per opening, read
+      from the audit trail, so a second search the same day is its own line.
+      Shown to whoever may assign the record: who else is working on it is the
+      same fact as the panel in the rail.{% endcomment %}
+      {% if assignable_users %}
+      <div class="tab-panel" data-panel="access" role="tabpanel" hidden>
+        <ul class="rec-access-list">
+          {% for entry in access_log %}
+            <li>
+              <b>{{ entry.who|default:"—" }}</b>
+              {% comment %}Rows written before the opening recorded how it
+              happened have no source; the line reads without it.{% endcomment %}
+              <small>{% if entry.source %}{{ entry.source }} · {% endif %}{% if entry.purpose %}{{ entry.purpose }} · {% endif %}{% if entry.note %}{{ entry.note }} · {% endif %}{{ entry.when|date:datetime_format }}</small>
+            </li>
+          {% empty %}<li class="muted">{% translate 'Šio įrašo su pagrindu dar niekas neatvėrė.' %}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
     </section>
   </div>
 

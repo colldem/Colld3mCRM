@@ -178,6 +178,31 @@ def _kept_by_reminder(now):
             | Q(Exists(base.filter(company_id=OuterRef("company_id")))))
 
 
+def searches_on(record, limit=50):
+    """Every time this record was opened with a reason, newest first.
+
+    Read from the audit trail rather than from `RecordAccess`: a lease is one
+    row per engagement — opening the same record again the same day only
+    refreshes it — while the card has to show each opening as its own line.
+    The audit row is also the one nobody can edit afterwards.
+    """
+    from .models import AuditLog
+
+    kind = "company" if isinstance(record, Company) else "person"
+    rows = (AuditLog.objects.filter(action=AuditLog.ACCESS, target_type=kind,
+                                    target_id=str(record.pk))
+            .order_by("-created_at")[:limit])
+    # The keys are read back into today's language; the columns beside them
+    # hold the label as it was written, which is what the journal shows and
+    # what a row from before the keys existed still has.
+    sources = dict(RecordAccess.SOURCE_CHOICES)
+    purposes = dict(RecordAccess.PURPOSES)
+    return [{"when": row.created_at, "who": row.actor_label,
+             "purpose": purposes.get(row.detail.get("purpose")) or row.field,
+             "note": row.new_value, "source": sources.get(row.detail.get("source"), "")}
+            for row in rows]
+
+
 def accessible_person_ids(users, now=None):
     return live_for(users, now).filter(person__isnull=False).values_list("person_id", flat=True)
 

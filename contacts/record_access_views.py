@@ -16,7 +16,7 @@ from .audit import log as audit_log
 from .models import AuditLog, Company, Person, RecordAccess
 from .permissions import ACTIVE_VISIBILITIES, record_visibility
 from .record_access import (LONG_LEASE_DAYS, assign, assignable_users, end, find, grant,
-                            live_for, live_on, take_into_work)
+                            live_for, live_on, searches_on, take_into_work)
 
 
 @login_required
@@ -39,8 +39,14 @@ def record_search(request):
             else:
                 opener = take_into_work if long_lease else grant
                 opener(request.user, record, purpose, note=note)
+                # The search itself is the event worth keeping: every opening
+                # is its own row, while the lease above is one row per
+                # engagement. `source` is the machine key; `old` is the same
+                # thing spelled out, because the journal shows only columns.
                 audit_log(AuditLog.ACCESS, request=request, target=record,
-                          field=str(dict(RecordAccess.PURPOSES)[purpose]), new=note)
+                          field=str(dict(RecordAccess.PURPOSES)[purpose]), new=note,
+                          old=str(dict(RecordAccess.SOURCE_CHOICES)[RecordAccess.SOURCE_SEARCH]),
+                          source=RecordAccess.SOURCE_SEARCH, purpose=purpose)
                 return redirect(record)
 
     return render(request, "contacts/record_search.html", {
@@ -75,7 +81,7 @@ def assignment_context(actor, record):
     if not people.exists():
         return {}
     return {"access_rows": live_on(record), "assignable_users": people,
-            "access_purposes": RecordAccess.PURPOSES}
+            "access_purposes": RecordAccess.PURPOSES, "access_log": searches_on(record)}
 
 
 @login_required
@@ -99,7 +105,9 @@ def record_assign(request, kind, pk):
         assign(request.user, target, record, purpose, note=note)
         audit_log(AuditLog.ACCESS, request=request, target=record,
                   field=str(dict(RecordAccess.PURPOSES)[purpose]),
-                  old=str(tr("priskirta")), new=target.get_username())
+                  old=str(dict(RecordAccess.SOURCE_CHOICES)[RecordAccess.SOURCE_ASSIGNED]),
+                  new=target.get_username(), source=RecordAccess.SOURCE_ASSIGNED,
+                  purpose=purpose)
         messages.success(request, tr("Įrašas priskirtas."))
     return redirect(record)
 

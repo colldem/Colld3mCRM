@@ -73,6 +73,24 @@ ji atsirado (paieška / priskyrimas / priminimas), kas priskyrė, kada baigėsi.
 Tai ir yra atsakomybės mechanizmas — ne draudimas atverti, o tai, kad kiekvienas
 atvėrimas turi vardą ir priežastį.
 
+Nustatymai → Žurnalas, veiksmas „Prieiga prie įrašo“: stulpelyje „Laukas“ —
+pagrindas, „Buvo“ — kaip įrašas atsidarė (paieška su pagrindu ar priskyrė
+vadovas), „Tapo“ — komentaras arba darbuotojas, kuriam priskirta.
+
+## Tas pats įrašo kortelėje
+
+Kortelės veiklos juostoje yra skiltis **„Prieiga“** — tos pačios eilutės, tik
+apie tą vieną įrašą: kas jį atvėrė, kokiu pagrindu, su kokiu komentaru ir kada.
+Kiekvienas atvėrimas yra atskira eilutė, nors sąraše įrašas lieka vienas: tą
+pačią dieną pakartota paieška prieigos termino tik nepratęsia dvigubai, bet
+žurnale ir kortelėje matosi abu kartai.
+
+Skiltis rodoma tam, kas gali įrašą priskirti — administratoriui, vadovui,
+komandos vadovui. Tai tas pats sprendimas, kaip ir dešinėje esantis langelis
+„Kas dirba su šiuo įrašu“: kas ką atvėrė, yra faktas apie kolegas, ne apie
+klientą. Duomenys imami iš žurnalo, todėl jų nepakeisi nei kortelėje, nei
+niekur kitur, ir jie pasitraukia kartu su žurnalo saugojimo terminu.
+
 ## Asmens kodas
 
 Kortelėje jis rodomas uždengtas — `3890101****`. Visą reikšmę atiduoda tik

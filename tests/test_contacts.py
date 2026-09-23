@@ -8452,6 +8452,84 @@ class RecordAssignmentTests(TestCase):
         self.assertRedirects(response, reverse("contacts:record-search"))
 
 
+class RecordAccessHistoryTests(TestCase):
+    """Who opened this record, on the card and in the journal — the same event."""
+
+    VALID = "38901010003"
+
+    def setUp(self):
+        from contacts.models import UserProfile
+
+        self.clerk = self._user("vadybininkas", UserProfile.ROLE_MEMBER)
+        self.lead = self._user("vadovas", UserProfile.ROLE_MANAGER)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Petraitis",
+                                            personal_code=self.VALID)
+
+    def _user(self, username, role):
+        from contacts.models import UserProfile
+
+        user = get_user_model().objects.create_user(username, password="very-secure-password")
+        UserProfile.objects.create(user=user, role=role,
+                                   record_visibility=UserProfile.VISIBILITY_OWN_ACTIVE)
+        return user
+
+    def _search(self, note):
+        self.client.force_login(self.clerk)
+        self.client.post(reverse("contacts:record-search"),
+                         {"q": self.VALID, "purpose": "call", "note": note})
+
+    def test_the_card_shows_who_searched_the_record_and_why(self):
+        self._search("Byla 14")
+        self.client.force_login(self.lead)
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        self.assertIn("Paieška su pagrindu", page)
+        self.assertIn("Skambutis klientui", page)
+        self.assertIn("Byla 14", page)
+
+    def test_a_second_search_the_same_day_is_its_own_line(self):
+        """The lease is one row per engagement; the history is one per opening."""
+        from contacts.models import RecordAccess
+        from contacts.record_access import searches_on
+
+        self._search("Pirmas skambutis")
+        self._search("Antras skambutis")
+        self.assertEqual(RecordAccess.objects.count(), 1)
+        rows = searches_on(self.person)
+        self.assertEqual([row["note"] for row in rows], ["Antras skambutis", "Pirmas skambutis"])
+        self.assertEqual({row["source"] for row in rows}, {"Paieška su pagrindu"})
+
+    def test_the_journal_carries_the_same_entry(self):
+        from contacts.models import AuditLog, UserProfile
+
+        self._search("Byla 14")
+        entry = AuditLog.objects.filter(action=AuditLog.ACCESS).latest("id")
+        self.assertEqual((entry.actor, entry.target_type, entry.target_id),
+                         (self.clerk, "person", str(self.person.pk)))
+        self.assertEqual(entry.detail.get("source"), "search")
+
+        admin = self._user("administratorius", UserProfile.ROLE_ADMIN)
+        self.client.force_login(admin)
+        page = self.client.get(reverse("contacts:settings-audit")).content.decode()
+        self.assertIn("Prieiga prie įrašo", page)
+        self.assertIn("Paieška su pagrindu", page)
+        self.assertIn("Jonas Petraitis", page)
+
+    def test_an_assignment_is_told_apart_from_a_search(self):
+        from contacts.record_access import searches_on
+
+        self.client.force_login(self.lead)
+        self.client.post(reverse("contacts:record-assign", args=["person", self.person.pk]),
+                         {"user": self.clerk.pk, "purpose": "documents", "note": "Perimk bylą"})
+        self.assertEqual([row["source"] for row in searches_on(self.person)],
+                         ["Priskyrė vadovas"])
+
+    def test_someone_who_may_not_assign_does_not_see_the_history(self):
+        """Who else opened a record is a fact about colleagues, as in the rail."""
+        self._search("Byla 14")
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        self.assertNotIn("Byla 14", page)
+
+
 class RegitraStagingOverlayTests(TestCase):
     """Two staging stacks on one host must not land on top of each other."""
 
