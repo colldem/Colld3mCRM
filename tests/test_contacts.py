@@ -7950,3 +7950,42 @@ class ErrorPageTests(TestCase):
         for name in ("handler400", "handler403", "handler404", "handler500"):
             self.assertTrue(getattr(urls, name, "").startswith("contacts.errors."), name)
         self.assertEqual(settings.CSRF_FAILURE_VIEW, "contacts.errors.csrf_failure")
+
+
+class StagingPublicSwitchTests(TestCase):
+    """Turning Funnel on is a switch somebody will reach for in a hurry.
+
+    It writes the two lines deploy-staging.sh insists on, and it must never be
+    able to point at production — the guard is the whole safety of the thing.
+    """
+
+    @property
+    def script(self):
+        return (settings.BASE_DIR / "scripts" / "staging-public.sh").read_text()
+
+    def test_it_refuses_anything_that_is_not_an_isolated_copy(self):
+        self.assertIn("CRM_ENVIRONMENT=staging", self.script)
+        self.assertIn("compose\\.staging\\.yaml", self.script)
+        self.assertEqual(self.script.count("exit 1"), 4)
+
+    def test_both_lines_are_written_together_and_removed_together(self):
+        """Either one alone is refused by the deploy, so a switch that wrote
+        only one would leave the instance undeployable and look like a bug."""
+        script = self.script
+        self.assertIn("serve-staging-funnel.json\\nCRM_STAGING_PUBLIC=1", script)
+        # Off removes both and restores the tailnet-only file.
+        self.assertIn("-e '^TS_SERVE_CONFIG=' -e '^CRM_STAGING_PUBLIC='", script)
+        off = script.split("  off)")[1].split(";;")[0]
+        self.assertIn("serve-staging.json", off)
+        self.assertNotIn("CRM_STAGING_PUBLIC", off)
+
+    def test_the_env_file_keeps_its_permissions(self):
+        """It holds this instance's secret key and database password."""
+        self.assertIn('chmod 600 "$ENV_FILE"', self.script)
+
+    def test_the_workflow_offers_both_directions_and_defaults_to_tailnet(self):
+        workflow = (settings.BASE_DIR / ".github" / "workflows"
+                    / "regitra-staging-public.yml").read_text()
+        self.assertIn('options: ["tailnet", "public"]', workflow)
+        self.assertIn('default: "tailnet"', workflow)
+        self.assertIn("sanitize_staging", workflow)

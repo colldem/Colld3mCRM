@@ -1,0 +1,76 @@
+name: Regitra staging — public or tailnet
+
+# Turns Tailscale Funnel on or off for the Regitra staging instance, using the
+# runner that already deploys there. It exists because the switch lives in a
+# file on the NAS, and the person who needs the instance published is often the
+# one who cannot reach the NAS to edit it.
+#
+# It writes both required lines together (the serve file and
+# CRM_STAGING_PUBLIC=1), so the two-statement rule in scripts/deploy-staging.sh
+# is satisfied by intent rather than by accident, and refuses any directory that
+# is not an isolated staging copy.
+#
+# Read "Publishing a staging instance" in docs/DEPLOYMENT.md before turning it
+# on: sanitising a copy replaces usernames but not password hashes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: "public = on the open internet; tailnet = reachable only inside the tailnet"
+        required: true
+        type: choice
+        options: ["tailnet", "public"]
+        default: "tailnet"
+      sanitise:
+        description: "Re-run sanitize_staging first (anonymises the copy; signs everyone out)"
+        required: false
+        type: boolean
+        default: true
+      app_dir:
+        description: "Instance directory on the NAS"
+        required: false
+        default: "/volume1/docker/crm-regitra-staging"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regitra-staging-public
+  cancel-in-progress: false
+
+jobs:
+  switch:
+    if: github.repository == 'colldem/Colld3mCRM'
+    runs-on: [self-hosted, crm-nas]
+    environment:
+      name: Regitra staging
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Anonymise the copy
+        if: ${{ inputs.sanitise }}
+        working-directory: ${{ inputs.app_dir }}
+        # Names, phones, e-mails, addresses, free text, personal codes and the
+        # audit trail. Not password hashes — nothing can replace those without
+        # locking everyone out, which is why the checklist says to change the
+        # administrator's password by hand.
+        run: docker compose exec -T crm-web python manage.py sanitize_staging
+
+      - name: Apply the switch
+        run: sh scripts/staging-public.sh "${{ inputs.state == 'public' && 'on' || 'off' }}" "${{ inputs.app_dir }}"
+
+      - name: Wait for the instance to answer
+        working-directory: ${{ inputs.app_dir }}
+        run: |
+          set -eu
+          i=0
+          while [ "$i" -lt 30 ]; do
+            cid="$(docker compose ps -q crm-web 2>/dev/null)"
+            if [ -n "$cid" ] && \
+               [ "$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null)" = healthy ]; then
+              echo "crm-web is healthy"; exit 0
+            fi
+            i=$((i + 1)); sleep 5
+          done
+          echo "FATAL: crm-web did not become healthy"; docker compose ps; exit 1
