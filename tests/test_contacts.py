@@ -4724,6 +4724,18 @@ class IsolatedTierTests(TestCase):
         # Both staging scripts refuse to act unless the target really is staging.
         for name in ("deploy-staging.sh", "refresh-staging.sh"):
             self.assertIn("CRM_ENVIRONMENT=staging", (root / "scripts" / name).read_text())
+
+        # Funnel is available to a staging instance, but only as a decision
+        # stated twice: the serve file AND CRM_STAGING_PUBLIC=1 in its .env.
+        # One of the two alone must not be enough, or a copied line publishes a
+        # clone of production data by accident.
+        funnel = root / "deploy" / "tailscale" / "serve-staging-funnel.json"
+        self.assertIn("AllowFunnel", funnel.read_text())
+        deploy = (root / "scripts" / "deploy-staging.sh").read_text()
+        self.assertIn("serve-staging-funnel.json", deploy)
+        self.assertIn("CRM_STAGING_PUBLIC=1", deploy)
+        # And a serve file nobody vetted is still refused outright.
+        self.assertIn("exit 1", deploy.split("serve-staging-funnel.json")[-1])
         # And the deploy refuses a Tailscale staging that would serve Funnel,
         # since the overlay's default serve.json enables it.
         self.assertIn("serve-staging.json", (root / "scripts" / "deploy-staging.sh").read_text())
