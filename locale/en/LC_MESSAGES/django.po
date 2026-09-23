@@ -1750,7 +1750,7 @@ msgstr "Double-click a value to edit it in place."
 
 msgid ""
 "Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, "
-"Adresai, URL, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius "
+"Adresai, URL, Tagai, Kategorijos, Atsakingas. Neatpažintus stulpelius "
 "priskirsite kitame žingsnyje."
 msgstr ""
 "Recognised columns: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, "

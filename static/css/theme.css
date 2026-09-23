@@ -131,6 +131,14 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
    settings column, leaving the last role off the edge. */
 .permissions-table th:first-child,.permissions-table td:first-child{width:auto}
 .permissions-table thead th:not(:first-child){width:118px;white-space:normal;vertical-align:bottom}
+/* A tick belongs beside the thing it applies to. Stretched across a 2000px
+   window the table put a metre of empty row between a capability and its
+   checkboxes, and answering "which row am I ticking?" meant tracking a line
+   across the whole screen. The table stops once the name column is a
+   comfortable measure; a narrow window still gets the full width. The frame
+   stops with it, or it would draw a border round the empty half. */
+.permissions-table{max-width:1100px}
+.table-wrap:has(>.permissions-table){width:fit-content;max-width:100%}
 .permissions-table .cap-hint{display:block;margin-top:3px;color:var(--muted);font-size:var(--fs-xs);font-weight:400;line-height:1.45;white-space:normal}
 /* Four roles and a hint on every row: the name column has to give way, and
    a narrow window scrolls the table rather than cutting the last role off. */
