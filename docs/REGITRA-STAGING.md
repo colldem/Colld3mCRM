@@ -175,7 +175,12 @@ mygtuku. Tai rekomenduojamas kelias demonstracijai ar derinimui su užsakovu.
 įsidiegti Tailscale (svetimas kompiuteris, planšetė be teisių). Instancija
 skelbiama tuo pačiu būdu, kaip produkcija.
 
-Įjungiama **dviem** eilutėmis NAS'o `/volume1/docker/crm-regitra-staging/.env`:
+**Be terminalo:** GitHub → Actions → **„Regitra staging — public or tailnet"** →
+Run workflow → `state: public`. Tai padaro tas pačias dvi eilutes per tą patį
+runner'į, kuris ten diegia, ir prieš tai gali perleisti nuasmeninimą. Tuo pačiu
+keliu ir išjungiama — `state: tailnet`.
+
+Tas pats rankomis, NAS'o `/volume1/docker/crm-regitra-staging/.env`:
 
 ```sh
 TS_SERVE_CONFIG=/config/serve-staging-funnel.json
