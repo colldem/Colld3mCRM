@@ -32,6 +32,21 @@ peržiūrėti diff'ą prieš commit'ą.
 Į kitą pusę — iš `regitra` į `main` — keliauja tik tai, kas nėra Regitros
 specifika, irgi `cherry-pick`.
 
+## Kiek ši šaka atsilikusi
+
+Paskutinis pavijimas — **2026-09-23**, iki `main` viršūnės `ca9c30e`. Perkelta:
+slaptažodžio atkūrimas ir prisijungimo langas (`b072202`), mygtukų ir paviršių
+skalė (`cf6f080`, `0e5c6e4`), klaidų puslapiai (`3a408cf`), leidimo workflow
+(`ae9a71c`).
+
+Neperkelta sąmoningai: `daed7b7` (registrų kolonos išėmimas — tai, kas čia
+esmė) ir tie `main` commit'ai, kuriems ši šaka jau turi savo atitikmenį —
+`74e7207`, `f1dee2b`, `1ed3673`, `d241eaf`, `ad161d1`, `e67e70f`, `ca9c30e`.
+
+Pavyti verta neatidėliojant: kuo ilgiau laukiama, tuo daugiau vietų, kur tas
+pats dalykas jau pataisytas dviem skirtingais būdais, ir tuo brangesnis
+kiekvienas `cherry-pick`.
+
 ## Kas šioje šakoje yra, o `main` nėra
 
 - `contacts/record_blocks.py` — kortelės vidurinės kolonos blokų registras
