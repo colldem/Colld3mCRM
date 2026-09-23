@@ -77,6 +77,17 @@ Nustatymai → Žurnalas, veiksmas „Prieiga prie įrašo“: stulpelyje „Lau
 pagrindas, „Buvo“ — kaip įrašas atsidarė (paieška su pagrindu ar priskyrė
 vadovas), „Tapo“ — komentaras arba darbuotojas, kuriam priskirta.
 
+**Ir nesėkminga paieška.** Veiksmas „Paieška be rezultato“ užrašo bandymą, kuris
+nieko nerado: kas, kada, kokiu pagrindu. Tai svarbiausia eilutė visame šiame
+mechanizme — žmogus, einantis per asmens kodus, nieko neranda kiekvieną kartą,
+tad be jos toks elgesys žurnale būtų nematomas.
+
+Pačios užklausos žurnale nėra ir nebus. Vienuolika skaitmenų, neradusių nieko
+šioje bazėje, vis tiek yra kažkieno asmens kodas, ir jį užrašius atsirastų
+įrašas apie žmogų, kurio bazėje išvis nėra. Todėl saugoma tik forma —
+„skaitmenų: 11“ arba „žodžių: 2, simbolių: 10“. Serija tokių eilučių iš to paties
+naudotojo matoma ir be turinio.
+
 ## Tas pats įrašo kortelėje
 
 Kortelės veiklos juostoje yra skiltis **„Prieiga“** — tos pačios eilutės, tik

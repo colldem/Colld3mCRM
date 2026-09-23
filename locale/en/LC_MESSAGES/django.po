@@ -4727,3 +4727,15 @@ msgstr "A record like this already exists"
 #: contacts/validators.py
 msgid "Neteisingas asmens kodas — tokios gimimo datos nėra."
 msgstr "Not a valid personal code — there is no such birth date."
+
+#: contacts/models.py
+msgid "Paieška be rezultato"
+msgstr "Search that found nothing"
+
+#: contacts/record_access.py
+msgid "skaitmenų: %(count)s"
+msgstr "digits: %(count)s"
+
+#: contacts/record_access.py
+msgid "žodžių: %(words)s, simbolių: %(count)s"
+msgstr "words: %(words)s, characters: %(count)s"

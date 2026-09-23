@@ -752,6 +752,9 @@ class AuditLog(models.Model):
     ACCESS = "access"
     # Uncovering one person's asmens kodas on their card.
     PERSONAL_CODE = "personal_code"
+    # A purposeful search that turned up nobody. Kept because a run of these is
+    # what probing the base looks like from outside; see contacts/record_access.py.
+    SEARCH_MISS = "search_miss"
     ACTION_CHOICES = (
         (CREATE, tr("Sukūrimas")),
         (UPDATE, tr("Keitimas")),
@@ -767,6 +770,7 @@ class AuditLog(models.Model):
         (LOGIN_FAILED, tr("Nepavykęs prisijungimas")),
         (ACCESS, tr("Prieiga prie įrašo")),
         (PERSONAL_CODE, tr("Asmens kodo peržiūra")),
+        (SEARCH_MISS, tr("Paieška be rezultato")),
     )
 
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_entries")

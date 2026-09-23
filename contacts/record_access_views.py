@@ -16,7 +16,7 @@ from .audit import log as audit_log
 from .models import AuditLog, Company, Person, RecordAccess
 from .permissions import ACTIVE_VISIBILITIES, record_visibility
 from .record_access import (LONG_LEASE_DAYS, assign, assignable_users, end, find, grant,
-                            live_for, live_on, searches_on, take_into_work)
+                            live_for, live_on, query_shape, searches_on, take_into_work)
 
 
 @login_required
@@ -35,6 +35,15 @@ def record_search(request):
             if record is None:
                 # No hints, no near misses: not finding someone must not become
                 # a way of asking whether they are in the base at all.
+                #
+                # It is still written down. Someone working through personal
+                # codes finds nobody every time, and that is precisely the
+                # behaviour supervision exists to catch — an attempt that
+                # leaves no trace is the one nobody can review. The query is
+                # not kept: see record_access.query_shape.
+                audit_log(AuditLog.SEARCH_MISS, request=request,
+                          field=str(dict(RecordAccess.PURPOSES)[purpose]),
+                          new=query_shape(query), purpose=purpose)
                 messages.error(request, tr("Pagal šią užklausą įrašo nerasta."))
             else:
                 opener = take_into_work if long_lease else grant

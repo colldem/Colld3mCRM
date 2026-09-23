@@ -18,6 +18,7 @@ from datetime import datetime, time, timedelta
 
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
+from django.utils.translation import gettext as tr
 
 from .models import Company, Person, RecordAccess, Reminder
 from .reminder_queries import open_q
@@ -209,6 +210,22 @@ def accessible_person_ids(users, now=None):
 
 def accessible_company_ids(users, now=None):
     return live_for(users, now).filter(company__isnull=False).values_list("company_id", flat=True)
+
+
+def query_shape(query):
+    """What was searched for, described without repeating it.
+
+    A search that found nobody is worth keeping — a run of them is what probing
+    the base looks like from the outside — but the query itself must not be:
+    eleven digits that match nobody here are still somebody's personal code,
+    and writing them down would create a record about a person who is not in
+    this base at all. So the log keeps the shape and never the content.
+    """
+    query = (query or "").strip()
+    if query.isdigit():
+        return str(tr("skaitmenų: %(count)s")) % {"count": len(query)}
+    return str(tr("žodžių: %(words)s, simbolių: %(count)s")) % {
+        "words": len(query.split()), "count": len(query)}
 
 
 def find(query):

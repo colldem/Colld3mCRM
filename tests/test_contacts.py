@@ -8485,6 +8485,35 @@ class RecordSearchPageTests(TestCase):
         self.assertContains(response, "Pagal šią užklausą įrašo nerasta.")
         self.assertNotContains(response, "Slapta<")
 
+    def test_a_search_that_found_nobody_is_written_down_without_the_query(self):
+        """Someone working through personal codes finds nobody every time; an
+        attempt that leaves no trace is the one nobody can review."""
+        from contacts.models import AuditLog
+
+        self.client.post(self.url, {"q": "48507121239", "purpose": "internal"})
+        entry = AuditLog.objects.filter(action=AuditLog.SEARCH_MISS).latest("id")
+        self.assertEqual((entry.actor, entry.target_id), (self.user, ""))
+        self.assertIn("Vidinis patikrinimas", entry.field)
+        self.assertEqual(entry.detail.get("purpose"), "internal")
+        # The shape, never the query: the code belongs to somebody who is not
+        # in this base, and the log must not become a record about them.
+        self.assertEqual(entry.new_value, "skaitmenų: 11")
+        self.assertNotIn("48507121239", entry.new_value + entry.old_value + str(entry.detail))
+
+    def test_a_name_that_found_nobody_is_counted_in_words(self):
+        from contacts.models import AuditLog
+
+        self.client.post(self.url, {"q": "Ona Slapta", "purpose": "call"})
+        entry = AuditLog.objects.filter(action=AuditLog.SEARCH_MISS).latest("id")
+        self.assertEqual(entry.new_value, "žodžių: 2, simbolių: 10")
+        self.assertNotIn("Slapta", entry.new_value)
+
+    def test_a_search_that_found_someone_writes_no_miss(self):
+        from contacts.models import AuditLog
+
+        self.client.post(self.url, {"q": self.VALID, "purpose": "call"})
+        self.assertFalse(AuditLog.objects.filter(action=AuditLog.SEARCH_MISS).exists())
+
     def test_taking_it_into_work_buys_the_longer_lease(self):
         from contacts.models import RecordAccess
         from contacts.record_access import LONG_LEASE_DAYS
