@@ -250,36 +250,41 @@ jobs:
           for i in $(seq 1 40); do curl -fsS http://localhost:8080/health/ready && break; sleep 3; done
       - name: Seed 5,000 contacts
         run: docker exec -i load-web python manage.py shell -v 0 < scripts/loadtest/seed.py
-      - name: Run 50 users for 3 minutes
+      # Twice, if the first is over budget. A run that fails on requests or on
+      # errors fails at once — running it again proves nothing. Latency is the
+      # one number a shared runner moves on its own, and a real regression is
+      # slow both times, so only the second verdict ends the job.
+      # scripts/loadtest/thresholds.py says which kind of failure it was.
+      - name: Run 50 users for 3 minutes, twice if the first is slow
         run: |
+          set -eu
           python -m pip install -r scripts/loadtest/requirements.txt
           (while true; do docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}' load-web load-db; sleep 15; done) > stats.txt &
-          # Locust exits non-zero on any failed request; the threshold step decides.
-          locust -f scripts/loadtest/locustfile.py --host http://localhost:8080 --headless -u 50 -r 5 -t 3m \
-            --csv load --only-summary || true
-          kill %1 || true
-          cat stats.txt | tail -6
-      - name: Check thresholds
-        run: |
-          python - <<'PY'
-          import csv
-          rows = {r["Name"]: r for r in csv.DictReader(open("load_stats.csv"))}
-          total = rows["Aggregated"]
-          requests, failures = int(total["Request Count"]), int(total["Failure Count"])
-          p95 = float(total["95%"])
-          print("requests=%d failures=%d p50=%sms p95=%sms rps=%s" % (requests, failures, total["50%"], total["95%"], total["Requests/s"]))
-          for name, row in sorted(rows.items()):
-              print("%-45s p50=%6s p95=%6s max=%8s n=%s" % (name, row["50%"], row["95%"], row["Max Response Time"], row["Request Count"]))
-          assert requests > 1500, "too few requests"
-          assert failures / requests < 0.01, "failure ratio above 1%"
-          assert p95 < 2000, "95th percentile above 2 s"
-          PY
+          stats=$!
+          trap 'kill "$stats" 2>/dev/null || true' EXIT
+          for attempt in 1 2; do
+            echo "::group::attempt $attempt"
+            # Locust exits non-zero on any failed request; thresholds.py decides.
+            locust -f scripts/loadtest/locustfile.py --host http://localhost:8080 --headless -u 50 -r 5 -t 3m \
+              --csv "load$attempt" --only-summary || true
+            set +e
+            python scripts/loadtest/thresholds.py "load${attempt}_stats.csv"
+            verdict=$?
+            set -e
+            echo "::endgroup::"
+            [ "$verdict" -eq 0 ] && { tail -6 stats.txt; exit 0; }
+            [ "$verdict" -eq 2 ] && { tail -6 stats.txt; exit 1; }
+            echo "attempt $attempt was slow; the runner gets one more chance before this counts."
+          done
+          tail -6 stats.txt
+          echo "slow twice — this is a regression, not the runner."
+          exit 1
       - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: load-test
           path: |
-            load_*.csv
+            load*_stats.csv
             stats.txt
       - name: Web logs on failure
         if: failure()

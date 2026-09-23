@@ -148,6 +148,8 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   iškviečia „Deploy"), abu diegimo darbai `runs-on: self-hosted crm-nas`.
   `scripts/backup.sh` (crm-backup image, `deploy/backup/Dockerfile`) — šifruotos kopijos; `scripts/restore.sh` — atkūrimas
   (CI `backup-restore` darbas atlieka avarinio atkūrimo pratybas); `scripts/security-check.sh` — pip-audit + bandit (CI `security` darbas; Trivy ir SBOM — `image` darbe);
+  `scripts/loadtest/thresholds.py` — CI `load` verdiktas: klaidos krinta iškart, per lėtas
+  paleidimas kartojamas antrą kartą (biudžetas ir agreguotas, ir kiekvienam puslapiui);
   `scripts/staging-public.sh` — staging instancijos atvėrimas į viešą internetą
   (Funnel) arba grąžinimas į tailnetą; per `regitra-staging-public.yml` paleidžiama
   ir be terminalo. Rašo abi būtinas `.env` eilutes kartu ir atsisako ne staging.

@@ -8683,6 +8683,55 @@ class SearchNarrownessTests(TestCase):
             self.assertFalse(names_someone(query), query)
 
 
+class LoadThresholdTests(TestCase):
+    """The load job must fail for a reason someone can act on."""
+
+    HEADER = ("Type,Name,Request Count,Failure Count,Median Response Time,"
+              "Average Response Time,Min Response Time,Max Response Time,"
+              "Average Content Size,Requests/s,Failures/s,50%,66%,75%,80%,90%,95%,98%,99%,"
+              "99.9%,99.99%,100%\n")
+
+    def _csv(self, rows):
+        import tempfile
+
+        handle = tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False)
+        handle.write(self.HEADER)
+        for name, count, failures, p95 in rows:
+            handle.write("GET,%s,%d,%d,100,120,10,%d,1000,20,0,100,110,120,130,150,%d,%d,%d,%d,%d,%d\n"
+                         % (name, count, failures, p95, p95, p95, p95, p95, p95, p95))
+        handle.close()
+        return handle.name
+
+    def _verdict(self, rows):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "thresholds", settings.BASE_DIR / "scripts" / "loadtest" / "thresholds.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.main(self._csv(rows))
+
+    def test_a_healthy_run_passes(self):
+        self.assertEqual(self._verdict([("Aggregated", 3000, 0, 900), ("/", 800, 0, 1400)]), 0)
+
+    def test_errors_fail_at_once_and_are_not_worth_another_run(self):
+        """A broken stack is not a slow runner; repeating it proves nothing."""
+        self.assertEqual(self._verdict([("Aggregated", 3000, 90, 900)]), 2)
+
+    def test_too_few_requests_is_the_same_kind_of_news(self):
+        self.assertEqual(self._verdict([("Aggregated", 400, 0, 900)]), 2)
+
+    def test_slow_asks_for_a_second_run_rather_than_failing(self):
+        self.assertEqual(self._verdict([("Aggregated", 3000, 0, 2400)]), 1)
+
+    def test_one_slow_page_is_caught_even_when_the_aggregate_hides_it(self):
+        """The aggregate mixes a 90ms list with a 600ms dashboard, so a page
+        that doubled can sit inside a total that still looks fine."""
+        self.assertEqual(self._verdict([("Aggregated", 3000, 0, 800),
+                                        ("/companies/", 2000, 0, 200),
+                                        ("/", 1000, 0, 2600)]), 1)
+
+
 class RecordAccessHistoryTests(TestCase):
     """Who opened this record, on the card and in the journal — the same event."""
 

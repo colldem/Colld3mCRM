@@ -98,6 +98,24 @@ numatyti Gunicorn nustatymai (2 procesai × 2 gijos).
 | Web atmintis | ~190 MB |
 | Riba | web procesorius (2 vCPU išnaudoti); DB ~50–75 % vieno branduolio |
 
+**Kodėl testas leidžiamas du kartus.** 95 procentilio biudžetas — 2,0 s, o
+matuojama reikšmė 1,7 s: 15 % atsargos bendrame GitHub runner'yje, kurio
+apkrova nuo mūsų nepriklauso. Todėl agreguotas skaičius kartais peršoka ribą
+be jokio kodo pakeitimo, ir raudonas CI ima mokyti, kad į jį galima nežiūrėti.
+
+Dabar skiriami du dalykai (`scripts/loadtest/thresholds.py`):
+
+- **Klaidos ir per mažas užklausų skaičius** — krinta iškart. Sulūžęs stack'as
+  nuo pakartojimo nepasitaisys.
+- **Per lėta** — paleidžiama antrą kartą, ir tik antras toks pat verdiktas
+  nuspalvina darbą raudonai. Tikra regresija lėta abu kartus; triukšmingas
+  runner'is — retai.
+
+Be to, biudžetas tikrinamas ir **kiekvienam puslapiui atskirai**. Agreguotas
+skaičius maišo 90 ms įmonių sąrašą su 600 ms darbastaliu, tad puslapis, kurio
+trukmė padvigubėjo, gali pasislėpti bendroje sumoje; atskiras biudžetas pasako
+ir tai, kad sulėtėjo, ir kuris.
+
 Slenksčiai CI (build krenta, jei viršijami): klaidos < 1 %, p95 < 2 s.
 Testo metu rasti ir ištaisyti: varpelis generavo visus priminimus kiekviename
 puslapyje, N+1 užklausos, sąrašų agregatai visam sąrašui, keep-alive lenktynės.
