@@ -892,15 +892,23 @@ body.has-env-banner{padding-bottom:28px}
 .audit-filters select,.audit-filters input[type=date]{width:100%;min-height:var(--control-h)}
 .audit-filters .filter-actions{grid-column:1/-1;display:flex;justify-content:flex-start;gap:8px}
 @media(max-width:640px){.audit-filters{grid-template-columns:1fr 1fr}}
-.audit-table{table-layout:fixed}
-.audit-table th,.audit-table td{vertical-align:top;white-space:normal;overflow-wrap:anywhere;line-height:1.45}
-.audit-table th:nth-child(1),.audit-table td:nth-child(1){width:14%}
-.audit-table th:nth-child(2),.audit-table td:nth-child(2){width:13%}
-.audit-table th:nth-child(3),.audit-table td:nth-child(3){width:11%}
-.audit-table th:nth-child(4),.audit-table td:nth-child(4){width:18%}
-.audit-table th:nth-child(5),.audit-table td:nth-child(5){width:12%}
-.audit-table th:nth-child(6),.audit-table td:nth-child(6){width:16%}
-.audit-table th:nth-child(7),.audit-table td:nth-child(7){width:16%}
+/* Seven columns, and only four of them hold anything unpredictable. Fixed
+   percentages gave the same share to a date and to a 120-character value, so
+   "Archyvavimas" — 87px of word in a 62px column — was chopped in half. The
+   browser sizes them to their content instead; the four free-text columns are
+   held to a share of the table so one long value cannot take the row. */
+.audit-table th,.audit-table td{vertical-align:top;white-space:normal;line-height:1.45}
+/* A hyphen is a wrap opportunity too, so a squeezed column split the stamp
+   into "2026-09-" and "23 18:09". It is one value and stays on one line. */
+.audit-table th:nth-child(1),.audit-table td:nth-child(1){white-space:nowrap}
+/* Down to their longest word, not to their longest line: the name and the
+   action wrap between words happily, and the room belongs to the values. */
+.audit-table th:nth-child(2),.audit-table td:nth-child(2),
+.audit-table th:nth-child(3),.audit-table td:nth-child(3){width:1%}
+.audit-table th:nth-child(n+4),.audit-table td:nth-child(n+4){width:14%;overflow-wrap:anywhere}
+/* Seven columns need this much before the values start losing words. Below it
+   the wrapper scrolls, which is .table-wrap's job and beats shredding them. */
+.audit-table{min-width:780px}
 .audit-table td small{display:block;color:var(--muted);font-size:var(--fs-2xs)}
 
 /* "CSV read settings" fold on the Import / export page. */
