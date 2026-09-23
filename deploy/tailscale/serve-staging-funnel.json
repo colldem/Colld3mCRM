@@ -1,0 +1,6 @@
+{
+  "_comment": "Staging published to the public internet through Funnel. Opt-in only: scripts/deploy-staging.sh accepts this file solely when the instance's .env also sets CRM_STAGING_PUBLIC=1, so it cannot be reached by copying one line. serve-staging.json stays the tailnet-only default and is what the public staging uses. Before pointing an instance here, read the checklist in docs/DEPLOYMENT.md: the data must be anonymised and the passwords in the copy are production's.",
+  "TCP": {"443": {"HTTPS": true}},
+  "Web": {"${TS_CERT_DOMAIN}:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}}},
+  "AllowFunnel": {"${TS_CERT_DOMAIN}:443": true}
+}

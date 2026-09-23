@@ -179,6 +179,7 @@ the summary.
 |---|---|---|
 | `CRM_EXTRA_APPS` | empty | comma-separated Django apps installed beside the CRM and added to `INSTALLED_APPS`, so a deployment can add one without patching settings |
 | `CRM_ENVIRONMENT` | `production` | anything else marks the instance an isolated copy: e-mail, IMAP, Entra and webhooks are forced off and a banner names the tier |
+| `CRM_STAGING_PUBLIC` | unset | `1` lets a staging instance serve through Tailscale Funnel — the public internet — and is required beside `TS_SERVE_CONFIG=/config/serve-staging-funnel.json`. Neither alone is enough, so a copied line cannot publish a clone of production data. See *Publishing a staging instance* below |
 | `DJANGO_SESSION_IDLE_MINUTES` | `480` | idle timeout before a session expires |
 | `CRM_DJANGO_ADMIN` | `false` | `true` mounts Django's `/admin/` for superusers only. It edits records outside the CRM's audit trail and permissions, so leave it off unless a one-off technical fix needs it |
 | `CRM_TRUSTED_PROXIES` | *(empty; overlays set it)* | CIDR list of reverse proxies whose `X-Forwarded-For` is believed. The client address in the audit trail and the sign-in lockout comes from it; without it every user behind one proxy shares the proxy's address — five failed sign-ins by anyone would lock everyone out. Read right-to-left, skipping trusted hops, so a client cannot spoof it |
@@ -388,6 +389,46 @@ the workflows: `CRM_APP_DIR`, `CRM_STAGING_DIR`, `CRM_PROD_URL`,
 
 None of this is required. `scripts/deploy.sh` does the same work over SSH, and
 `docker compose build --pull && docker compose up -d` is always enough.
+
+## Publishing a staging instance
+
+A staging instance serves on `serve-staging.json`: HTTPS inside the tailnet and
+nothing outside it. That is the right default, because staging holds a copy of
+production. Two ways out of the tailnet do not need this section at all — a
+tailnet reaches any network once Tailscale is installed on the device, and a
+single node can be shared with one outside person from the Tailscale admin
+console. Funnel is for the case neither covers: somebody who cannot install
+anything.
+
+Publishing takes two statements, in two places, and neither alone is enough:
+
+```sh
+TS_SERVE_CONFIG=/config/serve-staging-funnel.json
+CRM_STAGING_PUBLIC=1
+```
+
+`scripts/deploy-staging.sh` refuses the deploy unless both are present, and
+refuses any other serve file outright. One copied line therefore cannot put a
+clone of production data on the internet.
+
+Before setting them, four things are worth being sure of:
+
+1. **The data is anonymised.** `scripts/refresh-staging.sh` always runs
+   `manage.py sanitize_staging`, which replaces names, phones, e-mails,
+   addresses, every free-text field and personal codes, and deletes the audit
+   trail, incoming mail and sessions. If the copy was restored some other way,
+   run it by hand before publishing.
+2. **The passwords are production's.** Sanitising replaces usernames but not
+   password hashes, so a production password still opens this copy. Change at
+   least the administrator's password on the instance itself.
+3. **The sign-in page is public.** `django-axes` locks an account after five
+   failed attempts for 30 minutes, which is the whole of the brute-force
+   defence. There is no rate limit on anonymous page loads.
+4. **The address is guessable and will be crawled.** A `*.ts.net` name is not a
+   secret; treat the instance as visible.
+
+To take it back off the internet, set `TS_SERVE_CONFIG` back to
+`/config/serve-staging.json`, drop `CRM_STAGING_PUBLIC`, and redeploy.
 
 ## Monitoring
 

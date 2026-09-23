@@ -25,9 +25,27 @@ grep -q '^COMPOSE_FILE=.*compose\.staging\.yaml' "$APP/.env" || {
 # The Tailscale overlay defaults to serve.json, which enables Funnel and would
 # publish this clone of production data to the public internet.
 if grep -q '^COMPOSE_FILE=.*compose\.tailscale\.yaml' "$APP/.env"; then
-  grep -q '^TS_SERVE_CONFIG=/config/serve-staging\.json$' "$APP/.env" || {
-    echo "FATAL: staging on Tailscale must set TS_SERVE_CONFIG=/config/serve-staging.json"
-    echo "       (the default serve.json enables Funnel — public internet)"; exit 1; }
+  serve="$(sed -n 's/^TS_SERVE_CONFIG=//p' "$APP/.env" | tail -1)"
+  case "$serve" in
+    /config/serve-staging.json)
+      ;;                                   # tailnet only — the default
+    /config/serve-staging-funnel.json)
+      # Funnel puts the sign-in page on the public internet. That is a decision,
+      # not a path, so the instance has to say so in a second place.
+      grep -q '^CRM_STAGING_PUBLIC=1$' "$APP/.env" || {
+        echo "FATAL: serve-staging-funnel.json publishes this instance to the public"
+        echo "       internet. Set CRM_STAGING_PUBLIC=1 in $APP/.env to confirm that is"
+        echo "       intended, and read the checklist in docs/DEPLOYMENT.md first."
+        exit 1; }
+      echo ">>> this instance is PUBLIC (Funnel) — CRM_STAGING_PUBLIC=1"
+      ;;
+    *)
+      echo "FATAL: staging on Tailscale must set TS_SERVE_CONFIG to"
+      echo "       /config/serve-staging.json (tailnet only) or"
+      echo "       /config/serve-staging-funnel.json (public, needs CRM_STAGING_PUBLIC=1)."
+      echo "       The overlay's default serve.json enables Funnel with no such check."
+      exit 1 ;;
+  esac
 fi
 
 # --- 1. publish the source ----------------------------------------------
