@@ -7986,9 +7986,19 @@ class PersonalCodeTests(TestCase):
 
         validate_personal_code("")            # blank is allowed: it is optional
         validate_personal_code(self.VALID)
-        for bad in ("3890101000", "389010100034", "3890101000x", "38901010004", "78901010003"):
+        for bad in ("3890101000", "389010100034", "3890101000x", "38901010004", "78901010003",
+                    # The checksum never looks at the date, so these add up
+                    # perfectly: the 99th month, February 31st, and the 29th of
+                    # February in a year that had no 29th.
+                    "49913011235", "48902311231", "50602291235"):
             with self.subTest(bad=bad), self.assertRaises(ValidationError):
                 validate_personal_code(bad)
+
+    def test_a_code_that_claims_no_birth_date_is_left_alone(self):
+        """A leading 0 means the date is unknown, and then there is none to check."""
+        from contacts.validators import validate_personal_code
+
+        validate_personal_code("00000000000")
 
     def test_the_card_will_not_store_a_code_that_fails_its_checksum(self):
         """The inline editor builds its own form field, which does not carry the

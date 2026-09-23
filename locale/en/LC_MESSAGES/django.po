@@ -4723,3 +4723,7 @@ msgstr "No records were found in the file"
 
 msgid "Toks įrašas jau yra"
 msgstr "A record like this already exists"
+
+#: contacts/validators.py
+msgid "Neteisingas asmens kodas — tokios gimimo datos nėra."
+msgstr "Not a valid personal code — there is no such birth date."

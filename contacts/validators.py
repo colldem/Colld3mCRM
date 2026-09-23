@@ -16,6 +16,24 @@ def personal_code_check_digit(digits):
     return 0 if remainder == 10 else remainder
 
 
+# The century each leading digit stands for. 0 means the birth date is not
+# known, and then the six digits after it carry no date to check.
+_CENTURIES = {1: 1800, 2: 1800, 3: 1900, 4: 1900, 5: 2000, 6: 2000}
+
+
+def _birth_date(value):
+    """The birth date a personal code claims, or None when it claims none."""
+    import datetime
+
+    century = _CENTURIES.get(int(value[0]))
+    if century is None:
+        return None
+    try:
+        return datetime.date(century + int(value[1:3]), int(value[3:5]), int(value[5:7]))
+    except ValueError:
+        return None
+
+
 def validate_personal_code(value):
     """A Lithuanian personal code: 11 digits, a sane century, a valid checksum.
 
@@ -31,5 +49,9 @@ def validate_personal_code(value):
     # 5–6 the 21st. 0 is reserved for a person whose birth date is unknown.
     if digits[0] > 6:
         raise ValidationError(tr("Neteisingas asmens kodas."))
+    if digits[0] and not _birth_date(value):
+        # The checksum does not look at the date, so 49913011235 — the 99th
+        # month — adds up perfectly and would sit on the card looking real.
+        raise ValidationError(tr("Neteisingas asmens kodas — tokios gimimo datos nėra."))
     if digits[10] != personal_code_check_digit(digits[:10]):
         raise ValidationError(tr("Neteisingas asmens kodas — nesutampa kontrolinis skaitmuo."))

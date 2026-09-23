@@ -55,6 +55,6 @@ kiekvienas `cherry-pick`.
   (`CRM_DEMO_BLOCKS=1`, niekada produkcijoje), `compose.staging.yaml` juos
   įjungia staginge.
 - `Person.personal_code` + `contacts/validators.py` (11 skaitmenų, šimtmečio
-  skaitmuo, kontrolinis skaitmuo) ir paieška pagal jį.
+  skaitmuo, gimimo data, kontrolinis skaitmuo) ir paieška pagal jį — tik pagal visą kodą.
 - `docs/REGITRA-INTEGRACIJA.md` — kaip Regitros dalis vėliau iškeliama į
   atskirą repozitorijų, kai ji turės savo modelius ir migracijas.
