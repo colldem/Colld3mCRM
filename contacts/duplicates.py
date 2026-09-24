@@ -2,8 +2,9 @@
 
 One fixed rule, no levels:
 
-* two **contacts** match on an exact first+last name, a shared email, or a
-  shared phone number;
+* two **contacts** match on the same personal code (compared by its keyed
+  hash, identity.py), an exact first+last name, a shared email, or a shared
+  phone number;
 * two **companies** match on an exact name, a shared phone, email, VAT code or
   company code;
 * a contact and a company are never compared against each other.
@@ -29,7 +30,7 @@ from django.db.models.functions import Length
 from .models import (Company, DuplicateCandidate, DuplicateException, DuplicateSettings, EmailAddress, Person,
                      PhoneNumber, digits_only, match_key)
 
-REASON_ORDER = ("name", "email", "phone", "vat_code", "company_code")
+REASON_ORDER = ("personal_code", "name", "email", "phone", "vat_code", "company_code")
 MIN_PHONE_DIGITS = 6
 # A value more records share than this (a switchboard number, info@...) says
 # nothing about duplicates, and pairing them all would bury the real ones.
@@ -63,7 +64,10 @@ def find_person_duplicates(data, *, exclude_pk=None, viewer=None):
     phones = _phones(data.get("phone", ""))
     first_name = _key(data.get("first_name"))
     last_name = _key(data.get("last_name"))
+    code_hash = data.get("personal_code_hash") or ""
     ids = set()
+    if code_hash:
+        ids.update(Person.objects.filter(personal_code_hash=code_hash).values_list("pk", flat=True))
     if first_name and last_name:
         ids.update(Person.objects.alias(first_key=match_key("first_name"), last_key=match_key("last_name"))
                    .filter(first_key=first_name, last_key=last_name).values_list("pk", flat=True))
@@ -85,7 +89,7 @@ def find_person_duplicates(data, *, exclude_pk=None, viewer=None):
     for person in people:
         if exclude_pk and _pair_key(exclude_pk, person.pk) in dismissed:
             continue
-        reasons = []
+        reasons = ["personal_code"] if code_hash and person.personal_code_hash == code_hash else []
         if first_name and last_name and (first_name, last_name) == (_key(person.first_name), _key(person.last_name)):
             reasons.append("name")
         if emails & {_key(item.email) for item in person.emails.all()}:
@@ -173,6 +177,7 @@ def _shared(queryset, owner, *keys):
 
 def _person_groups():
     alive = Person.objects.filter(deleted_at__isnull=True)
+    yield "personal_code", _shared(alive, "pk", F("personal_code_hash"))
     yield "name", _shared(alive, "pk", match_key("first_name"), match_key("last_name"))
     yield "email", _shared(EmailAddress.objects.filter(person__deleted_at__isnull=True), "person_id", match_key("email"))
     phones = PhoneNumber.objects.filter(person__deleted_at__isnull=True).alias(length=Length("digits"))

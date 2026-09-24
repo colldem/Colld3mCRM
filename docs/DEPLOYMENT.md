@@ -40,7 +40,7 @@ each one:
 | `POSTGRES_PASSWORD` | database password, any long random string |
 | `DJANGO_SECRET_KEY` | signs sessions and tokens |
 | `CRM_SETUP_TOKEN` | one-time token that unlocks `/setup/` to create the first admin |
-| `CRM_SECRETS_KEY` | encrypts integration passwords stored in the database |
+| `CRM_SECRETS_KEY` | encrypts integration passwords and contacts' personal codes stored in the database, and keys their lookup hash |
 
 Then:
 
@@ -65,8 +65,10 @@ settings do that on purpose, and both are the first thing people trip over:
 For anything beyond a local trial, use one of the three options below instead.
 
 `CRM_SECRETS_KEY` is the one value you cannot regenerate later: lose it and the
-SMTP, IMAP and Entra passwords saved through the Settings UI become unreadable.
-Keep a copy somewhere safe, outside the server.
+SMTP, IMAP and Entra passwords saved through the Settings UI become unreadable,
+and so do contacts' personal codes, which also can no longer be searched for
+(they can only be loaded again from their source with `import_people`).
+Keep a copy somewhere safe, outside the server and apart from the database backups.
 
 ## Choosing how it is exposed
 

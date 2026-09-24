@@ -5,7 +5,7 @@ real — the same number of contacts, companies, activities, links, tags and dat
 and harmless only if nothing in it identifies a person. This keeps the former and
 removes the latter:
 
-* people, companies and their phones, e-mails, addresses, links, descriptions;
+* people (with birth date and personal code), companies and their phones, e-mails, addresses, links, descriptions;
 * activity and reminder texts, free-text custom field values;
 * attachment files (replaced by a short placeholder file) and avatars;
 * CRM users' names and e-mails (usernames too, except break-glass/superusers);
@@ -49,8 +49,10 @@ def _rewrite(queryset, build, fields):
 def anonymize():
     counts = {}
     counts["people"] = _rewrite(Person.objects.all(), lambda p: {
-        "first_name": "Vardas%d" % p.pk, "last_name": "Pavardė%d" % p.pk, "job_title": "", "description": ""},
-        ["first_name", "last_name", "job_title", "description"])
+        "first_name": "Vardas%d" % p.pk, "last_name": "Pavardė%d" % p.pk, "job_title": "", "description": "",
+        "birth_date": None, "personal_code_type": "", "personal_code_encrypted": "", "personal_code_hash": ""},
+        ["first_name", "last_name", "job_title", "description", "birth_date", "personal_code_type",
+         "personal_code_encrypted", "personal_code_hash"])
     _rewrite(PhoneNumber.objects.all(), lambda o: {"number": "+370 600 %05d" % (o.pk % 100000),
                                                    "digits": "37060%05d" % (o.pk % 100000)}, ["number", "digits"])
     _rewrite(EmailAddress.objects.all(), lambda o: {"email": "asmuo%d@example.invalid" % o.pk}, ["email"])

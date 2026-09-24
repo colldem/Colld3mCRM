@@ -6,6 +6,7 @@ app_name = "api"
 urlpatterns = [
     path("me", api.me, name="me"),
     path("contacts", api.contacts_collection, name="contacts"),
+    path("contacts/lookup", api.contacts_lookup, name="contacts-lookup"),
     path("contacts/<int:pk>", api.contact_item, name="contact"),
     path("companies", api.companies_collection, name="companies"),
     path("companies/<int:pk>", api.company_item, name="company"),

@@ -125,6 +125,21 @@ Kortelės skirtukuose (Visi / Komentarai / Failai) — 50 naujausių, skaičiai 
 prideda po 50 (iki 1000). Asmuo su 5 000 veiklų ir 300 failų: kortelė 3,4 s → 1,2 s, įmonė 4,1 s → 1,2 s
 (likusi dalis — bendras puslapio karkasas).
 
+### 4 etapas — tapatybė ir didelis importas (0.88.0)
+
+- `Person`: `birth_date`, asmens kodas / užsieniečio ID (`personal_code_type`, užšifruotas + raktinė maiša),
+  `external_source` + `external_id` (Regitros įrašo ID — sistemų jungimo raktas, unikalus), `synced_at`.
+- Kortelėje „Tapatybė“: kodas užmaskuotas, „Rodyti“ — teisė *Matyti asmens kodą* + auditas.
+- Paieška pagal visą asmens kodą / išorinį ID; tas pats kodas — dublikato požymis.
+- Genesys: `POST /api/v1/contacts/lookup` (kodas kūne, auditas kiekvienam rastam).
+- `manage.py import_people` — CSV porcijomis pagal išorinį ID.
+
+| Matavimas (PostgreSQL, 1 mln. asmenų bazėje) | Rezultatas |
+|---|---|
+| Nauji asmenys su kodu, el. paštu, telefonu | 100 tūkst. per 40 s (~800 tūkst. per 5–6 min.), atmintis 143 MB |
+| Pakartotinis to paties failo importas (200 tūkst., nieko nepakito) | 41 s (be šios optimizacijos — 341 s) |
+| Paieška pagal asmens kodą (pasiūlymai / sąrašas) | 0,5 s / ~1–2 s (didžioji dalis — varpelis) |
+
 ## 4. Siūloma kryptis
 
 - **Integracija:** 1) ORDS tik skaitymo REST („pakitę nuo X“, „asmens pranešimai“), CRM worker
@@ -146,7 +161,7 @@ prideda po 50 (iki 1000). Asmuo su 5 000 veiklų ir 300 failų: kortelė 3,4 s �
    1) ~~dublikatai~~ — atlikta (0.84.0, §3);
    2) ~~paieška ir sąrašai~~ — atlikta (0.85.0, §3);
    3) ~~darbastalis ir analitika~~ — atlikta (0.86.0, §3);
-   4) sisteminiai laukai ir didelis importas porcijomis;
+   4) ~~sisteminiai laukai ir didelis importas porcijomis~~ — atlikta (0.88.0, §3);
    5) ~~kortelės veiklų puslapiavimas~~ — atlikta (0.87.0, §3);
    6) foninių darbų priežiūra ir stebėsena:
       - A. savaiminis atsistatymas — kiekvienam `crm-worker` darbui laiko riba (pakibęs nutraukiamas,

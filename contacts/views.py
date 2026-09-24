@@ -35,6 +35,7 @@ from .filters import (
     saved_filter_payload,
 )
 from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, SystemSettings, Tag, Team, UserProfile, WebLink
+from . import identity
 from .permissions import visible_companies, visible_people, visible_reminders
 from .reminder_queries import open_q
 from .sanitizers import csv_safe, safe_url
@@ -2040,7 +2041,38 @@ def contact_detail(request, pk):
         # One composer writes every kind of entry; the tabs only filter the feed.
         **_feed_context(request, person.activities.filter(deleted_at__isnull=True)),
         **_authorship_context(person, "person"),
+        "identity_card": _identity_card(request.user, person),
     })
+
+
+def _identity_card(user, person):
+    """The card's identity block: the code masked, a reveal button for those allowed."""
+    from .permissions import has_capability
+
+    if not (person.personal_code_hash or person.birth_date or person.external_id):
+        return None
+    return {
+        "type_label": dict(identity.TYPE_CHOICES).get(person.personal_code_type, ""),
+        "masked": identity.masked(person) or ("•••" if person.personal_code_hash else ""),
+        "can_reveal": bool(person.personal_code_hash) and has_capability(user, "can_view_personal_code"),
+        "birth_date": person.birth_date,
+        "external": " ".join(part for part in (person.external_source, person.external_id) if part),
+        "synced_at": person.synced_at,
+    }
+
+
+@login_required
+def personal_code_reveal(request, pk):
+    """The full code, once, for someone allowed to see it — and the audit trail says so."""
+    from .permissions import has_capability
+
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    person = get_object_or_404(visible_people(request.user), pk=pk, deleted_at__isnull=True)
+    if not has_capability(request.user, "can_view_personal_code") or not person.personal_code_hash:
+        raise Http404
+    audit_log(AuditLog.VIEW, request=request, target=person, field="personal_code")
+    return JsonResponse({"value": identity.reveal(person) or str(tr("Nepavyko iššifruoti."))})
 
 
 @login_required
@@ -2082,7 +2114,9 @@ def contact_edit(request, pk):
             return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person, "duplicate_candidates": duplicates})
         person = form.save()
         for name in form.changed_data:
-            audit_log(AuditLog.UPDATE, request=request, target=person, field=name, new=form.cleaned_data.get(name))
+            # The personal code itself never goes into the audit trail.
+            new = identity.masked(person) if name == "personal_code" else form.cleaned_data.get(name)
+            audit_log(AuditLog.UPDATE, request=request, target=person, field=name, new=new)
         return redirect(person)
     return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person})
 

@@ -91,6 +91,23 @@ sąrašą), eilės tvarka pagal pageidaujamumą:
    tik skaitymo prieigą (Oracle — `oracledb` tvarkyklė be Oracle kliento). Kuriama
    pagal konkretų poreikį: laukų atitikimas, dažnis, konfliktų taisyklės.
 
+**Didelis pradinis įkėlimas ir pakartotinė sinchronizacija failu** — `manage.py import_people
+failas.csv --source regitra` (arba `-` iš stdin, `--dry-run` tik patikrina): porcijomis po 2000,
+atpažįsta pagal (`--source`, `external_id`), naujus sukuria, pakitusius atnaujina, nepakitusiems tik
+pažymi `synced_at`. Stulpeliai: `external_id` (privalomas), `first_name`, `last_name`, `job_title`,
+`birth_date`, `personal_code`, `personal_code_type` (`lt` / `other`), `email`, `phone`. Klaidos rodo eilutę,
+ne asmens kodą. 800 tūkst. — ~5–6 min.; pakartotinis to paties failo — ~3 min.
+
+**Asmens kodas** (`contacts/identity.py`) saugomas tik užšifruotas (`CRM_SECRETS_KEY`) ir kaip raktinė
+maiša paieškai; į URL, žurnalus, auditą, webhook'us, API asmens objektą ir DWH rodinius nepatenka.
+Sistemos jungiamos per `external_id`, ne per asmens kodą.
+
+**Skambučių centras (Genesys)** — patvirtinęs skambinantįjį (Smart-ID / Mobile-ID), kviečia
+`POST /api/v1/contacts/lookup` su `{"personal_code": "..."}` (arba `{"external_source": "regitra",
+"external_id": "..."}`) ir gauna kortelės nuorodą (`url`) operatoriaus ekranui atverti. Asmens kodas
+keliauja užklausos kūne, ne adrese; kiekvienas rastas asmuo įrašomas į auditą. Raktui pakanka „Tik
+skaityti“ teisės; jis mato tik tuos įrašus, kuriuos mato rakto savininkas.
+
 Nenaudojama: tiesioginis rašymas į CRM lenteles ar CRM rašymas į kitų sistemų
 lenteles — apeina teises, auditą ir patikras.
 

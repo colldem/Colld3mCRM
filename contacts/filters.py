@@ -131,11 +131,19 @@ def apply_contact_filters(people, values, user=None):
     from .models import (Category, CustomValue, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress,
                          Tag, WebLink)
 
+    from . import identity
+
     tagged, categorised = Person.tags.through, Person.categories.through
     for term in values["q"].split():
+        # A personal code or an external id is matched exactly: the code through
+        # its keyed hash (identity.py), never by comparing the code itself.
+        exact = Q(external_id=term)
+        hashes = identity.candidate_hashes(term)
+        if hashes:
+            exact |= Q(personal_code_hash__in=hashes)
         people = people.filter(pk__in=_any_of(
             (Person.objects.filter(Q(first_name__icontains=term) | Q(last_name__icontains=term)
-                                   | Q(job_title__icontains=term)), "pk"),
+                                   | Q(job_title__icontains=term) | exact), "pk"),
             (PersonCompanyLink.objects.filter(company__name__icontains=term), "person_id"),
             (PhoneNumber.objects.filter(number__icontains=term), "person_id"),
             (EmailAddress.objects.filter(email__icontains=term), "person_id"),

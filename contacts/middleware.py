@@ -45,6 +45,8 @@ class ReadOnlyRoleMiddleware:
         "logout", "set_language", "settings", "profile-avatar", "settings-password",
         "settings-my-notifications", "settings-menu", "reminder-mark-read",
         "saved-filter-create", "company-saved-filter-create", "saved-filter-update",
+        # A POST only so the reveal is deliberate and audited; it changes nothing.
+        "personal-code-reveal",
     }
 
     def __init__(self, get_response):

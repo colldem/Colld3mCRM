@@ -16,6 +16,7 @@ CAPABILITIES = [
     ("can_manage_taxonomy", _("Tvarkyti žymas ir kategorijas")),
     ("can_manage_automations", _("Tvarkyti automatikos taisykles")),
     ("can_view_audit", _("Matyti žurnalą")),
+    ("can_view_personal_code", _("Matyti asmens kodą")),
 ]
 CAPABILITY_KEYS = [key for key, _label in CAPABILITIES]
 
@@ -27,23 +28,25 @@ _CAPABILITY_DEFAULTS = {
         "can_manage_automations": False,
         # A manager answers for what their people do, so the log is theirs to read.
         "can_view_audit": True,
+        # Off everywhere until an admin grants it: the code is shown masked otherwise.
+        "can_view_personal_code": False,
     },
     UserProfile.ROLE_MEMBER: {
         "can_import": True, "can_export": True, "can_delete": True,
         "can_merge_duplicates": True, "can_bulk_edit": True, "can_reassign_owner": True,
         "can_manage_custom_fields": False, "can_manage_taxonomy": False,
-        "can_manage_automations": False, "can_view_audit": False,
+        "can_manage_automations": False, "can_view_audit": False, "can_view_personal_code": False,
     },
     UserProfile.ROLE_RESTRICTED: {
         "can_import": False, "can_export": True, "can_delete": True,
         "can_merge_duplicates": False, "can_bulk_edit": False, "can_reassign_owner": False,
         "can_manage_custom_fields": False, "can_manage_taxonomy": False,
-        "can_manage_automations": False, "can_view_audit": False,
+        "can_manage_automations": False, "can_view_audit": False, "can_view_personal_code": False,
     },
     UserProfile.ROLE_READONLY: {key: False for key in CAPABILITY_KEYS},
 }
 # A reader changes nothing; only these read-side capabilities can be granted.
-READONLY_CAPABILITIES = {"can_export", "can_view_audit"}
+READONLY_CAPABILITIES = {"can_export", "can_view_audit", "can_view_personal_code"}
 EDITABLE_ROLES = (UserProfile.ROLE_MANAGER, UserProfile.ROLE_MEMBER,
                   UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY)
 

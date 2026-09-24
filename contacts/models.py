@@ -11,6 +11,8 @@ from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.urls import reverse
 
+from . import identity
+
 
 # Pre-event email lead time, set per reminder when planning it.
 NOTIFY_LEAD_CHOICES = ((0, tr("Nesiųsti")), (5, tr("5 min.")), (15, tr("15 min.")), (60, tr("1 val.")),
@@ -453,6 +455,17 @@ class Person(RecordDetailsModel, TimestampedModel):
     first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100, db_index=True)
     job_title = models.CharField(max_length=160, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    # Personal code (or a foreigner's identifier): see contacts/identity.py —
+    # encrypted for display, keyed hash for lookup, never stored in the clear.
+    personal_code_type = models.CharField(max_length=8, blank=True, default="", choices=identity.TYPE_CHOICES)
+    personal_code_encrypted = models.TextField(blank=True, default="", editable=False)
+    personal_code_hash = models.CharField(max_length=64, blank=True, default="", db_index=True, editable=False)
+    # The record this person mirrors in another system (e.g. source "regitra",
+    # the Oracle CRM row id): the key integrations join on, set by import or sync.
+    external_source = models.CharField(max_length=32, blank=True, default="")
+    external_id = models.CharField(max_length=64, blank=True, default="")
+    synced_at = models.DateTimeField(null=True, blank=True)
     companies = models.ManyToManyField(Company, through="PersonCompanyLink", related_name="people", blank=True)
     tags = models.ManyToManyField(Tag, related_name="people", blank=True)
     categories = models.ManyToManyField(Category, related_name="people", blank=True)
@@ -461,6 +474,8 @@ class Person(RecordDetailsModel, TimestampedModel):
         ordering = ["last_name", "first_name"]
         indexes = [models.Index(fields=["last_name", "first_name"]),
                    models.Index(match_key("last_name"), match_key("first_name"), name="person_name_key")]
+        constraints = [models.UniqueConstraint(fields=["external_id", "external_source"],
+                                               condition=~models.Q(external_id=""), name="unique_person_external_id")]
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}".strip()
@@ -811,6 +826,7 @@ class AuditLog(models.Model):
     LOGIN = "login"
     LOGOUT = "logout"
     LOGIN_FAILED = "login_failed"
+    VIEW = "view"
     ACTION_CHOICES = (
         (CREATE, tr("Sukūrimas")),
         (UPDATE, tr("Keitimas")),
@@ -824,6 +840,7 @@ class AuditLog(models.Model):
         (LOGIN, tr("Prisijungimas")),
         (LOGOUT, tr("Atsijungimas")),
         (LOGIN_FAILED, tr("Nepavykęs prisijungimas")),
+        (VIEW, tr("Peržiūra")),
     )
 
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_entries")

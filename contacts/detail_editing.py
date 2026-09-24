@@ -19,6 +19,7 @@ from .audit import log as audit_log
 
 
 DUPLICATE_REASON_LABELS = {
+    "personal_code": _("tas pats asmens kodas"),
     "email": _("tas pats el. paštas"),
     "phone": _("tas pats telefonas"),
     "name": _("tas pats vardas arba pavadinimas"),
@@ -48,6 +49,7 @@ def person_duplicate_data(person, *, field, value):
         "phone": "\n".join(person.phones.values_list("number", flat=True)),
         "email": "\n".join(person.emails.values_list("email", flat=True)),
         "companies": list(person.companies.all()),
+        "personal_code_hash": person.personal_code_hash,
     }
     if field == "full_name":
         data.update(value)

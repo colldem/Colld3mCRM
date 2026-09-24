@@ -69,7 +69,7 @@ services:
   crm-init:
     # One-shot, before the app starts: the bind-mounted upload directory must be
     # writable by the app's fixed UID (10001), whoever created it on the host.
-    image: crm-backup:0.87.0
+    image: crm-backup:0.88.0
     build:
       context: .
       dockerfile: deploy/backup/Dockerfile
@@ -80,7 +80,7 @@ services:
     security_opt: ["no-new-privileges:true"]
   crm-backup:
     # Encrypted (age), checksummed backups; see scripts/backup.sh and docs/DEPLOYMENT.md.
-    image: crm-backup:0.87.0
+    image: crm-backup:0.88.0
     build:
       context: .
       dockerfile: deploy/backup/Dockerfile
@@ -112,7 +112,7 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-web:
-    image: crm-web:0.87.0
+    image: crm-web:0.88.0
     build: .
     environment:
       <<: *crm-env
@@ -133,7 +133,7 @@ services:
     restart: unless-stopped
     security_opt: ["no-new-privileges:true"]
   crm-worker:
-    image: crm-web:0.87.0
+    image: crm-web:0.88.0
     entrypoint: ["/bin/sh", "-c"]
     command:
       - "while true; do python manage.py extend_recurrences || true; python manage.py complete_past_meetings || true; python manage.py send_notifications || true; python manage.py fetch_mail || true; python manage.py run_automations || true; python manage.py deliver_webhooks || true; python manage.py deactivate_inactive_users || true; python manage.py purge_audit_log || true; python manage.py apply_retention || true; python manage.py find_duplicates || true; python manage.py refresh_analytics || true; sleep ${WORKER_INTERVAL_SECONDS:-300}; done"

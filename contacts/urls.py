@@ -30,6 +30,7 @@ urlpatterns = [
     path("filters/<int:pk>/", views.saved_filter_update, name="saved-filter-update"),
     path("contacts/new/", views.contact_type_choice, name="create"),
     path("contacts/new/person/", views.contact_create, name="person-create"),
+    path("contacts/<int:pk>/personal-code/", views.personal_code_reveal, name="personal-code-reveal"),
     path("contacts/<int:pk>/", views.contact_detail, name="detail"),
     path("contacts/<int:pk>/edit/", views.contact_edit, name="edit"),
     path("contacts/<int:pk>/archive/", views.contact_archive, name="archive"),

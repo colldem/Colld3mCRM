@@ -8356,3 +8356,179 @@ class CardFeedPagingTests(TestCase):
         page = self.client.get(company.get_absolute_url())
         self.assertEqual(page.context["feed_totals"]["all"], 7)
         self.assertEqual(len(page.context["all_entries"]), 3)
+
+
+class PersonIdentityTests(TestCase):
+    """Personal code: found by keyed hash, shown masked, revealed only with the right, never logged."""
+
+    CODE = "38703181745"
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("tapatybe", password="very-secure-password")
+        self.member = get_user_model().objects.create_user("operatorius", password="very-secure-password")
+        UserProfile.objects.create(user=self.member, role=UserProfile.ROLE_MEMBER)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Kodas")
+
+    def _with_code(self, person=None, code=None):
+        from contacts import identity
+
+        person = person or self.person
+        identity.assign(person, identity.LT, code or self.CODE)
+        person.save()
+        return person
+
+    def test_codes_are_validated_normalised_and_date_the_birth(self):
+        from contacts import identity
+
+        self.assertEqual(identity.normalize(identity.LT, " 3870318 1745 "), self.CODE)
+        for bad in ("38703181746", "3870318174", "abc"):
+            with self.assertRaises(ValidationError):
+                identity.normalize(identity.LT, bad)
+        self.assertEqual(identity.normalize(identity.OTHER, "ab 123 45"), "AB12345")
+        self.assertIsNone(identity.birth_date("50502291232"))  # 29 February 2005 does not exist
+        self.assertEqual(identity.birth_date("49001011238").isoformat(), "1990-01-01")
+        person = self._with_code()
+        self.assertEqual(person.birth_date.isoformat(), "1987-03-18")
+
+    def test_the_code_is_stored_encrypted_and_hashed_never_plain(self):
+        from contacts import identity
+
+        person = self._with_code()
+        row = Person.objects.filter(pk=person.pk).values().get()
+        self.assertNotIn(self.CODE, json.dumps(row, default=str))
+        self.assertEqual(identity.reveal(person), self.CODE)
+        self.assertEqual(identity.masked(person), "3•••••••745")
+        self.assertEqual(len(person.personal_code_hash), 64)
+
+    def test_search_finds_a_person_by_code_or_external_id(self):
+        self._with_code()
+        Person.objects.filter(pk=self.person.pk).update(external_source="regitra", external_id="R77")
+        self.client.force_login(self.member)
+        for term in (self.CODE, "R77"):
+            page = self.client.get(reverse("contacts:list"), {"q": term}).context["page"]
+            self.assertEqual([p.pk for p in page.object_list], [self.person.pk], term)
+        suggest = self.client.get(reverse("contacts:search-suggest"), {"q": self.CODE}).json()
+        self.assertEqual(suggest["groups"][0]["items"][0]["label"], str(self.person))
+
+    def test_the_card_masks_the_code_and_only_the_right_reveals_it_with_an_audit_row(self):
+        from contacts.models import AuditLog
+
+        self._with_code()
+        self.client.force_login(self.member)
+        card = self.client.get(self.person.get_absolute_url())
+        self.assertContains(card, "3•••••••745")
+        self.assertNotContains(card, self.CODE)
+        self.assertNotContains(card, "personal-code/")
+        url = reverse("contacts:personal-code-reveal", args=[self.person.pk])
+        self.assertEqual(self.client.post(url).status_code, 404)
+        RolePermissions.objects.update_or_create(role=UserProfile.ROLE_MEMBER,
+                                                 defaults={"permissions": {"can_view_personal_code": True}})
+        self.assertContains(self.client.get(self.person.get_absolute_url()), url)
+        self.assertEqual(self.client.post(url).json(), {"value": self.CODE})
+        entry = AuditLog.objects.filter(action=AuditLog.VIEW, field="personal_code").get()
+        self.assertEqual(entry.actor, self.member)
+        self.assertEqual(self.client.get(url).status_code, 405)
+
+    def test_a_reader_granted_the_right_can_reveal(self):
+        self._with_code()
+        reader = get_user_model().objects.create_user("skaitytojas-kodas", password="very-secure-password")
+        UserProfile.objects.create(user=reader, role=UserProfile.ROLE_READONLY)
+        RolePermissions.objects.update_or_create(role=UserProfile.ROLE_READONLY,
+                                                 defaults={"permissions": {"can_view_personal_code": True}})
+        self.client.force_login(reader)
+        url = reverse("contacts:personal-code-reveal", args=[self.person.pk])
+        self.assertEqual(self.client.post(url).json(), {"value": self.CODE})
+
+    def test_the_form_sets_the_code_write_only_and_the_audit_trail_never_holds_it(self):
+        from contacts.models import AuditLog
+
+        self.client.force_login(self.admin)
+        edit = reverse("contacts:edit", args=[self.person.pk])
+        response = self.client.post(edit, {"first_name": "Jonas", "last_name": "Kodas", "personal_code_type": "lt",
+                                           "personal_code": "12345678901"})
+        self.assertContains(response, "Neteisingas asmens kodas")
+        self.client.post(edit, {"first_name": "Jonas", "last_name": "Kodas", "personal_code_type": "lt",
+                                "personal_code": self.CODE})
+        self.person.refresh_from_db()
+        self.assertTrue(self.person.personal_code_hash)
+        form = self.client.get(edit)
+        self.assertNotContains(form, self.CODE)
+        self.assertContains(form, "3•••••••745")
+        self.assertFalse(AuditLog.objects.filter(new_value__contains=self.CODE).exists())
+        # Without the right the field is not offered at all.
+        self.client.force_login(self.member)
+        self.assertNotContains(self.client.get(edit), 'name="personal_code"')
+
+    def test_the_same_code_is_a_duplicate_and_merging_keeps_it(self):
+        from contacts.merging import merge_people
+
+        self._with_code()
+        twin = self._with_code(Person.objects.create(first_name="Kitas", last_name="Vardas"))
+        summary = scan_duplicates()
+        self.assertEqual(summary["person"]["pairs"], 1)
+        from contacts.models import DuplicateCandidate
+        self.assertEqual(DuplicateCandidate.objects.get().reasons, "personal_code")
+        Person.objects.filter(pk=twin.pk).update(external_source="regitra", external_id="R1")
+        Person.objects.filter(pk=self.person.pk).update(personal_code_type="", personal_code_encrypted="",
+                                                         personal_code_hash="")
+        kept = merge_people(twin.pk, self.person.pk)
+        self.assertEqual((kept.personal_code_hash, kept.external_id), (twin.personal_code_hash, "R1"))
+
+    def test_api_lookup_by_code_or_external_id_audits_and_never_returns_the_code(self):
+        from contacts.models import AuditLog
+
+        self._with_code()
+        Person.objects.filter(pk=self.person.pk).update(external_source="regitra", external_id="R77")
+        raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="genesys", token_hash=digest, prefix=raw[:12], scope=ApiToken.READ,
+                                created_by=self.admin)
+        auth = {"HTTP_AUTHORIZATION": "Bearer " + raw}
+        url = reverse("api:contacts-lookup")
+        post = lambda payload: self.client.post(url, data=json.dumps(payload), content_type="application/json", **auth)  # noqa: E731
+        found = post({"personal_code": self.CODE}).json()["results"]
+        self.assertEqual([row["id"] for row in found], [self.person.pk])
+        self.assertEqual(post({"external_source": "regitra", "external_id": "R77"}).json()["results"][0]["id"],
+                         self.person.pk)
+        self.assertEqual(post({"personal_code": "49001011238"}).json()["results"], [])
+        self.assertEqual(post({"personal_code": "123"}).status_code, 400)
+        self.assertEqual(self.client.get(url, **auth).status_code, 405)
+        self.assertEqual(AuditLog.objects.filter(action=AuditLog.VIEW, field="API lookup").count(), 2)
+        payload = self.client.get(reverse("api:contact", args=[self.person.pk]), **auth).json()
+        self.assertTrue(payload["has_personal_code"])
+        self.assertNotIn(self.CODE, json.dumps(payload))
+
+    def test_bulk_import_creates_updates_and_reports_without_the_code(self):
+        from io import StringIO as Text
+        from django.core.management import call_command
+
+        csv_text = ("external_id,first_name,last_name,personal_code,email,phone\n"
+                    "R1,Ona,Pirmoji,%s,ona@example.lt,+370 600 00001\n"
+                    "R2,Petras,Antrasis,,petras@example.lt,\n"
+                    "R3,,,,,\n"
+                    "R4,Blogas,Kodas,12345678901,,\n" % self.CODE)
+        path = settings.BASE_DIR / "runtime" / "test-import.csv"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(csv_text, encoding="utf-8")
+        self.addCleanup(path.unlink)
+        out, err = Text(), Text()
+        call_command("import_people", str(path), "--source", "regitra", stdout=out, stderr=err)
+        self.assertIn("created=2 updated=0 unchanged=0 errors=2", out.getvalue())
+        self.assertIn("line 4: first_name or last_name is required", err.getvalue())
+        self.assertIn("line 5: invalid personal_code", err.getvalue())
+        self.assertNotIn("12345678901", err.getvalue())
+        ona = Person.objects.get(external_source="regitra", external_id="R1")
+        self.assertEqual(ona.birth_date.isoformat(), "1987-03-18")
+        self.assertEqual(ona.phones.get().digits, "37060000001")
+        call_command("import_people", str(path), "--source", "regitra", stdout=out, stderr=Text())
+        self.assertIn("created=0 updated=0 unchanged=2", out.getvalue())
+        path.write_text(csv_text.replace("Pirmoji", "Pakeista"), encoding="utf-8")
+        call_command("import_people", str(path), "--source", "regitra", stdout=out, stderr=Text())
+        self.assertIn("created=0 updated=1 unchanged=1", out.getvalue())
+        self.assertEqual(Person.objects.filter(external_id="R1").get().phones.count(), 1)
+
+    def test_the_data_subject_export_carries_the_code(self):
+        from contacts.privacy import find_people, person_data
+
+        self._with_code()
+        self.assertEqual(person_data(self.person)["person"]["personal_code"], self.CODE)
+        self.assertEqual(list(find_people(self.CODE)), [self.person])

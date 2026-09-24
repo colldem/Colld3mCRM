@@ -108,6 +108,11 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   iš produkcijos atkurta kopija neveiktų realiame pasaulyje
   (`manage.py sanitize_staging` išvalo tai ir pačiuose duomenyse);
   `crypto.py` — integracijų slaptažodžių šifravimas (`CRM_SECRETS_KEY`);
+  `identity.py` — asmens kodas / užsieniečio ID: tik užšifruotas + raktinė maiša paieškai (`personal_code_hash`),
+  kortelėje užmaskuotas, pilnas — teisė `can_view_personal_code` + auditas (`AuditLog.VIEW`); niekada į URL, žurnalus,
+  auditą, webhook'us, API asmens objektą; sistemos jungiamos per `Person.external_source` + `external_id`;
+  `api.contacts_lookup` (`POST /api/v1/contacts/lookup`) — skambučių centro (Genesys) paieška;
+  `bulk_import.py` + `management/commands/import_people.py` — didelis įkėlimas / sinchronizacija CSV porcijomis pagal išorinį ID;
   `antivirus.py` — ClamAV (clamd INSTREAM) visų įkeliamų failų tikrinimas; `compose.clamav.yaml` — ClamAV perdanga;
   `privacy.py` — duomenų subjekto eksportas (ZIP) ir ištrynimas su žurnalo nuasmeninimu; `anonymize.py` — staging nuasmeninimas;
   `observability.py` — JSON žurnalai (`CRM_LOG_FORMAT`), `X-Request-ID`, `crm.security` įvykiai (audito veidrodis be asmens duomenų);

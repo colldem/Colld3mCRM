@@ -5,6 +5,7 @@
 //   data-row-href="url"    open the URL when a table row is clicked
 //   data-no-row-link       a cell or control inside such a row that is not a link
 //   data-select-on-focus   select a read-only field's text for copying
+//   data-reveal            fetch a hidden value in place of its mask (see below)
 (() => {
   document.addEventListener('change', event => {
     const control = event.target.closest('[data-autosubmit]');
@@ -17,6 +18,17 @@
       event.stopImmediatePropagation();
     }
   }, true);
+  // data-reveal: a form that fetches a hidden value (the personal code) and
+  // shows it in place of the masked one; the server logs every reveal.
+  document.addEventListener('submit', async event => {
+    const form = event.target;
+    if (!form.matches('[data-reveal]')) return;
+    event.preventDefault();
+    const response = await fetch(form.action, {method: 'POST', body: new FormData(form), headers: {Accept: 'application/json'}});
+    if (!response.ok) return;
+    form.closest('[data-reveal-box]').querySelector('[data-reveal-value]').textContent = (await response.json()).value;
+    form.hidden = true;
+  });
   document.addEventListener('click', event => {
     const trigger = event.target.closest('button[data-confirm],a[data-confirm],input[data-confirm]');
     if (trigger && !window.confirm(trigger.dataset.confirm)) {

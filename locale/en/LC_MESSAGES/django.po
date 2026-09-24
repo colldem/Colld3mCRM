@@ -4472,3 +4472,72 @@ msgstr "Activity figures computed %(when)s."
 
 msgid "Rodyti senesnius (liko %(left)s)"
 msgstr "Show older (%(left)s more)"
+
+msgid "Lietuvos asmens kodas"
+msgstr "Lithuanian personal code"
+
+msgid "Kitas identifikatorius"
+msgstr "Other identifier"
+
+msgid "Neteisingas asmens kodas."
+msgstr "Invalid personal code."
+
+msgid "Identifikatorius turi būti 3–40 simbolių."
+msgstr "The identifier must be 3–40 characters long."
+
+msgid "Nežinomas identifikatoriaus tipas."
+msgstr "Unknown identifier type."
+
+msgid "Asmens kodo saugoti negalima: nenustatytas CRM_SECRETS_KEY."
+msgstr "Personal codes cannot be stored: CRM_SECRETS_KEY is not set."
+
+msgid "Matyti asmens kodą"
+msgstr "View personal codes"
+
+msgid "Peržiūra"
+msgstr "Viewing"
+
+msgid "Nenustatytas CRM_SECRETS_KEY — asmens kodo saugoti negalima."
+msgstr "CRM_SECRETS_KEY is not set — personal codes cannot be stored."
+
+msgid "Išsaugotas: %(masked)s. Įveskite naują, kad pakeistumėte."
+msgstr "Stored: %(masked)s. Enter a new one to replace it."
+
+msgid "Identifikatoriaus tipas"
+msgstr "Identifier type"
+
+msgid "Asmens kodas / identifikatorius"
+msgstr "Personal code / identifier"
+
+msgid "Pašalinti asmens kodą"
+msgstr "Remove the personal code"
+
+msgid "Gimimo data"
+msgstr "Date of birth"
+
+msgid "Nepavyko iššifruoti."
+msgstr "Could not be decrypted."
+
+msgid "Tapatybė"
+msgstr "Identity"
+
+msgid "Asmens kodas"
+msgstr "Personal code"
+
+msgid "Išorinis ID"
+msgstr "External ID"
+
+msgid "sinchronizuota %(when)s"
+msgstr "synced %(when)s"
+
+msgid "tas pats asmens kodas"
+msgstr "the same personal code"
+
+msgid "asmens kodas"
+msgstr "personal code"
+
+msgid "Tas pats asmens kodas"
+msgstr "Same personal code"
+
+msgid "Asmens kodas ir tapatybė"
+msgstr "Personal code and identity"

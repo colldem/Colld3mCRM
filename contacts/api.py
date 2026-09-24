@@ -13,7 +13,8 @@ from django.conf import settings
 from django.db.models import F, Q
 from django.http import JsonResponse
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
+from django.core.exceptions import ValidationError
+from django.utils.dateparse import parse_date, parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 
 from .audit import log as audit_log
@@ -24,6 +25,7 @@ from .models import (
 )
 from .permissions import assignable_users_for, has_capability, visible_activities, visible_companies, visible_people, visible_reminders
 from .sanitizers import safe_url
+from . import identity
 
 logger = logging.getLogger(__name__)
 MAX_PAGE = 100
@@ -172,6 +174,11 @@ def serialize_person(p):
             for link in p.company_links.select_related("company").all()
         ],
         "custom_fields": _custom_fields(p),
+        # The personal code itself is never in a payload; POST contacts/lookup finds by it.
+        "birth_date": p.birth_date.isoformat() if p.birth_date else None,
+        "has_personal_code": bool(p.personal_code_hash),
+        "external_source": p.external_source, "external_id": p.external_id,
+        "synced_at": p.synced_at.isoformat() if p.synced_at else None,
         "created_at": p.created_at.isoformat(), "updated_at": p.updated_at.isoformat(),
         "url": p.get_absolute_url(),
     }
@@ -255,6 +262,7 @@ def _write_person(person, data, token, *, creating):
         person.favourite = bool(data["favourite"])
     if "owner_id" in data:
         person.owner = _assignable_user(token.created_by, data["owner_id"])
+    _write_identity(person, data)
     if creating:
         person.created_by = token.created_by
     person.save()
@@ -277,6 +285,27 @@ def _write_person(person, data, token, *, creating):
                 person=person, company=company,
                 is_primary=not person.company_links.filter(is_primary=True).exists())
     return person
+
+
+def _write_identity(person, data):
+    """Birth date, personal code and external id from an integration (e.g. the Regitra sync)."""
+    if "birth_date" in data:
+        value = data["birth_date"]
+        person.birth_date = parse_date(str(value)) if value else None
+        if value and person.birth_date is None:
+            raise ApiError(400, "birth_date must be YYYY-MM-DD")
+    if "external_id" in data:
+        person.external_source = str(data.get("external_source") or "")[:32]
+        person.external_id = str(data["external_id"] or "").strip()[:64]
+        person.synced_at = timezone.now() if person.external_id else None
+        taken = Person.objects.filter(external_source=person.external_source, external_id=person.external_id)
+        if person.external_id and taken.exclude(pk=person.pk).exists():
+            raise ApiError(409, "external_id is already used by another contact")
+    if "personal_code" in data:
+        try:
+            identity.assign(person, data.get("personal_code_type") or identity.LT, str(data["personal_code"] or ""))
+        except ValidationError:
+            raise ApiError(400, "invalid personal_code") from None
 
 
 def _write_company(company, data, token, *, creating):
@@ -379,6 +408,42 @@ def contact_item(request, token, pk):
         _audit(token, AuditLog.ARCHIVE, person)
         return JsonResponse({"archived": True})
     return JsonResponse({"error": "method not allowed"}, status=405)
+
+
+@api_view
+def contacts_lookup(request, token):
+    """Find contacts by personal code (or another identifier) or by external id.
+
+    POST, so the code travels in the body and never in a URL or an access log:
+    {"personal_code": "...", "personal_code_type": "lt"|"other"} or
+    {"external_source": "regitra", "external_id": "..."}. Every contact returned
+    is written to the audit trail. Built for the call-centre screen pop (Genesys),
+    which has already verified the caller (Smart-ID / Mobile-ID).
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "method not allowed"}, status=405)
+    data = _json_body(request)
+    people = visible_people(token.created_by, Person.objects.filter(deleted_at__isnull=True))
+    if data.get("personal_code"):
+        if not identity.available():
+            raise ApiError(503, "personal codes are not configured (CRM_SECRETS_KEY)")
+        kind = data.get("personal_code_type") or identity.LT
+        try:
+            code_hash = identity.lookup_hash(kind, identity.normalize(kind, str(data["personal_code"])))
+        except ValidationError:
+            raise ApiError(400, "invalid personal_code") from None
+        people = people.filter(personal_code_hash=code_hash)
+    elif data.get("external_id"):
+        people = people.filter(external_source=str(data.get("external_source") or ""), external_id=str(data["external_id"]))
+    else:
+        raise ApiError(400, "personal_code or external_id is required")
+    found = list(people.order_by("pk")[:10])
+    for person in found:
+        _audit(token, AuditLog.VIEW, person, field="API lookup")
+    return JsonResponse({"results": [
+        {"id": p.pk, "first_name": p.first_name, "last_name": p.last_name,
+         "external_source": p.external_source, "external_id": p.external_id,
+         "url": request.build_absolute_uri(p.get_absolute_url())} for p in found]})
 
 
 @api_view

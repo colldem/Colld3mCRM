@@ -308,6 +308,13 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `first_name` | CharField | taip | A |
 | `last_name` | CharField | taip | A |
 | `job_title` | CharField | ne | A |
+| `birth_date` | DateField | ne | A |
+| `personal_code_type` | CharField | ne | T |
+| `personal_code_encrypted` | TextField | ne | A |
+| `personal_code_hash` | CharField | ne | S |
+| `external_source` | CharField | ne | T |
+| `external_id` | CharField | ne | A |
+| `synced_at` | DateTimeField | ne | T |
 | `responsibles` | ryšys → User (daug) | — | D |
 | `companies` | ryšys → Company (daug) | — | R |
 | `tags` | ryšys → Tag (daug) | — | R |

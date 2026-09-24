@@ -58,6 +58,9 @@ MODELS = {
 # hardcoded passwords, hence the reviewed nosec markers below.
 FIELDS = {
     "Person.first_name": "A", "Person.last_name": "A", "Person.job_title": "A", "Person.description": "L",
+    # The personal code is kept only encrypted (for showing) and as a keyed hash (for lookup): identity.py.
+    "Person.birth_date": "A", "Person.personal_code_encrypted": "A", "Person.personal_code_hash": "S",
+    "Person.external_id": "A",
     "PhoneNumber.number": "A", "PhoneNumber.digits": "A", "EmailAddress.email": "A", "PostalAddress.address": "A", "WebLink.url": "A",
     "Company.name": "A", "Company.company_code": "A", "Company.vat_code": "A", "Company.address": "A",
     "Company.phone": "A", "Company.phone_digits": "A", "Company.email": "A", "Company.url": "A", "Company.description": "L",

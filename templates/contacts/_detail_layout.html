@@ -157,6 +157,19 @@
       </div>
     </details>
 
+    {% if identity_card %}
+    <section class="detail-card identity-card" data-reveal-box>
+      <h2>{% translate 'Tapatybė' %}</h2>
+      <dl class="aside-meta">
+        {% if identity_card.masked %}<dt>{{ identity_card.type_label|default:_('Asmens kodas') }}</dt>
+        <dd><span data-reveal-value>{{ identity_card.masked }}</span>{% if identity_card.can_reveal %}
+          <form method="post" action="{% url 'contacts:personal-code-reveal' record.pk %}" data-reveal>{% csrf_token %}<button class="btn sm" type="submit">{% translate 'Rodyti' %}</button></form>{% endif %}</dd>{% endif %}
+        {% if identity_card.birth_date %}<dt>{% translate 'Gimimo data' %}</dt><dd>{{ identity_card.birth_date|date:date_format }}</dd>{% endif %}
+        {% if identity_card.external %}<dt>{% translate 'Išorinis ID' %}</dt><dd>{{ identity_card.external }}{% if identity_card.synced_at %}<small>{% blocktranslate with when=identity_card.synced_at|date:datetime_format %}sinchronizuota {{ when }}{% endblocktranslate %}</small>{% endif %}</dd>{% endif %}
+      </dl>
+    </section>
+    {% endif %}
+
     <section class="detail-card meta-card">
       <h2 class="sr-only">{% translate 'Įrašo informacija' %}</h2>
       <dl class="aside-meta">
