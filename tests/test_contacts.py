@@ -8314,3 +8314,45 @@ class AnalyticsSnapshotTests(TestCase):
     def test_worker_and_kubernetes_run_the_refresh(self):
         self.assertIn("manage.py refresh_analytics", (settings.BASE_DIR / "compose.yaml").read_text())
         self.assertIn("command: refresh_analytics", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
+
+
+class CardFeedPagingTests(TestCase):
+    """A long history is shown newest first, a page at a time."""
+
+    def setUp(self):
+        from contacts import views
+
+        self.admin = get_user_model().objects.create_superuser("istorija", password="very-secure-password")
+        self.client.force_login(self.admin)
+        self.person = Person.objects.create(first_name="Ilga", last_name="Istorija")
+        patcher = patch.object(views, "FEED_PAGE", 3)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for index in range(7):
+            activity = Activity.objects.create(person=self.person, text="Įrašas %d" % index, created_by=self.admin,
+                                               activity_type="note" if index % 2 else "call")
+            Activity.objects.filter(pk=activity.pk).update(created_at=timezone.now() - timedelta(days=7 - index))
+
+    def test_the_card_shows_the_newest_page_and_the_full_counts(self):
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertEqual([a.text for a in page.context["all_entries"]], ["Įrašas 6", "Įrašas 5", "Įrašas 4"])
+        self.assertEqual(page.context["feed_totals"], {"all": 7, "comments": 3, "files": 0})
+        self.assertContains(page, 'href="?all=6#feed-all"')
+        self.assertContains(page, "Rodyti senesnius (liko 4)")
+        self.assertEqual(page.context["last_activity"].text, "Įrašas 6")
+        self.assertIsNone(page.context["feed_more"]["comments"])
+
+    def test_show_older_adds_a_page_and_stops_at_the_end(self):
+        page = self.client.get(self.person.get_absolute_url(), {"all": "6"})
+        self.assertEqual(len(page.context["all_entries"]), 6)
+        page = self.client.get(self.person.get_absolute_url(), {"all": "9"})
+        self.assertEqual(len(page.context["all_entries"]), 7)
+        self.assertIsNone(page.context["feed_more"]["all"])
+        self.assertEqual(len(self.client.get(self.person.get_absolute_url(), {"all": "x"}).context["all_entries"]), 3)
+
+    def test_the_company_card_pages_its_history_too(self):
+        company = Company.objects.create(name="Istorijos UAB")
+        PersonCompanyLink.objects.create(person=self.person, company=company)
+        page = self.client.get(company.get_absolute_url())
+        self.assertEqual(page.context["feed_totals"]["all"], 7)
+        self.assertEqual(len(page.context["all_entries"]), 3)

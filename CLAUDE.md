@@ -73,6 +73,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys; skaičiuojama DB (`GROUP BY`,
   `EXISTS`), ne Python cikle; apžvalgos ir komunikacijos sunkioji dalis — `AnalyticsSnapshot` (visų įrašų matomumui
   atnaujina foninis `refresh_analytics`, kitiems — pirmą kartą atidarius, galioja 30 min.);
+  kortelės istorija — `views._feed_context` (50 naujausių skirtuke, `?all=` / `?comments=` / `?files=` prideda po 50);
   `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
   `duplicates.py` / `merging.py` — dublikatai (tikrinimas išsaugant — per indeksus `match_key`/`digits`; peržiūros sąrašą sudaro foninis `find_duplicates` į `DuplicateCandidate`, puslapis tik skaito); `filters.py` — sąrašų filtrai (susijusios lentelės — tik `pk IN (… UNION …)`, be `JOIN` ir `DISTINCT`; `icontains` aptarnauja `pg_trgm` indeksai, migracija 0058);

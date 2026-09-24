@@ -75,9 +75,9 @@
       </form>{% endif %}
 
       <div class="tab-strip" role="tablist">
-        <button type="button" role="tab" class="tab is-active" data-tab="all" id="tab-all">{% translate 'Visi' %} <span>{{ all_entries|length }}</span></button>
-        <button type="button" role="tab" class="tab" data-tab="comments" id="tab-comments">{% translate 'Komentarai' %} <span>{{ comment_entries|length }}</span></button>
-        <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %} <span>{{ attachment_entries|length }}</span></button>
+        <button type="button" role="tab" class="tab is-active" data-tab="all" id="tab-all">{% translate 'Visi' %} <span>{{ feed_totals.all }}</span></button>
+        <button type="button" role="tab" class="tab" data-tab="comments" id="tab-comments">{% translate 'Komentarai' %} <span>{{ feed_totals.comments }}</span></button>
+        <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %} <span>{{ feed_totals.files }}</span></button>
         <button type="button" role="tab" class="tab" data-tab="reminders" id="tab-reminders">{% translate 'Priminimai' %} <span>{{ active_reminders|length }}</span></button>
       </div>
 
@@ -85,18 +85,21 @@
         <div class="feed">
           {% for activity in all_entries %}{% ifchanged activity.created_at|date:"Y-m" %}<p class="feed-month">{{ activity.created_at|date:"Y F" }}</p>{% endifchanged %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Įrašų dar nėra.' %}</p>{% endfor %}
         </div>
+        {% if feed_more.all %}<a class="btn sm feed-more" href="?all={{ feed_more.all.next }}#feed-all">{% blocktranslate with left=feed_more.all.left %}Rodyti senesnius (liko {{ left }}){% endblocktranslate %}</a>{% endif %}
       </div>
 
       <div class="tab-panel" data-panel="comments" role="tabpanel" hidden>
         <div class="feed">
           {% for activity in comment_entries %}{% ifchanged activity.created_at|date:"Y-m" %}<p class="feed-month">{{ activity.created_at|date:"Y F" }}</p>{% endifchanged %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Komentarų dar nėra.' %}</p>{% endfor %}
         </div>
+        {% if feed_more.comments %}<a class="btn sm feed-more" href="?comments={{ feed_more.comments.next }}#feed-comments">{% blocktranslate with left=feed_more.comments.left %}Rodyti senesnius (liko {{ left }}){% endblocktranslate %}</a>{% endif %}
       </div>
 
       <div class="tab-panel" data-panel="files" role="tabpanel" hidden>
         <ul class="file-list">
           {% for attachment in attachment_entries %}<li><a href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a><small>{{ attachment.created_at|date:datetime_format }}</small></li>{% empty %}<li class="muted">{% translate 'Failų nėra. Prisekite juos prie įrašo aukščiau.' %}</li>{% endfor %}
         </ul>
+        {% if feed_more.files %}<a class="btn sm feed-more" href="?files={{ feed_more.files.next }}#feed-files">{% blocktranslate with left=feed_more.files.left %}Rodyti senesnius (liko {{ left }}){% endblocktranslate %}</a>{% endif %}
       </div>
 
       <div class="tab-panel" data-panel="reminders" role="tabpanel" hidden>

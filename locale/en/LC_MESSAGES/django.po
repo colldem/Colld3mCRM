@@ -4469,3 +4469,6 @@ msgstr "Search companies by name or code"
 
 msgid "Veiklų skaičiai suskaičiuoti %(when)s."
 msgstr "Activity figures computed %(when)s."
+
+msgid "Rodyti senesnius (liko %(left)s)"
+msgstr "Show older (%(left)s more)"

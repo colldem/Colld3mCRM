@@ -62,6 +62,36 @@ def _last_activity_context(last_activity):
     return {"last_activity": last_activity}
 
 
+FEED_PAGE = 50
+FEED_MAX = 1000
+
+
+def _feed_context(request, activities):
+    """The card's history tabs: the newest FEED_PAGE entries of each, and a
+    "show older" link that asks for FEED_PAGE more (up to FEED_MAX). A long
+    history is never loaded whole just to draw the card."""
+    activities = activities.select_related("created_by").prefetch_related("attachments").order_by("-created_at", "-pk")
+    feeds = {
+        "all": activities,
+        "comments": activities.filter(activity_type=Activity.NOTE),
+        "files": Attachment.objects.filter(activity__in=activities.values("pk")).order_by("-created_at", "-pk"),
+    }
+    shown, totals, more = {}, {}, {}
+    for name, queryset in feeds.items():
+        try:
+            limit = min(max(int(request.GET.get(name, FEED_PAGE)), FEED_PAGE), FEED_MAX)
+        except ValueError:
+            limit = FEED_PAGE
+        shown[name] = list(queryset[:limit])
+        totals[name] = queryset.count() if len(shown[name]) == limit else len(shown[name])
+        more[name] = {"next": limit + FEED_PAGE, "left": totals[name] - limit} if totals[name] > limit and limit < FEED_MAX else None
+    return {
+        "all_entries": shown["all"], "comment_entries": shown["comments"], "attachment_entries": shown["files"],
+        "feed_totals": totals, "feed_more": more,
+        **_last_activity_context(shown["all"][0] if shown["all"] else None),
+    }
+
+
 def _owner_choices():
     from .permissions import assignable_users
 
@@ -1993,11 +2023,9 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 @login_required
 def contact_detail(request, pk):
     from .detail_editing import grouped_detail_fields
-    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(open_q(now), deleted_at__isnull=True)
-    activities = sorted((a for a in person.activities.all() if a.deleted_at is None),
-                        key=lambda a: a.created_at, reverse=True)
     return render(request, "contacts/detail.html", {
         "person": person,
         **grouped_detail_fields(person),
@@ -2010,11 +2038,8 @@ def contact_detail(request, pk):
         "next_reminder": open_reminders.filter(due_at__gt=now).order_by("due_at").first(),
         "overdue_reminder_count": open_reminders.filter(due_at__lte=now).count(),
         # One composer writes every kind of entry; the tabs only filter the feed.
-        "all_entries": activities,
-        "comment_entries": [a for a in activities if a.activity_type == Activity.NOTE],
-        "attachment_entries": [att for a in activities for att in a.attachments.all()],
+        **_feed_context(request, person.activities.filter(deleted_at__isnull=True)),
         **_authorship_context(person, "person"),
-        **_last_activity_context(activities[0] if activities else None),
     })
 
 
@@ -2415,9 +2440,9 @@ def company_detail(request, pk):
     ).values_list("pk", flat=True))
     linked_people = [link for link in company.person_links.all()
                      if link.person.deleted_at is None and link.person_id in visible_linked_ids]
-    history = list(Activity.objects.filter(deleted_at__isnull=True).filter(
+    history = Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__pk__in=visible_linked_ids)
-    ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at"))
+    ).select_related("person", "company")
     now = timezone.now()
     # An event planned straight on the company belongs on its card too, not
     # only the ones hanging off its contacts.
@@ -2436,12 +2461,9 @@ def company_detail(request, pk):
         "next_reminder": next_reminder,
         "overdue_reminder_count": linked_reminders.filter(due_at__lte=now).count(),
         # One composer writes every kind of entry; the tabs only filter the feed.
-        "all_entries": history,
-        "comment_entries": [a for a in history if a.activity_type == Activity.NOTE],
-        "attachment_entries": [att for a in history for att in a.attachments.all()],
+        **_feed_context(request, history),
         "linked_people": linked_people,
         **_authorship_context(company, "company"),
-        **_last_activity_context(history[0] if history else None),
     })
 
 

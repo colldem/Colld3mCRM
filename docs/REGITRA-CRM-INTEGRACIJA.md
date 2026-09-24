@@ -119,6 +119,12 @@ pirmą kartą atidarius, galioja 30 min.
 | Bazė ir augimas | 13 s | 2,3 s |
 | Web proceso atmintis per visą matavimą | 635 MB | 85 MB |
 
+### 5 etapas — kortelės istorijos puslapiavimas (0.87.0)
+
+Kortelės skirtukuose (Visi / Komentarai / Failai) — 50 naujausių, skaičiai iš DB, „Rodyti senesnius“
+prideda po 50 (iki 1000). Asmuo su 5 000 veiklų ir 300 failų: kortelė 3,4 s → 1,2 s, įmonė 4,1 s → 1,2 s
+(likusi dalis — bendras puslapio karkasas).
+
 ## 4. Siūloma kryptis
 
 - **Integracija:** 1) ORDS tik skaitymo REST („pakitę nuo X“, „asmens pranešimai“), CRM worker
@@ -141,7 +147,7 @@ pirmą kartą atidarius, galioja 30 min.
    2) ~~paieška ir sąrašai~~ — atlikta (0.85.0, §3);
    3) ~~darbastalis ir analitika~~ — atlikta (0.86.0, §3);
    4) sisteminiai laukai ir didelis importas porcijomis;
-   5) kortelės veiklų puslapiavimas;
+   5) ~~kortelės veiklų puslapiavimas~~ — atlikta (0.87.0, §3);
    6) foninių darbų priežiūra ir stebėsena:
       - A. savaiminis atsistatymas — kiekvienam `crm-worker` darbui laiko riba (pakibęs nutraukiamas,
         kiti vyksta), konteinerio sveikatos patikra (ciklas baigtas per ~20 min., kitaip paleidžiamas iš

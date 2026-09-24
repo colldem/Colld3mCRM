@@ -32,6 +32,8 @@
     if (h === '#composer' || h === '#tab-comments') openComposer();
     else if (h === '#reminder-add' || h === '#tab-reminders') openReminderForm();
     else if (h.startsWith('#tab-')) show(h.slice(5));
+    // "Show older" reloads the card with more entries and returns to the same tab.
+    else if (h.startsWith('#feed-')) show(h.slice(6));
   };
   fromHash();
   window.addEventListener('hashchange', fromHash);
