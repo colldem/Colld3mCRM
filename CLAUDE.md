@@ -130,7 +130,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
   `deploy.yml` (tag `v*` arba `workflow_call`), `release.yml` (rankinis paleidimas:
   pasiima `VERSION`, patikrina `compose.yaml` ir Chart'o `appVersion`, sukuria žymą,
-  iškviečia „Deploy"), abu diegimo darbai `runs-on: self-hosted crm-nas`.
+  iškviečia „Deploy"), abu diegimo darbai `runs-on: self-hosted crm-nas`;
+  `load-large.yml` (rankinis) — 800 tūkst. asmenų matavimas (`scripts/loadtest/seed.py`
+  porcijomis + `probe.py` kiekvienam puslapiui atskirai), tik ataskaita.
   `scripts/backup.sh` (crm-backup image, `deploy/backup/Dockerfile`) — šifruotos kopijos; `scripts/restore.sh` — atkūrimas
   (CI `backup-restore` darbas atlieka avarinio atkūrimo pratybas); `scripts/security-check.sh` — pip-audit + bandit (CI `security` darbas; Trivy ir SBOM — `image` darbe);
   `scripts/staging-public.sh` — staging instancijos atvėrimas į viešą internetą

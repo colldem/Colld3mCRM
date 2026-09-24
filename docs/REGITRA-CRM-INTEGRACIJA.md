@@ -44,7 +44,31 @@ darbo sluoksnis ant jo, ne pakaitalas. Raktas — **asmens kodas** → reikia pe
 | Importas | CSV per naršyklę iki 10 MB — netinka |
 
 Apkrovos testas CI buvo su 5 000 kontaktų. PostgreSQL pati 800 tūkst. asmenų ir ~10 mln.
-pranešimų atlaiko; keisti reikia užklausas. Grubus įvertinimas: **1,5–3 sav.** (neišmatuota).
+pranešimų atlaiko; keisti reikia užklausas. Grubus įvertinimas: **1,5–3 sav.**
+
+### Išmatuota su 800 tūkst. (0 etapas, 2026-09-24)
+
+800 000 asmenų, 200 000 įmonių, 2,4 mln. veiklų, 400 000 priminimų, ~1 % dublikatų;
+DB 1,2 GB. Kiekvienas puslapis atskirai, vienas naudotojas (`scripts/loadtest/probe.py`),
+PostgreSQL 16, Gunicorn 2 × 2, 4 vCPU be atminties ribos; užklausos riba 120 s.
+Tas pats CI: **Actions → „Load — large volume"** (`load-large.yml`, 2 vCPU / 1 GB).
+
+| Puslapis | 5 000 | 800 000 |
+|---|---|---|
+| Darbastalis | 0,21 s | 2,5 s |
+| Kontaktų sąrašas (1 ir 2000 psl.) | 0,12 s | 1,3 s |
+| Paieška kontaktų sąraše | 0,11 s | 8,3 s |
+| Paieškos pasiūlymai / globali paieška | 0,11 / 0,13 s | 21,5 / 21,9 s |
+| Įmonių sąrašas su filtru | 0,04 s | 0,8 s |
+| Kontakto kortelė | 0,10 s | 6,8 s |
+| Analitika | 0,31 s | **> 120 s (klaida)** |
+| Naujo asmens forma (visos įmonės kaip žymimieji langeliai) | 0,25 s | 37 s |
+| Dublikatų tikrinimas išsaugant | 0,58 s | **139 s** |
+| Dublikatų sąrašas | 1,4 s | **> 150 s** |
+
+Web proceso atmintis pakilo iki **6,6 GB** (dublikatai) — 1 GB konteineryje procesas būtų nužudytas.
+Analitika: `COUNT` su `person_id IN (visi asmenys) OR company_id IN (...)` — 800 tūkst. id netelpa į
+`work_mem`, PostgreSQL tikrina kiekvieną veiklą per visą asmenų sąrašą (valandos).
 
 ## 4. Siūloma kryptis
 
@@ -62,8 +86,13 @@ pranešimų atlaiko; keisti reikia užklausas. Grubus įvertinimas: **1,5–3 sa
 
 ## 5. Kitas žingsnis (kai grįšime)
 
-1. Didelių kiekių testas CI: 800 tūkst. asmenų, 200 tūkst. įmonių, ~10 mln. pranešimų, 50 naudotojų — tikri skaičiai.
-2. Mastelio etapas pagal rezultatus (paieška, dublikatai, sąrašai, analitika, sisteminiai laukai, kortelės puslapiavimas).
+1. ~~Didelių kiekių matavimas~~ — atlikta (§3, `load-large.yml`).
+2. Mastelio etapai, po kiekvieno — pakartotinis `load-large.yml`:
+   1) dublikatai — indeksuoti normalizuoti laukai, momentinis tikrinimas per indeksą, pilnas sąrašas fone;
+   2) paieška ir sąrašai — `pg_trgm`, `EXISTS` vietoj `JOIN` + `distinct`, `COUNT` su riba; naujo asmens formos įmonių pasirinkimas;
+   3) darbastalis ir analitika — iš anksto suskaičiuota;
+   4) sisteminiai laukai ir didelis importas porcijomis;
+   5) kortelės veiklų puslapiavimas.
 3. Integracijos prototipas su netikru ORDS stiliaus API.
 
 ## 6. Klausimai Regitros Oracle / CRM komandai

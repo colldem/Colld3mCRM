@@ -1,0 +1,97 @@
+name: Load — large volume
+
+# The Regitra volume (docs/REGITRA-CRM-INTEGRACIJA.md): 800,000 people and
+# 200,000 companies against the same 2 vCPU / 1 GB web container as the `load`
+# job in ci.yml. Run by hand after each scaling stage. It never fails on speed —
+# the report is the output: each page timed on its own (probe.py), then the
+# usual 50-user mix. Gunicorn's timeout is raised and every query is stopped
+# after 120 s, so a slow page is measured up to that bound instead of holding
+# the database for hours; anything above 60 s is an error in production.
+
+on:
+  workflow_dispatch:
+    inputs:
+      people:
+        description: "Contacts to seed"
+        default: "800000"
+      companies:
+        description: "Companies to seed"
+        default: "200000"
+
+permissions:
+  contents: read
+
+jobs:
+  load-large:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Start the stack
+        run: |
+          docker build -t crm-web:load .
+          docker network create load
+          docker run -d --network load --name load-db -e POSTGRES_DB=crm -e POSTGRES_USER=crm -e POSTGRES_PASSWORD=load \
+            "$(grep -m1 -o 'postgres:[^ "]*' compose.yaml)"
+          for i in $(seq 1 30); do docker exec load-db pg_isready -U crm -d crm && break; sleep 2; done
+          docker run -d --network load --name load-web -p 8080:8080 --cpus 2 --memory 1g \
+            -e DB_HOST=load-db -e DB_PASSWORD=load -e CRM_ENVIRONMENT=load -e CRM_LOG_LEVEL=WARNING \
+            -e CRM_GUNICORN_TIMEOUT=300 \
+            -e DJANGO_SECRET_KEY=load-only-0123456789abcdefghijklmnopqrstuvwxyz-ABCDEFGHIJKLMN \
+            -e DJANGO_ALLOWED_HOSTS='localhost,127.0.0.1' -e DJANGO_DEBUG=false crm-web:load
+          for i in $(seq 1 40); do curl -fsS http://localhost:8080/health/ready && break; sleep 3; done
+      - name: Seed
+        env:
+          PEOPLE: ${{ inputs.people }}
+          COMPANIES: ${{ inputs.companies }}
+        run: |
+          docker exec -i -e LOAD_PEOPLE="$PEOPLE" -e LOAD_COMPANIES="$COMPANIES" -e LOAD_ACTIVITIES="$((PEOPLE * 3))" \
+            load-web python manage.py shell -v 0 < scripts/loadtest/seed.py | tail -3
+          docker exec load-db psql -U crm -d crm -c "VACUUM ANALYZE" -c "ALTER DATABASE crm SET statement_timeout = '120s'" \
+            -c "SELECT pg_size_pretty(pg_database_size('crm')) AS db_size"
+      - name: Time each page on its own
+        run: |
+          python -m pip install -r scripts/loadtest/requirements.txt
+          (while true; do docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}' load-web load-db; sleep 5; done) > probe-stats.txt &
+          python scripts/loadtest/probe.py --host http://localhost:8080 --timeout 150 --csv probe.csv
+          kill %1 || true
+          echo "peak web memory during the probe:"; grep load-web probe-stats.txt | sort -t= -k3 -h | tail -1
+      - name: Run 50 users for 3 minutes
+        run: |
+          (while true; do docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}' load-web load-db; sleep 15; done) > stats.txt &
+          locust -f scripts/loadtest/locustfile.py --host http://localhost:8080 --headless -u 50 -r 5 -t 3m \
+            --csv load --only-summary || true
+          kill %1 || true
+      - name: Report
+        if: always()
+        run: |
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import csv, os
+          print("### Each page on its own\n\n| Page | Status | Median s | Max s |\n|---|---|---|---|")
+          if os.path.exists("probe.csv"):
+              for row in csv.DictReader(open("probe.csv", encoding="utf-8")):
+                  print("| %s | %s | %s | %s |" % (row["page"], row["status"], row["median_s"], row["max_s"]))
+          if os.path.exists("load_stats.csv"):
+              rows = {r["Name"]: r for r in csv.DictReader(open("load_stats.csv"))}
+              total = rows["Aggregated"]
+              print("\n### 50 users, 3 minutes\n\nrequests=%s failures=%s p50=%s ms p95=%s ms\n"
+                    % (total["Request Count"], total["Failure Count"], total["50%"], total["95%"]))
+              print("| Request | p50 ms | p95 ms | Failures |\n|---|---|---|---|")
+              for name, row in sorted(rows.items()):
+                  print("| %s | %s | %s | %s |" % (name, row["50%"], row["95%"], row["Failure Count"]))
+          PY
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: load-large
+          path: |
+            probe.csv
+            probe-stats.txt
+            load_*.csv
+            stats.txt
+      - name: Web logs
+        if: always()
+        run: docker logs load-web 2>&1 | tail -80
