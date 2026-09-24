@@ -126,7 +126,15 @@ Liko ~0,5–0,9 s kiekviename puslapyje — varpelis; bandomuosiuose duomenyse k
    2) ~~paieška ir sąrašai~~ — atlikta (0.85.0, §3);
    3) darbastalis ir analitika — iš anksto suskaičiuota;
    4) sisteminiai laukai ir didelis importas porcijomis;
-   5) kortelės veiklų puslapiavimas.
+   5) kortelės veiklų puslapiavimas;
+   6) foninių darbų priežiūra ir stebėsena:
+      - A. savaiminis atsistatymas — kiekvienam `crm-worker` darbui laiko riba (pakibęs nutraukiamas,
+        kiti vyksta), konteinerio sveikatos patikra (ciklas baigtas per ~20 min., kitaip paleidžiamas iš
+        naujo), `crm-worker` CPU/atminties ribos ir žemesnis prioritetas, `statement_timeout` DB užklausoms;
+      - B. matomumas CRM — Nustatymai → Sistemos būklė (kiekvieno darbo paskutinė sėkmė / klaida / būsena),
+        raudona juosta administratoriui, kai darbas vėluoja ar krenta, `/health/jobs` išorinei stebėsenai;
+      - C. pranešimai į išorę — NAS: Uptime Kuma (`/health/ready`, `/health/jobs` → el. paštas / Telegram /
+        Teams); organizacijoje: `/metrics` + `docs/DEPLOYMENT.md` įspėjimų taisyklės į Prometheus / Zabbix.
 3. Integracijos prototipas su netikru ORDS stiliaus API.
 
 ## 6. Klausimai Regitros Oracle / CRM komandai
