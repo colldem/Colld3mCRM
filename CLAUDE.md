@@ -68,9 +68,11 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
-  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DuplicateCandidate, DirectoryGroupMapping.
+  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DuplicateCandidate, AnalyticsSnapshot, DirectoryGroupMapping.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
-  darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys;
+  darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys; skaičiuojama DB (`GROUP BY`,
+  `EXISTS`), ne Python cikle; apžvalgos ir komunikacijos sunkioji dalis — `AnalyticsSnapshot` (visų įrašų matomumui
+  atnaujina foninis `refresh_analytics`, kitiems — pirmą kartą atidarius, galioja 30 min.);
   `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
   `duplicates.py` / `merging.py` — dublikatai (tikrinimas išsaugant — per indeksus `match_key`/`digits`; peržiūros sąrašą sudaro foninis `find_duplicates` į `DuplicateCandidate`, puslapis tik skaito); `filters.py` — sąrašų filtrai (susijusios lentelės — tik `pk IN (… UNION …)`, be `JOIN` ir `DISTINCT`; `icontains` aptarnauja `pg_trgm` indeksai, migracija 0058);
@@ -115,7 +117,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   per Nustatymai → Vertimai; override'ai DB, įrašomi tiesiai į Django katalogą veikiant,
   middleware sinchronizuoja procesus per versijos žymą).
 - Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`,
-  `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` — `accounts.py`, `purge_audit_log` — `audit.py`, `apply_retention` — `privacy.py`, `find_duplicates` — `duplicates.py`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
+  `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` — `accounts.py`, `purge_audit_log` — `audit.py`, `apply_retention` — `privacy.py`, `find_duplicates` — `duplicates.py`, `refresh_analytics` — `analytics_views.py`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
   Vienas kortelių apvalkalas visame produkte — `.dash-card` (+ `.dash-grid`,
@@ -158,6 +160,6 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   stilius ar vertimas. Pridėjus naują aplinkos kintamąjį — įrašyti į
   `.env.example` **ir** `docs/DEPLOYMENT.md` lentelę.
 - `deploy/helm/crm/` — Helm chart'as Kubernetes'ui (web Deployment, migracijų Job
-  kaip `pre-upgrade` hook, 10 CronJob'ų vietoj `crm-worker`, nginx Ingress;
+  kaip `pre-upgrade` hook, 11 CronJob'ų vietoj `crm-worker`, nginx Ingress;
   DB ir failų saugykla — išorinės). Instrukcija: `docs/KUBERNETES.md`.
   Atvaizdas į GHCR keliamas `publish-image.yml` uždėjus `v*` žymą.

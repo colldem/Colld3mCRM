@@ -134,6 +134,9 @@ worker:
     find-duplicates:
       command: find_duplicates
       schedule: "*/5 * * * *"
+    refresh-analytics:
+      command: refresh_analytics
+      schedule: "*/10 * * * *"
 
 gunicorn:
   workers: 2

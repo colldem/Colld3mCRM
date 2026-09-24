@@ -16,7 +16,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET
 
 JOBS = ("send_notifications", "fetch_mail", "deliver_webhooks", "run_automations", "extend_recurrences",
-        "deactivate_inactive_users", "purge_audit_log", "apply_retention", "find_duplicates")
+        "deactivate_inactive_users", "purge_audit_log", "apply_retention", "find_duplicates",
+        "refresh_analytics")
 
 
 def _escape(value):

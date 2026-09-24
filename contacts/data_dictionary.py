@@ -42,6 +42,7 @@ MODELS = {
     "DuplicateException": ("Poros, pažymėtos „ne dublikatas“", "kol yra įrašai", "R"),
     "DuplicateCandidate": ("Foninės patikros rastos galimų dublikatų poros", "perrašoma kiekvienos patikros metu", "R"),
     "SystemSettings": ("Sistemos nustatymai ir integracijos", "nuolat", "T"),
+    "AnalyticsSnapshot": ("Iš anksto suskaičiuoti analitikos skaičiai (tik skaičiai ir įrašų ID)", "perrašoma; senesni nei 1 d. trinami", "T"),
     "JobHeartbeat": ("Foninių darbų paskutinė sėkmė ar klaida (stebėsenai)", "nuolat, perrašoma", "T"),
     "AuditLog": ("Veiksmų žurnalas: kas, ką, kada, iš kur", "pagal „Saugoti įrašus (dienų)“ (≥180 d. arba visada); nuasmeninamas ištrinant asmenį", "T"),
     "IncomingMail": ("Iš IMAP dėžutės gauti laiškai, laukiantys priskyrimo", "pagal „Gauti el. laiškai“ terminą", "R"),

@@ -237,6 +237,21 @@ class JobHeartbeat(models.Model):
         return self.name
 
 
+class AnalyticsSnapshot(models.Model):
+    """Precomputed analytics numbers, so a page does not re-count millions of rows.
+
+    ``key`` is "<page>:<days>:<scope>", scope "all" for everyone who sees every
+    record (refreshed by ``refresh_analytics``) or "user-<id>" otherwise. The
+    payload holds only numbers and record ids; names are looked up when shown.
+    """
+    key = models.CharField(max_length=80, unique=True)
+    payload = models.JSONField(default=dict)
+    computed_at = models.DateTimeField()
+
+    def __str__(self):
+        return self.key
+
+
 class DirectoryGroupMapping(models.Model):
     """A directory (AD / Entra) group and the CRM access its members get."""
     group = models.CharField(max_length=256, unique=True)

@@ -104,6 +104,21 @@ paieškos laukelis (`company_lookup`), ne visos įmonės puslapyje. Analitikos v
 Liko ~0,5–0,9 s kiekviename puslapyje — varpelis; bandomuosiuose duomenyse kiekvienas naudotojas turi
 ~20 tūkst. atvirų priminimų (nerealu), todėl tai matuojama atskirai.
 
+### 3 etapas — analitika (0.86.0)
+
+Skaičiuojama DB (`GROUP BY` savaitei / mėnesiui, `EXISTS` / `NOT EXISTS`, vidurkis per subužklausą), ne
+Python cikle per visas eilutes. Apžvalgos ir komunikacijos sunkioji dalis saugoma `AnalyticsSnapshot`:
+visų įrašų matomumui ją kas ~20 min. perskaičiuoja `refresh_analytics` (su 800 tūkst. — 17 s), kitiems —
+pirmą kartą atidarius, galioja 30 min.
+
+| Matavimas (800 tūkst.) | Prieš | Po |
+|---|---|---|
+| Analitikos apžvalga | > 120 s (klaida), po 2 etapo 52 s | 2,7 s (pirmą kartą be išankstinio — ~11 s) |
+| Komunikacija | 58 s | 1,0 s (pirmą kartą — ~8 s) |
+| Ryšių priežiūra | 13 s | 3,5 s |
+| Bazė ir augimas | 13 s | 2,3 s |
+| Web proceso atmintis per visą matavimą | 635 MB | 85 MB |
+
 ## 4. Siūloma kryptis
 
 - **Integracija:** 1) ORDS tik skaitymo REST („pakitę nuo X“, „asmens pranešimai“), CRM worker
@@ -124,7 +139,7 @@ Liko ~0,5–0,9 s kiekviename puslapyje — varpelis; bandomuosiuose duomenyse k
 2. Mastelio etapai, po kiekvieno — pakartotinis `load-large.yml`:
    1) ~~dublikatai~~ — atlikta (0.84.0, §3);
    2) ~~paieška ir sąrašai~~ — atlikta (0.85.0, §3);
-   3) darbastalis ir analitika — iš anksto suskaičiuota;
+   3) ~~darbastalis ir analitika~~ — atlikta (0.86.0, §3);
    4) sisteminiai laukai ir didelis importas porcijomis;
    5) kortelės veiklų puslapiavimas;
    6) foninių darbų priežiūra ir stebėsena:

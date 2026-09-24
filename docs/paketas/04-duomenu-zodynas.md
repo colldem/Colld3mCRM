@@ -53,6 +53,16 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `submission_token` | CharField | ne | T |
 | `message_id` | CharField | ne | T |
 
+## AnalyticsSnapshot (`contacts_analyticssnapshot`)
+
+**Paskirtis:** Iš anksto suskaičiuoti analitikos skaičiai (tik skaičiai ir įrašų ID). **Saugojimas:** perrašoma; senesni nei 1 d. trinami.
+
+| Laukas | Tipas | Privalomas | Kategorija |
+|---|---|---|---|
+| `key` | CharField | taip | T |
+| `payload` | JSONField | taip | T |
+| `computed_at` | DateTimeField | taip | T |
+
 ## ApiToken (`contacts_apitoken`)
 
 **Paskirtis:** REST API raktai. **Saugojimas:** iki galiojimo pabaigos / atšaukimo; įrašas lieka istorijai.

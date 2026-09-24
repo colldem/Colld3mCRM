@@ -8217,3 +8217,100 @@ class LargeVolumeSearchTests(TestCase):
         Activity.objects.create(person=gone, text="d", created_by=member)
         self.assertEqual(set(visible_activities(member, Activity.objects.all())), set(mine))
         self.assertEqual(visible_activities(self.admin, Activity.objects.all()).count(), 3)
+
+
+class AnalyticsSnapshotTests(TestCase):
+    """Heavy analytics numbers are stored and reused instead of recounted per view."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("skaiciai", password="very-secure-password")
+        self.client.force_login(self.admin)
+        self.person = Person.objects.create(first_name="Skaičių", last_name="Asmuo")
+
+    def _activity(self, days_ago=0, person=None):
+        activity = Activity.objects.create(person=person or self.person, text="x", created_by=self.admin)
+        Activity.objects.filter(pk=activity.pk).update(created_at=timezone.now() - timedelta(days=days_ago))
+        return activity
+
+    def test_a_fresh_snapshot_is_reused_and_a_stale_one_recounted(self):
+        from contacts.models import AnalyticsSnapshot
+
+        self._activity()
+        first = self.client.get(reverse("contacts:analytics-overview"))
+        self.assertEqual(first.context["kpis"]["activity_total"], 1)
+        self.assertContains(first, "Veiklų skaičiai suskaičiuoti")
+        self._activity()
+        self.assertEqual(self.client.get(reverse("contacts:analytics-overview")).context["kpis"]["activity_total"], 1)
+        AnalyticsSnapshot.objects.update(computed_at=timezone.now() - timedelta(hours=1))
+        self.assertEqual(self.client.get(reverse("contacts:analytics-overview")).context["kpis"]["activity_total"], 2)
+
+    def test_restricted_users_get_their_own_numbers(self):
+        from contacts.models import AnalyticsSnapshot
+
+        member = get_user_model().objects.create_user("savi-skaiciai", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        own = Person.objects.create(first_name="Savas", last_name="Kontaktas", owner=member)
+        Person.objects.filter(pk=self.person.pk).update(owner=self.admin)
+        self._activity(person=own)
+        self._activity()
+        self.client.get(reverse("contacts:analytics-communication"))
+        self.client.force_login(member)
+        page = self.client.get(reverse("contacts:analytics-communication"))
+        self.assertEqual(page.context["total"], 1)
+        self.assertEqual([row["label"] for row in page.context["top_people"]], [str(own)])
+        self.assertEqual(set(AnalyticsSnapshot.objects.values_list("key", flat=True)),
+                         {"communication:90:all", "communication:90:user-%d" % member.pk})
+
+    def test_average_gap_and_top_people_are_counted_by_the_database(self):
+        self._activity(days_ago=10)
+        self._activity(days_ago=6)
+        self._activity(days_ago=2)
+        page = self.client.get(reverse("contacts:analytics-communication"))
+        self.assertEqual(page.context["average_gap"], 4.0)
+        self.assertEqual(page.context["top_people"][0]["total"], 3)
+        self.assertEqual(page.context["total"], 3)
+
+    def test_refresh_command_updates_the_shared_numbers_only_when_old(self):
+        from django.core.management import call_command
+        from contacts.models import AnalyticsSnapshot
+
+        out = StringIO()
+        call_command("refresh_analytics", stdout=out)
+        self.assertIn("refreshed=overview,communication", out.getvalue())
+        call_command("refresh_analytics", stdout=out)
+        self.assertIn("refreshed=-", out.getvalue())
+        AnalyticsSnapshot.objects.create(key="overview:30:user-99", payload={},
+                                         computed_at=timezone.now() - timedelta(days=2))
+        call_command("refresh_analytics", stdout=out)
+        self.assertIn("dropped=1", out.getvalue())
+
+    def test_care_lists_use_exists_and_keep_their_meaning(self):
+        from contacts.analytics_views import _care_querysets
+
+        silent = Person.objects.create(first_name="Nutilęs", last_name="A", owner=self.admin)
+        self._activity(days_ago=100, person=silent)
+        recent = Person.objects.create(first_name="Neseniai", last_name="B", owner=self.admin)
+        self._activity(days_ago=1, person=recent)
+        PhoneNumber.objects.create(person=recent, number="+37060000000")
+        lists = _care_querysets(self.admin, 60)
+        self.assertEqual(list(lists["silent"]), [silent])
+        self.assertEqual(lists["silent"][0].last_contact_at.date(), (timezone.now() - timedelta(days=100)).date())
+        self.assertEqual(set(lists["never"]), {self.person})
+        self.assertEqual(set(lists["no_owner"]), {self.person})
+        self.assertEqual(set(lists["no_details"]), {self.person, silent})
+
+    def test_a_snapshot_that_cannot_be_stored_still_shows_the_numbers(self):
+        from django.db import OperationalError
+        from contacts.models import AnalyticsSnapshot
+
+        self._activity()
+        with patch.object(AnalyticsSnapshot.objects, "update_or_create", side_effect=OperationalError("locked")), \
+                self.assertLogs("contacts.analytics_views", "WARNING"):
+            page = self.client.get(reverse("contacts:analytics-overview"))
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.context["kpis"]["activity_total"], 1)
+
+    def test_worker_and_kubernetes_run_the_refresh(self):
+        self.assertIn("manage.py refresh_analytics", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("command: refresh_analytics", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
