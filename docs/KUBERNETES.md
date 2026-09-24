@@ -36,7 +36,10 @@ You need:
    (cert-manager, or a certificate your platform issues).
 2. A **PostgreSQL 17** database, plus a user and an empty database. The chart
    deliberately ships no database: use what your platform already runs and backs
-   up.
+   up. The migrations create the `pg_trgm` extension for search (a trusted
+   extension: the database owner may create it). If your platform forbids that,
+   have an administrator run `CREATE EXTENSION pg_trgm;` in the database first;
+   without it search still works, only unindexed.
 3. An **S3-compatible bucket** for uploaded files (MinIO, Ceph RGW, AWS S3 …)
    and a key pair that can read and write it.
 4. Two generated secrets:

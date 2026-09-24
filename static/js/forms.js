@@ -47,3 +47,42 @@
     });
   });
 })();
+
+// Company picker (CompanyPicker widget, card "Įmonės" editor): only the chosen
+// companies are on the page; typing asks the server for matches and adds them
+// as unticked boxes. Delegated, because card editors are re-rendered after save.
+(() => {
+  const timers = new WeakMap();
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Enter' && event.target.matches?.('.company-search')) event.preventDefault();
+  });
+  document.addEventListener('input', event => {
+    const input = event.target;
+    if (!input.matches?.('.company-search')) return;
+    const picker = input.closest('.company-picker');
+    const list = picker.querySelector('.company-options');
+    clearTimeout(timers.get(picker));
+    timers.set(picker, setTimeout(async () => {
+      const term = input.value.trim();
+      const request = String(Date.now());
+      picker.dataset.request = request;
+      list.querySelectorAll('label.company-found').forEach(label => {
+        if (!label.querySelector('input').checked) label.remove();
+      });
+      if (term.length < 2) return;
+      const response = await fetch(`${picker.dataset.companyLookup}?q=${encodeURIComponent(term)}`,
+                                   {headers: {Accept: 'application/json'}});
+      if (!response.ok || picker.dataset.request !== request) return;
+      const present = new Set([...list.querySelectorAll('input[type=checkbox]')].map(box => box.value));
+      (await response.json()).results.forEach(company => {
+        if (present.has(String(company.id))) return;
+        const label = document.createElement('label');
+        label.className = 'company-found';
+        const box = document.createElement('input');
+        box.type = 'checkbox'; box.name = picker.dataset.name; box.value = company.id;
+        label.append(box, company.name);
+        list.append(label);
+      });
+    }, 250));
+  });
+})();

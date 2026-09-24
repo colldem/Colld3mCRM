@@ -8,7 +8,8 @@
     {% csrf_token %}<input type="hidden" name="field" value="{{ item.field }}">
     {% if item.field == 'companies' %}
       <fieldset><legend>{% translate 'Priskirtos įmonės' %}</legend>
-        <div class="company-options">{% for company in item.companies %}<label><input type="checkbox" name="companies" value="{{ company.pk }}"{% if company.selected %} checked{% endif %}>{{ company.name }}</label>{% empty %}<p>{% translate 'Įmonių dar nėra.' %}</p>{% endfor %}</div>
+        <div class="company-picker" data-company-lookup="{% url 'contacts:company-lookup' %}" data-name="companies"><input type="search" class="company-search" placeholder="{% translate 'Ieškoti įmonės pagal pavadinimą ar kodą' %}" aria-label="{% translate 'Ieškoti įmonės pagal pavadinimą ar kodą' %}" autocomplete="off">
+        <div class="company-options">{% for company in item.companies %}<label><input type="checkbox" name="companies" value="{{ company.pk }}"{% if company.selected %} checked{% endif %}>{{ company.name }}</label>{% endfor %}</div></div>
         <button class="btn add-company" type="button" aria-expanded="false">{% translate 'Pridėti naują' %}</button>
         <div class="new-company-input" hidden><label for="new-company-name">{% translate 'Įmonės pavadinimas' %}</label><input id="new-company-name" name="new_name" maxlength="200" disabled><small>{% translate 'Įmonė bus sukurta ir priskirta paspaudus „Išsaugoti“.' %}</small></div>
       </fieldset>

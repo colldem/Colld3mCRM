@@ -22,7 +22,7 @@ from .models import (
     EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress,
     Reminder, Tag, WebLink,
 )
-from .permissions import assignable_users_for, has_capability, visible_companies, visible_people, visible_reminders
+from .permissions import assignable_users_for, has_capability, visible_activities, visible_companies, visible_people, visible_reminders
 from .sanitizers import safe_url
 
 logger = logging.getLogger(__name__)
@@ -452,9 +452,7 @@ def activities_collection(request, token):
         elif company:
             qs = qs.filter(company=company)
         else:
-            qs = qs.filter(
-                Q(person__in=visible_people(token.created_by, Person.objects.filter(deleted_at__isnull=True)))
-                | Q(company__in=visible_companies(token.created_by, Company.objects.filter(deleted_at__isnull=True))))
+            qs = visible_activities(token.created_by, qs)
         since = _since(request)
         if since:
             qs = qs.filter(created_at__gte=since)

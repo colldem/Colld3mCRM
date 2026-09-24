@@ -43,6 +43,7 @@ urlpatterns = [
     path("reminders/<int:pk>/delete/", views.reminder_delete, name="reminder-delete"),
     path("reminders/read/", views.reminder_mark_read, name="reminder-mark-read"),
     path("companies/", views.company_list, name="company-list"),
+    path("companies/lookup/", views.company_lookup, name="company-lookup"),
     path("companies/new/", views.company_create, name="company-create"),
     path("companies/<int:pk>/", views.company_detail, name="company-detail"),
     path("companies/<int:pk>/edit/", views.company_edit, name="company-edit"),

@@ -105,34 +105,52 @@ def company_filter_values(data):
     }
 
 
-def _apply_custom_filters(queryset, values):
+# Every filter on a related table is "id IN (subquery)" rather than a join: a
+# join repeats the row once per match, the list then needs DISTINCT over every
+# column, and with hundreds of thousands of records that is what made search
+# take seconds. The text lookups are served by trigram indexes on PostgreSQL
+# (migration 0058).
+
+def _any_of(*sources):
+    """One "IN (a UNION b ...)" subquery of record ids from ``(queryset, id column)`` pairs."""
+    first, *rest = [queryset.order_by().values(column) for queryset, column in sources]
+    return first.union(*rest) if rest else first
+
+
+def _apply_custom_filters(queryset, values, entity_column):
+    from .models import CustomValue
+
     for key, value in values.items():
         if key.startswith("cf_") and value:
-            queryset = queryset.filter(custom_values__field_id=key[3:], custom_values__value__icontains=value)
+            matching = CustomValue.objects.filter(field_id=key[3:], value__icontains=value).values(entity_column)
+            queryset = queryset.filter(pk__in=matching)
     return queryset
 
 
 def apply_contact_filters(people, values, user=None):
+    from .models import (Category, CustomValue, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress,
+                         Tag, WebLink)
+
+    tagged, categorised = Person.tags.through, Person.categories.through
     for term in values["q"].split():
-        people = people.filter(
-            Q(first_name__icontains=term)
-            | Q(last_name__icontains=term)
-            | Q(job_title__icontains=term)
-            | Q(company_links__company__name__icontains=term)
-            | Q(phones__number__icontains=term)
-            | Q(emails__email__icontains=term)
-            | Q(tags__name__icontains=term)
-            | Q(categories__name__icontains=term)
-            | Q(addresses__address__icontains=term)
-            | Q(web_links__url__icontains=term)
-            | Q(custom_values__value__icontains=term)
-        )
+        people = people.filter(pk__in=_any_of(
+            (Person.objects.filter(Q(first_name__icontains=term) | Q(last_name__icontains=term)
+                                   | Q(job_title__icontains=term)), "pk"),
+            (PersonCompanyLink.objects.filter(company__name__icontains=term), "person_id"),
+            (PhoneNumber.objects.filter(number__icontains=term), "person_id"),
+            (EmailAddress.objects.filter(email__icontains=term), "person_id"),
+            (tagged.objects.filter(tag__in=Tag.objects.filter(name__icontains=term)), "person_id"),
+            (categorised.objects.filter(category__in=Category.objects.filter(name__icontains=term)), "person_id"),
+            (PostalAddress.objects.filter(address__icontains=term), "person_id"),
+            (WebLink.objects.filter(url__icontains=term), "person_id"),
+            (CustomValue.objects.filter(person__isnull=False, value__icontains=term), "person_id"),
+        ))
     if values["categories"]:
-        people = people.filter(categories__pk__in=values["categories"])
+        people = people.filter(pk__in=categorised.objects.filter(category_id__in=values["categories"]).values("person_id"))
     if values["tags"]:
-        people = people.filter(tags__pk__in=values["tags"])
+        people = people.filter(pk__in=tagged.objects.filter(tag_id__in=values["tags"]).values("person_id"))
     if values["email"]:
-        people = people.filter(emails__email__icontains=values["email"])
+        people = people.filter(pk__in=EmailAddress.objects.filter(email__icontains=values["email"]).values("person_id"))
     if values["favourite"]:
         people = people.filter(favourite=True)
     people = _apply_owner_filter(people, values.get("owner", ""), user, "person")
@@ -141,31 +159,30 @@ def apply_contact_filters(people, values, user=None):
         people = people.filter(last_contact_at__date__gte=values["last_contact_from"])
     if values["last_contact_to"]:
         people = people.filter(last_contact_at__date__lte=values["last_contact_to"])
-    people = _apply_custom_filters(people, values)
-    return people.distinct()
+    return _apply_custom_filters(people, values, "person_id")
 
 
 def apply_company_filters(companies, values, user=None):
+    from .models import Company, CustomValue, PersonCompanyLink
+
+    tagged, categorised = Company.tags.through, Company.categories.through
     for term in values["q"].split():
-        companies = companies.filter(
-            Q(name__icontains=term)
-            | Q(company_code__icontains=term)
-            | Q(vat_code__icontains=term)
-            | Q(address__icontains=term)
-            | Q(phone__icontains=term)
-            | Q(email__icontains=term)
-            | Q(url__icontains=term)
-            | Q(people__first_name__icontains=term)
-            | Q(people__last_name__icontains=term)
-            | Q(people__job_title__icontains=term)
-            | Q(people__emails__email__icontains=term)
-            | Q(people__phones__number__icontains=term)
-            | Q(custom_values__value__icontains=term)
-        )
+        companies = companies.filter(pk__in=_any_of(
+            (Company.objects.filter(
+                Q(name__icontains=term) | Q(company_code__icontains=term) | Q(vat_code__icontains=term)
+                | Q(address__icontains=term) | Q(phone__icontains=term) | Q(email__icontains=term)
+                | Q(url__icontains=term)), "pk"),
+            (PersonCompanyLink.objects.filter(
+                Q(person__first_name__icontains=term) | Q(person__last_name__icontains=term)
+                | Q(person__job_title__icontains=term)), "company_id"),
+            (PersonCompanyLink.objects.filter(person__emails__email__icontains=term), "company_id"),
+            (PersonCompanyLink.objects.filter(person__phones__number__icontains=term), "company_id"),
+            (CustomValue.objects.filter(company__isnull=False, value__icontains=term), "company_id"),
+        ))
     if values["categories"]:
-        companies = companies.filter(categories__pk__in=values["categories"])
+        companies = companies.filter(pk__in=categorised.objects.filter(category_id__in=values["categories"]).values("company_id"))
     if values["tags"]:
-        companies = companies.filter(tags__pk__in=values["tags"])
+        companies = companies.filter(pk__in=tagged.objects.filter(tag_id__in=values["tags"]).values("company_id"))
     if values["city"]:
         companies = companies.filter(address__icontains=values["city"])
     companies = _apply_owner_filter(companies, values.get("owner", ""), user, "company")
@@ -193,8 +210,7 @@ def apply_company_filters(companies, values, user=None):
             (Q(own_last_contact_at__isnull=True) | Q(own_last_contact_at__date__lte=values["last_contact_to"]))
             & (Q(linked_last_contact_at__isnull=True) | Q(linked_last_contact_at__date__lte=values["last_contact_to"]))
         )
-    companies = _apply_custom_filters(companies, values)
-    return companies.distinct()
+    return _apply_custom_filters(companies, values, "company_id")
 
 
 def active_filter_count(values):

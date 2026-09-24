@@ -236,6 +236,28 @@ def visible_reminders(user, queryset=None):
     )
 
 
+def visible_activities(user, queryset):
+    """History entries of a live contact or company that `user` may see.
+
+    Written so PostgreSQL can join instead of testing "person IN (every visible
+    contact) OR company IN (...)" row by row: with hundreds of thousands of
+    contacts that list outgrows memory and the query ran for hours. Someone who
+    sees everything needs no list at all; for everyone else each side is its own
+    semi-join and the two are combined with UNION.
+    """
+    from django.db.models import Q
+    from .models import Company, Person
+
+    if user is None or (_person_visibility_q(user) is None and _company_visibility_q(user) is None):
+        return queryset.filter(Q(person__isnull=False, person__deleted_at__isnull=True)
+                               | Q(company__isnull=False, company__deleted_at__isnull=True))
+    people = visible_people(user, Person.objects.filter(deleted_at__isnull=True))
+    companies = visible_companies(user, Company.objects.filter(deleted_at__isnull=True))
+    base = queryset.model.objects.order_by()
+    return queryset.filter(pk__in=base.filter(person__in=people).values("pk").union(
+        base.filter(company__in=companies).values("pk")))
+
+
 def visible_person_ids(user):
     return visible_people(user, None).values_list("pk", flat=True)
 

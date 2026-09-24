@@ -18,7 +18,7 @@ from . import charts
 from .models import Activity, AuditLog, Category, Company, Person, Reminder, Tag, UserProfile
 from .permissions import (in_any_team, record_visibility, responsible_company_ids,
                           responsible_person_ids, sees_all_records, teammate_ids,
-                          visible_companies, visible_people, visible_reminders)
+                          visible_activities, visible_companies, visible_people, visible_reminders)
 from .reminder_queries import open_q
 
 # Short month names for the dashboard's six-month chart. Indexed by month - 1;
@@ -360,8 +360,7 @@ def communication(request):
 
     people_ids = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     company_ids = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
-    activities = Activity.objects.filter(deleted_at__isnull=True, created_at__gte=since).filter(
-        Q(person__in=people_ids) | Q(company__in=company_ids))
+    activities = visible_activities(request.user, Activity.objects.filter(deleted_at__isnull=True, created_at__gte=since))
 
     keys = [key for key, _label in Activity.TYPE_CHOICES]
     slots = _buckets(since.date(), today, monthly)
@@ -538,8 +537,7 @@ def analytics_overview(request):
     people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
     reminders = visible_reminders(request.user, Reminder.objects.filter(deleted_at__isnull=True))
-    activities = Activity.objects.filter(deleted_at__isnull=True).filter(
-        Q(person__in=people) | Q(company__in=companies))
+    activities = visible_activities(request.user, Activity.objects.filter(deleted_at__isnull=True))
     recent_activities = activities.filter(created_at__gte=since)
     overdue = reminders.filter(completed_at__isnull=True, due_at__lt=now)
 

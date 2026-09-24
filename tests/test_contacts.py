@@ -8132,3 +8132,88 @@ class DuplicateScanTests(TestCase):
     def test_worker_and_kubernetes_run_the_scan(self):
         self.assertIn("manage.py find_duplicates", (settings.BASE_DIR / "compose.yaml").read_text())
         self.assertIn("command: find_duplicates", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
+
+
+class LargeVolumeSearchTests(TestCase):
+    """Search and pickers that stay fast with hundreds of thousands of records."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("paieska", password="very-secure-password")
+        self.client.force_login(self.admin)
+
+    def test_search_reaches_related_tables_and_lists_each_contact_once(self):
+        person = Person.objects.create(first_name="Ieva", last_name="Paieškaitė")
+        EmailAddress.objects.create(person=person, email="ieva@ryšys.lt")
+        EmailAddress.objects.create(person=person, email="ieva.ryšys@example.lt")
+        PhoneNumber.objects.create(person=person, number="+370 699 12345")
+        tag = Tag.objects.create(name="Žymėtas")
+        person.tags.add(tag)
+        company = Company.objects.create(name="Ryšio UAB")
+        PersonCompanyLink.objects.create(person=person, company=company)
+        Person.objects.create(first_name="Kitas", last_name="Nesusijęs")
+        for term in ("ryšys", "699 123", "Žymėt", "Ryšio UAB", "Paieškaitė"):
+            page = self.client.get(reverse("contacts:list"), {"q": term}).context["page"]
+            self.assertEqual([p.pk for p in page.object_list], [person.pk], term)
+        companies = self.client.get(reverse("contacts:company-list"), {"q": "Paieškaitė"}).context["page"]
+        self.assertEqual([c.pk for c in companies.object_list], [company.pk])
+
+    def test_company_lookup_finds_visible_companies_by_name_or_code(self):
+        member = get_user_model().objects.create_user("ieskotojas", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        mine = Company.objects.create(name="Mano Paieška UAB", company_code="301234567", owner=member)
+        Company.objects.create(name="Svetima Paieška UAB", owner=self.admin)
+        url = reverse("contacts:company-lookup")
+        self.assertEqual(self.client.get(url, {"q": "p"}).json(), {"results": []})
+        self.assertEqual(len(self.client.get(url, {"q": "paieška"}).json()["results"]), 2)
+        self.client.force_login(member)
+        self.assertEqual(self.client.get(url, {"q": "paieška"}).json()["results"], [{"id": mine.pk, "name": mine.name}])
+        self.assertEqual(self.client.get(url, {"q": "3012345"}).json()["results"][0]["id"], mine.pk)
+
+    def test_pickers_carry_only_the_chosen_companies(self):
+        chosen = Company.objects.create(name="Pasirinkta UAB")
+        Company.objects.create(name="Nepasirinkta UAB")
+        form = self.client.get(reverse("contacts:person-create"))
+        self.assertContains(form, "company-search")
+        self.assertNotContains(form, "Nepasirinkta UAB")
+        person = Person.objects.create(first_name="Su", last_name="Įmone")
+        PersonCompanyLink.objects.create(person=person, company=chosen)
+        card = self.client.get(person.get_absolute_url())
+        self.assertContains(card, 'value="%d" checked' % chosen.pk)
+        self.assertNotContains(card, "Nepasirinkta UAB")
+        edit = self.client.get(reverse("contacts:edit", args=[person.pk]))
+        self.assertContains(edit, "Pasirinkta UAB")
+        self.assertNotContains(edit, "Nepasirinkta UAB")
+        # A company picked through the search box is saved like any other choice.
+        other = Company.objects.get(name="Nepasirinkta UAB")
+        self.client.post(reverse("contacts:person-create"), {"first_name": "Naujas", "last_name": "Asmuo",
+                                                            "companies": [other.pk]})
+        self.assertEqual(list(Person.objects.get(last_name="Asmuo").companies.all()), [other])
+
+    def test_a_rejected_form_does_not_echo_a_hidden_company(self):
+        member = get_user_model().objects.create_user("slepiamas", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        hidden = Company.objects.create(name="Paslėpta UAB", owner=self.admin)
+        self.client.force_login(member)
+        response = self.client.post(reverse("contacts:person-create"), {"first_name": "", "companies": [hidden.pk]})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Paslėpta UAB")
+
+    def test_visible_activities_follow_record_visibility(self):
+        from contacts.permissions import visible_activities
+
+        member = get_user_model().objects.create_user("veiklos", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        own = Person.objects.create(first_name="Savas", last_name="Asmuo", owner=member)
+        other = Person.objects.create(first_name="Kito", last_name="Asmuo", owner=self.admin)
+        gone = Person.objects.create(first_name="Archyvuotas", last_name="Asmuo", owner=member,
+                                     deleted_at=timezone.now())
+        firm = Company.objects.create(name="Sava UAB", owner=member)
+        mine = [Activity.objects.create(person=own, text="a", created_by=member),
+                Activity.objects.create(company=firm, text="b", created_by=member)]
+        Activity.objects.create(person=other, text="c", created_by=self.admin)
+        Activity.objects.create(person=gone, text="d", created_by=member)
+        self.assertEqual(set(visible_activities(member, Activity.objects.all())), set(mine))
+        self.assertEqual(visible_activities(self.admin, Activity.objects.all()).count(), 3)

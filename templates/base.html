@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="CRM">
   <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260921f">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260924a">
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260924a">
 </head>
 <body class="sidebar-expand-lg fixed-header{% if crm_isolated %} has-env-banner{% endif %}"{% if crm_caps and not crm_caps.can_edit %} data-read-only="1"{% endif %}>
@@ -67,7 +67,7 @@
 <script src="{% static 'js/tabs.js' %}?v=20260910a" defer></script>
 <script src="{% static 'js/reminders.js' %}?v=20260910a" defer></script>
 <script src="{% static 'js/search.js' %}?v=20260908a" defer></script>
-<script src="{% static 'js/forms.js' %}?v=20260910a" defer></script>
+<script src="{% static 'js/forms.js' %}?v=20260924a" defer></script>
 <script src="{% static 'js/calendar.js' %}?v=20260919c" defer></script>
 <script src="{% static 'js/dashboard.js' %}?v=20260919a" defer></script>
 <script nonce="{{ csp_nonce }}">if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));</script>

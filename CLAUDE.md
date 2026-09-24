@@ -73,8 +73,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys;
   `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
-  `duplicates.py` / `merging.py` — dublikatai (tikrinimas išsaugant — per indeksus `match_key`/`digits`; peržiūros sąrašą sudaro foninis `find_duplicates` į `DuplicateCandidate`, puslapis tik skaito); `filters.py` — sąrašų filtrai;
-  `permissions.py` — rolės (admin / vadovas / visi / savi / skaitytojas), teisės ir įrašų matomumas;
+  `duplicates.py` / `merging.py` — dublikatai (tikrinimas išsaugant — per indeksus `match_key`/`digits`; peržiūros sąrašą sudaro foninis `find_duplicates` į `DuplicateCandidate`, puslapis tik skaito); `filters.py` — sąrašų filtrai (susijusios lentelės — tik `pk IN (… UNION …)`, be `JOIN` ir `DISTINCT`; `icontains` aptarnauja `pg_trgm` indeksai, migracija 0058);
+  `permissions.py` — rolės (admin / vadovas / visi / savi / skaitytojas), teisės ir įrašų matomumas (veikloms — `visible_activities`, ne `person IN (visi) OR company IN (visos)`);
+  įmonių pasirinkimas — `forms.CompanyPicker` / kortelės redaktorius + `company_lookup` (`static/js/forms.js`): puslapyje tik priskirtos įmonės, kitos randamos rašant;
   `errors.py` + `templates/errors/error.html` — 400/403/404/500 ir CSRF puslapiai
   (`handler*` `config/urls.py`, `CSRF_FAILURE_VIEW`); kiekvienas sako, kas nepavyko,
   kodėl ir ką daryti, 500 rodo `request_id`. Puslapis sąmoningai savarankiškas —

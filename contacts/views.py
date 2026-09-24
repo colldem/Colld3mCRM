@@ -162,12 +162,10 @@ def _search_results(query, per_group, user=None):
         .select_related("person", "company").order_by("due_at")
     )
     if user is not None:
-        from .permissions import sees_all_records, visible_company_ids, visible_person_ids
+        from .permissions import sees_all_records, visible_activities
 
         if not sees_all_records(user):
-            activities = activities.filter(
-                Q(person__pk__in=visible_person_ids(user)) | Q(company__pk__in=visible_company_ids(user))
-            )
+            activities = visible_activities(user, activities)
     return {
         "q": query,
         "people": people[:per_group], "people_count": people.count(),
@@ -2002,7 +2000,7 @@ def contact_detail(request, pk):
                         key=lambda a: a.created_at, reverse=True)
     return render(request, "contacts/detail.html", {
         "person": person,
-        **grouped_detail_fields(person, viewer=request.user),
+        **grouped_detail_fields(person),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "reminder_form": ReminderForm(user=request.user),
         "activity_form": ActivityForm(),
@@ -2292,6 +2290,23 @@ def attachment_download(request, pk):
         raise Http404("Failas nerastas.") from None
 
 
+COMPANY_LOOKUP_LIMIT = 20
+
+
+@login_required
+def company_lookup(request):
+    """Companies whose name or code contains ``q``, for the company picker.
+
+    The picker lists only the chosen companies and finds the rest as the user
+    types, so a card or a form never carries every company in the database."""
+    query = request.GET.get("q", "").strip()
+    if len(query) < 2:
+        return JsonResponse({"results": []})
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).filter(
+        Q(name__icontains=query) | Q(company_code__icontains=query)).order_by("name", "pk")[:COMPANY_LOOKUP_LIMIT]
+    return JsonResponse({"results": [{"id": company.pk, "name": company.name} for company in companies]})
+
+
 @login_required
 def company_list(request):
     redirect_to = _default_filter_redirect(request, "companies")
@@ -2328,7 +2343,6 @@ def company_list(request):
         contact_count_filter &= Q(people__pk__in=visible_person_ids(request.user))
     # As on the contact list: aggregate the whole list only for the active sort,
     # count the visible page's contacts afterwards.
-    companies = companies.distinct()
     sort_aggregates = {
         "contacts": ("contact_count", Count("people", filter=contact_count_filter, distinct=True)),
         "category": ("sort_category", Min("categories__name")),
@@ -2414,7 +2428,7 @@ def company_detail(request, pk):
     next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
     return render(request, "companies/detail.html", {
         "company": company,
-        **grouped_detail_fields(company, viewer=request.user),
+        **grouped_detail_fields(company),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "activity_form": ActivityForm(),
         "activity_token": uuid.uuid4().hex,

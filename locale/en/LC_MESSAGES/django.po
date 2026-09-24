@@ -154,9 +154,6 @@ msgstr "Assigned companies"
 msgid "Įmonės pavadinimas"
 msgstr "Company name"
 
-msgid "Įmonių dar nėra."
-msgstr "No companies yet."
-
 msgid "Įmonė bus sukurta ir priskirta paspaudus „Išsaugoti“."
 msgstr "The company will be created and assigned when you click Save."
 
@@ -4466,3 +4463,6 @@ msgstr "The list is built in the background every few minutes. The first check h
 
 msgid "Liko daugiau porų — paspauskite „Sujungti visus“ dar kartą."
 msgstr "More pairs remain — press “Merge all” again."
+
+msgid "Ieškoti įmonės pagal pavadinimą ar kodą"
+msgstr "Search companies by name or code"

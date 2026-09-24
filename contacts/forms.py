@@ -3,6 +3,8 @@ from django import forms
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
+from django.urls import reverse
+from django.utils.html import format_html
 
 from . import permissions
 from .models import DirectoryGroupMapping, Activity, AutomationRule, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
@@ -334,8 +336,29 @@ class AutomationRuleForm(forms.ModelForm):
         return cleaned
 
 
+class CompanyPicker(forms.CheckboxSelectMultiple):
+    """Checkboxes for the chosen companies only, plus a search box that finds the
+    rest (static/js/forms.js → company_lookup). Listing every company would put
+    hundreds of thousands of checkboxes on the page."""
+
+    def optgroups(self, name, value, attrs=None):
+        chosen = [item for item in value if str(item).isdigit()]
+        # The field's own queryset: a posted id the user may not see is never echoed back.
+        allowed = getattr(self.choices, "queryset", Company.objects.none())
+        self.choices = list(allowed.filter(pk__in=chosen).order_by("name").values_list("pk", "name"))
+        return super().optgroups(name, value, attrs)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        label = tr("Ieškoti įmonės pagal pavadinimą ar kodą")
+        return format_html(
+            '<div class="company-picker" data-company-lookup="{}" data-name="{}"><input type="search" '
+            'class="company-search" placeholder="{}" aria-label="{}" autocomplete="off">'
+            '<div class="company-options">{}</div></div>',
+            reverse("contacts:company-lookup"), name, label, label, super().render(name, value, attrs, renderer))
+
+
 class PersonForm(forms.ModelForm):
-    companies = forms.ModelMultipleChoiceField(queryset=Company.objects.filter(deleted_at__isnull=True), required=False, label=tr("Priskirtos įmonės"), help_text=tr("Galite pasirinkti vieną ar kelias įmones."), widget=forms.CheckboxSelectMultiple)
+    companies = forms.ModelMultipleChoiceField(queryset=Company.objects.filter(deleted_at__isnull=True), required=False, label=tr("Priskirtos įmonės"), help_text=tr("Galite pasirinkti vieną ar kelias įmones."), widget=CompanyPicker)
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)

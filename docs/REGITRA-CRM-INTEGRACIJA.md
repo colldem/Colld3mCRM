@@ -84,6 +84,26 @@ peržiūros sąrašą sudaro foninis `find_duplicates` (`crm-worker` kas ciklą,
 | Foninė patikra `find_duplicates` | — | 11 s, 87 MB, 16 136 porų |
 | Migracija 0057 (telefonų skaitmenų užpildymas) | — | ~2 min. |
 
+### 2 etapas — paieška ir sąrašai (0.85.0)
+
+Filtrai: susijusios lentelės — `pk IN (… UNION …)` vietoj `JOIN` + `DISTINCT` visiems stulpeliams;
+`pg_trgm` GIN indeksai ant `UPPER(col)` (migracija 0058, ~25 s su 800 tūkst.). Įmonių pasirinkimas —
+paieškos laukelis (`company_lookup`), ne visos įmonės puslapyje. Analitikos veiklų matomumas —
+`visible_activities` (jungtis, ne `IN (800 tūkst.)`).
+
+| Matavimas (800 tūkst.) | 1 etapo pabaigoje | Po 2 etapo |
+|---|---|---|
+| Kontaktų sąrašas | 1,3 s | 0,9 s |
+| Paieška kontaktų sąraše | 8,8 s | 0,8 s |
+| Paieškos pasiūlymai / globali paieška | 23 / 24 s | 0,2 / 0,9 s |
+| Kontakto kortelė | 7,2 s | 0,75 s |
+| Naujo asmens forma | 40 s | 0,75 s |
+| Įmonių paieška valdiklyje | — | 0,01 s |
+| Analitika | > 120 s (klaida) | 44 s (3 etapas) |
+
+Liko ~0,5–0,9 s kiekviename puslapyje — varpelis; bandomuosiuose duomenyse kiekvienas naudotojas turi
+~20 tūkst. atvirų priminimų (nerealu), todėl tai matuojama atskirai.
+
 ## 4. Siūloma kryptis
 
 - **Integracija:** 1) ORDS tik skaitymo REST („pakitę nuo X“, „asmens pranešimai“), CRM worker
@@ -103,7 +123,7 @@ peržiūros sąrašą sudaro foninis `find_duplicates` (`crm-worker` kas ciklą,
 1. ~~Didelių kiekių matavimas~~ — atlikta (§3, `load-large.yml`).
 2. Mastelio etapai, po kiekvieno — pakartotinis `load-large.yml`:
    1) ~~dublikatai~~ — atlikta (0.84.0, §3);
-   2) paieška ir sąrašai — `pg_trgm`, `EXISTS` vietoj `JOIN` + `distinct`, `COUNT` su riba; naujo asmens formos įmonių pasirinkimas;
+   2) ~~paieška ir sąrašai~~ — atlikta (0.85.0, §3);
    3) darbastalis ir analitika — iš anksto suskaičiuota;
    4) sisteminiai laukai ir didelis importas porcijomis;
    5) kortelės veiklų puslapiavimas.
