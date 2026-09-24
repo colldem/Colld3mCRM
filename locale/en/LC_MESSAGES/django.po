@@ -1499,9 +1499,6 @@ msgstr "Column mapping"
 msgid "— nenaudoti"
 msgstr "— skip"
 
-msgid "Kai įrašas jau egzistuoja (pagal el. paštą arba vardą ir pavardę)"
-msgstr "When a record already exists (by e-mail or first and last name)"
-
 msgid "Atnaujinti esamą įrašą"
 msgstr "Update the existing record"
 
@@ -1747,14 +1744,6 @@ msgstr "No data."
 
 msgid "Dukart spustelėkite reikšmę, kad redaguotumėte vietoje."
 msgstr "Double-click a value to edit it in place."
-
-msgid ""
-"Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, "
-"Adresai, URL, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius "
-"priskirsite kitame žingsnyje."
-msgstr ""
-"Recognised columns: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, "
-"URL, Tagai, Kategorijos, Atsakingas. You can map the rest in the next step."
 
 msgid "Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai."
 msgstr "No dynamic fields. Create them in Settings → Dynamic fields."
@@ -4606,3 +4595,21 @@ msgid "%(total)s foninis darbas vėluoja arba klysta"
 msgid_plural "%(total)s foniniai darbai vėluoja arba klysta"
 msgstr[0] "%(total)s background job is late or failing"
 msgstr[1] "%(total)s background jobs are late or failing"
+
+msgid "Kai įrašas jau egzistuoja (pagal išorinį ID, asmens kodą, el. paštą arba vardą ir pavardę)"
+msgstr "When the record already exists (by external ID, personal code, e-mail or first and last name)"
+
+msgid "Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Tagai, Kategorijos, Atsakingas, Gimimo data, Šaltinis, Išorinis ID ir — turint teisę matyti asmens kodus — Asmens kodas (atpažįstamas tik pagal pavadinimą: „Asmens kodas“, personal_code arba AK; užšifruojamas iškart įkėlus). Nepatvarpytus stulpelius priskirsite kitame žingsnyje."
+msgstr "Recognised columns: first name, last name, company, phones, e-mails, addresses, URL, tags, categories, owner, date of birth, source, external ID and — with the right to view personal codes — the personal code (recognised by its header only: “Asmens kodas”, personal_code or AK; encrypted as soon as the file is read). Unrecognised columns are assigned in the next step."
+
+msgid "Šaltinis (išorinė sistema)"
+msgstr "Source (external system)"
+
+msgid "Asmens kodų stulpelis praleistas: neturite teisės matyti asmens kodų arba nenustatytas CRM_SECRETS_KEY."
+msgstr "The personal code column was skipped: you may not view personal codes, or CRM_SECRETS_KEY is not set."
+
+msgid "Gimimo data turi būti MMMM-MM-DD."
+msgstr "The date of birth must be YYYY-MM-DD."
+
+msgid "Šis išorinis ID jau priklauso kitam kontaktui."
+msgstr "This external ID already belongs to another contact."

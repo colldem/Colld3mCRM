@@ -35,7 +35,7 @@ from .filters import (
     saved_filter_payload,
 )
 from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, SystemSettings, Tag, Team, UserProfile, WebLink
-from . import identity
+from . import crypto, identity
 from .permissions import visible_companies, visible_people, visible_reminders
 from .reminder_queries import open_q
 from .sanitizers import csv_safe, safe_url
@@ -2692,6 +2692,8 @@ def _resolve_import_owner(value, cache):
     return user
 
 
+PERSONAL_CODE_FIELD = "Asmens kodas"
+
 # Canonical import field -> (human label, accepted header aliases). The first
 # alias is the key that _value()/_import_relation_names() look for first, so the
 # column-mapping step rewrites every row to use it.
@@ -2708,8 +2710,41 @@ IMPORT_COLUMNS = [
     ("Kategorijos", tr("Kategorijos"), ("Kategorijos", "Categories", "categories")),
     ("Atsakingas", tr("Atsakingas (pagrindinis)"), ("Atsakingas", "owner", "Owner")),
     ("Atsakingi", tr("Atsakingi (papildomi)"), ("Atsakingi", "responsibles", "Responsibles")),
+    ("Gimimo data", tr("Gimimo data"), ("Gimimo data", "birth_date", "Birth date")),
+    ("Šaltinis", tr("Šaltinis (išorinė sistema)"), ("Šaltinis", "external_source", "Source")),
+    ("Išorinis ID", tr("Išorinis ID"), ("Išorinis ID", "external_id", "External ID")),
+    ("Identifikatoriaus tipas", tr("Identifikatoriaus tipas"), ("Identifikatoriaus tipas", "personal_code_type")),
+    # Recognised by its header only (see _protect_personal_codes); never offered for another column.
+    (PERSONAL_CODE_FIELD, tr("Asmens kodas / identifikatorius"), (PERSONAL_CODE_FIELD, "personal_code", "AK")),
 ]
 IMPORT_FIELD_KEYS = [key for key, _label, _aliases in IMPORT_COLUMNS]
+
+
+def _protect_personal_codes(rows, user):
+    """Encrypt the personal-code column the moment a file is read.
+
+    The rows wait in the session (the database) between the preview and the
+    confirmation, and failed rows in the error report, so the code must never
+    be there in the clear. The column is recognised by its header; without the
+    "view personal code" right, or without CRM_SECRETS_KEY, it is dropped.
+    Returns (rows, protected headers, dropped headers)."""
+    from .permissions import has_capability
+
+    aliases = {alias.lower() for alias in dict((key, a) for key, _l, a in IMPORT_COLUMNS)[PERSONAL_CODE_FIELD]}
+    headers = [header for header in (rows[0] if rows else {}) if header.strip().lower() in aliases]
+    if not headers:
+        return rows, [], []
+    if not (has_capability(user, "can_view_personal_code") and identity.available()):
+        return [{k: v for k, v in row.items() if k not in headers} for row in rows], [], headers
+    for row in rows:
+        for header in headers:
+            row[header] = crypto.encrypt(row[header].strip()) if row[header].strip() else ""
+    return rows, headers, []
+
+
+def _shown_cell(value):
+    """A cell as the preview and the error report may show it: never a personal code."""
+    return "•••" if crypto.looks_encrypted(value) else value
 
 
 def _guess_import_mapping(headers):
@@ -2748,12 +2783,20 @@ def _import_one_row(row, owner, mode, owner_cache, can_reassign=True):
         return "skipped", None
     email_values = list(filter(None, (item.strip() for item in _value(row, "El. paštai", "El. paštas", "email", "Email").split(";"))))
     email = email_values[0] if email_values else ""
+    external = (_value(row, "Šaltinis")[:32], _value(row, "Išorinis ID")[:64])
+    code, code_kind, code_hash = _import_personal_code(row, owner)
     person = None
     if mode != "new":
         from .permissions import visible_people
 
+        # The most specific key first: the other system's id, the personal code,
+        # then — as before — the e-mail and the name.
         base = Person.objects.filter(deleted_at__isnull=True)
-        match = base.filter(emails__email__iexact=email) if email else base.none()
+        match = base.filter(external_source=external[0], external_id=external[1]) if external[1] else base.none()
+        if not match.exists() and code_hash:
+            match = base.filter(personal_code_hash=code_hash)
+        if not match.exists() and email:
+            match = base.filter(emails__email__iexact=email)
         if not match.exists():
             match = base.filter(first_name__iexact=first_name, last_name__iexact=last_name)
         person = visible_people(owner, match).first()
@@ -2776,11 +2819,12 @@ def _import_one_row(row, owner, mode, owner_cache, can_reassign=True):
                 setattr(person, field, value)
         if row_owner:
             person.owner = row_owner
-        person.save()
         outcome = "updated"
     else:
-        person = Person.objects.create(owner=row_owner or owner, created_by=owner, **values)
+        person = Person(owner=row_owner or owner, created_by=owner, **values)
         outcome = "created"
+    _import_identity(person, row, external, code, code_kind, code_hash)
+    person.save()
     for company_name in _import_relation_names(row, "Įmonė", "company", "Company"):
         company, _ = Company.objects.get_or_create(name=company_name)
         PersonCompanyLink.objects.get_or_create(
@@ -2807,6 +2851,39 @@ def _import_one_row(row, owner, mode, owner_cache, can_reassign=True):
         if extra:
             person.responsibles.add(*extra)
     return outcome, person
+
+
+def _import_personal_code(row, owner):
+    """(plain code, kind, lookup hash) of a row, or empties — only for someone allowed to see codes."""
+    from .permissions import has_capability
+
+    stored = _value(row, PERSONAL_CODE_FIELD)
+    if not stored or not crypto.looks_encrypted(stored) or not has_capability(owner, "can_view_personal_code"):
+        return "", "", ""
+    code = crypto.decrypt(stored)
+    kind = identity.OTHER if _value(row, "Identifikatoriaus tipas").lower() in {"other", "kitas", identity.OTHER} else identity.LT
+    try:
+        return code, kind, identity.lookup_hash(kind, identity.normalize(kind, code))
+    except ValidationError:
+        raise ValueError(str(tr("Neteisingas asmens kodas."))) from None
+
+
+def _import_identity(person, row, external, code, code_kind, code_hash):
+    """Birth date, external id and personal code from an import row (set only when given)."""
+    if _value(row, "Gimimo data"):
+        from django.utils.dateparse import parse_date
+
+        birth = parse_date(_value(row, "Gimimo data"))
+        if birth is None:
+            raise ValueError(str(tr("Gimimo data turi būti MMMM-MM-DD.")))
+        person.birth_date = birth
+    if external[1]:
+        taken = Person.objects.filter(external_source=external[0], external_id=external[1]).exclude(pk=person.pk)
+        if taken.exists():
+            raise ValueError(str(tr("Šis išorinis ID jau priklauso kitam kontaktui.")))
+        person.external_source, person.external_id = external
+    if code_hash and code_hash != person.personal_code_hash:
+        identity.assign(person, code_kind, code)
 
 
 @transaction.atomic
@@ -2890,7 +2967,7 @@ def _read_import_rows(upload):
     return [{str(key): ("" if value is None else str(value)) for key, value in row.items() if key} for row in raw]
 
 
-def _import_preview(rows, mapping):
+def _import_preview(rows, mapping, code_headers=()):
     mapped = _apply_import_mapping(rows, mapping)
     created = updated = skipped = problems = 0
     for row in mapped:
@@ -2902,17 +2979,23 @@ def _import_preview(rows, mapping):
             continue
         if len(_import_relation_names(row, "Tagai", "Žymos", "Tags", "tags")) > 3 or len(_import_relation_names(row, "Kategorijos", "Categories", "categories")) > 3:
             problems += 1
-        match = (emails and Person.objects.filter(emails__email__iexact=emails[0], deleted_at__isnull=True).exists()) or \
-            Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).exists()
+        alive = Person.objects.filter(deleted_at__isnull=True)
+        code = _value(row, PERSONAL_CODE_FIELD)
+        hashes = identity.candidate_hashes(crypto.decrypt(code)) if crypto.looks_encrypted(code) else []
+        match = (_value(row, "Išorinis ID") and alive.filter(external_source=_value(row, "Šaltinis"),
+                                                               external_id=_value(row, "Išorinis ID")).exists()) or \
+            (hashes and alive.filter(personal_code_hash__in=hashes).exists()) or \
+            (emails and alive.filter(emails__email__iexact=emails[0]).exists()) or \
+            alive.filter(first_name__iexact=first_name, last_name__iexact=last_name).exists()
         if match:
             updated += 1
         else:
             created += 1
     headers = list(rows[0].keys()) if rows else []
     return {"total": len(rows), "created": created, "updated": updated, "skipped": skipped, "problems": problems,
-            "headers": headers, "sample": [[row.get(header, "") for header in headers] for row in rows[:8]],
+            "headers": headers, "sample": [[_shown_cell(row.get(header, "")) for header in headers] for row in rows[:8]],
             "columns": [{"key": key, "label": label} for key, label, _aliases in IMPORT_COLUMNS],
-            "mapping": mapping}
+            "mapping": mapping, "code_headers": list(code_headers), "code_field": PERSONAL_CODE_FIELD}
 
 
 @login_required
@@ -2941,6 +3024,9 @@ def contacts_import(request):
         else:
             headers = list(rows[0].keys()) if rows else []
             submitted = {header: request.POST.get("map_" + header, "").strip() for header in headers if request.POST.get("map_" + header, "").strip() in IMPORT_FIELD_KEYS}
+            # Only a column encrypted on upload may be read as personal codes.
+            code_headers = request.session.pop("import_code_headers", [])
+            submitted = {h: f for h, f in submitted.items() if f != PERSONAL_CODE_FIELD or h in code_headers}
             mapping = submitted or stored_mapping
             mode = request.POST.get("dedup") if request.POST.get("dedup") in {"skip", "update", "new"} else "update"
             try:
@@ -2971,11 +3057,16 @@ def contacts_import(request):
             if rows is not None and len(rows) > IMPORT_PREVIEW_LIMIT:
                 messages.error(request, tr("Peržiūrai skirtas failas su ne daugiau kaip %(n)s eilučių.") % {"n": IMPORT_PREVIEW_LIMIT})
             elif rows:
+                rows, code_headers, dropped = _protect_personal_codes(rows, request.user)
+                if dropped:
+                    messages.warning(request, tr("Asmens kodų stulpelis praleistas: neturite teisės matyti asmens kodų "
+                                                 "arba nenustatytas CRM_SECRETS_KEY."))
                 headers = list(rows[0].keys())
                 mapping = _guess_import_mapping(headers)
                 request.session["import_rows"] = rows
                 request.session["import_mapping"] = mapping
-                context["preview"] = _import_preview(rows, mapping)
+                request.session["import_code_headers"] = code_headers
+                context["preview"] = _import_preview(rows, mapping, code_headers)
             elif rows is not None:
                 messages.error(request, tr("Faile nerasta įrašų."))
     else:
@@ -3004,7 +3095,10 @@ def contacts_import_errors(request):
     writer = csv.writer(response)
     writer.writerow([str(tr("Eilutė")), str(tr("Klaida"))] + field_names)
     for entry in errors:
-        writer.writerow([entry["row"], csv_safe(entry["error"])] + [csv_safe(entry["data"].get(name, "")) for name in field_names])
+        # A personal code is not written back out; it has to come from its source again.
+        writer.writerow([entry["row"], csv_safe(entry["error"])] + [
+            "" if crypto.looks_encrypted(entry["data"].get(name, "")) else csv_safe(entry["data"].get(name, ""))
+            for name in field_names])
     return response
 
 

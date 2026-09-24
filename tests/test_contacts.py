@@ -8556,6 +8556,63 @@ class PersonIdentityTests(TestCase):
         page = self.client.post(reverse("contacts:settings-privacy"), {"q": self.CODE})
         self.assertEqual(list(page.context["people"]), [self.person])
 
+    def _browser_import(self, content, **confirm):
+        upload = SimpleUploadedFile("regitra.csv", content.encode(), content_type="text/csv")
+        preview = self.client.post(reverse("contacts:import-export"), {"file": upload})
+        return preview, self.client.post(reverse("contacts:import-export"), {"confirm": "1", "dedup": "update", **confirm})
+
+    def test_the_browser_import_takes_identity_columns_and_never_stores_the_code_plain(self):
+        from django.contrib.sessions.models import Session
+
+        self.client.force_login(self.admin)
+        content = ("Vardas,Pavardė,Asmens kodas,Gimimo data,Šaltinis,Išorinis ID\n"
+                   "Ona,Naršyklė,%s,,regitra,R900\n" % self.CODE)
+        upload = SimpleUploadedFile("regitra.csv", content.encode(), content_type="text/csv")
+        preview = self.client.post(reverse("contacts:import-export"), {"file": upload})
+        self.assertNotContains(preview, self.CODE)
+        self.assertContains(preview, "•••")
+        self.assertNotIn(self.CODE, "".join(row.session_data for row in Session.objects.all()))
+        self.assertNotIn(self.CODE, json.dumps(self.client.session["import_rows"]))
+        self.client.post(reverse("contacts:import-export"), {"confirm": "1", "dedup": "update"})
+        ona = Person.objects.get(external_source="regitra", external_id="R900")
+        self.assertEqual((ona.first_name, ona.birth_date.isoformat()), ("Ona", "1987-03-18"))
+        from contacts import identity
+        self.assertEqual(identity.reveal(ona), self.CODE)
+        # The same external id updates the same person, whatever the name says now.
+        self._browser_import("Vardas,Pavardė,Šaltinis,Išorinis ID\nOna,Pakeista,regitra,R900\n")
+        ona.refresh_from_db()
+        self.assertEqual(ona.last_name, "Pakeista")
+        self.assertEqual(Person.objects.filter(external_id="R900").count(), 1)
+
+    def test_the_personal_code_finds_the_person_to_update(self):
+        self._with_code()
+        self.client.force_login(self.admin)
+        self._browser_import("Vardas,Pavardė,AK\nJonas,Naujapavardis,%s\n" % self.CODE)
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.last_name, "Naujapavardis")
+        self.assertEqual(Person.objects.count(), 1)
+
+    def test_without_the_right_the_code_column_is_dropped(self):
+        self.client.force_login(self.member)
+        preview, _result = self._browser_import("Vardas,Pavardė,Asmens kodas\nPetras,Be Kodo,%s\n" % self.CODE)
+        self.assertContains(preview, "Asmens kodų stulpelis praleistas")
+        self.assertNotIn(self.CODE, json.dumps(self.client.session.get("import_rows") or []))
+        self.assertEqual(Person.objects.get(last_name="Be Kodo").personal_code_hash, "")
+
+    def test_a_bad_code_is_a_row_error_and_the_error_report_leaves_it_out(self):
+        self.client.force_login(self.admin)
+        _preview, result = self._browser_import("Vardas,Pavardė,Asmens kodas\nBlogas,Kodas,12345678901\n")
+        self.assertContains(result, "Klaidos: 1")
+        report = self.client.get(reverse("contacts:import-errors")).content.decode()
+        self.assertIn("Neteisingas asmens kodas", report)
+        self.assertNotIn("12345678901", report)
+
+    def test_another_column_cannot_be_mapped_to_the_personal_code(self):
+        self.client.force_login(self.admin)
+        self._browser_import("Vardas,Pavardė,Pastaba\nKitas,Stulpelis,%s\n" % self.CODE,
+                             **{"map_Vardas": "Vardas", "map_Pavardė": "Pavardė", "map_Pastaba": "Asmens kodas"})
+        self.assertEqual(Person.objects.get(last_name="Stulpelis").personal_code_hash, "")
+
     def test_the_data_subject_export_carries_the_code(self):
         from contacts.privacy import find_people, person_data
 

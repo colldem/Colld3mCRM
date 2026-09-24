@@ -175,7 +175,7 @@ naršyklės istoriją ir proxy žurnalus; vienas rastas atveriamas iškart.
       - C. pranešimai į išorę — NAS: Uptime Kuma (`/health/ready`, `/health/jobs` → el. paštas / Telegram /
         Teams); organizacijoje: `/metrics` + `docs/DEPLOYMENT.md` įspėjimų taisyklės į Prometheus / Zabbix.
 3. Integracijos prototipas su netikru ORDS stiliaus API.
-4. Naršyklės importo lange (Nustatymai → Importas / eksportas) priimti ir `personal_code`,
+4. ~~Naršyklės importo lange~~ — atlikta (0.90.0): priimami ir `personal_code`,
    `personal_code_type`, `birth_date`, `external_source` / `external_id` stulpelius — ta pati logika kaip
    `import_people` (asmens kodo stulpelis rodomas tik turint teisę *Matyti asmens kodą*).
 5. Regitros paslaugos, vizitai ir prašymai kortelėje pagal `external_id` — gyvai iš Regitros API (ORDS),

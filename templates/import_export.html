@@ -21,13 +21,13 @@
               <label>{{ header }}
                 <select name="map_{{ header }}">
                   <option value="">{% translate '— nenaudoti' %}</option>
-                  {% for column in preview.columns %}<option value="{{ column.key }}" {% if preview.mapping|get_item:header == column.key %}selected{% endif %}>{{ column.label }}</option>{% endfor %}
+                  {% for column in preview.columns %}{% if column.key != preview.code_field or header in preview.code_headers %}<option value="{{ column.key }}" {% if preview.mapping|get_item:header == column.key %}selected{% endif %}>{{ column.label }}</option>{% endif %}{% endfor %}
                 </select>
               </label>
             {% endfor %}
           </fieldset>
           <fieldset class="import-dedup">
-            <legend>{% translate 'Kai įrašas jau egzistuoja (pagal el. paštą arba vardą ir pavardę)' %}</legend>
+            <legend>{% translate 'Kai įrašas jau egzistuoja (pagal išorinį ID, asmens kodą, el. paštą arba vardą ir pavardę)' %}</legend>
             <label><input type="radio" name="dedup" value="update" checked> {% translate 'Atnaujinti esamą įrašą' %}</label>
             <label><input type="radio" name="dedup" value="skip"> {% translate 'Praleisti (nieko nekeisti)' %}</label>
             <label><input type="radio" name="dedup" value="new"> {% translate 'Visada kurti naują įrašą' %}</label>
@@ -36,7 +36,7 @@
           <div class="import-card-actions"><button class="btn primary" type="submit">{% translate 'Patvirtinti importą' %}</button><a class="btn" href="{% url 'contacts:import-export' %}">{% translate 'Atšaukti' %}</a></div>
         </form>
       {% else %}
-        <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius priskirsite kitame žingsnyje.' %}</p>
+        <p>{% translate 'Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Tagai, Kategorijos, Atsakingas, Gimimo data, Šaltinis, Išorinis ID ir — turint teisę matyti asmens kodus — Asmens kodas (atpažįstamas tik pagal pavadinimą: „Asmens kodas“, personal_code arba AK; užšifruojamas iškart įkėlus). Nepatvarpytus stulpelius priskirsite kitame žingsnyje.' %}</p>
         <form method="post" enctype="multipart/form-data">
           {% csrf_token %}
           <input type="file" name="file" accept=".csv,.xlsx" required>

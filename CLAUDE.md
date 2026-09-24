@@ -114,6 +114,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `api.contacts_lookup` (`POST /api/v1/contacts/lookup`) — skambučių centro (Genesys) paieška;
   11 skaitmenų paieška UI — `static/js/search.js` siunčia POST (`search_personal_code`, `search_suggest`, privatumo langas), kad kodas nebūtų URL;
   `bulk_import.py` + `management/commands/import_people.py` — didelis įkėlimas / sinchronizacija CSV porcijomis pagal išorinį ID;
+  naršyklės importas (`views.contacts_import`) — asmens kodo stulpelis užšifruojamas iškart įkėlus (`_protect_personal_codes`), kol eilutės laukia sesijoje;
   `antivirus.py` — ClamAV (clamd INSTREAM) visų įkeliamų failų tikrinimas; `compose.clamav.yaml` — ClamAV perdanga;
   `privacy.py` — duomenų subjekto eksportas (ZIP) ir ištrynimas su žurnalo nuasmeninimu; `anonymize.py` — staging nuasmeninimas;
   `observability.py` — JSON žurnalai (`CRM_LOG_FORMAT`), `X-Request-ID`, `crm.security` įvykiai (audito veidrodis be asmens duomenų);
