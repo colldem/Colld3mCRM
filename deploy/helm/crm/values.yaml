@@ -131,6 +131,9 @@ worker:
     apply-retention:
       command: apply_retention
       schedule: "57 2 * * *"
+    find-duplicates:
+      command: find_duplicates
+      schedule: "*/5 * * * *"
 
 gunicorn:
   workers: 2

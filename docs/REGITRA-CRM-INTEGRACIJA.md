@@ -70,6 +70,20 @@ Web proceso atmintis pakilo iki **6,6 GB** (dublikatai) — 1 GB konteineryje pr
 Analitika: `COUNT` su `person_id IN (visi asmenys) OR company_id IN (...)` — 800 tūkst. id netelpa į
 `work_mem`, PostgreSQL tikrina kiekvieną veiklą per visą asmenų sąrašą (valandos).
 
+### 1 etapas — dublikatai (0.84.0)
+
+Tikrinimas išsaugant ieško per indeksus (`match_key` — `LOWER(TRIM(...))`, telefonų `digits`),
+peržiūros sąrašą sudaro foninis `find_duplicates` (`crm-worker` kas ciklą, K8s CronJob kas 5 min.)
+į `DuplicateCandidate`; puslapis tik skaito, puslapiuoja po 50 ir tikrina matomumą `EXISTS` per porą.
+
+| Matavimas (800 tūkst.) | Prieš | Po |
+|---|---|---|
+| Dublikatų tikrinimas išsaugant | 139 s | 0,03 s |
+| Dublikatų sąrašas | > 150 s | 1,6 s |
+| Web proceso atmintis (dublikatai) | 6,6 GB | nepastebima |
+| Foninė patikra `find_duplicates` | — | 11 s, 87 MB, 16 136 porų |
+| Migracija 0057 (telefonų skaitmenų užpildymas) | — | ~2 min. |
+
 ## 4. Siūloma kryptis
 
 - **Integracija:** 1) ORDS tik skaitymo REST („pakitę nuo X“, „asmens pranešimai“), CRM worker
@@ -88,7 +102,7 @@ Analitika: `COUNT` su `person_id IN (visi asmenys) OR company_id IN (...)` — 8
 
 1. ~~Didelių kiekių matavimas~~ — atlikta (§3, `load-large.yml`).
 2. Mastelio etapai, po kiekvieno — pakartotinis `load-large.yml`:
-   1) dublikatai — indeksuoti normalizuoti laukai, momentinis tikrinimas per indeksą, pilnas sąrašas fone;
+   1) ~~dublikatai~~ — atlikta (0.84.0, §3);
    2) paieška ir sąrašai — `pg_trgm`, `EXISTS` vietoj `JOIN` + `distinct`, `COUNT` su riba; naujo asmens formos įmonių pasirinkimas;
    3) darbastalis ir analitika — iš anksto suskaičiuota;
    4) sisteminiai laukai ir didelis importas porcijomis;

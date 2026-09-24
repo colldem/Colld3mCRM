@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime, time, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -16,7 +16,7 @@ from django.utils import timezone, translation
 
 from contacts import crypto
 from contacts.models import Activity, ApiToken, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, RolePermissions, SavedFilter, Tag, Team, UserProfile, WebLink
-from contacts.duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
+from contacts.duplicates import find_company_duplicates, find_person_duplicates, scan_duplicates
 from contacts import permissions as perm
 
 
@@ -2033,6 +2033,7 @@ class ContactViewTests(TestCase):
         self.assertNotContains(settings_response, 'name="level"')   # one fixed rule, no level
         other = Person.objects.create(first_name="Kita", last_name="Pavardė")
         EmailAddress.objects.create(person=other, email="ruta@example.lt")
+        scan_duplicates()
         response = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(response, self.person.get_absolute_url())
         self.assertContains(response, other.get_absolute_url())
@@ -2048,6 +2049,7 @@ class ContactViewTests(TestCase):
         keep = Person.objects.create(first_name="Petras", last_name="Petraitis")
         dup1 = Person.objects.create(first_name="Petras", last_name="Petraitis")
         dup2 = Person.objects.create(first_name="Petras", last_name="Petraitis")
+        scan_duplicates()
         response = self.client.post(reverse("contacts:duplicate-merge-all"), follow=True)
         self.assertContains(response, "Sujungta dublikatų porų")
         self.assertEqual(Person.objects.filter(first_name="Petras", deleted_at__isnull=True).count(), 1)
@@ -2091,6 +2093,7 @@ class ContactViewTests(TestCase):
         response = self.client.post(reverse("contacts:company-create"), {**payload, "confirm_duplicate": "1"})
         self.assertEqual(response.status_code, 302)
         created = Company.objects.get(name="Kita įmonė")
+        scan_duplicates()
         response = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(response, self.company.get_absolute_url())
         self.assertContains(response, created.get_absolute_url())
@@ -2165,6 +2168,7 @@ class ContactViewTests(TestCase):
         self.client.force_login(self.user)
         other = Person.objects.create(first_name="Kita", last_name="Kontaktė")
         EmailAddress.objects.create(person=other, email="ruta@example.lt")
+        scan_duplicates()
         review = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(review, reverse("contacts:duplicate-merge", args=["person", other.pk, self.person.pk]))
         self.assertContains(review, reverse("contacts:duplicate-merge", args=["person", self.person.pk, other.pk]))
@@ -2355,13 +2359,15 @@ class ContactViewTests(TestCase):
             {"name": "", "company_code": "", "vat_code": "",
              "email": "bendras@example.lt", "phone": "+37060011122"}, exclude_pk=None,
         ) and [], [])   # a person's contact details do not surface as a company match
-        pairs = all_person_duplicate_pairs() + all_company_duplicate_pairs()
-        self.assertEqual(pairs, [])
+        from contacts.models import DuplicateCandidate
+        scan_duplicates()
+        self.assertFalse(DuplicateCandidate.objects.exists())
 
     def test_strict_review_detects_exact_full_name(self):
         self.client.force_login(self.user)
         DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True})
         other = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
+        scan_duplicates()
 
         response = self.client.get(reverse("contacts:duplicate-list"))
 
@@ -2376,11 +2382,15 @@ class ContactViewTests(TestCase):
         self.user.save(update_fields=["is_superuser"])
         DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True})
         twin = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
+        scan_duplicates()
 
         low, high = sorted((self.person.pk, twin.pk))
         self.client.post(reverse("contacts:duplicate-dismiss", args=["person", low, high]))
         self.assertEqual(DuplicateException.objects.filter(kind="person", left_id=low, right_id=high).count(), 1)
 
+        # Gone at once, and the next scan does not bring it back.
+        self.assertContains(self.client.get(reverse("contacts:duplicate-list")), "Galimų dublikatų nerasta")
+        scan_duplicates()
         self.assertContains(self.client.get(reverse("contacts:duplicate-list")), "Galimų dublikatų nerasta")
         # Editing one of them no longer warns about the other.
         data = {"first_name": self.person.first_name, "last_name": self.person.last_name,
@@ -2424,6 +2434,7 @@ class ContactViewTests(TestCase):
         _preview, response = self._import_file(SimpleUploadedFile("contacts.csv", content, content_type="text/csv"))
         self.assertContains(response, "Galimi dublikatai: 1")
         imported = Person.objects.get(first_name="Kitas", last_name="Asmuo")
+        scan_duplicates()
         review = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(review, self.person.get_absolute_url())
         self.assertContains(review, imported.get_absolute_url())
@@ -7989,3 +8000,135 @@ class StagingPublicSwitchTests(TestCase):
         self.assertIn('options: ["tailnet", "public"]', workflow)
         self.assertIn('default: "tailnet"', workflow)
         self.assertIn("sanitize_staging", workflow)
+
+
+class DuplicateScanTests(TestCase):
+    """The review list is built in the background; the save-time check uses indexes."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("dublikatai", password="very-secure-password")
+        self.client.force_login(self.admin)
+
+    def _pair(self, **fields):
+        first = Person.objects.create(first_name="Ona", last_name="Onaitė", **fields)
+        second = Person.objects.create(first_name="Ona", last_name="Onaitė", **fields)
+        return first, second
+
+    def test_matching_ignores_case_spaces_and_phone_formatting(self):
+        person = Person.objects.create(first_name="Rūta", last_name="Žukaitė")
+        EmailAddress.objects.create(person=person, email="Ruta.Z@Example.LT")
+        PhoneNumber.objects.create(person=person, number="+370 (645) 21-987")
+        data = {"first_name": " rūta ", "last_name": "ŽUKAITĖ", "email": "ruta.z@example.lt ",
+                "phone": "37064521987", "companies": []}
+        [match] = find_person_duplicates(data)
+        self.assertEqual((match["record"], match["reasons"]), (person, ["name", "email", "phone"]))
+        company = Company.objects.create(name="UAB Pavyzdys", phone="+370 5 212 3456")
+        [match] = find_company_duplicates({"name": "uab pavyzdys ", "phone": "852123456 ", "email": "",
+                                           "vat_code": "", "company_code": ""})
+        self.assertEqual((match["record"], match["reasons"]), (company, ["name"]))
+        [match] = find_company_duplicates({"name": "", "phone": "(370) 5 212 3456", "email": "",
+                                           "vat_code": "", "company_code": ""})
+        self.assertEqual(match["reasons"], ["phone"])
+
+    def test_phone_digits_follow_every_save(self):
+        company = Company.objects.create(name="Skaitmenys", phone="+370 600 00001")
+        self.assertEqual(company.phone_digits, "37060000001")
+        company.phone = "8 600 00002"
+        company.save(update_fields=["phone"])
+        company.refresh_from_db()
+        self.assertEqual(company.phone_digits, "860000002")
+        phone = PhoneNumber.objects.create(person=Person.objects.create(first_name="A", last_name="B"), number="+370 1")
+        phone.number = "+370 600 12345"
+        phone.save(update_fields=["number"])
+        phone.refresh_from_db()
+        self.assertEqual(phone.digits, "37060012345")
+
+    def test_the_list_only_reads_what_the_background_scan_found(self):
+        from django.core.management import call_command
+        from contacts.models import JobHeartbeat
+
+        first, second = self._pair()
+        page = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertNotContains(page, second.get_absolute_url())
+        self.assertContains(page, "Pirmasis patikrinimas dar neatliktas")
+        call_command("find_duplicates", stdout=StringIO())
+        self.assertTrue(JobHeartbeat.objects.get(name="find_duplicates").last_success_at)
+        page = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertContains(page, second.get_absolute_url())
+        self.assertContains(page, "Paskutinį kartą patikrinta")
+
+    def test_a_rescan_drops_pairs_that_no_longer_match(self):
+        from contacts.models import DuplicateCandidate
+
+        first, second = self._pair()
+        self.assertEqual(scan_duplicates()["person"]["added"], 1)
+        second.last_name = "Kitokia"
+        second.save()
+        self.assertEqual(scan_duplicates()["person"]["removed"], 1)
+        self.assertFalse(DuplicateCandidate.objects.exists())
+
+    def test_a_value_shared_by_too_many_records_is_not_a_pair(self):
+        from contacts import duplicates
+
+        for index in range(3):
+            person = Person.objects.create(first_name="Centras", last_name="Nr%d" % index)
+            PhoneNumber.objects.create(person=person, number="+370 5 200 0000")
+        with patch.object(duplicates, "MAX_GROUP", 2):
+            summary = scan_duplicates()
+        self.assertEqual((summary["person"]["pairs"], summary["person"]["skipped_groups"]), (0, 1))
+        self.assertEqual(scan_duplicates()["person"]["pairs"], 3)
+
+    def test_merging_removes_the_pair_at_once(self):
+        from contacts.models import DuplicateCandidate
+
+        first, second = self._pair()
+        scan_duplicates()
+        response = self.client.post(reverse("contacts:duplicate-merge", args=["person", second.pk, first.pk]))
+        self.assertRedirects(response, first.get_absolute_url())
+        self.assertFalse(DuplicateCandidate.objects.exists())
+
+    def test_merge_rejects_a_pair_the_rule_no_longer_matches(self):
+        first = Person.objects.create(first_name="Ona", last_name="Onaitė")
+        other = Person.objects.create(first_name="Kita", last_name="Asmenybė")
+        response = self.client.post(reverse("contacts:duplicate-merge", args=["person", other.pk, first.pk]))
+        self.assertEqual(response.status_code, 400)
+
+    def test_a_restricted_user_sees_only_pairs_of_their_own_records(self):
+        member = get_user_model().objects.create_user("savi", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        mine = self._pair(owner=member)
+        theirs = self._pair(owner=self.admin)
+        scan_duplicates()
+        self.client.force_login(member)
+        page = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertContains(page, mine[1].get_absolute_url())
+        self.assertNotContains(page, theirs[1].get_absolute_url())
+
+    def test_merge_all_works_in_batches(self):
+        from contacts import views
+
+        self._pair()
+        Person.objects.create(first_name="Jonas", last_name="Jonaitis")
+        Person.objects.create(first_name="Jonas", last_name="Jonaitis")
+        scan_duplicates()
+        with patch.object(views, "MERGE_ALL_BATCH", 1):
+            response = self.client.post(reverse("contacts:duplicate-merge-all"), follow=True)
+        self.assertContains(response, "Sujungta dublikatų porų: 1")
+        self.assertContains(response, "Liko daugiau porų")
+        self.client.post(reverse("contacts:duplicate-merge-all"))
+        self.assertEqual(Person.objects.filter(deleted_at__isnull=True).count(), 2)
+
+    def test_merge_all_skips_a_pair_that_changed_since_the_scan(self):
+        first, second = self._pair()
+        scan_duplicates()
+        second.last_name = "Pasikeitė"
+        second.save()
+        response = self.client.post(reverse("contacts:duplicate-merge-all"), follow=True)
+        self.assertContains(response, "Sujungiamų dublikatų nerasta")
+        second.refresh_from_db()
+        self.assertIsNone(second.deleted_at)
+
+    def test_worker_and_kubernetes_run_the_scan(self):
+        self.assertIn("manage.py find_duplicates", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("command: find_duplicates", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())

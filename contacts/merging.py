@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from .models import Activity, Company, Person, Reminder
+from .models import Activity, Company, DuplicateCandidate, Person, Reminder
 
 
 def _merge_labels(source, target):
@@ -128,6 +128,7 @@ def merge_people(source_pk, target_pk):
     source.merged_into = target
     source.deleted_at = timezone.now()
     source.save(update_fields=["merged_into", "deleted_at", "updated_at"])
+    DuplicateCandidate.forget("person", source.pk)
     return target
 
 
@@ -160,4 +161,5 @@ def merge_companies(source_pk, target_pk):
     source.merged_into = target
     source.deleted_at = timezone.now()
     source.save(update_fields=["merged_into", "deleted_at", "updated_at"])
+    DuplicateCandidate.forget("company", source.pk)
     return target

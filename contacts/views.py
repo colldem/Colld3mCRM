@@ -14,7 +14,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import Count, Max, Min, Prefetch, Q
+from django.db.models import Count, Exists, Max, Min, OuterRef, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -24,7 +24,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import ActivityForm, CompanyForm, DuplicateSettingsForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
-from .duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
+from .duplicates import count_new_person_pairs, find_company_duplicates, find_person_duplicates, is_duplicate_pair
 from .filters import (
     active_filter_count,
     apply_company_filters,
@@ -1837,19 +1837,48 @@ def documentation_page(request):
     })
 
 
+def _visible_candidates(user):
+    """Stored duplicate pairs whose both records are live and visible to ``user``, people first."""
+    from .models import DuplicateCandidate
+
+    # EXISTS per pair (a primary-key lookup), not "IN (every visible record)":
+    # with hundreds of thousands of records that list no longer fits in memory
+    # and PostgreSQL falls back to scanning it once per pair.
+    def visible(model, scope, side):
+        return Exists(scope(user, model.objects.filter(pk=OuterRef(side), deleted_at__isnull=True)))
+
+    return DuplicateCandidate.objects.filter(
+        Q(visible(Person, visible_people, "left_id"), visible(Person, visible_people, "right_id"), kind="person")
+        | Q(visible(Company, visible_companies, "left_id"), visible(Company, visible_companies, "right_id"), kind="company")
+    ).order_by("-kind", "left_id", "right_id")
+
+
+def _candidate_pairs(candidates):
+    """The template's pair dicts for a page of DuplicateCandidate rows."""
+    ids = {"person": set(), "company": set()}
+    for candidate in candidates:
+        ids[candidate.kind].update((candidate.left_id, candidate.right_id))
+    records = {"person": Person.objects.in_bulk(ids["person"]), "company": Company.objects.in_bulk(ids["company"])}
+    return [{"left": records[c.kind][c.left_id], "right": records[c.kind][c.right_id], "kind": c.kind,
+             "reasons": c.reasons.split(",")}
+            for c in candidates if c.left_id in records[c.kind] and c.right_id in records[c.kind]]
+
+
 @login_required
 def duplicate_list(request):
+    from django.core.paginator import Paginator
+    from .models import JobHeartbeat
+
     duplicate_settings = DuplicateSettings.load()
-    pairs = (all_person_duplicate_pairs() + all_company_duplicate_pairs()) if duplicate_settings.enabled else []
-    from .permissions import can_see_company, can_see_person
-
-    def _visible_pair(pair):
-        left, right = pair["left"], pair["right"]
-        checker = can_see_person if isinstance(left, Person) else can_see_company
-        return checker(request.user, left) and checker(request.user, right)
-
-    pairs = [pair for pair in pairs if _visible_pair(pair)]
-    return render(request, "duplicates/list.html", {"pairs": pairs, "duplicate_settings": duplicate_settings})
+    page = None
+    if duplicate_settings.enabled:
+        page = Paginator(_visible_candidates(request.user), 50).get_page(request.GET.get("page"))
+    scan = JobHeartbeat.objects.filter(name="find_duplicates").first()
+    return render(request, "duplicates/list.html", {
+        "pairs": _candidate_pairs(page) if page else [], "page": page, "duplicate_settings": duplicate_settings,
+        "page_numbers": _elided_page_numbers(page) if page else [],
+        "last_scan_at": scan.last_success_at if scan else None,
+    })
 
 
 @login_required
@@ -1877,6 +1906,9 @@ def duplicate_dismiss(request, kind, left_pk, right_pk):
     return redirect("contacts:duplicate-list")
 
 
+MERGE_ALL_BATCH = 200
+
+
 @login_required
 def duplicate_merge_all(request):
     if request.method != "POST":
@@ -1891,29 +1923,31 @@ def duplicate_merge_all(request):
     from .permissions import can_see_company, can_see_person
 
     merged = 0
-    plans = (
-        (all_person_duplicate_pairs(), can_see_person, merge_people),
-        (all_company_duplicate_pairs(), can_see_company, merge_companies),
-    )
-    for pairs, checker, merge_fn in plans:
-        for pair in pairs:
-            keep, drop = pair["left"], pair["right"]
-            keep.refresh_from_db()
-            drop.refresh_from_db()
-            # A record can already be gone via an earlier merge in a duplicate chain.
-            if keep.deleted_at or drop.deleted_at or keep.merged_into_id or drop.merged_into_id:
-                continue
-            if not (checker(request.user, keep) and checker(request.user, drop)):
-                continue
-            try:
-                target = merge_fn(drop.pk, keep.pk)
-            except ValidationError:
-                continue
-            audit_log(AuditLog.MERGE, request=request, target=target, old=str(drop), new=str(target),
-                      detail={"source_id": drop.pk, "target_id": keep.pk, "bulk": True})
-            merged += 1
+    checkers = {"person": (Person, can_see_person, merge_people), "company": (Company, can_see_company, merge_companies)}
+    # One request merges a bounded batch, so a long list cannot outlast the request timeout.
+    candidates = list(_visible_candidates(request.user)[:MERGE_ALL_BATCH])
+    for candidate in candidates:
+        model, checker, merge_fn = checkers[candidate.kind]
+        keep, drop = model.objects.filter(pk=candidate.left_id).first(), model.objects.filter(pk=candidate.right_id).first()
+        # A record can already be gone via an earlier merge in a duplicate chain.
+        if not keep or not drop or keep.deleted_at or drop.deleted_at or keep.merged_into_id or drop.merged_into_id:
+            continue
+        if not (checker(request.user, keep) and checker(request.user, drop)):
+            continue
+        # The list can be minutes old: merge only pairs the rule still matches.
+        if not is_duplicate_pair(candidate.kind, drop, keep):
+            continue
+        try:
+            target = merge_fn(drop.pk, keep.pk)
+        except ValidationError:
+            continue
+        audit_log(AuditLog.MERGE, request=request, target=target, old=str(drop), new=str(target),
+                  detail={"source_id": drop.pk, "target_id": keep.pk, "bulk": True})
+        merged += 1
     if merged:
         messages.success(request, tr("Sujungta dublikatų porų: %(n)s.") % {"n": merged})
+        if len(candidates) == MERGE_ALL_BATCH:
+            messages.info(request, tr("Liko daugiau porų — paspauskite „Sujungti visus“ dar kartą."))
     else:
         messages.info(request, tr("Sujungiamų dublikatų nerasta."))
     return redirect("contacts:duplicate-list")
@@ -1943,12 +1977,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
     if source.merged_into_id == target.pk:
         return redirect(target.get_absolute_url())
 
-    pair_function = all_person_duplicate_pairs if kind == "person" else all_company_duplicate_pairs
-    is_duplicate_pair = any(
-        {pair["left"].pk, pair["right"].pk} == {source_pk, target_pk}
-        for pair in pair_function()
-    )
-    if not is_duplicate_pair:
+    if not is_duplicate_pair(kind, source, target):
         return HttpResponse(tr("Pasirinkti įrašai pagal dabartines taisykles nėra dublikatai."), status=400)
 
     from .merging import merge_companies, merge_people
@@ -2690,10 +2719,7 @@ def _import_contact_rows(rows, owner=None, *, mode="update", collect_errors=Fals
         else:
             skipped += 1
     if report_duplicates and created_person_ids:
-        possible_duplicates = sum(
-            1 for pair in all_person_duplicate_pairs()
-            if pair["left"].pk in created_person_ids or pair["right"].pk in created_person_ids
-        )
+        possible_duplicates = count_new_person_pairs(created_person_ids)
     return {"created": created, "updated": updated, "skipped": skipped, "possible_duplicates": possible_duplicates,
             "duplicate_check_enabled": report_duplicates, "errors": errors, "error_count": len(errors)}
 

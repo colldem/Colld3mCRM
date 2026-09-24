@@ -40,6 +40,7 @@ MODELS = {
     "RolePermissions": ("Rolių teisių lentelė", "nuolat", "T"),
     "DuplicateSettings": ("Dublikatų tikrinimo nustatymai", "nuolat", "T"),
     "DuplicateException": ("Poros, pažymėtos „ne dublikatas“", "kol yra įrašai", "R"),
+    "DuplicateCandidate": ("Foninės patikros rastos galimų dublikatų poros", "perrašoma kiekvienos patikros metu", "R"),
     "SystemSettings": ("Sistemos nustatymai ir integracijos", "nuolat", "T"),
     "JobHeartbeat": ("Foninių darbų paskutinė sėkmė ar klaida (stebėsenai)", "nuolat, perrašoma", "T"),
     "AuditLog": ("Veiksmų žurnalas: kas, ką, kada, iš kur", "pagal „Saugoti įrašus (dienų)“ (≥180 d. arba visada); nuasmeninamas ištrinant asmenį", "T"),
@@ -56,9 +57,9 @@ MODELS = {
 # hardcoded passwords, hence the reviewed nosec markers below.
 FIELDS = {
     "Person.first_name": "A", "Person.last_name": "A", "Person.job_title": "A", "Person.description": "L",
-    "PhoneNumber.number": "A", "EmailAddress.email": "A", "PostalAddress.address": "A", "WebLink.url": "A",
+    "PhoneNumber.number": "A", "PhoneNumber.digits": "A", "EmailAddress.email": "A", "PostalAddress.address": "A", "WebLink.url": "A",
     "Company.name": "A", "Company.company_code": "A", "Company.vat_code": "A", "Company.address": "A",
-    "Company.phone": "A", "Company.email": "A", "Company.url": "A", "Company.description": "L",
+    "Company.phone": "A", "Company.phone_digits": "A", "Company.email": "A", "Company.url": "A", "Company.description": "L",
     "PersonCompanyLink.role": "A",
     "Activity.text": "L", "Activity.submission_token": "T", "Activity.message_id": "T",  # nosec B105
     "Attachment.file": "L", "Attachment.original_name": "L",

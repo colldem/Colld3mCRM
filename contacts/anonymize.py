@@ -51,15 +51,16 @@ def anonymize():
     counts["people"] = _rewrite(Person.objects.all(), lambda p: {
         "first_name": "Vardas%d" % p.pk, "last_name": "Pavardė%d" % p.pk, "job_title": "", "description": ""},
         ["first_name", "last_name", "job_title", "description"])
-    _rewrite(PhoneNumber.objects.all(), lambda o: {"number": "+370 600 %05d" % (o.pk % 100000)}, ["number"])
+    _rewrite(PhoneNumber.objects.all(), lambda o: {"number": "+370 600 %05d" % (o.pk % 100000),
+                                                   "digits": "37060%05d" % (o.pk % 100000)}, ["number", "digits"])
     _rewrite(EmailAddress.objects.all(), lambda o: {"email": "asmuo%d@example.invalid" % o.pk}, ["email"])
     _rewrite(PostalAddress.objects.all(), lambda o: {"address": "Adresas %d" % o.pk}, ["address"])
     _rewrite(WebLink.objects.all(), lambda o: {"url": "https://example.invalid/%d" % o.pk}, ["url"])
     _rewrite(PersonCompanyLink.objects.exclude(role=""), lambda o: {"role": ""}, ["role"])
     counts["companies"] = _rewrite(Company.objects.all(), lambda c: {
-        "name": "Įmonė %d" % c.pk, "company_code": "", "vat_code": "", "address": "", "phone": "",
+        "name": "Įmonė %d" % c.pk, "company_code": "", "vat_code": "", "address": "", "phone": "", "phone_digits": "",
         "email": "", "url": "", "description": ""},
-        ["name", "company_code", "vat_code", "address", "phone", "email", "url", "description"])
+        ["name", "company_code", "vat_code", "address", "phone", "phone_digits", "email", "url", "description"])
     counts["activities"] = _rewrite(Activity.objects.all(), lambda a: {"text": "Įrašas %d" % a.pk, "message_id": ""},
                                     ["text", "message_id"])
     counts["reminders"] = _rewrite(Reminder.objects.all(), lambda r: {"text": "Priminimas %d" % r.pk}, ["text"])
