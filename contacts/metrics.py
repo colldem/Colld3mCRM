@@ -15,9 +15,7 @@ from django.http import Http404, HttpResponse
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
-JOBS = ("send_notifications", "fetch_mail", "deliver_webhooks", "run_automations", "extend_recurrences",
-        "deactivate_inactive_users", "purge_audit_log", "apply_retention", "find_duplicates",
-        "refresh_analytics")
+from .jobs import JOBS
 
 
 def _escape(value):

@@ -68,6 +68,7 @@ urlpatterns = [
     path("settings/categories/", views.settings_taxonomy, {"kind": "category"}, name="settings-categories"),
     path("settings/duplicates/", views.settings_duplicates, name="settings-duplicates"),
     path("settings/system/", views.settings_system, name="settings-system"),
+    path("settings/system-health/", views.settings_system_health, name="settings-system-health"),
     path("settings/notifications/", views.settings_notifications, name="settings-notifications"),
     path("settings/incoming-mail/", views.settings_incoming_mail, name="settings-incoming-mail"),
     path("settings/login/", views.settings_login, name="settings-login"),

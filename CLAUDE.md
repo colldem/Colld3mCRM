@@ -123,6 +123,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `translations.py` + `middleware.py` — redaguojami sąsajos vertimai (CSV eksportas/importas
   per Nustatymai → Vertimai; override'ai DB, įrašomi tiesiai į Django katalogą veikiant,
   middleware sinchronizuoja procesus per versijos žymą).
+- `jobs.py` — foninių darbų sąrašas ir būsenos (Nustatymai → Sistemos būklė, administratoriaus juosta, `/health/jobs`, `/metrics`);
+  `scripts/worker.sh` — `crm-worker` ciklas: `timeout` kiekvienam darbui, `nice`, gyvybės žymė sveikatos patikrai;
+  sustabdytas darbas (`SIGTERM`) — `management/tracked.py` `JobStopped`, įrašoma kaip klaida.
 - Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`,
   `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` — `accounts.py`, `purge_audit_log` — `audit.py`, `apply_retention` — `privacy.py`, `find_duplicates` — `duplicates.py`, `refresh_analytics` — `analytics_views.py`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).

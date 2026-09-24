@@ -196,6 +196,9 @@ the summary.
 | `CRM_PASSWORD_RESET_TIMEOUT` | `3600` | seconds a password-reset link stays valid; the link is also single use (it stops working once the password changes). Reset by e-mail needs SMTP configured in Settings → El. paštas |
 | `CRM_BREAK_GLASS_USERS` | *(empty)* | comma-separated usernames still allowed a local password when SSO-only sign-in is on (Settings → Prisijungimas); empty means active superusers only |
 | `WORKER_INTERVAL_SECONDS` | `300` | how often `crm-worker` runs the background commands |
+| `WORKER_JOB_TIMEOUT_SECONDS` | `600` | longest one background command may run; a command still running then is stopped, recorded as failed (Settings → Sistemos būklė) and the loop moves on to the next one |
+| `WORKER_CPUS` / `WORKER_MEMORY` | `1.0` / `1g` | CPU and memory limit of `crm-worker`, so background work never takes what the web pages need; the jobs also run at lower priority (`nice`) |
+| `CRM_DB_STATEMENT_TIMEOUT` | `90` for `crm-web` in `compose.yaml`, `0` (no limit) otherwise | seconds a single database query may run (PostgreSQL `statement_timeout`); a query still running after its request was given up is cancelled instead of holding the database |
 | `BACKUP_KEEP` / `BACKUP_INTERVAL_SECONDS` | `14` / `86400` | how many dumps `crm-backup` keeps, and how often it takes one |
 
 **Uploaded files**
@@ -438,6 +441,7 @@ To take it back off the internet, set `TS_SERVE_CONFIG` back to
 |---|---|
 | `/health/live` | the process answers — liveness probe |
 | `/health/ready` | the database answers — readiness probe, load balancer check |
+| `/health/jobs` | every background command keeps up: `200 {"status": "ok"}`, otherwise `503` with `degraded` (some late or failing) or `no-worker` (none has ever run); names and states only |
 | `/metrics` | Prometheus scrape, with `CRM_METRICS_TOKEN` as bearer token |
 
 `/metrics` is computed from the database at scrape time, so any web process gives
@@ -465,6 +469,44 @@ ingress. Scrape config:
 
 The backup container has its own health check (last successful set), visible to
 the Docker or orchestrator monitoring.
+
+### Background jobs
+
+`crm-worker` runs `scripts/worker.sh`: every command in turn, each stopped after
+`WORKER_JOB_TIMEOUT_SECONDS` (a hung IMAP or SMTP server cannot hold up the
+rest) and recorded as failed, at lower CPU priority, inside `WORKER_CPUS` /
+`WORKER_MEMORY`. Its health check turns the container `unhealthy` when the loop
+has not started a command for longer than one command may run plus one pause.
+Under Kubernetes each command is its own CronJob with `worker.activeDeadlineSeconds`.
+
+Admins see the state of every command in **Settings → Sistemos būklė** and a
+banner on every page while one is late or failing; `/health/jobs` gives an outside
+monitor the same answer. Docker does not restart an `unhealthy` container on its
+own — the loop's per-command limit is what keeps it moving; the health check and
+the page are there so that a stopped worker is noticed.
+
+### Alerts on a single host (Uptime Kuma)
+
+Where no Prometheus or Zabbix watches the host (e.g. the NAS), run
+[Uptime Kuma](https://github.com/louislam/uptime-kuma) next to the CRM, e.g. as
+an extra Compose file listed in `COMPOSE_FILE` (pin the image by digest, as the
+other images are):
+
+```yaml
+services:
+  crm-uptime:
+    image: louislam/uptime-kuma:1.23.16@sha256:<digest>
+    volumes: ["./runtime/uptime-kuma:/app/data"]
+    ports: ["127.0.0.1:3001:3001"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+```
+
+In its UI add two HTTP monitors — `http://crm-web:8080/health/ready` and
+`http://crm-web:8080/health/jobs` (both expect 200, every 60 s) — and a
+notification (e-mail, Telegram, Teams, …). It then reports a CRM that is down, a
+database that does not answer, and a background job that has stopped or keeps
+failing.
 
 ## Malware scanning
 

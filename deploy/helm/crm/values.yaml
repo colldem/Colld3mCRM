@@ -65,6 +65,8 @@ env:
   CRM_TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
   # JSON API requests per token per minute; 0 = unlimited.
   CRM_API_RATE_LIMIT: "120"
+  # Longest a single database query may run, in seconds; 0 = no limit.
+  CRM_DB_STATEMENT_TIMEOUT: "300"
   # Files must not live on a pod's own disk once there is more than one replica.
   CRM_MEDIA_BACKEND: s3
   CRM_S3_BUCKET: crm-media
@@ -101,6 +103,9 @@ migrations:
 worker:
   enabled: true
   concurrencyPolicy: Forbid
+  # A run still going after this long is stopped and recorded as failed
+  # (Settings → Sistemos būklė), like WORKER_JOB_TIMEOUT_SECONDS under Compose.
+  activeDeadlineSeconds: 1800
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3
   jobs:

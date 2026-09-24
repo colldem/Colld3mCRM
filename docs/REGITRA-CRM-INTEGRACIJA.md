@@ -166,7 +166,7 @@ naršyklės istoriją ir proxy žurnalus; vienas rastas atveriamas iškart.
    3) ~~darbastalis ir analitika~~ — atlikta (0.86.0, §3);
    4) ~~sisteminiai laukai ir didelis importas porcijomis~~ — atlikta (0.88.0, §3);
    5) ~~kortelės veiklų puslapiavimas~~ — atlikta (0.87.0, §3);
-   6) foninių darbų priežiūra ir stebėsena:
+   6) ~~foninių darbų priežiūra ir stebėsena~~ — atlikta (0.89.0; C — Uptime Kuma aprašyta `docs/DEPLOYMENT.md`, diegiama vietoje):
       - A. savaiminis atsistatymas — kiekvienam `crm-worker` darbui laiko riba (pakibęs nutraukiamas,
         kiti vyksta), konteinerio sveikatos patikra (ciklas baigtas per ~20 min., kitaip paleidžiamas iš
         naujo), `crm-worker` CPU/atminties ribos ir žemesnis prioritetas, `statement_timeout` DB užklausoms;

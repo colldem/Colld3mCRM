@@ -32,6 +32,21 @@ def reminder_count(request):
             "bell_limit": BELL_LIMIT}
 
 
+def job_alerts(request):
+    """How many background commands are late or failing — shown to admins as a banner.
+    Nothing when no command has ever run (a copy without a worker, e.g. staging)."""
+    from .permissions import is_admin
+
+    if not request.user.is_authenticated or not is_admin(request.user):
+        return {}
+    from .jobs import OK, job_states, overall
+
+    rows = job_states()
+    if overall(rows) == "no-worker":
+        return {}
+    return {"job_problems": sum(row["state"] != OK for row in rows)}
+
+
 def user_profile(request):
     if not request.user.is_authenticated:
         return {"crm_user_profile": None}

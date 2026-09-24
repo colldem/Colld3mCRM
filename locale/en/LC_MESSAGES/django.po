@@ -4541,3 +4541,68 @@ msgstr "Personal code and identity"
 
 msgid "Vardas, pavardė, el. paštas, telefonas arba asmens kodas"
 msgstr "Name, e-mail, phone or personal code"
+
+msgid "Gautų laiškų prisegimas"
+msgstr "Attaching incoming mail"
+
+msgid "Webhook'ų pristatymas"
+msgstr "Webhook delivery"
+
+msgid "Automatikos taisyklės"
+msgstr "Automation rules"
+
+msgid "Praėjusių susitikimų užbaigimas"
+msgstr "Completing past meetings"
+
+msgid "Dublikatų paieška"
+msgstr "Duplicate search"
+
+msgid "Analitikos skaičiai"
+msgstr "Analytics figures"
+
+msgid "Pasikartojantys priminimai"
+msgstr "Recurring reminders"
+
+msgid "Neaktyvių paskyrų išjungimas"
+msgstr "Deactivating idle accounts"
+
+msgid "Žurnalo valymas"
+msgstr "Audit log clean-up"
+
+msgid "Sistemos būklė"
+msgstr "System health"
+
+msgid "Ar foniniai darbai (pranešimai, paštas, automatika, dublikatai, analitika…) vyksta laiku. Tą pačią būseną mato išorinė stebėsena adresu /health/jobs."
+msgstr "Whether the background jobs (notifications, mail, automation, duplicates, analytics…) run on time. An outside monitor sees the same state at /health/jobs."
+
+msgid "Nė vienas foninis darbas dar nėra pranešęs apie save: foninis darbuotojas (crm-worker) nepaleistas arba ką tik paleistas. Kopijoje be jo (pvz. staging) tai įprasta."
+msgstr "No background job has reported yet: the background worker (crm-worker) is not running or has only just started. On a copy without one (e.g. staging) that is expected."
+
+msgid "Visi foniniai darbai vyksta laiku."
+msgstr "All background jobs are running on time."
+
+msgid "Darbas"
+msgstr "Job"
+
+msgid "Paskutinė sėkmė"
+msgstr "Last success"
+
+msgid "Paskutinė klaida"
+msgstr "Last failure"
+
+msgid "Laiku"
+msgstr "On time"
+
+msgid "Klysta"
+msgstr "Failing"
+
+msgid "Dar nevyko"
+msgstr "Not run yet"
+
+msgid "„Vėluoja“ — dažni darbai nepavyko ilgiau nei 45 min., kasdieniai — ilgiau nei 26 val. Darbas, vykęs ilgiau nei leista, sustabdomas ir pažymimas kaip klaida."
+msgstr "“Late” means no success for over 45 minutes (frequent jobs) or 26 hours (daily ones). A job that runs longer than allowed is stopped and marked as failed."
+
+msgid "%(total)s foninis darbas vėluoja arba klysta"
+msgid_plural "%(total)s foniniai darbai vėluoja arba klysta"
+msgstr[0] "%(total)s background job is late or failing"
+msgstr[1] "%(total)s background jobs are late or failing"

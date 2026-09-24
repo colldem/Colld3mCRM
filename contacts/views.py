@@ -296,6 +296,30 @@ def health_ready(request):
     return JsonResponse({"status": "ready"})
 
 
+def health_jobs(request):
+    """For an outside monitor: 200 while every background command keeps up, 503 otherwise.
+    Names and states only — nothing about the data."""
+    from .jobs import job_states, overall
+
+    rows = job_states()
+    status = overall(rows)
+    return JsonResponse({"status": status, "jobs": {row["name"]: row["state"] for row in rows}},
+                        status=200 if status == "ok" else 503)
+
+
+@login_required
+def settings_system_health(request):
+    from .jobs import job_states, overall
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    rows = job_states()
+    return render(request, "settings/system_health.html", {
+        "settings_section": "system-health", "jobs": rows, "overall": overall(rows),
+    })
+
+
 def setup_admin(request):
     if get_user_model().objects.exists():
         return redirect("login")

@@ -6988,9 +6988,9 @@ class InactiveAccountTests(TestCase):
         self.assertEqual(self.stale.crm_profile.deactivated_reason, "")
 
     def test_worker_and_kubernetes_run_it(self):
-        compose = (settings.BASE_DIR / "compose.yaml").read_text()
+        worker = (settings.BASE_DIR / "scripts" / "worker.sh").read_text()
         values = (settings.BASE_DIR / "deploy" / "helm" / "crm" / "values.yaml").read_text()
-        self.assertIn("manage.py deactivate_inactive_users", compose)
+        self.assertIn("deactivate_inactive_users", worker)
         self.assertIn("command: deactivate_inactive_users", values)
 
 
@@ -7098,7 +7098,7 @@ class AuditTrailTests(TestCase):
         self.assertEqual(self.client.get(reverse("contacts:settings-audit"), {"format": "csv"}).status_code, 404)
 
     def test_worker_and_kubernetes_run_the_purge(self):
-        self.assertIn("manage.py purge_audit_log", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("purge_audit_log", (settings.BASE_DIR / "scripts/worker.sh").read_text())
         self.assertIn("command: purge_audit_log", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
 
 
@@ -7429,7 +7429,7 @@ class RetentionTests(TestCase):
         self.assertContains(self.client.get(url), "1 kontaktų, 1 įmonių, 1 laiškų")
 
     def test_worker_and_kubernetes_run_it(self):
-        self.assertIn("manage.py apply_retention", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("apply_retention", (settings.BASE_DIR / "scripts/worker.sh").read_text())
         self.assertIn("command: apply_retention", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
 
 
@@ -8130,7 +8130,7 @@ class DuplicateScanTests(TestCase):
         self.assertIsNone(second.deleted_at)
 
     def test_worker_and_kubernetes_run_the_scan(self):
-        self.assertIn("manage.py find_duplicates", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("find_duplicates", (settings.BASE_DIR / "scripts/worker.sh").read_text())
         self.assertIn("command: find_duplicates", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
 
 
@@ -8312,7 +8312,7 @@ class AnalyticsSnapshotTests(TestCase):
         self.assertEqual(page.context["kpis"]["activity_total"], 1)
 
     def test_worker_and_kubernetes_run_the_refresh(self):
-        self.assertIn("manage.py refresh_analytics", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("refresh_analytics", (settings.BASE_DIR / "scripts/worker.sh").read_text())
         self.assertIn("command: refresh_analytics", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
 
 
@@ -8562,3 +8562,105 @@ class PersonIdentityTests(TestCase):
         self._with_code()
         self.assertEqual(person_data(self.person)["person"]["personal_code"], self.CODE)
         self.assertEqual(list(find_people(self.CODE)), [self.person])
+
+
+class WorkerSupervisionTests(TestCase):
+    """Background jobs: bounded, visible, and reported to an outside monitor."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("prieziura", password="very-secure-password")
+
+    def _beat(self, name, success=None, failure=None, error=""):
+        from contacts.models import JobHeartbeat
+
+        JobHeartbeat.objects.update_or_create(name=name, defaults={
+            "last_success_at": success, "last_failure_at": failure, "last_error": error})
+
+    def _all_ok(self):
+        from contacts.jobs import JOBS
+
+        for name in JOBS:
+            self._beat(name, success=timezone.now())
+
+    def test_states_follow_the_heartbeats(self):
+        from contacts.jobs import FAILING, LATE, NEVER, OK, job_states, overall
+
+        self.assertEqual(overall(job_states()), "no-worker")
+        self._all_ok()
+        self.assertEqual(overall(job_states()), "ok")
+        now = timezone.now()
+        self._beat("fetch_mail", success=now - timedelta(hours=2))
+        self._beat("apply_retention", success=now - timedelta(hours=2))
+        self._beat("send_notifications", success=now - timedelta(minutes=5), failure=now, error="SMTP down")
+        self._beat("find_duplicates")
+        states = {row["name"]: row for row in job_states()}
+        self.assertEqual(states["fetch_mail"]["state"], LATE)
+        self.assertEqual(states["apply_retention"]["state"], OK)  # a daily job may be 2 h old
+        self.assertEqual((states["send_notifications"]["state"], states["send_notifications"]["last_error"]),
+                         (FAILING, "SMTP down"))
+        self.assertEqual(states["find_duplicates"]["state"], NEVER)
+        self.assertEqual(overall(job_states()), "degraded")
+
+    def test_health_jobs_answers_an_outside_monitor(self):
+        response = self.client.get("/health/jobs")
+        self.assertEqual((response.status_code, response.json()["status"]), (503, "no-worker"))
+        self._all_ok()
+        response = self.client.get("/health/jobs")
+        self.assertEqual((response.status_code, response.json()["status"]), (200, "ok"))
+        self.assertEqual(response.json()["jobs"]["fetch_mail"], "ok")
+        self._beat("fetch_mail", success=timezone.now() - timedelta(hours=3))
+        self.assertEqual(self.client.get("/health/jobs").status_code, 503)
+
+    def test_the_page_and_banner_are_for_admins_only(self):
+        member = get_user_model().objects.create_user("ne-adminas", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_MEMBER)
+        url = reverse("contacts:settings-system-health")
+        self.client.force_login(self.admin)
+        page = self.client.get(url)
+        self.assertContains(page, "Dublikatų paieška")
+        self.assertContains(page, "crm-worker")  # no job has reported yet
+        self.assertNotContains(page, "job-banner")  # a copy without a worker is not an alarm
+        self._all_ok()
+        self._beat("fetch_mail", success=timezone.now() - timedelta(hours=3))
+        home = self.client.get(reverse("contacts:list"))
+        self.assertContains(home, "1 foninis darbas vėluoja arba klysta")
+        self.assertContains(self.client.get(url), "Vėluoja")
+        self.client.force_login(member)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertNotContains(self.client.get(reverse("contacts:list")), "job-banner")
+
+    def test_a_job_stopped_by_its_time_limit_is_recorded_as_failed(self):
+        import signal
+        from contacts.management.tracked import JobStopped, TrackedCommand
+        from contacts.models import JobHeartbeat
+
+        class Hung(TrackedCommand):
+            def handle(self, *args, **options):
+                os.kill(os.getpid(), signal.SIGTERM)  # what `timeout` sends
+
+        Hung.__module__ = "contacts.management.commands.hung_job"
+        before = signal.getsignal(signal.SIGTERM)
+        with self.assertRaises(JobStopped):
+            Hung().execute(stdout=StringIO(), stderr=StringIO(), no_color=True, force_color=False, skip_checks=True)
+        beat = JobHeartbeat.objects.get(name="hung_job")
+        self.assertIn("time limit", beat.last_error)
+        self.assertIsNone(beat.last_success_at)
+        self.assertEqual(signal.getsignal(signal.SIGTERM), before)
+
+    def test_the_loop_is_bounded_watched_and_limited(self):
+        from contacts.jobs import JOBS
+
+        worker = (settings.BASE_DIR / "scripts/worker.sh").read_text()
+        compose = (settings.BASE_DIR / "compose.yaml").read_text()
+        for name in JOBS:
+            with self.subTest(job=name):
+                self.assertIn(name, worker)
+                self.assertIn("command: %s" % name, (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
+        self.assertIn('timeout "${WORKER_JOB_TIMEOUT_SECONDS:-600}" nice -n 10 python manage.py "$job"', worker)
+        self.assertIn("touch /tmp/worker-heartbeat", worker)
+        self.assertIn('entrypoint: ["/bin/sh", "/app/scripts/worker.sh"]', compose)
+        self.assertIn("find /tmp/worker-heartbeat", compose)
+        self.assertIn("mem_limit: ${WORKER_MEMORY:-1g}", compose)
+        self.assertIn("CRM_DB_STATEMENT_TIMEOUT: ${CRM_DB_STATEMENT_TIMEOUT:-90}", compose)
+        self.assertIn("activeDeadlineSeconds: {{ $.Values.worker.activeDeadlineSeconds }}",
+                      (settings.BASE_DIR / "deploy/helm/crm/templates/cronjobs.yaml").read_text())

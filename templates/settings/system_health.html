@@ -1,0 +1,16 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head"><div><h2>{% translate 'Sistemos būklė' %}</h2><p>{% translate 'Ar foniniai darbai (pranešimai, paštas, automatika, dublikatai, analitika…) vyksta laiku. Tą pačią būseną mato išorinė stebėsena adresu /health/jobs.' %}</p></div></div>
+{% if overall == 'no-worker' %}<div class="flash">{% translate 'Nė vienas foninis darbas dar nėra pranešęs apie save: foninis darbuotojas (crm-worker) nepaleistas arba ką tik paleistas. Kopijoje be jo (pvz. staging) tai įprasta.' %}</div>
+{% elif overall == 'ok' %}<p class="system-health-ok">✓ {% translate 'Visi foniniai darbai vyksta laiku.' %}</p>{% endif %}
+<div class="table-wrap"><table class="audit-table system-health">
+  <thead><tr><th>{% translate 'Darbas' %}</th><th>{% translate 'Būsena' %}</th><th>{% translate 'Paskutinė sėkmė' %}</th><th>{% translate 'Paskutinė klaida' %}</th></tr></thead>
+  <tbody>{% for job in jobs %}<tr class="job-{{ job.state }}">
+    <td><strong>{{ job.label }}</strong><small><code>{{ job.name }}</code></small></td>
+    <td><span class="job-state">{% if job.state == 'ok' %}{% translate 'Laiku' %}{% elif job.state == 'late' %}{% translate 'Vėluoja' %}{% elif job.state == 'failing' %}{% translate 'Klysta' %}{% else %}{% translate 'Dar nevyko' %}{% endif %}</span></td>
+    <td>{{ job.last_success_at|date:datetime_format|default:"–" }}</td>
+    <td>{% if job.last_failure_at %}{{ job.last_failure_at|date:datetime_format }}{% if job.last_error %}<small>{{ job.last_error }}</small>{% endif %}{% else %}–{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+<p class="muted">{% translate '„Vėluoja“ — dažni darbai nepavyko ilgiau nei 45 min., kasdieniai — ilgiau nei 26 val. Darbas, vykęs ilgiau nei leista, sustabdomas ir pažymimas kaip klaida.' %}</p>
+{% endblock %}
