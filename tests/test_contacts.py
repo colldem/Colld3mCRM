@@ -8418,8 +8418,8 @@ class PersonIdentityTests(TestCase):
         card = self.client.get(self.person.get_absolute_url())
         self.assertContains(card, "3•••••••745")
         self.assertNotContains(card, self.CODE)
-        self.assertNotContains(card, "personal-code/")
         url = reverse("contacts:personal-code-reveal", args=[self.person.pk])
+        self.assertNotContains(card, url)
         self.assertEqual(self.client.post(url).status_code, 404)
         RolePermissions.objects.update_or_create(role=UserProfile.ROLE_MEMBER,
                                                  defaults={"permissions": {"can_view_personal_code": True}})
@@ -8525,6 +8525,36 @@ class PersonIdentityTests(TestCase):
         call_command("import_people", str(path), "--source", "regitra", stdout=out, stderr=Text())
         self.assertIn("created=0 updated=1 unchanged=1", out.getvalue())
         self.assertEqual(Person.objects.filter(external_id="R1").get().phones.count(), 1)
+
+    def test_a_search_by_code_goes_by_post_and_never_echoes_the_code(self):
+        self._with_code()
+        self.client.force_login(self.member)
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertContains(page, 'data-code-search-url="%s"' % reverse("contacts:search-personal-code"))
+        url = reverse("contacts:search-personal-code")
+        self.assertRedirects(self.client.post(url, {"code": "387 0318 1745"}), self.person.get_absolute_url())
+        missing = self.client.post(url, {"code": "49001011238"})
+        self.assertContains(missing, "Nieko nerasta")
+        self.assertNotContains(missing, "49001011238")
+        self.assertContains(missing, "••••••••238")
+        self.assertRedirects(self.client.get(url), reverse("contacts:search"))
+        suggest = self.client.post(reverse("contacts:search-suggest"), {"q": self.CODE}).json()
+        self.assertIsNone(suggest["url"])
+        self.assertEqual(suggest["groups"][0]["items"][0]["url"], self.person.get_absolute_url())
+
+    def test_a_reader_may_search_by_code(self):
+        self._with_code()
+        reader = get_user_model().objects.create_user("skaitytojas-paieska", password="very-secure-password")
+        UserProfile.objects.create(user=reader, role=UserProfile.ROLE_READONLY)
+        self.client.force_login(reader)
+        response = self.client.post(reverse("contacts:search-personal-code"), {"code": self.CODE})
+        self.assertRedirects(response, self.person.get_absolute_url())
+
+    def test_the_privacy_page_finds_by_code_sent_by_post(self):
+        self._with_code()
+        self.client.force_login(self.admin)
+        page = self.client.post(reverse("contacts:settings-privacy"), {"q": self.CODE})
+        self.assertEqual(list(page.context["people"]), [self.person])
 
     def test_the_data_subject_export_carries_the_code(self):
         from contacts.privacy import find_people, person_data

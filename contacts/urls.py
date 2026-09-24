@@ -22,6 +22,7 @@ urlpatterns = [
     path("analytics/system/", analytics_views.system_usage, name="analytics-system"),
     path("search/", views.global_search, name="search"),
     path("search/suggest/", views.search_suggest, name="search-suggest"),
+    path("search/personal-code/", views.search_personal_code, name="search-personal-code"),
     path("contacts/", views.contact_list, name="list"),
     path("contacts/bulk/", views.contact_bulk_action, name="bulk-action"),
     path("companies/bulk/", views.company_bulk_action, name="company-bulk-action"),

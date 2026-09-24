@@ -2,8 +2,8 @@
 {% block settings_content %}
 <div class="settings-section-head"><div><h2>{% translate 'Duomenų apsauga' %}</h2><p>{% translate 'Duomenų subjekto užklausos: suraskite asmenį, atsisiųskite visus apie jį saugomus duomenis arba ištrinkite juos.' %}</p></div></div>
 
-<form method="get" class="audit-retention">
-  <label>{% translate 'Vardas, pavardė, el. paštas arba telefonas' %}<input type="search" name="q" value="{{ query }}" minlength="2" required></label>
+<form method="get" class="audit-retention" data-code-post>
+  <label>{% translate 'Vardas, pavardė, el. paštas, telefonas arba asmens kodas' %}<input type="search" name="q" value="{{ query }}" minlength="2" required></label>
   <div class="filter-actions"><button class="btn primary" type="submit">{% translate 'Ieškoti' %}</button></div>
 </form>
 

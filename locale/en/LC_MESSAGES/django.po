@@ -3791,9 +3791,6 @@ msgstr "Data protection"
 msgid "Duomenų subjekto užklausos: suraskite asmenį, atsisiųskite visus apie jį saugomus duomenis arba ištrinkite juos."
 msgstr "Data subject requests: find a person, download everything held about them, or erase it."
 
-msgid "Vardas, pavardė, el. paštas arba telefonas"
-msgstr "Name, e-mail or phone"
-
 msgid "archyvuotas"
 msgstr "archived"
 
@@ -4541,3 +4538,6 @@ msgstr "Same personal code"
 
 msgid "Asmens kodas ir tapatybė"
 msgstr "Personal code and identity"
+
+msgid "Vardas, pavardė, el. paštas, telefonas arba asmens kodas"
+msgstr "Name, e-mail, phone or personal code"

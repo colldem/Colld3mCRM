@@ -214,12 +214,37 @@ def global_search(request):
 
 
 @login_required
+def search_personal_code(request):
+    """Search by a full personal code sent in a POST body, so the code never
+    lands in a URL (browser history, proxy logs). static/js/search.js sends
+    11-digit queries here instead of GET ?q=. One match opens the card."""
+    if request.method != "POST":
+        return redirect("contacts:search")
+    code = request.POST.get("code", "").strip()
+    hashes = identity.candidate_hashes(code)
+    people = []
+    if hashes:
+        people = list(visible_people(request.user, Person.objects.filter(
+            deleted_at__isnull=True, personal_code_hash__in=hashes)).order_by("last_name", "first_name")[:50])
+    if len(people) == 1:
+        return redirect(people[0])
+    compact = "".join(code.split())
+    return render(request, "search.html", {
+        "query": "•" * max(len(compact) - 3, 0) + compact[-3:], "code_search": True,
+        "results": {"people": people, "people_count": len(people), "companies": [], "companies_count": 0,
+                    "activities": [], "activities_count": 0, "reminders": [], "reminders_count": 0},
+    })
+
+
+@login_required
 def search_suggest(request):
-    query = request.GET.get("q", "").strip()
+    # POST for personal codes (search.js), GET for everything else.
+    source = request.POST if request.method == "POST" else request.GET
+    query = source.get("q", "").strip()
     if len(query) < 2:
         return JsonResponse({"q": query, "groups": []})
     results = _search_results(query, 5, request.user)
-    search_url = f"{reverse('contacts:search')}?q={query}"
+    search_url = None if request.method == "POST" else f"{reverse('contacts:search')}?q={query}"
     groups = []
     if results["people_count"]:
         groups.append({"label": str(tr("Kontaktai")), "count": results["people_count"], "url": search_url, "items": [
@@ -1295,7 +1320,8 @@ def settings_privacy(request):
     from .privacy import RETENTION_MINIMUM_DAYS, retention_candidates
 
     system = SystemSettings.load()
-    if request.method == "POST":
+    # A search by personal code arrives by POST (search.js), so the code stays out of the URL.
+    if request.method == "POST" and "q" not in request.POST:
         values = {}
         for name in ("archived_retention_days", "incoming_mail_retention_days"):
             raw = request.POST.get(name, "").strip()
@@ -1312,7 +1338,7 @@ def settings_privacy(request):
         system.save(update_fields=list(values) + ["updated_at"])
         messages.success(request, tr("Saugojimo terminai išsaugoti."))
         return redirect("contacts:settings-privacy")
-    query = request.GET.get("q", "")
+    query = (request.POST if request.method == "POST" else request.GET).get("q", "")
     return render(request, "settings/privacy.html", {
         "settings_section": "privacy", "query": query, "people": find_people(query), "system": system,
         "retention_minimum": RETENTION_MINIMUM_DAYS,

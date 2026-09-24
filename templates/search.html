@@ -14,7 +14,7 @@
   <section class="search-group">
     <h2>{% translate 'Kontaktai' %} <span>{{ results.people_count }}</span></h2>
     <div class="search-list">{% for person in results.people %}<a href="{{ person.get_absolute_url }}"><strong>{{ person }}</strong>{% if person.job_title %} <small>{{ person.job_title }}</small>{% endif %}{% with company=person.primary_company %}{% if company %} <small>· {{ company.name }}</small>{% endif %}{% endwith %}</a>{% endfor %}</div>
-    {% if results.people_count > results.people|length %}<a class="search-more" href="{% url 'contacts:list' %}?q={{ query|urlencode }}">{% translate 'Visi kontaktai sąraše' %} →</a>{% endif %}
+    {% if results.people_count > results.people|length and not code_search %}<a class="search-more" href="{% url 'contacts:list' %}?q={{ query|urlencode }}">{% translate 'Visi kontaktai sąraše' %} →</a>{% endif %}
   </section>
   {% endif %}
 

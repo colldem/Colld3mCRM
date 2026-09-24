@@ -140,6 +140,9 @@ prideda po 50 (iki 1000). Asmuo su 5 000 veiklų ir 300 failų: kortelė 3,4 s �
 | Pakartotinis to paties failo importas (200 tūkst., nieko nepakito) | 41 s (be šios optimizacijos — 341 s) |
 | Paieška pagal asmens kodą (pasiūlymai / sąrašas) | 0,5 s / ~1–2 s (didžioji dalis — varpelis) |
 
+0.88.1: 11 skaitmenų paieška (viršuje, sąraše, Duomenų apsaugoje) siunčiama POST — kodas nepatenka į URL,
+naršyklės istoriją ir proxy žurnalus; vienas rastas atveriamas iškart.
+
 ## 4. Siūloma kryptis
 
 - **Integracija:** 1) ORDS tik skaitymo REST („pakitę nuo X“, „asmens pranešimai“), CRM worker
@@ -172,6 +175,11 @@ prideda po 50 (iki 1000). Asmuo su 5 000 veiklų ir 300 failų: kortelė 3,4 s �
       - C. pranešimai į išorę — NAS: Uptime Kuma (`/health/ready`, `/health/jobs` → el. paštas / Telegram /
         Teams); organizacijoje: `/metrics` + `docs/DEPLOYMENT.md` įspėjimų taisyklės į Prometheus / Zabbix.
 3. Integracijos prototipas su netikru ORDS stiliaus API.
+4. Naršyklės importo lange (Nustatymai → Importas / eksportas) priimti ir `personal_code`,
+   `personal_code_type`, `birth_date`, `external_source` / `external_id` stulpelius — ta pati logika kaip
+   `import_people` (asmens kodo stulpelis rodomas tik turint teisę *Matyti asmens kodą*).
+5. Regitros paslaugos, vizitai ir prašymai kortelėje pagal `external_id` — gyvai iš Regitros API (ORDS),
+   su puslapiavimu, nekopijuojant į CRM; laukiama Regitros API aprašo.
 
 ## 6. Klausimai Regitros Oracle / CRM komandai
 
