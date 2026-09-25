@@ -3,7 +3,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from .reminder_queries import pending_reminders
-from .models import SystemSettings, UserProfile
+from .models import SystemSettings
 
 
 # The bell renders on every page: it lists the nearest entries only and links to
@@ -50,7 +50,9 @@ def job_alerts(request):
 def user_profile(request):
     if not request.user.is_authenticated:
         return {"crm_user_profile": None}
-    return {"crm_user_profile": UserProfile.objects.filter(user=request.user).first()}
+    # The reverse accessor caches the row on the user, so the menu and the
+    # permission checks later in the page reuse it.
+    return {"crm_user_profile": getattr(request.user, "crm_profile", None)}
 
 
 def system_settings(request):

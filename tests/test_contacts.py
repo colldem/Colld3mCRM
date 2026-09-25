@@ -178,6 +178,49 @@ class AnalyticsTests(TestCase):
         self.assertEqual(len(chart["bars"]), 12)
         self.assertTrue(any(bar["height"] > 0 for bar in chart["bars"]))
 
+    @patch("django.utils.timezone.now")
+    def test_dashboard_growth_counts_each_month_in_one_query_per_series(self, mock_now):
+        from datetime import datetime, timezone as _tz
+        mock_now.return_value = datetime(2026, 6, 15, 12, 0, tzinfo=_tz.utc)
+        self._person("Birželis")
+        april = self._person("Balandis")
+        stale = self._person("Pernai")
+        company = Company.objects.create(name="UAB Gegužė", owner=self.user)
+        Person.objects.filter(pk=april.pk).update(created_at=datetime(2026, 4, 10, 9, 0, tzinfo=_tz.utc))
+        Person.objects.filter(pk=stale.pk).update(created_at=datetime(2025, 11, 3, 9, 0, tzinfo=_tz.utc))
+        Company.objects.filter(pk=company.pk).update(created_at=datetime(2026, 5, 20, 9, 0, tzinfo=_tz.utc))
+
+        bars = [bar["label"] for bar in self.client.get(reverse("contacts:home")).context["growth_chart"]["bars"]]
+        # People and companies alternate within each month, January to June.
+        self.assertEqual(bars[0::2], ["Sau: 0", "Vas: 0", "Kov: 0", "Bal: 1", "Geg: 0", "Bir: 1"])
+        self.assertEqual(bars[1::2], ["Sau: 0", "Vas: 0", "Kov: 0", "Bal: 0", "Geg: 1", "Bir: 0"])
+
+    @patch("django.utils.timezone.now")
+    def test_dashboard_popups_list_only_their_period(self, mock_now):
+        """The week, month and "new" popups are cut from the newest-first lists
+        the dashboard already has, so each must still stop at its own period."""
+        from datetime import datetime, timezone as _tz
+        # A Wednesday: the week began on the 15th, the month on the 1st.
+        mock_now.return_value = datetime(2026, 6, 17, 12, 0, tzinfo=_tz.utc)
+        person = self._person("Šviežias")
+        recent = self._person("Gegužės")
+        old = self._person("Balandžio")
+        Person.objects.filter(pk=recent.pk).update(created_at=datetime(2026, 5, 25, 9, 0, tzinfo=_tz.utc))
+        Person.objects.filter(pk=old.pk).update(created_at=datetime(2026, 4, 1, 9, 0, tzinfo=_tz.utc))
+        for text, moment in (("Šią savaitę", None), ("Šį mėnesį", datetime(2026, 6, 5, 9, 0, tzinfo=_tz.utc)),
+                             ("Gegužę", datetime(2026, 5, 1, 9, 0, tzinfo=_tz.utc))):
+            activity = Activity.objects.create(person=person, activity_type="note", text=text, created_by=self.user)
+            if moment:
+                Activity.objects.filter(pk=activity.pk).update(created_at=moment)
+
+        context = self.client.get(reverse("contacts:home")).context
+        texts = lambda key: [row.text for row in context[key]["all"]]
+        self.assertEqual(texts("recent_activities"), ["Šią savaitę", "Šį mėnesį", "Gegužę"])
+        self.assertEqual(texts("month_activity_rows"), ["Šią savaitę", "Šį mėnesį"])
+        self.assertEqual(texts("week_activity_rows"), ["Šią savaitę"])
+        self.assertEqual([row.first_name for row in context["new_people_rows"]["all"]], ["Šviežias", "Gegužės"])
+        self.assertEqual(context["new_people_rows"]["total"], 2)
+
     def test_dashboard_summary_cards_carry_a_trend(self):
         self._person("Su tendencija")
         response = self.client.get(reverse("contacts:home"))
@@ -5145,6 +5188,15 @@ class RecordVisibilityTests(TestCase):
         team = Team.objects.create(name="Aptarnavimas", visibility=Team.VISIBILITY_TEAM)
         team.members.add(self.restricted)
         self.assertEqual(perm.record_visibility(self.restricted), UserProfile.VISIBILITY_OWN)
+
+    def test_team_restriction_is_looked_up_once_per_user_object(self):
+        """The menu, the context processors and the view all ask on one page."""
+        team = Team.objects.create(name="Pagalba", visibility=Team.VISIBILITY_TEAM)
+        team.members.add(self.member)
+        member = get_user_model().objects.select_related("crm_profile").get(pk=self.member.pk)
+        self.assertEqual(perm.record_visibility(member), UserProfile.VISIBILITY_TEAM)
+        with self.assertNumQueries(0):
+            self.assertEqual(perm.record_visibility(member), UserProfile.VISIBILITY_TEAM)
 
     # --- teammate_ids / responsible_*_ids -------------------------------------
 

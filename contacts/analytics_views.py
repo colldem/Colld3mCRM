@@ -107,19 +107,12 @@ def _month_starts(today, count):
 
 
 def _monthly_counts(queryset, today, months=6):
-    """New records per calendar month, as [{"label": "Rgs", "value": n}]."""
+    """New records per calendar month, as [{"label": "Rgs", "value": n}], in one grouped query."""
     starts = _month_starts(today, months)
     window_start, _ = _day_bounds(starts[0])
-    rows = []
-    for index, first in enumerate(starts):
-        start, _ = _day_bounds(first)
-        if index + 1 < len(starts):
-            end, _ = _day_bounds(starts[index + 1])
-            total = queryset.filter(created_at__gte=start, created_at__lt=end).count()
-        else:
-            total = queryset.filter(created_at__gte=start).count()
-        rows.append({"label": _MONTH_LABELS[first.month - 1], "value": total})
-    return rows, window_start
+    slots = [((first.year, first.month), _MONTH_LABELS[first.month - 1]) for first in starts]
+    created = _created_per_month(queryset.filter(created_at__gte=window_start), slots)
+    return [{"label": label, "value": created[key]} for key, label in slots], window_start
 
 
 def _card_rows(rows, total=None):
@@ -129,6 +122,14 @@ def _card_rows(rows, total=None):
     # `total` is passed in when the real count is larger than what we fetched.
     return {"visible": rows[:DASH_VISIBLE], "all": rows,
             "total": len(rows) if total is None else total}
+
+
+def _newer_rows(card, since):
+    """The rows of a newest-first `card` created at or after `since`, as a card.
+
+    Newest first, the newer rows are the head of the list, so the subset's first
+    POPUP_LIMIT rows are already among those fetched: no query of its own."""
+    return _card_rows([row for row in card["all"] if row.created_at >= since])
 
 
 def _daily_counts(queryset, today, days=30):
@@ -191,11 +192,13 @@ def dashboard(request):
                "values": {"people": row["value"], "companies": company_months[index]["value"]}}
               for index, row in enumerate(people_months)]
 
-    month_activities = scoped_activities.filter(created_at__gte=month_start)
-    week_activities = scoped_activities.filter(created_at__gte=week_start)
     new_people = people.filter(created_at__gte=month_ago)
     new_companies = companies.filter(created_at__gte=month_ago)
     overdue_rows = _card_rows(overdue)
+    recent_people = _card_rows(people.order_by("-created_at").prefetch_related("phones", "company_links__company"))
+    recent_companies = _card_rows(companies.order_by("-created_at"))
+    recent_activities = _card_rows(
+        scoped_activities.select_related("person", "company", "created_by").order_by("-created_at"))
     return render(request, "analytics/dashboard.html", {
         "dash_scope": scope,
         # One option is no choice: the picker only appears when there is one.
@@ -234,19 +237,14 @@ def dashboard(request):
         "activity_by_type": by_type,
         "activity_month_total": sum(row["total"] for row in by_type),
         "growth_chart": charts.grouped_bars(growth, ["people", "companies"], width=460, height=230),
-        "recent_people": _card_rows(people.order_by("-created_at")
-                                    .prefetch_related("phones", "company_links__company")),
-        "recent_companies": _card_rows(companies.order_by("-created_at")),
-        "recent_activities": _card_rows(
-            scoped_activities.select_related("person", "company", "created_by").order_by("-created_at")),
+        "recent_people": recent_people,
+        "recent_companies": recent_companies,
+        "recent_activities": recent_activities,
         # Each summary card opens a popup listing what its number is made of.
-        "week_activity_rows": _card_rows(
-            week_activities.select_related("person", "company", "created_by").order_by("-created_at")),
-        "month_activity_rows": _card_rows(
-            month_activities.select_related("person", "company", "created_by").order_by("-created_at")),
-        "new_people_rows": _card_rows(
-            new_people.order_by("-created_at").prefetch_related("phones", "company_links__company")),
-        "new_companies_rows": _card_rows(new_companies.order_by("-created_at")),
+        "week_activity_rows": _newer_rows(recent_activities, week_start),
+        "month_activity_rows": _newer_rows(recent_activities, month_start),
+        "new_people_rows": _newer_rows(recent_people, month_ago),
+        "new_companies_rows": _newer_rows(recent_companies, month_ago),
     })
 
 def _with_last_contact(people):

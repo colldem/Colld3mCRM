@@ -121,7 +121,12 @@ def record_visibility(user):
     # The "restricted" role is a preset floor of "own".
     if role_of(user) == UserProfile.ROLE_RESTRICTED:
         candidates.append(UserProfile.VISIBILITY_OWN)
-    if Team.objects.filter(members=user, visibility=Team.VISIBILITY_TEAM).exists():
+    # The menu, the context and the view each ask: look the teams up once per
+    # user object, i.e. once per request.
+    if "_crm_team_restricted" not in user.__dict__:
+        user.__dict__["_crm_team_restricted"] = Team.objects.filter(
+            members=user, visibility=Team.VISIBILITY_TEAM).exists()
+    if user.__dict__["_crm_team_restricted"]:
         candidates.append(UserProfile.VISIBILITY_TEAM)
     return max(candidates, key=lambda value: _VIS_ORDER[value])
 
