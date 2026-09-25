@@ -13,7 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="CRM">
   <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260924a">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260925a">
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260925a">
 </head>
 <body class="sidebar-expand-lg fixed-header{% if crm_isolated %} has-env-banner{% endif %}"{% if crm_caps and not crm_caps.can_edit %} data-read-only="1"{% endif %}{% if user.is_authenticated %} data-code-search-url="{% url 'contacts:search-personal-code' %}" data-csrf="{{ csrf_token }}"{% endif %}>

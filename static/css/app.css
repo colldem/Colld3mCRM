@@ -256,6 +256,8 @@ input[type=date],input[type=datetime-local],input[type=time]{-webkit-appearance:
 .settings-list .empty{color:#687384}
 .import-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;max-width:1200px;align-items:stretch}
 .import-card{display:flex!important;flex-direction:column;min-height:248px}
+.import-card,.import-card fieldset{min-width:0}
+.import-card .import-preview{max-width:100%}
 .import-card-body{display:flex;flex:1;flex-direction:column}
 .import-card form{display:flex;flex:1;flex-direction:column}
 .import-card-actions{display:flex;align-items:center;min-height:40px;margin-top:20px}

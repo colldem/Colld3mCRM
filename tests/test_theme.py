@@ -180,6 +180,15 @@ class ThemeTests(TestCase):
         # The tag/category editor must not set a 40px floor under every row.
         self.assertIn(".table-wrap .choice-trigger{min-height:0", theme_css)
 
+    def test_import_card_stays_within_a_phone_viewport(self):
+        """With 5+ CSV columns the nowrap preview table widened the import card
+        past a 390px screen and clipped the mapping and dedup options. The card
+        (a grid item) and its fieldsets must be allowed to shrink, so only the
+        preview scrolls sideways."""
+        app_css = (settings.BASE_DIR / "static" / "css" / "app.css").read_text()
+        self.assertIn(".import-card,.import-card fieldset{min-width:0}", app_css)
+        self.assertIn(".import-card .import-preview{max-width:100%}", app_css)
+
     def test_tags_are_called_zymos_everywhere_in_the_interface(self):
         """One word for one thing — the list column said "Tagai", the rest of
         the product says "Žymos"."""
