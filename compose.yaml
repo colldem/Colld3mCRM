@@ -95,6 +95,7 @@ services:
       BACKUP_REQUIRE_ENCRYPTION: ${BACKUP_REQUIRE_ENCRYPTION:-false}
       BACKUP_REMOTE: ${BACKUP_REMOTE:-}
       BACKUP_REMOTE_KEEP_DAYS: ${BACKUP_REMOTE_KEEP_DAYS:-30}
+      BACKUP_PUSH_URL: ${BACKUP_PUSH_URL:-}
     volumes:
       - ./runtime/backups:/backups
       - ./runtime/media:/media:ro

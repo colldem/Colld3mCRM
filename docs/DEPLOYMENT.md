@@ -280,6 +280,12 @@ put its `rclone.conf` in `runtime/backup-config/`, and each set is copied there;
 copies older than `BACKUP_REMOTE_KEEP_DAYS` (default 30) are pruned. A failed copy
 fails the run, so the health check shows it.
 
+**Outside monitor.** Set `BACKUP_PUSH_URL` to an Uptime Kuma *Push* monitor's URL
+(see *Monitoring*). Every run then reports `status=up` or `status=down` there: a
+failed set alerts at once, and a service that has stopped alerts when the
+heartbeat goes quiet. A monitor that cannot be reached is logged and never fails
+the backup.
+
 | Variable | Default | Meaning |
 |---|---|---|
 | `BACKUP_KEEP` | `14` | sets kept on the host |
@@ -288,6 +294,7 @@ fails the run, so the health check shows it.
 | `BACKUP_REQUIRE_ENCRYPTION` | `false` | `true` refuses to run without recipients |
 | `BACKUP_REMOTE` | *(empty)* | rclone destination for the off-host copy |
 | `BACKUP_REMOTE_KEEP_DAYS` | `30` | age after which remote copies are deleted |
+| `BACKUP_PUSH_URL` | *(empty)* | Uptime Kuma push URL each run reports to (the query string Kuma shows is ignored) |
 
 Take a set now: `docker compose run --rm -e BACKUP_ONCE=true crm-backup`.
 

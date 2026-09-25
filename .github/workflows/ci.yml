@@ -98,12 +98,23 @@ jobs:
           activity = Activity.objects.create(person=person, text='prieš avariją', created_by=user)
           Attachment.objects.create(activity=activity, original_name='drill.txt', file=ContentFile(b'drill-file-content', name='drill.txt'))
           "
+      - name: A stand-in for the Uptime Kuma push monitor
+        run: |
+          docker compose exec -d crm-web python -c "
+          import http.server as h
+          class Push(h.BaseHTTPRequestHandler):
+              def do_GET(self):
+                  open('/tmp/push.log', 'a').write(self.path + '\\n'); self.send_response(200); self.end_headers()
+          h.HTTPServer(('', 8099), Push).serve_forever()
+          "
+          echo "PUSH=http://crm-web:8099/api/push/ci-token?status=up&msg=OK&ping=" >> "$GITHUB_ENV"
       - name: Encrypted backup with a key that never touches the backup host
         run: |
           docker compose run --rm --no-deps --entrypoint age-keygen crm-backup > /tmp/identity.txt
           recipient="$(grep -o 'age1[0-9a-z]*' /tmp/identity.txt | head -n 1)"
           docker compose run --rm -e BACKUP_ONCE=true -e BACKUP_AGE_RECIPIENTS="$recipient" \
-            -e BACKUP_REQUIRE_ENCRYPTION=true crm-backup
+            -e BACKUP_REQUIRE_ENCRYPTION=true -e BACKUP_PUSH_URL="$PUSH" crm-backup
+          docker compose exec -T crm-web cat /tmp/push.log | grep -qx '/api/push/ci-token?status=up&msg=backup+set+written'
           ls -l runtime/backups
           db="$(ls runtime/backups/db-*.dump.age)"; media="$(ls runtime/backups/media-*.tar.gz.age)"
           sudo head -c 32 "$db" | grep -q 'age-encryption.org' || { echo "dump is not encrypted"; exit 1; }
@@ -112,7 +123,8 @@ jobs:
           echo "DB=$db" >> "$GITHUB_ENV"; echo "MEDIA=$media" >> "$GITHUB_ENV"
       - name: Unencrypted backups are refused when encryption is required
         run: |
-          ! docker compose run --rm -e BACKUP_ONCE=true -e BACKUP_REQUIRE_ENCRYPTION=true crm-backup
+          ! docker compose run --rm -e BACKUP_ONCE=true -e BACKUP_REQUIRE_ENCRYPTION=true -e BACKUP_PUSH_URL="$PUSH" crm-backup
+          docker compose exec -T crm-web cat /tmp/push.log | grep -q '^/api/push/ci-token?status=down&'
       - name: Disaster — database and uploads are gone
         run: |
           docker compose down

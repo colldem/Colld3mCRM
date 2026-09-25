@@ -626,7 +626,7 @@ class BackupAndRuntimeLayoutTests(TestCase):
         backup = (self.root / "scripts/backup.sh").read_text()
         restore = (self.root / "scripts/restore.sh").read_text()
         compose = (self.root / "compose.yaml").read_text()
-        for needle in ("age ", "BACKUP_REQUIRE_ENCRYPTION", "sha256sum", "last-success", "rclone copy", "set -euo pipefail"):
+        for needle in ("age ", "BACKUP_REQUIRE_ENCRYPTION", "sha256sum", "last-success", "rclone copy", "set -euo pipefail", "BACKUP_PUSH_URL", "push down"):
             with self.subTest(backup=needle):
                 self.assertIn(needle, backup)
         for needle in ("sha256sum -c", "--single-transaction", "--exit-on-error", "-d -i /identity", "health/ready"):

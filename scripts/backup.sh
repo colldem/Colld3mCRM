@@ -17,6 +17,10 @@
 #
 # Off-host copy: BACKUP_REMOTE=<rclone remote:path> with /config/rclone.conf;
 # copies older than BACKUP_REMOTE_KEEP_DAYS are removed from the remote.
+#
+# Outside monitor: BACKUP_PUSH_URL=<Uptime Kuma push URL>. Every run reports
+# status=up or status=down there, so a failed set raises an alert at once and a
+# stopped service raises one when the heartbeat goes quiet.
 set -euo pipefail
 
 DEST=/backups
@@ -29,10 +33,19 @@ REQUIRE_ENCRYPTION="${BACKUP_REQUIRE_ENCRYPTION:-false}"
 REMOTE="${BACKUP_REMOTE:-}"
 REMOTE_KEEP_DAYS="${BACKUP_REMOTE_KEEP_DAYS:-30}"
 export RCLONE_CONFIG="${RCLONE_CONFIG:-/config/rclone.conf}"
+# The query string Kuma shows with the URL is dropped: push() sends its own.
+PUSH_URL="${BACKUP_PUSH_URL:-}"
+PUSH_URL="${PUSH_URL%%\?*}"
 
 log() {  # level message — one JSON line, like the application logs
   printf '{"ts":"%s","level":"%s","logger":"crm.backup","message":"%s"}\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$2"
+}
+
+push() {  # status message — never fails the backup itself
+  [ -n "$PUSH_URL" ] || return 0
+  curl -fsS -m 10 -o /dev/null -G "$PUSH_URL" --data-urlencode "status=$1" --data-urlencode "msg=$2" \
+    || log WARNING "could not report status=$1 to BACKUP_PUSH_URL"
 }
 
 encrypting() { [ -n "$RECIPIENTS" ] || [ -s "$RECIPIENTS_FILE" ]; }
@@ -51,6 +64,7 @@ encrypt() {  # stdin -> stdout
 if ! encrypting; then
   if [ "$REQUIRE_ENCRYPTION" = "true" ]; then
     log ERROR "BACKUP_REQUIRE_ENCRYPTION=true but no age recipients are configured; refusing to write backups"
+    push down "no age recipients configured; backups refused"
     exit 1
   fi
 fi
@@ -103,8 +117,11 @@ run_once() {
 }
 
 while true; do
-  if ! run_once; then
+  if run_once; then
+    push up "backup set written"
+  else
     rm -f "$DEST"/*.part
+    push down "backup failed; see the crm-backup log"
     [ "$ONCE" = "true" ] && exit 1
   fi
   [ "$ONCE" = "true" ] && exit 0
