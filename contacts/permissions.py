@@ -16,6 +16,7 @@ CAPABILITIES = [
     ("can_manage_taxonomy", _("Tvarkyti žymas ir kategorijas")),
     ("can_manage_automations", _("Tvarkyti automatikos taisykles")),
     ("can_view_audit", _("Matyti žurnalą")),
+    ("can_view_personal_code", _("Matyti asmens kodą")),
 ]
 CAPABILITY_KEYS = [key for key, _label in CAPABILITIES]
 
@@ -27,23 +28,25 @@ _CAPABILITY_DEFAULTS = {
         "can_manage_automations": False,
         # A manager answers for what their people do, so the log is theirs to read.
         "can_view_audit": True,
+        # Off everywhere until an admin grants it: the code is shown masked otherwise.
+        "can_view_personal_code": False,
     },
     UserProfile.ROLE_MEMBER: {
         "can_import": True, "can_export": True, "can_delete": True,
         "can_merge_duplicates": True, "can_bulk_edit": True, "can_reassign_owner": True,
         "can_manage_custom_fields": False, "can_manage_taxonomy": False,
-        "can_manage_automations": False, "can_view_audit": False,
+        "can_manage_automations": False, "can_view_audit": False, "can_view_personal_code": False,
     },
     UserProfile.ROLE_RESTRICTED: {
         "can_import": False, "can_export": True, "can_delete": True,
         "can_merge_duplicates": False, "can_bulk_edit": False, "can_reassign_owner": False,
         "can_manage_custom_fields": False, "can_manage_taxonomy": False,
-        "can_manage_automations": False, "can_view_audit": False,
+        "can_manage_automations": False, "can_view_audit": False, "can_view_personal_code": False,
     },
     UserProfile.ROLE_READONLY: {key: False for key in CAPABILITY_KEYS},
 }
 # A reader changes nothing; only these read-side capabilities can be granted.
-READONLY_CAPABILITIES = {"can_export", "can_view_audit"}
+READONLY_CAPABILITIES = {"can_export", "can_view_audit", "can_view_personal_code"}
 EDITABLE_ROLES = (UserProfile.ROLE_MANAGER, UserProfile.ROLE_MEMBER,
                   UserProfile.ROLE_RESTRICTED, UserProfile.ROLE_READONLY)
 
@@ -234,6 +237,28 @@ def visible_reminders(user, queryset=None):
         | Q(person__isnull=True, company__isnull=True, created_by=user)
         | Q(assigned_to=user)
     )
+
+
+def visible_activities(user, queryset):
+    """History entries of a live contact or company that `user` may see.
+
+    Written so PostgreSQL can join instead of testing "person IN (every visible
+    contact) OR company IN (...)" row by row: with hundreds of thousands of
+    contacts that list outgrows memory and the query ran for hours. Someone who
+    sees everything needs no list at all; for everyone else each side is its own
+    semi-join and the two are combined with UNION.
+    """
+    from django.db.models import Q
+    from .models import Company, Person
+
+    if user is None or (_person_visibility_q(user) is None and _company_visibility_q(user) is None):
+        return queryset.filter(Q(person__isnull=False, person__deleted_at__isnull=True)
+                               | Q(company__isnull=False, company__deleted_at__isnull=True))
+    people = visible_people(user, Person.objects.filter(deleted_at__isnull=True))
+    companies = visible_companies(user, Company.objects.filter(deleted_at__isnull=True))
+    base = queryset.model.objects.order_by()
+    return queryset.filter(pk__in=base.filter(person__in=people).values("pk").union(
+        base.filter(company__in=companies).values("pk")))
 
 
 def visible_person_ids(user):

@@ -154,9 +154,6 @@ msgstr "Assigned companies"
 msgid "Įmonės pavadinimas"
 msgstr "Company name"
 
-msgid "Įmonių dar nėra."
-msgstr "No companies yet."
-
 msgid "Įmonė bus sukurta ir priskirta paspaudus „Išsaugoti“."
 msgstr "The company will be created and assigned when you click Save."
 
@@ -1502,9 +1499,6 @@ msgstr "Column mapping"
 msgid "— nenaudoti"
 msgstr "— skip"
 
-msgid "Kai įrašas jau egzistuoja (pagal el. paštą arba vardą ir pavardę)"
-msgstr "When a record already exists (by e-mail or first and last name)"
-
 msgid "Atnaujinti esamą įrašą"
 msgstr "Update the existing record"
 
@@ -1750,14 +1744,6 @@ msgstr "No data."
 
 msgid "Dukart spustelėkite reikšmę, kad redaguotumėte vietoje."
 msgstr "Double-click a value to edit it in place."
-
-msgid ""
-"Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, "
-"Adresai, URL, Tagai, Kategorijos, Atsakingas. Nepatvarpytus stulpelius "
-"priskirsite kitame žingsnyje."
-msgstr ""
-"Recognised columns: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, "
-"URL, Tagai, Kategorijos, Atsakingas. You can map the rest in the next step."
 
 msgid "Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai."
 msgstr "No dynamic fields. Create them in Settings → Dynamic fields."
@@ -3794,9 +3780,6 @@ msgstr "Data protection"
 msgid "Duomenų subjekto užklausos: suraskite asmenį, atsisiųskite visus apie jį saugomus duomenis arba ištrinkite juos."
 msgstr "Data subject requests: find a person, download everything held about them, or erase it."
 
-msgid "Vardas, pavardė, el. paštas arba telefonas"
-msgstr "Name, e-mail or phone"
-
 msgid "archyvuotas"
 msgstr "archived"
 
@@ -4457,3 +4440,176 @@ msgstr "No records were found in the file"
 
 msgid "Toks įrašas jau yra"
 msgstr "A record like this already exists"
+
+msgid "Sąrašas sudaromas fone kas kelias minutes. Paskutinį kartą patikrinta: %(when)s."
+msgstr "The list is built in the background every few minutes. Last checked: %(when)s."
+
+msgid "Sąrašas sudaromas fone kas kelias minutes. Pirmasis patikrinimas dar neatliktas."
+msgstr "The list is built in the background every few minutes. The first check has not run yet."
+
+msgid "Liko daugiau porų — paspauskite „Sujungti visus“ dar kartą."
+msgstr "More pairs remain — press “Merge all” again."
+
+msgid "Ieškoti įmonės pagal pavadinimą ar kodą"
+msgstr "Search companies by name or code"
+
+msgid "Veiklų skaičiai suskaičiuoti %(when)s."
+msgstr "Activity figures computed %(when)s."
+
+msgid "Rodyti senesnius (liko %(left)s)"
+msgstr "Show older (%(left)s more)"
+
+msgid "Lietuvos asmens kodas"
+msgstr "Lithuanian personal code"
+
+msgid "Kitas identifikatorius"
+msgstr "Other identifier"
+
+msgid "Neteisingas asmens kodas."
+msgstr "Invalid personal code."
+
+msgid "Identifikatorius turi būti 3–40 simbolių."
+msgstr "The identifier must be 3–40 characters long."
+
+msgid "Nežinomas identifikatoriaus tipas."
+msgstr "Unknown identifier type."
+
+msgid "Asmens kodo saugoti negalima: nenustatytas CRM_SECRETS_KEY."
+msgstr "Personal codes cannot be stored: CRM_SECRETS_KEY is not set."
+
+msgid "Matyti asmens kodą"
+msgstr "View personal codes"
+
+msgid "Peržiūra"
+msgstr "Viewing"
+
+msgid "Nenustatytas CRM_SECRETS_KEY — asmens kodo saugoti negalima."
+msgstr "CRM_SECRETS_KEY is not set — personal codes cannot be stored."
+
+msgid "Išsaugotas: %(masked)s. Įveskite naują, kad pakeistumėte."
+msgstr "Stored: %(masked)s. Enter a new one to replace it."
+
+msgid "Identifikatoriaus tipas"
+msgstr "Identifier type"
+
+msgid "Asmens kodas / identifikatorius"
+msgstr "Personal code / identifier"
+
+msgid "Pašalinti asmens kodą"
+msgstr "Remove the personal code"
+
+msgid "Gimimo data"
+msgstr "Date of birth"
+
+msgid "Nepavyko iššifruoti."
+msgstr "Could not be decrypted."
+
+msgid "Tapatybė"
+msgstr "Identity"
+
+msgid "Asmens kodas"
+msgstr "Personal code"
+
+msgid "Išorinis ID"
+msgstr "External ID"
+
+msgid "sinchronizuota %(when)s"
+msgstr "synced %(when)s"
+
+msgid "tas pats asmens kodas"
+msgstr "the same personal code"
+
+msgid "asmens kodas"
+msgstr "personal code"
+
+msgid "Tas pats asmens kodas"
+msgstr "Same personal code"
+
+msgid "Asmens kodas ir tapatybė"
+msgstr "Personal code and identity"
+
+msgid "Vardas, pavardė, el. paštas, telefonas arba asmens kodas"
+msgstr "Name, e-mail, phone or personal code"
+
+msgid "Gautų laiškų prisegimas"
+msgstr "Attaching incoming mail"
+
+msgid "Webhook'ų pristatymas"
+msgstr "Webhook delivery"
+
+msgid "Automatikos taisyklės"
+msgstr "Automation rules"
+
+msgid "Praėjusių susitikimų užbaigimas"
+msgstr "Completing past meetings"
+
+msgid "Dublikatų paieška"
+msgstr "Duplicate search"
+
+msgid "Analitikos skaičiai"
+msgstr "Analytics figures"
+
+msgid "Pasikartojantys priminimai"
+msgstr "Recurring reminders"
+
+msgid "Neaktyvių paskyrų išjungimas"
+msgstr "Deactivating idle accounts"
+
+msgid "Žurnalo valymas"
+msgstr "Audit log clean-up"
+
+msgid "Sistemos būklė"
+msgstr "System health"
+
+msgid "Ar foniniai darbai (pranešimai, paštas, automatika, dublikatai, analitika…) vyksta laiku. Tą pačią būseną mato išorinė stebėsena adresu /health/jobs."
+msgstr "Whether the background jobs (notifications, mail, automation, duplicates, analytics…) run on time. An outside monitor sees the same state at /health/jobs."
+
+msgid "Nė vienas foninis darbas dar nėra pranešęs apie save: foninis darbuotojas (crm-worker) nepaleistas arba ką tik paleistas. Kopijoje be jo (pvz. staging) tai įprasta."
+msgstr "No background job has reported yet: the background worker (crm-worker) is not running or has only just started. On a copy without one (e.g. staging) that is expected."
+
+msgid "Visi foniniai darbai vyksta laiku."
+msgstr "All background jobs are running on time."
+
+msgid "Darbas"
+msgstr "Job"
+
+msgid "Paskutinė sėkmė"
+msgstr "Last success"
+
+msgid "Paskutinė klaida"
+msgstr "Last failure"
+
+msgid "Laiku"
+msgstr "On time"
+
+msgid "Klysta"
+msgstr "Failing"
+
+msgid "Dar nevyko"
+msgstr "Not run yet"
+
+msgid "„Vėluoja“ — dažni darbai nepavyko ilgiau nei 45 min., kasdieniai — ilgiau nei 26 val. Darbas, vykęs ilgiau nei leista, sustabdomas ir pažymimas kaip klaida."
+msgstr "“Late” means no success for over 45 minutes (frequent jobs) or 26 hours (daily ones). A job that runs longer than allowed is stopped and marked as failed."
+
+msgid "%(total)s foninis darbas vėluoja arba klysta"
+msgid_plural "%(total)s foniniai darbai vėluoja arba klysta"
+msgstr[0] "%(total)s background job is late or failing"
+msgstr[1] "%(total)s background jobs are late or failing"
+
+msgid "Kai įrašas jau egzistuoja (pagal išorinį ID, asmens kodą, el. paštą arba vardą ir pavardę)"
+msgstr "When the record already exists (by external ID, personal code, e-mail or first and last name)"
+
+msgid "Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Tagai, Kategorijos, Atsakingas, Gimimo data, Šaltinis, Išorinis ID ir — turint teisę matyti asmens kodus — Asmens kodas (atpažįstamas tik pagal pavadinimą: „Asmens kodas“, personal_code arba AK; užšifruojamas iškart įkėlus). Nepatvarpytus stulpelius priskirsite kitame žingsnyje."
+msgstr "Recognised columns: first name, last name, company, phones, e-mails, addresses, URL, tags, categories, owner, date of birth, source, external ID and — with the right to view personal codes — the personal code (recognised by its header only: “Asmens kodas”, personal_code or AK; encrypted as soon as the file is read). Unrecognised columns are assigned in the next step."
+
+msgid "Šaltinis (išorinė sistema)"
+msgstr "Source (external system)"
+
+msgid "Asmens kodų stulpelis praleistas: neturite teisės matyti asmens kodų arba nenustatytas CRM_SECRETS_KEY."
+msgstr "The personal code column was skipped: you may not view personal codes, or CRM_SECRETS_KEY is not set."
+
+msgid "Gimimo data turi būti MMMM-MM-DD."
+msgstr "The date of birth must be YYYY-MM-DD."
+
+msgid "Šis išorinis ID jau priklauso kitam kontaktui."
+msgstr "This external ID already belongs to another contact."

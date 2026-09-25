@@ -83,6 +83,7 @@ TEMPLATES = [{
         "contacts.context_processors.system_settings",
         "contacts.context_processors.crm_menu",
         "contacts.context_processors.csp",
+        "contacts.context_processors.job_alerts",
     ]},
 }]
 WSGI_APPLICATION = "config.wsgi.application"
@@ -112,6 +113,12 @@ elif os.environ.get("DB_HOST"):
         "PASSWORD": os.environ.get("DB_PASSWORD", ""),
         "CONN_MAX_AGE": 60,
     }}
+    # Longest a single query may run, in seconds (0 = no limit). compose.yaml sets
+    # 90 for the web process, so a query outliving its request is cancelled
+    # instead of holding the database; the worker is bounded per job instead.
+    _statement_timeout = int(os.environ.get("CRM_DB_STATEMENT_TIMEOUT", "0") or 0)
+    if _statement_timeout > 0:
+        DATABASES["default"]["OPTIONS"] = {"options": "-c statement_timeout=%d" % (_statement_timeout * 1000)}
 else:
     DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 

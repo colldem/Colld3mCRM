@@ -170,4 +170,5 @@
   </div>
 </section>
 {% endif %}
+<p class="analytics-computed">{% blocktranslate with when=computed_at|date:datetime_format %}Veiklų skaičiai suskaičiuoti {{ when }}.{% endblocktranslate %}</p>
 {% endblock %}

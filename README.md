@@ -59,7 +59,11 @@ lives inside the app: **Settings → Documentation**.
   owner / a reminder is overdue → notify, assign, create a task or add a tag*,
   evaluated in the background.
 - **Integration.** A JSON REST API at `/api/v1/` with bearer tokens, and outgoing
-  webhooks signed with HMAC-SHA256.
+  webhooks signed with HMAC-SHA256. A lookup by personal code or external id for a
+  call-centre screen pop, and a batched `import_people` command for loading and
+  re-syncing hundreds of thousands of people from another system.
+- **Personal codes.** Stored only encrypted and as a keyed hash for lookup; shown
+  masked on the card, revealed only with a role permission, every reveal audited.
 - **Access control.** Roles (administrator / all records / own records only / read-only reader), a
   role-permission table, teams, and per-record visibility. Sign-in rate limiting
   and lockout. Single sign-on through Microsoft Entra ID or AD FS (OIDC), with roles and

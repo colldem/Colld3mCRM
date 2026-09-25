@@ -3,8 +3,10 @@ from django import forms
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
+from django.urls import reverse
+from django.utils.html import format_html
 
-from . import permissions
+from . import identity, permissions
 from .models import DirectoryGroupMapping, Activity, AutomationRule, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
 
 
@@ -334,8 +336,29 @@ class AutomationRuleForm(forms.ModelForm):
         return cleaned
 
 
+class CompanyPicker(forms.CheckboxSelectMultiple):
+    """Checkboxes for the chosen companies only, plus a search box that finds the
+    rest (static/js/forms.js → company_lookup). Listing every company would put
+    hundreds of thousands of checkboxes on the page."""
+
+    def optgroups(self, name, value, attrs=None):
+        chosen = [item for item in value if str(item).isdigit()]
+        # The field's own queryset: a posted id the user may not see is never echoed back.
+        allowed = getattr(self.choices, "queryset", Company.objects.none())
+        self.choices = list(allowed.filter(pk__in=chosen).order_by("name").values_list("pk", "name"))
+        return super().optgroups(name, value, attrs)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        label = tr("Ieškoti įmonės pagal pavadinimą ar kodą")
+        return format_html(
+            '<div class="company-picker" data-company-lookup="{}" data-name="{}"><input type="search" '
+            'class="company-search" placeholder="{}" aria-label="{}" autocomplete="off">'
+            '<div class="company-options">{}</div></div>',
+            reverse("contacts:company-lookup"), name, label, label, super().render(name, value, attrs, renderer))
+
+
 class PersonForm(forms.ModelForm):
-    companies = forms.ModelMultipleChoiceField(queryset=Company.objects.filter(deleted_at__isnull=True), required=False, label=tr("Priskirtos įmonės"), help_text=tr("Galite pasirinkti vieną ar kelias įmones."), widget=forms.CheckboxSelectMultiple)
+    companies = forms.ModelMultipleChoiceField(queryset=Company.objects.filter(deleted_at__isnull=True), required=False, label=tr("Priskirtos įmonės"), help_text=tr("Galite pasirinkti vieną ar kelias įmones."), widget=CompanyPicker)
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -346,6 +369,26 @@ class PersonForm(forms.ModelForm):
             if self.instance.pk:
                 visible = visible | Company.objects.filter(pk__in=self.instance.companies.values("pk"))
             self.fields["companies"].queryset = visible.distinct()
+        # The code is write-only here: whoever may see it can set, replace or
+        # remove it, but the form never echoes the stored value back.
+        if user is None or not permissions.has_capability(user, "can_view_personal_code"):
+            for name in ("personal_code_type", "personal_code", "remove_personal_code"):
+                del self.fields[name]
+        else:
+            if not identity.available():
+                self.fields["personal_code"].disabled = True
+                self.fields["personal_code"].help_text = tr("Nenustatytas CRM_SECRETS_KEY — asmens kodo saugoti negalima.")
+            if self.instance.personal_code_hash:
+                self.fields["personal_code"].help_text = tr("Išsaugotas: %(masked)s. Įveskite naują, kad pakeistumėte.") % {
+                    "masked": identity.masked(self.instance)}
+            else:
+                del self.fields["remove_personal_code"]
+
+    personal_code_type = forms.ChoiceField(choices=identity.TYPE_CHOICES, required=False, initial=identity.LT,
+                                           label=tr("Identifikatoriaus tipas"))
+    personal_code = forms.CharField(required=False, max_length=40, label=tr("Asmens kodas / identifikatorius"),
+                                    widget=forms.TextInput(attrs={"autocomplete": "off"}))
+    remove_personal_code = forms.BooleanField(required=False, label=tr("Pašalinti asmens kodą"))
     phone = forms.CharField(required=False, label=tr("Telefonai"), widget=forms.Textarea(attrs={"rows": 3, "placeholder": tr("Vienas numeris eilutėje")}))
     email = forms.CharField(required=False, label=tr("El. paštai"), widget=forms.Textarea(attrs={"rows": 3, "placeholder": tr("Vienas adresas eilutėje")}))
     address = forms.CharField(required=False, label=tr("Adresai"), widget=forms.Textarea(attrs={"rows": 3, "placeholder": tr("Vienas adresas eilutėje")}))
@@ -353,9 +396,25 @@ class PersonForm(forms.ModelForm):
 
     class Meta:
         model = Person
-        fields = ["first_name", "last_name", "job_title", "description", "companies", "tags", "categories"]
-        labels = {"first_name": tr("Vardas"), "last_name": tr("Pavardė"), "job_title": tr("Pareigos"), "description": tr("Aprašymas"), "tags": tr("Žymos"), "categories": tr("Kategorijos")}
-        widgets = {"tags": forms.CheckboxSelectMultiple, "categories": forms.CheckboxSelectMultiple, "description": forms.Textarea(attrs={"rows": 4})}
+        fields = ["first_name", "last_name", "birth_date", "job_title", "description", "companies", "tags", "categories"]
+        labels = {"first_name": tr("Vardas"), "last_name": tr("Pavardė"), "birth_date": tr("Gimimo data"), "job_title": tr("Pareigos"), "description": tr("Aprašymas"), "tags": tr("Žymos"), "categories": tr("Kategorijos")}
+        widgets = {"tags": forms.CheckboxSelectMultiple, "categories": forms.CheckboxSelectMultiple, "description": forms.Textarea(attrs={"rows": 4}),
+                   "birth_date": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
+
+    def clean(self):
+        cleaned = super().clean()
+        code = cleaned.get("personal_code")
+        if code:
+            kind = cleaned.get("personal_code_type") or identity.LT
+            try:
+                normalized = identity.normalize(kind, code)
+            except forms.ValidationError as error:
+                self.add_error("personal_code", error)
+            else:
+                cleaned["personal_code_type"] = kind
+                # For the duplicate check (duplicates.find_person_duplicates).
+                cleaned["personal_code_hash"] = identity.lookup_hash(kind, normalized)
+        return cleaned
 
     def clean_tags(self):
         tags = self.cleaned_data["tags"]
@@ -371,6 +430,10 @@ class PersonForm(forms.ModelForm):
 
     @transaction.atomic
     def save(self, commit=True):
+        if self.cleaned_data.get("personal_code"):
+            identity.assign(self.instance, self.cleaned_data["personal_code_type"], self.cleaned_data["personal_code"])
+        elif self.cleaned_data.get("remove_personal_code"):
+            identity.assign(self.instance, "", "")
         person = super().save(commit=commit)
         if not commit:
             return person

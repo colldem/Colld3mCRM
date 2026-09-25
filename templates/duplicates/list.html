@@ -3,16 +3,27 @@
 {% block content %}
 <div class="page-head"><div><h1>{% translate 'Galimi dublikatai' %}</h1><p>{% translate 'Palyginkite įrašus ir pasirinkite, kurį norite palikti. Kito įrašo duomenys bus perkelti į paliekamą įrašą.' %}</p></div><div class="page-actions">{% if pairs and crm_caps.can_merge_duplicates %}<form method="post" action="{% url 'contacts:duplicate-merge-all' %}" data-confirm="{% translate 'Sujungti visas poras? Kiekvienoje poroje bus paliktas senesnis įrašas, o naujesnis archyvuotas.' %}">{% csrf_token %}<button class="btn primary" type="submit">{% translate 'Sujungti visus' %}</button></form>{% endif %}<a class="btn" href="{% url 'contacts:settings-duplicates' %}">{% translate 'Tikrinimo nustatymai' %}</a></div></div>
 {% if not duplicate_settings.enabled %}<div class="flash">{% translate 'Dublikatų tikrinimas išjungtas.' %}</div>{% endif %}
+{% if duplicate_settings.enabled %}<p class="duplicate-scan-note">{% if last_scan_at %}{% blocktranslate with when=last_scan_at|date:datetime_format %}Sąrašas sudaromas fone kas kelias minutes. Paskutinį kartą patikrinta: {{ when }}.{% endblocktranslate %}{% else %}{% translate 'Sąrašas sudaromas fone kas kelias minutes. Pirmasis patikrinimas dar neatliktas.' %}{% endif %}</p>{% endif %}
 <div class="duplicate-list">
   {% for pair in pairs %}
     <article class="duplicate-pair">
       <div class="duplicate-record"><strong><a href="{{ pair.left.get_absolute_url }}">{{ pair.left }}</a></strong>{% if pair.kind == 'person' and pair.left.primary_company %}<small>{{ pair.left.primary_company }}</small>{% elif pair.kind == 'company' %}<small>{% translate 'Įmonė' %}</small>{% endif %}<form method="post" action="{% url 'contacts:duplicate-merge' pair.kind pair.right.pk pair.left.pk %}" data-confirm="{% translate 'Sujungti įrašus? Pasirinktas įrašas bus paliktas, o kitas archyvuotas.' %}">{% csrf_token %}<button class="btn primary merge-button" type="submit">{% if pair.kind == 'person' %}{% translate 'Palikti šį kontaktą' %}{% else %}{% translate 'Palikti šią įmonę' %}{% endif %}</button></form></div>
       <div class="duplicate-reasons">
-        <span>{% for reason in pair.reasons %}{% if reason == 'email' %}{% translate 'Tas pats el. paštas' %}{% elif reason == 'phone' %}{% translate 'Tas pats telefonas' %}{% elif reason == 'name' and pair.kind == 'company' %}{% translate 'Tas pats pavadinimas' %}{% elif reason == 'name' %}{% translate 'Tas pats vardas' %}{% elif reason == 'company_code' %}{% translate 'Tas pats įmonės kodas' %}{% elif reason == 'vat_code' %}{% translate 'Tas pats PVM kodas' %}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
+        <span>{% for reason in pair.reasons %}{% if reason == 'personal_code' %}{% translate 'Tas pats asmens kodas' %}{% elif reason == 'email' %}{% translate 'Tas pats el. paštas' %}{% elif reason == 'phone' %}{% translate 'Tas pats telefonas' %}{% elif reason == 'name' and pair.kind == 'company' %}{% translate 'Tas pats pavadinimas' %}{% elif reason == 'name' %}{% translate 'Tas pats vardas' %}{% elif reason == 'company_code' %}{% translate 'Tas pats įmonės kodas' %}{% elif reason == 'vat_code' %}{% translate 'Tas pats PVM kodas' %}{% endif %}{% if not forloop.last %}, {% endif %}{% endfor %}</span>
         <form method="post" action="{% url 'contacts:duplicate-dismiss' pair.kind pair.left.pk pair.right.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Ne dublikatas' %}</button></form>
       </div>
       <div class="duplicate-record"><strong><a href="{{ pair.right.get_absolute_url }}">{{ pair.right }}</a></strong>{% if pair.kind == 'person' and pair.right.primary_company %}<small>{{ pair.right.primary_company }}</small>{% elif pair.kind == 'company' %}<small>{% translate 'Įmonė' %}</small>{% endif %}<form method="post" action="{% url 'contacts:duplicate-merge' pair.kind pair.left.pk pair.right.pk %}" data-confirm="{% translate 'Sujungti įrašus? Pasirinktas įrašas bus paliktas, o kitas archyvuotas.' %}">{% csrf_token %}<button class="btn primary merge-button" type="submit">{% if pair.kind == 'person' %}{% translate 'Palikti šį kontaktą' %}{% else %}{% translate 'Palikti šią įmonę' %}{% endif %}</button></form></div>
     </article>
   {% empty %}<div class="empty-state"><h2>{% translate 'Galimų dublikatų nerasta' %}</h2><p>{% translate 'Pagal dabartines taisykles sutampančių kontaktų ar įmonių nėra.' %}</p></div>{% endfor %}
 </div>
+{% if page.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="{% translate 'Puslapiai' %}">
+  <span>{{ page.start_index }}-{{ page.end_index }} {% translate 'iš' %} {{ page.paginator.count }}</span>
+  <div class="page-links">
+    {% if page.has_previous %}<a class="btn page-step" href="?page={{ page.previous_page_number }}">{% translate 'Ankstesnis' %}</a>{% endif %}
+    {% for num in page_numbers %}{% if num == page.number %}<span class="page-number" aria-current="page">{{ num }}</span>{% elif num == "…" %}<span class="page-gap">…</span>{% else %}<a class="btn page-num" href="?page={{ num }}">{{ num }}</a>{% endif %}{% endfor %}
+    {% if page.has_next %}<a class="btn page-step" href="?page={{ page.next_page_number }}">{% translate 'Kitas' %}</a>{% endif %}
+  </div>
+</nav>
+{% endif %}
 {% endblock %}

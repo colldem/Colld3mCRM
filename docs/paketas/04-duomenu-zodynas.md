@@ -53,6 +53,16 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `submission_token` | CharField | ne | T |
 | `message_id` | CharField | ne | T |
 
+## AnalyticsSnapshot (`contacts_analyticssnapshot`)
+
+**Paskirtis:** Iš anksto suskaičiuoti analitikos skaičiai (tik skaičiai ir įrašų ID). **Saugojimas:** perrašoma; senesni nei 1 d. trinami.
+
+| Laukas | Tipas | Privalomas | Kategorija |
+|---|---|---|---|
+| `key` | CharField | taip | T |
+| `payload` | JSONField | taip | T |
+| `computed_at` | DateTimeField | taip | T |
+
 ## ApiToken (`contacts_apitoken`)
 
 **Paskirtis:** REST API raktai. **Saugojimas:** iki galiojimo pabaigos / atšaukimo; įrašas lieka istorijai.
@@ -165,6 +175,7 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `address` | CharField | ne | A |
 | `city` | CharField | ne | T |
 | `phone` | CharField | ne | A |
+| `phone_digits` | CharField | ne | A |
 | `email` | CharField | ne | A |
 | `url` | CharField | ne | A |
 | `responsibles` | ryšys → User (daug) | — | D |
@@ -206,6 +217,18 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `role` | CharField | ne | T |
 | `team` | ryšys → Team | ne | T |
 | `created_at` | DateTimeField | ne | T |
+
+## DuplicateCandidate (`contacts_duplicatecandidate`)
+
+**Paskirtis:** Foninės patikros rastos galimų dublikatų poros. **Saugojimas:** perrašoma kiekvienos patikros metu.
+
+| Laukas | Tipas | Privalomas | Kategorija |
+|---|---|---|---|
+| `kind` | CharField | taip | T |
+| `left_id` | PositiveIntegerField | taip | T |
+| `right_id` | PositiveIntegerField | taip | T |
+| `reasons` | CharField | taip | T |
+| `found_at` | DateTimeField | ne | T |
 
 ## DuplicateException (`contacts_duplicateexception`)
 
@@ -285,6 +308,13 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `first_name` | CharField | taip | A |
 | `last_name` | CharField | taip | A |
 | `job_title` | CharField | ne | A |
+| `birth_date` | DateField | ne | A |
+| `personal_code_type` | CharField | ne | T |
+| `personal_code_encrypted` | TextField | ne | A |
+| `personal_code_hash` | CharField | ne | S |
+| `external_source` | CharField | ne | T |
+| `external_id` | CharField | ne | A |
+| `synced_at` | DateTimeField | ne | T |
 | `responsibles` | ryšys → User (daug) | — | D |
 | `companies` | ryšys → Company (daug) | — | R |
 | `tags` | ryšys → Tag (daug) | — | R |
@@ -309,6 +339,7 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 |---|---|---|---|
 | `person` | ryšys → Person | taip | R |
 | `number` | CharField | taip | A |
+| `digits` | CharField | ne | A |
 | `label` | CharField | ne | T |
 | `is_primary` | BooleanField | taip | T |
 

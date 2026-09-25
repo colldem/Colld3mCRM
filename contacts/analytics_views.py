@@ -4,22 +4,29 @@ Everything is derived from data the CRM already collects (activities, reminders,
 audit trail) and is scoped to what the signed-in user may see.
 """
 import csv
+import logging
 from datetime import datetime, time, timedelta
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, F, Max, Min, Q
-from django.db.models.functions import TruncDate
+from django.db import DatabaseError, transaction
+from django.db.models import (Avg, Count, DurationField, Exists, ExpressionWrapper, F, Max, Min, OuterRef, Q,
+                              Subquery)
+from django.db.models.functions import TruncDate, TruncMonth, TruncWeek
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.utils.translation import gettext as tr, gettext_lazy as tr_lazy
 
 from . import charts
-from .models import Activity, AuditLog, Category, Company, Person, Reminder, Tag, UserProfile
+from .models import (Activity, AnalyticsSnapshot, AuditLog, Category, Company, EmailAddress, Person,
+                     PersonCompanyLink, PhoneNumber, Reminder, Tag, UserProfile)
 from .permissions import (in_any_team, record_visibility, responsible_company_ids,
                           responsible_person_ids, sees_all_records, teammate_ids,
-                          visible_companies, visible_people, visible_reminders)
+                          visible_activities, visible_companies, visible_people, visible_reminders)
 from .reminder_queries import open_q
+
+logger = logging.getLogger(__name__)
 
 # Short month names for the dashboard's six-month chart. Indexed by month - 1;
 # lazy so the list is not frozen into one language at import time.
@@ -242,20 +249,31 @@ def dashboard(request):
         "new_companies_rows": _card_rows(new_companies.order_by("-created_at")),
     })
 
+def _with_last_contact(people):
+    """Annotate each contact's latest activity date, looked up per row returned."""
+    latest = Activity.objects.filter(deleted_at__isnull=True, person=OuterRef("pk")).order_by("-created_at")
+    return people.annotate(last_contact_at=Subquery(latest.values("created_at")[:1]))
+
+
 def _care_querysets(user, days):
-    """The four relationship-care lists, before slicing."""
-    base = (visible_people(user, Person.objects.filter(deleted_at__isnull=True))
-            .select_related("owner").prefetch_related("company_links__company", "phones", "emails"))
-    dated = base.annotate(last_contact_at=Max("activities__created_at",
-                                              filter=Q(activities__deleted_at__isnull=True)))
+    """The four relationship-care lists, before slicing.
+
+    Membership is decided with EXISTS / NOT EXISTS (index lookups the database
+    can turn into joins) rather than by grouping every contact's whole history;
+    the last-contact date is looked up only for the rows that are shown."""
+    history = Activity.objects.filter(deleted_at__isnull=True, person=OuterRef("pk"))
     cutoff = timezone.now() - timedelta(days=days)
+    base = _with_last_contact(visible_people(user, Person.objects.filter(deleted_at__isnull=True))
+                              .select_related("owner").prefetch_related("company_links__company", "phones", "emails"))
     return {
-        "silent": dated.filter(last_contact_at__lt=cutoff).order_by("last_contact_at"),
-        "never": dated.filter(last_contact_at__isnull=True).order_by("-created_at"),
-        "no_owner": dated.filter(owner__isnull=True, responsibles__isnull=True)
-                         .order_by("last_name", "first_name").distinct(),
-        "no_details": dated.filter(phones__isnull=True, emails__isnull=True)
-                           .order_by("last_name", "first_name").distinct(),
+        "silent": base.filter(Exists(history), ~Exists(history.filter(created_at__gte=cutoff)))
+                      .order_by("last_contact_at"),
+        "never": base.filter(~Exists(history)).order_by("-created_at"),
+        "no_owner": base.filter(~Exists(Person.responsibles.through.objects.filter(person=OuterRef("pk"))),
+                                owner__isnull=True).order_by("last_name", "first_name"),
+        "no_details": base.filter(~Exists(PhoneNumber.objects.filter(person=OuterRef("pk"))),
+                                  ~Exists(EmailAddress.objects.filter(person=OuterRef("pk"))))
+                          .order_by("last_name", "first_name"),
     }
 
 
@@ -322,12 +340,15 @@ def _care_csv(key, queryset):
 PERIODS = (30, 90, 365)
 
 
+DEFAULT_PERIOD = 90
+
+
 def _period(request):
     try:
-        days = int(request.GET.get("days", 90))
+        days = int(request.GET.get("days", DEFAULT_PERIOD))
     except ValueError:
-        days = 90
-    return days if days in PERIODS else 90
+        days = DEFAULT_PERIOD
+    return days if days in PERIODS else DEFAULT_PERIOD
 
 
 def _buckets(start, end, monthly):
@@ -351,56 +372,144 @@ def _bucket_key(moment, monthly):
     return (local.year, local.month) if monthly else local.isocalendar()[:2]
 
 
+# The statistics below are counted by the database (GROUP BY a week or month)
+# rather than by fetching every row into Python: with millions of activities
+# that loop was most of a minute and hundreds of megabytes per request.
+
+def _activity_buckets(activities, slots, monthly):
+    """Per time slot, how many activities of each type."""
+    keys = [key for key, _label in Activity.TYPE_CHOICES]
+    tally = {key: {series: 0 for series in keys} for key, _label in slots}
+    rows = (activities.annotate(bucket=(TruncMonth if monthly else TruncWeek)("created_at"))
+            .values("bucket", "activity_type").annotate(total=Count("id")).order_by())
+    for row in rows:
+        slot = tally.get(_bucket_key(row["bucket"], monthly))
+        if slot is not None:
+            slot[row["activity_type"]] = slot.get(row["activity_type"], 0) + row["total"]
+    return [{"label": label, "values": tally[key]} for key, label in slots]
+
+
+def _created_per_month(records, slots):
+    """{(year, month): new records} for the given monthly slots."""
+    created = {key: 0 for key, _label in slots}
+    for row in records.annotate(month=TruncMonth("created_at")).values("month").annotate(total=Count("id")).order_by():
+        key = _bucket_key(row["month"], monthly=True)
+        if key in created:
+            created[key] += row["total"]
+    return created
+
+
+def _data_quality(people, total):
+    """Share of contacts with an e-mail, a phone, a company and someone responsible."""
+    responsible = Person.responsibles.through.objects.values("person_id")
+    rows = [
+        {"label": tr("Su el. paštu"), "total": people.filter(pk__in=EmailAddress.objects.values("person_id")).count()},
+        {"label": tr("Su telefonu"), "total": people.filter(pk__in=PhoneNumber.objects.values("person_id")).count()},
+        {"label": tr("Su įmone"), "total": people.filter(pk__in=PersonCompanyLink.objects.values("person_id")).count()},
+        {"label": tr("Su atsakingu"),
+         "total": people.filter(Q(owner__isnull=False) | Q(pk__in=responsible)).count()},
+    ]
+    for row in rows:
+        row["percent"] = round(row["total"] * 100 / total) if total else 0
+    return rows
+
+
+def _by_creator(activities, limit):
+    """[[user id, activities]] for the busiest authors (None: author deleted)."""
+    return [[row["created_by"], row["total"]] for row in
+            activities.values("created_by").annotate(total=Count("id")).order_by("-total", "created_by")[:limit]]
+
+
+def _creator_rows(pairs):
+    users = get_user_model().objects.in_bulk([pk for pk, _total in pairs if pk])
+    unknown = str(tr("Nežinomas"))
+    return [{"label": users[pk].username if pk in users else unknown, "total": total} for pk, total in pairs]
+
+
+# Heavy analytics numbers are kept in AnalyticsSnapshot: for everyone who sees
+# every record they are shared and refreshed in the background
+# (refresh_analytics); anyone else gets their own, computed on first view.
+SNAPSHOT_MAX_AGE = timedelta(minutes=30)
+SNAPSHOT_REFRESH_AFTER = timedelta(minutes=20)
+
+
+def _snapshot_key(name, days, user):
+    return "%s:%d:%s" % (name, days, "all" if user is None or sees_all_records(user) else "user-%d" % user.pk)
+
+
+def _snapshot(user, name, days, compute):
+    """(numbers, computed_at) — stored ones while fresh, otherwise computed and stored."""
+    key = _snapshot_key(name, days, user)
+    now = timezone.now()
+    stored = AnalyticsSnapshot.objects.filter(key=key, computed_at__gte=now - SNAPSHOT_MAX_AGE).first()
+    if stored:
+        return stored.payload, stored.computed_at
+    # The shared "all" numbers are computed without a user, exactly as the worker does.
+    numbers = compute(None if key.endswith(":all") else user, days)
+    # Keeping them is only a saving: if another request holds the row (or SQLite
+    # is busy), show the numbers just counted rather than fail the page.
+    try:
+        with transaction.atomic():
+            AnalyticsSnapshot.objects.update_or_create(key=key, defaults={"payload": numbers, "computed_at": now})
+    except DatabaseError:
+        logger.warning("analytics snapshot %s not stored", key, exc_info=True)
+    return numbers, now
+
+
+def _communication_numbers(user, days):
+    """The heavy part of the communication page: counts and record ids only."""
+    monthly = days > 120
+    since = timezone.now() - timedelta(days=days)
+    people = visible_people(user, Person.objects.filter(deleted_at__isnull=True))
+    companies = visible_companies(user, Company.objects.filter(deleted_at__isnull=True))
+    activities = visible_activities(user, Activity.objects.filter(deleted_at__isnull=True, created_at__gte=since))
+
+    def top(field, records):
+        return [[row[field], row["total"]] for row in activities.filter(**{field + "__in": records}).values(field)
+                .annotate(total=Count("id")).order_by("-total", field)[:10]]
+
+    # Average days between contacts, per contact with at least two, over their whole history.
+    spans = (Activity.objects.filter(deleted_at__isnull=True, person__in=people)
+             .values("person_id").annotate(total=Count("id"), first_at=Min("created_at"), last_at=Max("created_at"))
+             .filter(total__gte=2).order_by())
+    gap = spans.aggregate(gap=Avg(ExpressionWrapper((F("last_at") - F("first_at")) / (F("total") - 1),
+                                                    output_field=DurationField())))["gap"]
+    return {
+        "buckets": _activity_buckets(activities, _buckets(since.date(), timezone.localdate(), monthly), monthly),
+        "top_people": top("person", people), "top_companies": top("company", companies),
+        "by_user": _by_creator(activities, 10),
+        "average_gap": round(gap.total_seconds() / 86400, 1) if gap is not None else None,
+    }
+
+
 @login_required
 def communication(request):
     days = _period(request)
-    monthly = days > 120
-    since = timezone.now() - timedelta(days=days)
-    today = timezone.localdate()
-
-    people_ids = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
-    company_ids = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
-    activities = Activity.objects.filter(deleted_at__isnull=True, created_at__gte=since).filter(
-        Q(person__in=people_ids) | Q(company__in=company_ids))
-
+    numbers, computed_at = _snapshot(request.user, "communication", days, _communication_numbers)
     keys = [key for key, _label in Activity.TYPE_CHOICES]
-    slots = _buckets(since.date(), today, monthly)
-    tally = {key: {series: 0 for series in keys} for key, _label in slots}
-    for moment, kind in activities.values_list("created_at", "activity_type"):
-        slot = tally.get(_bucket_key(moment, monthly))
-        if slot is not None:
-            slot[kind] = slot.get(kind, 0) + 1
-    buckets = [{"label": label, "values": tally[key]} for key, label in slots]
-
+    buckets = numbers["buckets"]
     legend = [{"label": label, "colour": charts.SERIES_COLOURS[index % len(charts.SERIES_COLOURS)],
                "total": sum(bucket["values"].get(key, 0) for bucket in buckets)}
               for index, (key, label) in enumerate(Activity.TYPE_CHOICES)]
 
-    top_people = charts.share_rows([
-        {"label": str(row), "total": row.total, "url": row.get_absolute_url()}
-        for row in people_ids.filter(activities__in=activities)
-        .annotate(total=Count("activities")).order_by("-total")[:10]])
-    top_companies = charts.share_rows([
-        {"label": row.name, "total": row.total, "url": row.get_absolute_url()}
-        for row in company_ids.filter(activities__in=activities)
-        .annotate(total=Count("activities")).order_by("-total")[:10]])
-    by_user = charts.share_rows([
-        {"label": row["created_by__username"] or str(tr("Nežinomas")), "total": row["total"]}
-        for row in activities.values("created_by__username").annotate(total=Count("id")).order_by("-total")[:10]])
+    def ranked(pairs, records):
+        found = records.in_bulk([pk for pk, _total in pairs])
+        return [(found[pk], total) for pk, total in pairs if pk in found]
 
-    spans = (people_ids.annotate(total=Count("activities", filter=Q(activities__deleted_at__isnull=True)),
-                                 first_at=Min("activities__created_at"),
-                                 last_at=Max("activities__created_at"))
-             .filter(total__gte=2))
-    gaps = [(row.last_at - row.first_at).days / (row.total - 1) for row in spans]
-    average_gap = round(sum(gaps) / len(gaps), 1) if gaps else None
-
+    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
     return render(request, "analytics/communication.html", {
         "section": "communication", "days": days, "periods": PERIODS,
         "chart": charts.stacked_bars(buckets, keys), "legend": legend,
         "total": sum(item["total"] for item in legend),
-        "top_people": top_people, "top_companies": top_companies, "by_user": by_user,
-        "average_gap": average_gap, "monthly": monthly,
+        "top_people": charts.share_rows([
+            {"label": str(person), "total": total, "url": person.get_absolute_url()}
+            for person, total in ranked(numbers["top_people"], people)]),
+        "top_companies": charts.share_rows([
+            {"label": company.name, "total": total, "url": company.get_absolute_url()}
+            for company, total in ranked(numbers["top_companies"], companies)]),
+        "by_user": charts.share_rows(_creator_rows(numbers["by_user"])),
+        "average_gap": numbers["average_gap"], "monthly": days > 120, "computed_at": computed_at,
     })
 
 
@@ -447,11 +556,7 @@ def growth(request):
     people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
 
-    created = {key: 0 for key, _label in slots}
-    for moment in people.values_list("created_at", flat=True):
-        key = _bucket_key(moment, monthly=True)
-        if key in created:
-            created[key] += 1
+    created = _created_per_month(people, slots)
     new_per_month = [{"label": label, "values": {"people": created[key]}} for key, label in slots]
 
     running = people.filter(created_at__lt=timezone.make_aware(
@@ -462,14 +567,7 @@ def growth(request):
         cumulative.append({"label": label, "value": running})
 
     total_people = people.count()
-    quality = [
-        {"label": tr("Su el. paštu"), "total": people.filter(emails__isnull=False).distinct().count()},
-        {"label": tr("Su telefonu"), "total": people.filter(phones__isnull=False).distinct().count()},
-        {"label": tr("Su įmone"), "total": people.filter(company_links__isnull=False).distinct().count()},
-        {"label": tr("Su atsakingu"), "total": people.exclude(owner__isnull=True, responsibles__isnull=True).distinct().count()},
-    ]
-    for row in quality:
-        row["percent"] = round(row["total"] * 100 / total_people) if total_people else 0
+    quality = _data_quality(people, total_people)
 
     return render(request, "analytics/growth.html", {
         "section": "growth",
@@ -538,10 +636,8 @@ def analytics_overview(request):
     people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
     companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True))
     reminders = visible_reminders(request.user, Reminder.objects.filter(deleted_at__isnull=True))
-    activities = Activity.objects.filter(deleted_at__isnull=True).filter(
-        Q(person__in=people) | Q(company__in=companies))
-    recent_activities = activities.filter(created_at__gte=since)
     overdue = reminders.filter(completed_at__isnull=True, due_at__lt=now)
+    numbers, computed_at = _snapshot(request.user, "overview", days, _overview_numbers)
 
     people_total = people.count()
     kpis = {
@@ -549,24 +645,17 @@ def analytics_overview(request):
         "companies_total": companies.count(),
         "new_people": people.filter(created_at__gte=month_ago).count(),
         "new_companies": companies.filter(created_at__gte=month_ago).count(),
-        "activity_total": recent_activities.count(),
+        "activity_total": numbers["activity_total"],
         "overdue_total": overdue.count(),
         "spark_people": charts.sparkline(_daily_counts(people, today)),
         "spark_companies": charts.sparkline(_daily_counts(companies, today)),
-        "spark_activity": charts.sparkline(_daily_counts(activities, today)),
+        "spark_activity": charts.sparkline(numbers["spark_activity"]),
         "spark_overdue": charts.sparkline(_daily_counts(overdue, today)),
     }
 
     # --- Communication band ---------------------------------------------
-    monthly = days > 120
     keys = [key for key, _label in Activity.TYPE_CHOICES]
-    slots = _buckets(since.date(), today, monthly)
-    tally = {key: {series: 0 for series in keys} for key, _label in slots}
-    for moment, kind in recent_activities.values_list("created_at", "activity_type"):
-        slot = tally.get(_bucket_key(moment, monthly))
-        if slot is not None:
-            slot[kind] = slot.get(kind, 0) + 1
-    comm_buckets = [{"label": label, "values": tally[key]} for key, label in slots]
+    comm_buckets = numbers["buckets"]
     comm_legend = [{"label": label,
                     "colour": charts.SERIES_COLOURS[index % len(charts.SERIES_COLOURS)],
                     "total": sum(bucket["values"].get(key, 0) for bucket in comm_buckets)}
@@ -575,11 +664,8 @@ def analytics_overview(request):
         "chart": charts.stacked_bars(comm_buckets, keys),
         "legend": comm_legend,
         "total": sum(item["total"] for item in comm_legend),
-        "monthly": monthly,
-        "by_user": charts.share_rows([
-            {"label": row["created_by__username"] or unknown, "total": row["total"]}
-            for row in recent_activities.values("created_by__username")
-            .annotate(total=Count("id")).order_by("-total")[:5]]),
+        "monthly": days > 120,
+        "by_user": charts.share_rows(_creator_rows(numbers["by_user"])),
     }
 
     # --- Reminder band -------------------------------------------------
@@ -604,40 +690,28 @@ def analytics_overview(request):
     # --- Growth band (fixed 12 months) --------------------------------
     start = (today.replace(day=1) - timedelta(days=31 * 11)).replace(day=1)
     month_slots = _buckets(start, today, monthly=True)
-    created = {key: 0 for key, _label in month_slots}
-    for moment in people.values_list("created_at", flat=True):
-        key = _bucket_key(moment, monthly=True)
-        if key in created:
-            created[key] += 1
+    created = _created_per_month(people, month_slots)
     running = people.filter(created_at__lt=timezone.make_aware(
         datetime.combine(start, time.min), timezone.get_current_timezone())).count()
     cumulative = []
     for key, label in month_slots:
         running += created[key]
         cumulative.append({"label": label, "value": running})
-    quality = [
-        {"label": tr("Su el. paštu"), "total": people.filter(emails__isnull=False).distinct().count()},
-        {"label": tr("Su telefonu"), "total": people.filter(phones__isnull=False).distinct().count()},
-        {"label": tr("Su įmone"), "total": people.filter(company_links__isnull=False).distinct().count()},
-        {"label": tr("Su atsakingu"),
-         "total": people.exclude(owner__isnull=True, responsibles__isnull=True).distinct().count()},
-    ]
-    for row in quality:
-        row["percent"] = round(row["total"] * 100 / people_total) if people_total else 0
+    quality = _data_quality(people, people_total)
     base = {"curve": charts.line_series(cumulative), "quality": quality,
             "total_people": people_total, "total_companies": kpis["companies_total"]}
 
     # --- Relationship care band (fixed 60-day window) -----------------
-    care_lists = _care_querysets(request.user, 60)
-    silent_total = care_lists["silent"].count()
+    counts = numbers["care_counts"]
+    silent = _with_last_contact(people.filter(pk__in=numbers["silent_ids"])).in_bulk()
     care = {
-        "silent": care_lists["silent"][:5],
-        "silent_total": silent_total,
+        "silent": [silent[pk] for pk in numbers["silent_ids"] if pk in silent],
+        "silent_total": counts["silent"],
         "counts": charts.share_rows([
-            {"label": tr("Nutilę > 60 d."), "total": silent_total},
-            {"label": tr("Niekada nebendrauta"), "total": care_lists["never"].count()},
-            {"label": tr("Be telefono ir el. pašto"), "total": care_lists["no_details"].count()},
-            {"label": tr("Be atsakingo"), "total": care_lists["no_owner"].count()},
+            {"label": tr("Nutilę > 60 d."), "total": counts["silent"]},
+            {"label": tr("Niekada nebendrauta"), "total": counts["never"]},
+            {"label": tr("Be telefono ir el. pašto"), "total": counts["no_details"]},
+            {"label": tr("Be atsakingo"), "total": counts["no_owner"]},
         ]),
     }
 
@@ -662,4 +736,23 @@ def analytics_overview(request):
     return render(request, "analytics/overview.html", {
         "section": "overview", "days": days, "periods": PERIODS,
         "kpis": kpis, "comm": comm, "rem": rem, "base": base, "care": care, "system": system,
+        "computed_at": computed_at,
     })
+
+
+def _overview_numbers(user, days):
+    """The heavy part of the overview: activity counts and the relationship-care band."""
+    today = timezone.localdate()
+    since = timezone.now() - timedelta(days=days)
+    monthly = days > 120
+    activities = visible_activities(user, Activity.objects.filter(deleted_at__isnull=True))
+    recent = activities.filter(created_at__gte=since)
+    care = _care_querysets(user, 60)
+    return {
+        "activity_total": recent.count(),
+        "spark_activity": _daily_counts(activities, today),
+        "buckets": _activity_buckets(recent, _buckets(since.date(), today, monthly), monthly),
+        "by_user": _by_creator(recent, 5),
+        "silent_ids": list(care["silent"].values_list("pk", flat=True)[:5]),
+        "care_counts": {key: care[key].count() for key in ("silent", "never", "no_details", "no_owner")},
+    }

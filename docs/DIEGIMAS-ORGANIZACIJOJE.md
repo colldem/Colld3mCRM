@@ -43,6 +43,7 @@ yra DB platformos).
 | CRM VM | ClamAV veidrodis `database.clamav.net` arba vidinis | TCP 443 | antivirusinių parašų atnaujinimas | jei ClamAV |
 | CRM VM | webhook gavėjai | TCP 443 | įvykių siuntimas | jei webhook'ai |
 | Prometheus | reverse proxy → `/metrics` | TCP 443 | stebėsena | rekomenduojama |
+| Stebėsena (Zabbix, Uptime Kuma …) | reverse proxy → `/health/ready`, `/health/jobs` | TCP 443 | pasiekiamumas ir foniniai darbai (200 = gerai, 503 = problema) | rekomenduojama |
 | SIEM agentas (VM) | SIEM | pagal SIEM | žurnalai | rekomenduojama |
 | DWH | CRM VM PostgreSQL | TCP 5432 (tik jei publikuojama) | `reporting` schema | jei DWH |
 | Administratoriai | CRM VM | TCP 22 | priežiūra | taip |

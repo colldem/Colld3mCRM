@@ -18,6 +18,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from . import identity
 from .audit import REDACTED, log as audit_log, sanctioned_redact
 from .models import (Activity, Attachment, AuditLog, AutomationLog, Company, CustomValue, DuplicateException,
                      IncomingMail, Person, Reminder, SystemSettings, WebhookDelivery)
@@ -93,6 +94,11 @@ def person_data(person):
         "person": {
             "id": person.pk, "first_name": person.first_name, "last_name": person.last_name,
             "job_title": person.job_title, "description": person.description, "favourite": person.favourite,
+            # The subject's own identifiers belong in their copy of the data.
+            "birth_date": person.birth_date.isoformat() if person.birth_date else None,
+            "personal_code_type": person.personal_code_type or None,
+            "personal_code": identity.reveal(person) or None,
+            "external_source": person.external_source or None, "external_id": person.external_id or None,
             "created_at": _dt(person.created_at), "updated_at": _dt(person.updated_at),
             "archived_at": _dt(person.deleted_at),
             "owner": person.owner.get_username() if person.owner else None,
@@ -163,7 +169,7 @@ def erase_person(person, request, reason="data_subject_erasure"):
 
 
 def find_people(query):
-    """Active and archived people matching a name, e-mail or phone."""
+    """Active and archived people matching a name, e-mail, phone or personal code."""
     query = (query or "").strip()
     if len(query) < 2:
         return Person.objects.none()
@@ -171,7 +177,8 @@ def find_people(query):
     by_name = Q()
     for part in parts:
         by_name &= Q(first_name__icontains=part) | Q(last_name__icontains=part)
-    return (Person.objects.filter(by_name | Q(emails__email__icontains=query) | Q(phones__number__icontains=query))
+    by_code = Q(personal_code_hash__in=identity.candidate_hashes(query)) if identity.available() else Q(pk__in=[])
+    return (Person.objects.filter(by_name | by_code | Q(emails__email__icontains=query) | Q(phones__number__icontains=query))
             .distinct().order_by("last_name", "first_name")[:50])
 
 

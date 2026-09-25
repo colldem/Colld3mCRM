@@ -36,7 +36,10 @@ You need:
    (cert-manager, or a certificate your platform issues).
 2. A **PostgreSQL 17** database, plus a user and an empty database. The chart
    deliberately ships no database: use what your platform already runs and backs
-   up.
+   up. The migrations create the `pg_trgm` extension for search (a trusted
+   extension: the database owner may create it). If your platform forbids that,
+   have an administrator run `CREATE EXTENSION pg_trgm;` in the database first;
+   without it search still works, only unindexed.
 3. An **S3-compatible bucket** for uploaded files (MinIO, Ceph RGW, AWS S3 …)
    and a key pair that can read and write it.
 4. Two generated secrets:
@@ -172,7 +175,7 @@ yours.
 |---|---|
 | `Deployment` (web) | gunicorn, `replicaCount` pods, `CRM_RUN_MIGRATIONS=0` |
 | `Job` (migrate) | Helm `pre-install,pre-upgrade` hook, once per release |
-| `CronJob` × 9 | `send_notifications`, `fetch_mail`, `deliver_webhooks`, `run_automations`, `extend_recurrences`, `complete_past_meetings`, `deactivate_inactive_users`, `purge_audit_log`, `apply_retention` |
+| `CronJob` × 11 | `send_notifications`, `fetch_mail`, `deliver_webhooks`, `run_automations`, `extend_recurrences`, `complete_past_meetings`, `deactivate_inactive_users`, `purge_audit_log`, `apply_retention`, `find_duplicates`, `refresh_analytics` |
 | `Service` | ClusterIP on port 80 → container 8080 |
 | `Ingress` | nginx, TLS, 12 MB body limit so a 10 MB import fits |
 | `ConfigMap` | non-secret settings; the pods roll when it changes |

@@ -44,7 +44,104 @@ darbo sluoksnis ant jo, ne pakaitalas. Raktas — **asmens kodas** → reikia pe
 | Importas | CSV per naršyklę iki 10 MB — netinka |
 
 Apkrovos testas CI buvo su 5 000 kontaktų. PostgreSQL pati 800 tūkst. asmenų ir ~10 mln.
-pranešimų atlaiko; keisti reikia užklausas. Grubus įvertinimas: **1,5–3 sav.** (neišmatuota).
+pranešimų atlaiko; keisti reikia užklausas. Grubus įvertinimas: **1,5–3 sav.**
+
+### Išmatuota su 800 tūkst. (0 etapas, 2026-09-24)
+
+800 000 asmenų, 200 000 įmonių, 2,4 mln. veiklų, 400 000 priminimų, ~1 % dublikatų;
+DB 1,2 GB. Kiekvienas puslapis atskirai, vienas naudotojas (`scripts/loadtest/probe.py`),
+PostgreSQL 16, Gunicorn 2 × 2, 4 vCPU be atminties ribos; užklausos riba 120 s.
+Tas pats CI: **Actions → „Load — large volume"** (`load-large.yml`, 2 vCPU / 1 GB).
+
+| Puslapis | 5 000 | 800 000 |
+|---|---|---|
+| Darbastalis | 0,21 s | 2,5 s |
+| Kontaktų sąrašas (1 ir 2000 psl.) | 0,12 s | 1,3 s |
+| Paieška kontaktų sąraše | 0,11 s | 8,3 s |
+| Paieškos pasiūlymai / globali paieška | 0,11 / 0,13 s | 21,5 / 21,9 s |
+| Įmonių sąrašas su filtru | 0,04 s | 0,8 s |
+| Kontakto kortelė | 0,10 s | 6,8 s |
+| Analitika | 0,31 s | **> 120 s (klaida)** |
+| Naujo asmens forma (visos įmonės kaip žymimieji langeliai) | 0,25 s | 37 s |
+| Dublikatų tikrinimas išsaugant | 0,58 s | **139 s** |
+| Dublikatų sąrašas | 1,4 s | **> 150 s** |
+
+Web proceso atmintis pakilo iki **6,6 GB** (dublikatai) — 1 GB konteineryje procesas būtų nužudytas.
+Analitika: `COUNT` su `person_id IN (visi asmenys) OR company_id IN (...)` — 800 tūkst. id netelpa į
+`work_mem`, PostgreSQL tikrina kiekvieną veiklą per visą asmenų sąrašą (valandos).
+
+### 1 etapas — dublikatai (0.84.0)
+
+Tikrinimas išsaugant ieško per indeksus (`match_key` — `LOWER(TRIM(...))`, telefonų `digits`),
+peržiūros sąrašą sudaro foninis `find_duplicates` (`crm-worker` kas ciklą, K8s CronJob kas 5 min.)
+į `DuplicateCandidate`; puslapis tik skaito, puslapiuoja po 50 ir tikrina matomumą `EXISTS` per porą.
+
+| Matavimas (800 tūkst.) | Prieš | Po |
+|---|---|---|
+| Dublikatų tikrinimas išsaugant | 139 s | 0,03 s |
+| Dublikatų sąrašas | > 150 s | 1,6 s |
+| Web proceso atmintis (dublikatai) | 6,6 GB | nepastebima |
+| Foninė patikra `find_duplicates` | — | 11 s, 87 MB, 16 136 porų |
+| Migracija 0057 (telefonų skaitmenų užpildymas) | — | ~2 min. |
+
+### 2 etapas — paieška ir sąrašai (0.85.0)
+
+Filtrai: susijusios lentelės — `pk IN (… UNION …)` vietoj `JOIN` + `DISTINCT` visiems stulpeliams;
+`pg_trgm` GIN indeksai ant `UPPER(col)` (migracija 0058, ~25 s su 800 tūkst.). Įmonių pasirinkimas —
+paieškos laukelis (`company_lookup`), ne visos įmonės puslapyje. Analitikos veiklų matomumas —
+`visible_activities` (jungtis, ne `IN (800 tūkst.)`).
+
+| Matavimas (800 tūkst.) | 1 etapo pabaigoje | Po 2 etapo |
+|---|---|---|
+| Kontaktų sąrašas | 1,3 s | 0,9 s |
+| Paieška kontaktų sąraše | 8,8 s | 0,8 s |
+| Paieškos pasiūlymai / globali paieška | 23 / 24 s | 0,2 / 0,9 s |
+| Kontakto kortelė | 7,2 s | 0,75 s |
+| Naujo asmens forma | 40 s | 0,75 s |
+| Įmonių paieška valdiklyje | — | 0,01 s |
+| Analitika | > 120 s (klaida) | 44 s (3 etapas) |
+
+Liko ~0,5–0,9 s kiekviename puslapyje — varpelis; bandomuosiuose duomenyse kiekvienas naudotojas turi
+~20 tūkst. atvirų priminimų (nerealu), todėl tai matuojama atskirai.
+
+### 3 etapas — analitika (0.86.0)
+
+Skaičiuojama DB (`GROUP BY` savaitei / mėnesiui, `EXISTS` / `NOT EXISTS`, vidurkis per subužklausą), ne
+Python cikle per visas eilutes. Apžvalgos ir komunikacijos sunkioji dalis saugoma `AnalyticsSnapshot`:
+visų įrašų matomumui ją kas ~20 min. perskaičiuoja `refresh_analytics` (su 800 tūkst. — 17 s), kitiems —
+pirmą kartą atidarius, galioja 30 min.
+
+| Matavimas (800 tūkst.) | Prieš | Po |
+|---|---|---|
+| Analitikos apžvalga | > 120 s (klaida), po 2 etapo 52 s | 2,7 s (pirmą kartą be išankstinio — ~11 s) |
+| Komunikacija | 58 s | 1,0 s (pirmą kartą — ~8 s) |
+| Ryšių priežiūra | 13 s | 3,5 s |
+| Bazė ir augimas | 13 s | 2,3 s |
+| Web proceso atmintis per visą matavimą | 635 MB | 85 MB |
+
+### 5 etapas — kortelės istorijos puslapiavimas (0.87.0)
+
+Kortelės skirtukuose (Visi / Komentarai / Failai) — 50 naujausių, skaičiai iš DB, „Rodyti senesnius“
+prideda po 50 (iki 1000). Asmuo su 5 000 veiklų ir 300 failų: kortelė 3,4 s → 1,2 s, įmonė 4,1 s → 1,2 s
+(likusi dalis — bendras puslapio karkasas).
+
+### 4 etapas — tapatybė ir didelis importas (0.88.0)
+
+- `Person`: `birth_date`, asmens kodas / užsieniečio ID (`personal_code_type`, užšifruotas + raktinė maiša),
+  `external_source` + `external_id` (Regitros įrašo ID — sistemų jungimo raktas, unikalus), `synced_at`.
+- Kortelėje „Tapatybė“: kodas užmaskuotas, „Rodyti“ — teisė *Matyti asmens kodą* + auditas.
+- Paieška pagal visą asmens kodą / išorinį ID; tas pats kodas — dublikato požymis.
+- Genesys: `POST /api/v1/contacts/lookup` (kodas kūne, auditas kiekvienam rastam).
+- `manage.py import_people` — CSV porcijomis pagal išorinį ID.
+
+| Matavimas (PostgreSQL, 1 mln. asmenų bazėje) | Rezultatas |
+|---|---|
+| Nauji asmenys su kodu, el. paštu, telefonu | 100 tūkst. per 40 s (~800 tūkst. per 5–6 min.), atmintis 143 MB |
+| Pakartotinis to paties failo importas (200 tūkst., nieko nepakito) | 41 s (be šios optimizacijos — 341 s) |
+| Paieška pagal asmens kodą (pasiūlymai / sąrašas) | 0,5 s / ~1–2 s (didžioji dalis — varpelis) |
+
+0.88.1: 11 skaitmenų paieška (viršuje, sąraše, Duomenų apsaugoje) siunčiama POST — kodas nepatenka į URL,
+naršyklės istoriją ir proxy žurnalus; vienas rastas atveriamas iškart.
 
 ## 4. Siūloma kryptis
 
@@ -62,9 +159,27 @@ pranešimų atlaiko; keisti reikia užklausas. Grubus įvertinimas: **1,5–3 sa
 
 ## 5. Kitas žingsnis (kai grįšime)
 
-1. Didelių kiekių testas CI: 800 tūkst. asmenų, 200 tūkst. įmonių, ~10 mln. pranešimų, 50 naudotojų — tikri skaičiai.
-2. Mastelio etapas pagal rezultatus (paieška, dublikatai, sąrašai, analitika, sisteminiai laukai, kortelės puslapiavimas).
+1. ~~Didelių kiekių matavimas~~ — atlikta (§3, `load-large.yml`).
+2. Mastelio etapai, po kiekvieno — pakartotinis `load-large.yml`:
+   1) ~~dublikatai~~ — atlikta (0.84.0, §3);
+   2) ~~paieška ir sąrašai~~ — atlikta (0.85.0, §3);
+   3) ~~darbastalis ir analitika~~ — atlikta (0.86.0, §3);
+   4) ~~sisteminiai laukai ir didelis importas porcijomis~~ — atlikta (0.88.0, §3);
+   5) ~~kortelės veiklų puslapiavimas~~ — atlikta (0.87.0, §3);
+   6) ~~foninių darbų priežiūra ir stebėsena~~ — atlikta (0.89.0; C — Uptime Kuma aprašyta `docs/DEPLOYMENT.md`, diegiama vietoje):
+      - A. savaiminis atsistatymas — kiekvienam `crm-worker` darbui laiko riba (pakibęs nutraukiamas,
+        kiti vyksta), konteinerio sveikatos patikra (ciklas baigtas per ~20 min., kitaip paleidžiamas iš
+        naujo), `crm-worker` CPU/atminties ribos ir žemesnis prioritetas, `statement_timeout` DB užklausoms;
+      - B. matomumas CRM — Nustatymai → Sistemos būklė (kiekvieno darbo paskutinė sėkmė / klaida / būsena),
+        raudona juosta administratoriui, kai darbas vėluoja ar krenta, `/health/jobs` išorinei stebėsenai;
+      - C. pranešimai į išorę — NAS: Uptime Kuma (`/health/ready`, `/health/jobs` → el. paštas / Telegram /
+        Teams); organizacijoje: `/metrics` + `docs/DEPLOYMENT.md` įspėjimų taisyklės į Prometheus / Zabbix.
 3. Integracijos prototipas su netikru ORDS stiliaus API.
+4. ~~Naršyklės importo lange~~ — atlikta (0.90.0): priimami ir `personal_code`,
+   `personal_code_type`, `birth_date`, `external_source` / `external_id` stulpelius — ta pati logika kaip
+   `import_people` (asmens kodo stulpelis rodomas tik turint teisę *Matyti asmens kodą*).
+5. Regitros paslaugos, vizitai ir prašymai kortelėje pagal `external_id` — gyvai iš Regitros API (ORDS),
+   su puslapiavimu, nekopijuojant į CRM; laukiama Regitros API aprašo.
 
 ## 6. Klausimai Regitros Oracle / CRM komandai
 

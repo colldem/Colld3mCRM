@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime, time, timedelta
-from io import BytesIO
+from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -16,7 +16,7 @@ from django.utils import timezone, translation
 
 from contacts import crypto
 from contacts.models import Activity, ApiToken, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, RolePermissions, SavedFilter, Tag, Team, UserProfile, WebLink
-from contacts.duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
+from contacts.duplicates import find_company_duplicates, find_person_duplicates, scan_duplicates
 from contacts import permissions as perm
 
 
@@ -2033,6 +2033,7 @@ class ContactViewTests(TestCase):
         self.assertNotContains(settings_response, 'name="level"')   # one fixed rule, no level
         other = Person.objects.create(first_name="Kita", last_name="Pavardė")
         EmailAddress.objects.create(person=other, email="ruta@example.lt")
+        scan_duplicates()
         response = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(response, self.person.get_absolute_url())
         self.assertContains(response, other.get_absolute_url())
@@ -2048,6 +2049,7 @@ class ContactViewTests(TestCase):
         keep = Person.objects.create(first_name="Petras", last_name="Petraitis")
         dup1 = Person.objects.create(first_name="Petras", last_name="Petraitis")
         dup2 = Person.objects.create(first_name="Petras", last_name="Petraitis")
+        scan_duplicates()
         response = self.client.post(reverse("contacts:duplicate-merge-all"), follow=True)
         self.assertContains(response, "Sujungta dublikatų porų")
         self.assertEqual(Person.objects.filter(first_name="Petras", deleted_at__isnull=True).count(), 1)
@@ -2091,6 +2093,7 @@ class ContactViewTests(TestCase):
         response = self.client.post(reverse("contacts:company-create"), {**payload, "confirm_duplicate": "1"})
         self.assertEqual(response.status_code, 302)
         created = Company.objects.get(name="Kita įmonė")
+        scan_duplicates()
         response = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(response, self.company.get_absolute_url())
         self.assertContains(response, created.get_absolute_url())
@@ -2165,6 +2168,7 @@ class ContactViewTests(TestCase):
         self.client.force_login(self.user)
         other = Person.objects.create(first_name="Kita", last_name="Kontaktė")
         EmailAddress.objects.create(person=other, email="ruta@example.lt")
+        scan_duplicates()
         review = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(review, reverse("contacts:duplicate-merge", args=["person", other.pk, self.person.pk]))
         self.assertContains(review, reverse("contacts:duplicate-merge", args=["person", self.person.pk, other.pk]))
@@ -2355,13 +2359,15 @@ class ContactViewTests(TestCase):
             {"name": "", "company_code": "", "vat_code": "",
              "email": "bendras@example.lt", "phone": "+37060011122"}, exclude_pk=None,
         ) and [], [])   # a person's contact details do not surface as a company match
-        pairs = all_person_duplicate_pairs() + all_company_duplicate_pairs()
-        self.assertEqual(pairs, [])
+        from contacts.models import DuplicateCandidate
+        scan_duplicates()
+        self.assertFalse(DuplicateCandidate.objects.exists())
 
     def test_strict_review_detects_exact_full_name(self):
         self.client.force_login(self.user)
         DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True})
         other = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
+        scan_duplicates()
 
         response = self.client.get(reverse("contacts:duplicate-list"))
 
@@ -2376,11 +2382,15 @@ class ContactViewTests(TestCase):
         self.user.save(update_fields=["is_superuser"])
         DuplicateSettings.objects.update_or_create(pk=1, defaults={"enabled": True})
         twin = Person.objects.create(first_name=self.person.first_name, last_name=self.person.last_name)
+        scan_duplicates()
 
         low, high = sorted((self.person.pk, twin.pk))
         self.client.post(reverse("contacts:duplicate-dismiss", args=["person", low, high]))
         self.assertEqual(DuplicateException.objects.filter(kind="person", left_id=low, right_id=high).count(), 1)
 
+        # Gone at once, and the next scan does not bring it back.
+        self.assertContains(self.client.get(reverse("contacts:duplicate-list")), "Galimų dublikatų nerasta")
+        scan_duplicates()
         self.assertContains(self.client.get(reverse("contacts:duplicate-list")), "Galimų dublikatų nerasta")
         # Editing one of them no longer warns about the other.
         data = {"first_name": self.person.first_name, "last_name": self.person.last_name,
@@ -2424,6 +2434,7 @@ class ContactViewTests(TestCase):
         _preview, response = self._import_file(SimpleUploadedFile("contacts.csv", content, content_type="text/csv"))
         self.assertContains(response, "Galimi dublikatai: 1")
         imported = Person.objects.get(first_name="Kitas", last_name="Asmuo")
+        scan_duplicates()
         review = self.client.get(reverse("contacts:duplicate-list"))
         self.assertContains(review, self.person.get_absolute_url())
         self.assertContains(review, imported.get_absolute_url())
@@ -6977,9 +6988,9 @@ class InactiveAccountTests(TestCase):
         self.assertEqual(self.stale.crm_profile.deactivated_reason, "")
 
     def test_worker_and_kubernetes_run_it(self):
-        compose = (settings.BASE_DIR / "compose.yaml").read_text()
+        worker = (settings.BASE_DIR / "scripts" / "worker.sh").read_text()
         values = (settings.BASE_DIR / "deploy" / "helm" / "crm" / "values.yaml").read_text()
-        self.assertIn("manage.py deactivate_inactive_users", compose)
+        self.assertIn("deactivate_inactive_users", worker)
         self.assertIn("command: deactivate_inactive_users", values)
 
 
@@ -7087,7 +7098,7 @@ class AuditTrailTests(TestCase):
         self.assertEqual(self.client.get(reverse("contacts:settings-audit"), {"format": "csv"}).status_code, 404)
 
     def test_worker_and_kubernetes_run_the_purge(self):
-        self.assertIn("manage.py purge_audit_log", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("purge_audit_log", (settings.BASE_DIR / "scripts/worker.sh").read_text())
         self.assertIn("command: purge_audit_log", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
 
 
@@ -7418,7 +7429,7 @@ class RetentionTests(TestCase):
         self.assertContains(self.client.get(url), "1 kontaktų, 1 įmonių, 1 laiškų")
 
     def test_worker_and_kubernetes_run_it(self):
-        self.assertIn("manage.py apply_retention", (settings.BASE_DIR / "compose.yaml").read_text())
+        self.assertIn("apply_retention", (settings.BASE_DIR / "scripts/worker.sh").read_text())
         self.assertIn("command: apply_retention", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
 
 
@@ -7989,3 +8000,724 @@ class StagingPublicSwitchTests(TestCase):
         self.assertIn('options: ["tailnet", "public"]', workflow)
         self.assertIn('default: "tailnet"', workflow)
         self.assertIn("sanitize_staging", workflow)
+
+
+class DuplicateScanTests(TestCase):
+    """The review list is built in the background; the save-time check uses indexes."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("dublikatai", password="very-secure-password")
+        self.client.force_login(self.admin)
+
+    def _pair(self, **fields):
+        first = Person.objects.create(first_name="Ona", last_name="Onaitė", **fields)
+        second = Person.objects.create(first_name="Ona", last_name="Onaitė", **fields)
+        return first, second
+
+    def test_matching_ignores_case_spaces_and_phone_formatting(self):
+        person = Person.objects.create(first_name="Rūta", last_name="Žukaitė")
+        EmailAddress.objects.create(person=person, email="Ruta.Z@Example.LT")
+        PhoneNumber.objects.create(person=person, number="+370 (645) 21-987")
+        data = {"first_name": " rūta ", "last_name": "ŽUKAITĖ", "email": "ruta.z@example.lt ",
+                "phone": "37064521987", "companies": []}
+        [match] = find_person_duplicates(data)
+        self.assertEqual((match["record"], match["reasons"]), (person, ["name", "email", "phone"]))
+        company = Company.objects.create(name="UAB Pavyzdys", phone="+370 5 212 3456")
+        [match] = find_company_duplicates({"name": "uab pavyzdys ", "phone": "852123456 ", "email": "",
+                                           "vat_code": "", "company_code": ""})
+        self.assertEqual((match["record"], match["reasons"]), (company, ["name"]))
+        [match] = find_company_duplicates({"name": "", "phone": "(370) 5 212 3456", "email": "",
+                                           "vat_code": "", "company_code": ""})
+        self.assertEqual(match["reasons"], ["phone"])
+
+    def test_phone_digits_follow_every_save(self):
+        company = Company.objects.create(name="Skaitmenys", phone="+370 600 00001")
+        self.assertEqual(company.phone_digits, "37060000001")
+        company.phone = "8 600 00002"
+        company.save(update_fields=["phone"])
+        company.refresh_from_db()
+        self.assertEqual(company.phone_digits, "860000002")
+        phone = PhoneNumber.objects.create(person=Person.objects.create(first_name="A", last_name="B"), number="+370 1")
+        phone.number = "+370 600 12345"
+        phone.save(update_fields=["number"])
+        phone.refresh_from_db()
+        self.assertEqual(phone.digits, "37060012345")
+
+    def test_the_list_only_reads_what_the_background_scan_found(self):
+        from django.core.management import call_command
+        from contacts.models import JobHeartbeat
+
+        first, second = self._pair()
+        page = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertNotContains(page, second.get_absolute_url())
+        self.assertContains(page, "Pirmasis patikrinimas dar neatliktas")
+        call_command("find_duplicates", stdout=StringIO())
+        self.assertTrue(JobHeartbeat.objects.get(name="find_duplicates").last_success_at)
+        page = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertContains(page, second.get_absolute_url())
+        self.assertContains(page, "Paskutinį kartą patikrinta")
+
+    def test_a_rescan_drops_pairs_that_no_longer_match(self):
+        from contacts.models import DuplicateCandidate
+
+        first, second = self._pair()
+        self.assertEqual(scan_duplicates()["person"]["added"], 1)
+        second.last_name = "Kitokia"
+        second.save()
+        self.assertEqual(scan_duplicates()["person"]["removed"], 1)
+        self.assertFalse(DuplicateCandidate.objects.exists())
+
+    def test_a_value_shared_by_too_many_records_is_not_a_pair(self):
+        from contacts import duplicates
+
+        for index in range(3):
+            person = Person.objects.create(first_name="Centras", last_name="Nr%d" % index)
+            PhoneNumber.objects.create(person=person, number="+370 5 200 0000")
+        with patch.object(duplicates, "MAX_GROUP", 2):
+            summary = scan_duplicates()
+        self.assertEqual((summary["person"]["pairs"], summary["person"]["skipped_groups"]), (0, 1))
+        self.assertEqual(scan_duplicates()["person"]["pairs"], 3)
+
+    def test_merging_removes_the_pair_at_once(self):
+        from contacts.models import DuplicateCandidate
+
+        first, second = self._pair()
+        scan_duplicates()
+        response = self.client.post(reverse("contacts:duplicate-merge", args=["person", second.pk, first.pk]))
+        self.assertRedirects(response, first.get_absolute_url())
+        self.assertFalse(DuplicateCandidate.objects.exists())
+
+    def test_merge_rejects_a_pair_the_rule_no_longer_matches(self):
+        first = Person.objects.create(first_name="Ona", last_name="Onaitė")
+        other = Person.objects.create(first_name="Kita", last_name="Asmenybė")
+        response = self.client.post(reverse("contacts:duplicate-merge", args=["person", other.pk, first.pk]))
+        self.assertEqual(response.status_code, 400)
+
+    def test_a_restricted_user_sees_only_pairs_of_their_own_records(self):
+        member = get_user_model().objects.create_user("savi", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        mine = self._pair(owner=member)
+        theirs = self._pair(owner=self.admin)
+        scan_duplicates()
+        self.client.force_login(member)
+        page = self.client.get(reverse("contacts:duplicate-list"))
+        self.assertContains(page, mine[1].get_absolute_url())
+        self.assertNotContains(page, theirs[1].get_absolute_url())
+
+    def test_merge_all_works_in_batches(self):
+        from contacts import views
+
+        self._pair()
+        Person.objects.create(first_name="Jonas", last_name="Jonaitis")
+        Person.objects.create(first_name="Jonas", last_name="Jonaitis")
+        scan_duplicates()
+        with patch.object(views, "MERGE_ALL_BATCH", 1):
+            response = self.client.post(reverse("contacts:duplicate-merge-all"), follow=True)
+        self.assertContains(response, "Sujungta dublikatų porų: 1")
+        self.assertContains(response, "Liko daugiau porų")
+        self.client.post(reverse("contacts:duplicate-merge-all"))
+        self.assertEqual(Person.objects.filter(deleted_at__isnull=True).count(), 2)
+
+    def test_merge_all_skips_a_pair_that_changed_since_the_scan(self):
+        first, second = self._pair()
+        scan_duplicates()
+        second.last_name = "Pasikeitė"
+        second.save()
+        response = self.client.post(reverse("contacts:duplicate-merge-all"), follow=True)
+        self.assertContains(response, "Sujungiamų dublikatų nerasta")
+        second.refresh_from_db()
+        self.assertIsNone(second.deleted_at)
+
+    def test_worker_and_kubernetes_run_the_scan(self):
+        self.assertIn("find_duplicates", (settings.BASE_DIR / "scripts/worker.sh").read_text())
+        self.assertIn("command: find_duplicates", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
+
+
+class LargeVolumeSearchTests(TestCase):
+    """Search and pickers that stay fast with hundreds of thousands of records."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("paieska", password="very-secure-password")
+        self.client.force_login(self.admin)
+
+    def test_search_reaches_related_tables_and_lists_each_contact_once(self):
+        person = Person.objects.create(first_name="Ieva", last_name="Paieškaitė")
+        EmailAddress.objects.create(person=person, email="ieva@ryšys.lt")
+        EmailAddress.objects.create(person=person, email="ieva.ryšys@example.lt")
+        PhoneNumber.objects.create(person=person, number="+370 699 12345")
+        tag = Tag.objects.create(name="Žymėtas")
+        person.tags.add(tag)
+        company = Company.objects.create(name="Ryšio UAB")
+        PersonCompanyLink.objects.create(person=person, company=company)
+        Person.objects.create(first_name="Kitas", last_name="Nesusijęs")
+        for term in ("ryšys", "699 123", "Žymėt", "Ryšio UAB", "Paieškaitė"):
+            page = self.client.get(reverse("contacts:list"), {"q": term}).context["page"]
+            self.assertEqual([p.pk for p in page.object_list], [person.pk], term)
+        companies = self.client.get(reverse("contacts:company-list"), {"q": "Paieškaitė"}).context["page"]
+        self.assertEqual([c.pk for c in companies.object_list], [company.pk])
+
+    def test_company_lookup_finds_visible_companies_by_name_or_code(self):
+        member = get_user_model().objects.create_user("ieskotojas", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        mine = Company.objects.create(name="Mano Paieška UAB", company_code="301234567", owner=member)
+        Company.objects.create(name="Svetima Paieška UAB", owner=self.admin)
+        url = reverse("contacts:company-lookup")
+        self.assertEqual(self.client.get(url, {"q": "p"}).json(), {"results": []})
+        self.assertEqual(len(self.client.get(url, {"q": "paieška"}).json()["results"]), 2)
+        self.client.force_login(member)
+        self.assertEqual(self.client.get(url, {"q": "paieška"}).json()["results"], [{"id": mine.pk, "name": mine.name}])
+        self.assertEqual(self.client.get(url, {"q": "3012345"}).json()["results"][0]["id"], mine.pk)
+
+    def test_pickers_carry_only_the_chosen_companies(self):
+        chosen = Company.objects.create(name="Pasirinkta UAB")
+        Company.objects.create(name="Nepasirinkta UAB")
+        form = self.client.get(reverse("contacts:person-create"))
+        self.assertContains(form, "company-search")
+        self.assertNotContains(form, "Nepasirinkta UAB")
+        person = Person.objects.create(first_name="Su", last_name="Įmone")
+        PersonCompanyLink.objects.create(person=person, company=chosen)
+        card = self.client.get(person.get_absolute_url())
+        self.assertContains(card, 'value="%d" checked' % chosen.pk)
+        self.assertNotContains(card, "Nepasirinkta UAB")
+        edit = self.client.get(reverse("contacts:edit", args=[person.pk]))
+        self.assertContains(edit, "Pasirinkta UAB")
+        self.assertNotContains(edit, "Nepasirinkta UAB")
+        # A company picked through the search box is saved like any other choice.
+        other = Company.objects.get(name="Nepasirinkta UAB")
+        self.client.post(reverse("contacts:person-create"), {"first_name": "Naujas", "last_name": "Asmuo",
+                                                            "companies": [other.pk]})
+        self.assertEqual(list(Person.objects.get(last_name="Asmuo").companies.all()), [other])
+
+    def test_a_rejected_form_does_not_echo_a_hidden_company(self):
+        member = get_user_model().objects.create_user("slepiamas", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        hidden = Company.objects.create(name="Paslėpta UAB", owner=self.admin)
+        self.client.force_login(member)
+        response = self.client.post(reverse("contacts:person-create"), {"first_name": "", "companies": [hidden.pk]})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Paslėpta UAB")
+
+    def test_visible_activities_follow_record_visibility(self):
+        from contacts.permissions import visible_activities
+
+        member = get_user_model().objects.create_user("veiklos", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        own = Person.objects.create(first_name="Savas", last_name="Asmuo", owner=member)
+        other = Person.objects.create(first_name="Kito", last_name="Asmuo", owner=self.admin)
+        gone = Person.objects.create(first_name="Archyvuotas", last_name="Asmuo", owner=member,
+                                     deleted_at=timezone.now())
+        firm = Company.objects.create(name="Sava UAB", owner=member)
+        mine = [Activity.objects.create(person=own, text="a", created_by=member),
+                Activity.objects.create(company=firm, text="b", created_by=member)]
+        Activity.objects.create(person=other, text="c", created_by=self.admin)
+        Activity.objects.create(person=gone, text="d", created_by=member)
+        self.assertEqual(set(visible_activities(member, Activity.objects.all())), set(mine))
+        self.assertEqual(visible_activities(self.admin, Activity.objects.all()).count(), 3)
+
+
+class AnalyticsSnapshotTests(TestCase):
+    """Heavy analytics numbers are stored and reused instead of recounted per view."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("skaiciai", password="very-secure-password")
+        self.client.force_login(self.admin)
+        self.person = Person.objects.create(first_name="Skaičių", last_name="Asmuo")
+
+    def _activity(self, days_ago=0, person=None):
+        activity = Activity.objects.create(person=person or self.person, text="x", created_by=self.admin)
+        Activity.objects.filter(pk=activity.pk).update(created_at=timezone.now() - timedelta(days=days_ago))
+        return activity
+
+    def test_a_fresh_snapshot_is_reused_and_a_stale_one_recounted(self):
+        from contacts.models import AnalyticsSnapshot
+
+        self._activity()
+        first = self.client.get(reverse("contacts:analytics-overview"))
+        self.assertEqual(first.context["kpis"]["activity_total"], 1)
+        self.assertContains(first, "Veiklų skaičiai suskaičiuoti")
+        self._activity()
+        self.assertEqual(self.client.get(reverse("contacts:analytics-overview")).context["kpis"]["activity_total"], 1)
+        AnalyticsSnapshot.objects.update(computed_at=timezone.now() - timedelta(hours=1))
+        self.assertEqual(self.client.get(reverse("contacts:analytics-overview")).context["kpis"]["activity_total"], 2)
+
+    def test_restricted_users_get_their_own_numbers(self):
+        from contacts.models import AnalyticsSnapshot
+
+        member = get_user_model().objects.create_user("savi-skaiciai", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_RESTRICTED,
+                                   record_visibility=UserProfile.VISIBILITY_OWN)
+        own = Person.objects.create(first_name="Savas", last_name="Kontaktas", owner=member)
+        Person.objects.filter(pk=self.person.pk).update(owner=self.admin)
+        self._activity(person=own)
+        self._activity()
+        self.client.get(reverse("contacts:analytics-communication"))
+        self.client.force_login(member)
+        page = self.client.get(reverse("contacts:analytics-communication"))
+        self.assertEqual(page.context["total"], 1)
+        self.assertEqual([row["label"] for row in page.context["top_people"]], [str(own)])
+        self.assertEqual(set(AnalyticsSnapshot.objects.values_list("key", flat=True)),
+                         {"communication:90:all", "communication:90:user-%d" % member.pk})
+
+    def test_average_gap_and_top_people_are_counted_by_the_database(self):
+        self._activity(days_ago=10)
+        self._activity(days_ago=6)
+        self._activity(days_ago=2)
+        page = self.client.get(reverse("contacts:analytics-communication"))
+        self.assertEqual(page.context["average_gap"], 4.0)
+        self.assertEqual(page.context["top_people"][0]["total"], 3)
+        self.assertEqual(page.context["total"], 3)
+
+    def test_refresh_command_updates_the_shared_numbers_only_when_old(self):
+        from django.core.management import call_command
+        from contacts.models import AnalyticsSnapshot
+
+        out = StringIO()
+        call_command("refresh_analytics", stdout=out)
+        self.assertIn("refreshed=overview,communication", out.getvalue())
+        call_command("refresh_analytics", stdout=out)
+        self.assertIn("refreshed=-", out.getvalue())
+        AnalyticsSnapshot.objects.create(key="overview:30:user-99", payload={},
+                                         computed_at=timezone.now() - timedelta(days=2))
+        call_command("refresh_analytics", stdout=out)
+        self.assertIn("dropped=1", out.getvalue())
+
+    def test_care_lists_use_exists_and_keep_their_meaning(self):
+        from contacts.analytics_views import _care_querysets
+
+        silent = Person.objects.create(first_name="Nutilęs", last_name="A", owner=self.admin)
+        self._activity(days_ago=100, person=silent)
+        recent = Person.objects.create(first_name="Neseniai", last_name="B", owner=self.admin)
+        self._activity(days_ago=1, person=recent)
+        PhoneNumber.objects.create(person=recent, number="+37060000000")
+        lists = _care_querysets(self.admin, 60)
+        self.assertEqual(list(lists["silent"]), [silent])
+        self.assertEqual(lists["silent"][0].last_contact_at.date(), (timezone.now() - timedelta(days=100)).date())
+        self.assertEqual(set(lists["never"]), {self.person})
+        self.assertEqual(set(lists["no_owner"]), {self.person})
+        self.assertEqual(set(lists["no_details"]), {self.person, silent})
+
+    def test_a_snapshot_that_cannot_be_stored_still_shows_the_numbers(self):
+        from django.db import OperationalError
+        from contacts.models import AnalyticsSnapshot
+
+        self._activity()
+        with patch.object(AnalyticsSnapshot.objects, "update_or_create", side_effect=OperationalError("locked")), \
+                self.assertLogs("contacts.analytics_views", "WARNING"):
+            page = self.client.get(reverse("contacts:analytics-overview"))
+        self.assertEqual(page.status_code, 200)
+        self.assertEqual(page.context["kpis"]["activity_total"], 1)
+
+    def test_worker_and_kubernetes_run_the_refresh(self):
+        self.assertIn("refresh_analytics", (settings.BASE_DIR / "scripts/worker.sh").read_text())
+        self.assertIn("command: refresh_analytics", (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
+
+
+class CardFeedPagingTests(TestCase):
+    """A long history is shown newest first, a page at a time."""
+
+    def setUp(self):
+        from contacts import views
+
+        self.admin = get_user_model().objects.create_superuser("istorija", password="very-secure-password")
+        self.client.force_login(self.admin)
+        self.person = Person.objects.create(first_name="Ilga", last_name="Istorija")
+        patcher = patch.object(views, "FEED_PAGE", 3)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for index in range(7):
+            activity = Activity.objects.create(person=self.person, text="Įrašas %d" % index, created_by=self.admin,
+                                               activity_type="note" if index % 2 else "call")
+            Activity.objects.filter(pk=activity.pk).update(created_at=timezone.now() - timedelta(days=7 - index))
+
+    def test_the_card_shows_the_newest_page_and_the_full_counts(self):
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertEqual([a.text for a in page.context["all_entries"]], ["Įrašas 6", "Įrašas 5", "Įrašas 4"])
+        self.assertEqual(page.context["feed_totals"], {"all": 7, "comments": 3, "files": 0})
+        self.assertContains(page, 'href="?all=6#feed-all"')
+        self.assertContains(page, "Rodyti senesnius (liko 4)")
+        self.assertEqual(page.context["last_activity"].text, "Įrašas 6")
+        self.assertIsNone(page.context["feed_more"]["comments"])
+
+    def test_show_older_adds_a_page_and_stops_at_the_end(self):
+        page = self.client.get(self.person.get_absolute_url(), {"all": "6"})
+        self.assertEqual(len(page.context["all_entries"]), 6)
+        page = self.client.get(self.person.get_absolute_url(), {"all": "9"})
+        self.assertEqual(len(page.context["all_entries"]), 7)
+        self.assertIsNone(page.context["feed_more"]["all"])
+        self.assertEqual(len(self.client.get(self.person.get_absolute_url(), {"all": "x"}).context["all_entries"]), 3)
+
+    def test_the_company_card_pages_its_history_too(self):
+        company = Company.objects.create(name="Istorijos UAB")
+        PersonCompanyLink.objects.create(person=self.person, company=company)
+        page = self.client.get(company.get_absolute_url())
+        self.assertEqual(page.context["feed_totals"]["all"], 7)
+        self.assertEqual(len(page.context["all_entries"]), 3)
+
+
+class PersonIdentityTests(TestCase):
+    """Personal code: found by keyed hash, shown masked, revealed only with the right, never logged."""
+
+    CODE = "38703181745"
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("tapatybe", password="very-secure-password")
+        self.member = get_user_model().objects.create_user("operatorius", password="very-secure-password")
+        UserProfile.objects.create(user=self.member, role=UserProfile.ROLE_MEMBER)
+        self.person = Person.objects.create(first_name="Jonas", last_name="Kodas")
+
+    def _with_code(self, person=None, code=None):
+        from contacts import identity
+
+        person = person or self.person
+        identity.assign(person, identity.LT, code or self.CODE)
+        person.save()
+        return person
+
+    def test_codes_are_validated_normalised_and_date_the_birth(self):
+        from contacts import identity
+
+        self.assertEqual(identity.normalize(identity.LT, " 3870318 1745 "), self.CODE)
+        for bad in ("38703181746", "3870318174", "abc"):
+            with self.assertRaises(ValidationError):
+                identity.normalize(identity.LT, bad)
+        self.assertEqual(identity.normalize(identity.OTHER, "ab 123 45"), "AB12345")
+        self.assertIsNone(identity.birth_date("50502291232"))  # 29 February 2005 does not exist
+        self.assertEqual(identity.birth_date("49001011238").isoformat(), "1990-01-01")
+        person = self._with_code()
+        self.assertEqual(person.birth_date.isoformat(), "1987-03-18")
+
+    def test_the_code_is_stored_encrypted_and_hashed_never_plain(self):
+        from contacts import identity
+
+        person = self._with_code()
+        row = Person.objects.filter(pk=person.pk).values().get()
+        self.assertNotIn(self.CODE, json.dumps(row, default=str))
+        self.assertEqual(identity.reveal(person), self.CODE)
+        self.assertEqual(identity.masked(person), "3•••••••745")
+        self.assertEqual(len(person.personal_code_hash), 64)
+
+    def test_search_finds_a_person_by_code_or_external_id(self):
+        self._with_code()
+        Person.objects.filter(pk=self.person.pk).update(external_source="regitra", external_id="R77")
+        self.client.force_login(self.member)
+        for term in (self.CODE, "R77"):
+            page = self.client.get(reverse("contacts:list"), {"q": term}).context["page"]
+            self.assertEqual([p.pk for p in page.object_list], [self.person.pk], term)
+        suggest = self.client.get(reverse("contacts:search-suggest"), {"q": self.CODE}).json()
+        self.assertEqual(suggest["groups"][0]["items"][0]["label"], str(self.person))
+
+    def test_the_card_masks_the_code_and_only_the_right_reveals_it_with_an_audit_row(self):
+        from contacts.models import AuditLog
+
+        self._with_code()
+        self.client.force_login(self.member)
+        card = self.client.get(self.person.get_absolute_url())
+        self.assertContains(card, "3•••••••745")
+        self.assertNotContains(card, self.CODE)
+        url = reverse("contacts:personal-code-reveal", args=[self.person.pk])
+        self.assertNotContains(card, url)
+        self.assertEqual(self.client.post(url).status_code, 404)
+        RolePermissions.objects.update_or_create(role=UserProfile.ROLE_MEMBER,
+                                                 defaults={"permissions": {"can_view_personal_code": True}})
+        self.assertContains(self.client.get(self.person.get_absolute_url()), url)
+        self.assertEqual(self.client.post(url).json(), {"value": self.CODE})
+        entry = AuditLog.objects.filter(action=AuditLog.VIEW, field="personal_code").get()
+        self.assertEqual(entry.actor, self.member)
+        self.assertEqual(self.client.get(url).status_code, 405)
+
+    def test_a_reader_granted_the_right_can_reveal(self):
+        self._with_code()
+        reader = get_user_model().objects.create_user("skaitytojas-kodas", password="very-secure-password")
+        UserProfile.objects.create(user=reader, role=UserProfile.ROLE_READONLY)
+        RolePermissions.objects.update_or_create(role=UserProfile.ROLE_READONLY,
+                                                 defaults={"permissions": {"can_view_personal_code": True}})
+        self.client.force_login(reader)
+        url = reverse("contacts:personal-code-reveal", args=[self.person.pk])
+        self.assertEqual(self.client.post(url).json(), {"value": self.CODE})
+
+    def test_the_form_sets_the_code_write_only_and_the_audit_trail_never_holds_it(self):
+        from contacts.models import AuditLog
+
+        self.client.force_login(self.admin)
+        edit = reverse("contacts:edit", args=[self.person.pk])
+        response = self.client.post(edit, {"first_name": "Jonas", "last_name": "Kodas", "personal_code_type": "lt",
+                                           "personal_code": "12345678901"})
+        self.assertContains(response, "Neteisingas asmens kodas")
+        self.client.post(edit, {"first_name": "Jonas", "last_name": "Kodas", "personal_code_type": "lt",
+                                "personal_code": self.CODE})
+        self.person.refresh_from_db()
+        self.assertTrue(self.person.personal_code_hash)
+        form = self.client.get(edit)
+        self.assertNotContains(form, self.CODE)
+        self.assertContains(form, "3•••••••745")
+        self.assertFalse(AuditLog.objects.filter(new_value__contains=self.CODE).exists())
+        # Without the right the field is not offered at all.
+        self.client.force_login(self.member)
+        self.assertNotContains(self.client.get(edit), 'name="personal_code"')
+
+    def test_the_same_code_is_a_duplicate_and_merging_keeps_it(self):
+        from contacts.merging import merge_people
+
+        self._with_code()
+        twin = self._with_code(Person.objects.create(first_name="Kitas", last_name="Vardas"))
+        summary = scan_duplicates()
+        self.assertEqual(summary["person"]["pairs"], 1)
+        from contacts.models import DuplicateCandidate
+        self.assertEqual(DuplicateCandidate.objects.get().reasons, "personal_code")
+        Person.objects.filter(pk=twin.pk).update(external_source="regitra", external_id="R1")
+        Person.objects.filter(pk=self.person.pk).update(personal_code_type="", personal_code_encrypted="",
+                                                         personal_code_hash="")
+        kept = merge_people(twin.pk, self.person.pk)
+        self.assertEqual((kept.personal_code_hash, kept.external_id), (twin.personal_code_hash, "R1"))
+
+    def test_api_lookup_by_code_or_external_id_audits_and_never_returns_the_code(self):
+        from contacts.models import AuditLog
+
+        self._with_code()
+        Person.objects.filter(pk=self.person.pk).update(external_source="regitra", external_id="R77")
+        raw, digest = ApiToken.new()
+        ApiToken.objects.create(name="genesys", token_hash=digest, prefix=raw[:12], scope=ApiToken.READ,
+                                created_by=self.admin)
+        auth = {"HTTP_AUTHORIZATION": "Bearer " + raw}
+        url = reverse("api:contacts-lookup")
+        post = lambda payload: self.client.post(url, data=json.dumps(payload), content_type="application/json", **auth)  # noqa: E731
+        found = post({"personal_code": self.CODE}).json()["results"]
+        self.assertEqual([row["id"] for row in found], [self.person.pk])
+        self.assertEqual(post({"external_source": "regitra", "external_id": "R77"}).json()["results"][0]["id"],
+                         self.person.pk)
+        self.assertEqual(post({"personal_code": "49001011238"}).json()["results"], [])
+        self.assertEqual(post({"personal_code": "123"}).status_code, 400)
+        self.assertEqual(self.client.get(url, **auth).status_code, 405)
+        self.assertEqual(AuditLog.objects.filter(action=AuditLog.VIEW, field="API lookup").count(), 2)
+        payload = self.client.get(reverse("api:contact", args=[self.person.pk]), **auth).json()
+        self.assertTrue(payload["has_personal_code"])
+        self.assertNotIn(self.CODE, json.dumps(payload))
+
+    def test_bulk_import_creates_updates_and_reports_without_the_code(self):
+        from io import StringIO as Text
+        from django.core.management import call_command
+
+        csv_text = ("external_id,first_name,last_name,personal_code,email,phone\n"
+                    "R1,Ona,Pirmoji,%s,ona@example.lt,+370 600 00001\n"
+                    "R2,Petras,Antrasis,,petras@example.lt,\n"
+                    "R3,,,,,\n"
+                    "R4,Blogas,Kodas,12345678901,,\n" % self.CODE)
+        path = settings.BASE_DIR / "runtime" / "test-import.csv"
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(csv_text, encoding="utf-8")
+        self.addCleanup(path.unlink)
+        out, err = Text(), Text()
+        call_command("import_people", str(path), "--source", "regitra", stdout=out, stderr=err)
+        self.assertIn("created=2 updated=0 unchanged=0 errors=2", out.getvalue())
+        self.assertIn("line 4: first_name or last_name is required", err.getvalue())
+        self.assertIn("line 5: invalid personal_code", err.getvalue())
+        self.assertNotIn("12345678901", err.getvalue())
+        ona = Person.objects.get(external_source="regitra", external_id="R1")
+        self.assertEqual(ona.birth_date.isoformat(), "1987-03-18")
+        self.assertEqual(ona.phones.get().digits, "37060000001")
+        call_command("import_people", str(path), "--source", "regitra", stdout=out, stderr=Text())
+        self.assertIn("created=0 updated=0 unchanged=2", out.getvalue())
+        path.write_text(csv_text.replace("Pirmoji", "Pakeista"), encoding="utf-8")
+        call_command("import_people", str(path), "--source", "regitra", stdout=out, stderr=Text())
+        self.assertIn("created=0 updated=1 unchanged=1", out.getvalue())
+        self.assertEqual(Person.objects.filter(external_id="R1").get().phones.count(), 1)
+
+    def test_a_search_by_code_goes_by_post_and_never_echoes_the_code(self):
+        self._with_code()
+        self.client.force_login(self.member)
+        page = self.client.get(self.person.get_absolute_url())
+        self.assertContains(page, 'data-code-search-url="%s"' % reverse("contacts:search-personal-code"))
+        url = reverse("contacts:search-personal-code")
+        self.assertRedirects(self.client.post(url, {"code": "387 0318 1745"}), self.person.get_absolute_url())
+        missing = self.client.post(url, {"code": "49001011238"})
+        self.assertContains(missing, "Nieko nerasta")
+        self.assertNotContains(missing, "49001011238")
+        self.assertContains(missing, "••••••••238")
+        self.assertRedirects(self.client.get(url), reverse("contacts:search"))
+        suggest = self.client.post(reverse("contacts:search-suggest"), {"q": self.CODE}).json()
+        self.assertIsNone(suggest["url"])
+        self.assertEqual(suggest["groups"][0]["items"][0]["url"], self.person.get_absolute_url())
+
+    def test_a_reader_may_search_by_code(self):
+        self._with_code()
+        reader = get_user_model().objects.create_user("skaitytojas-paieska", password="very-secure-password")
+        UserProfile.objects.create(user=reader, role=UserProfile.ROLE_READONLY)
+        self.client.force_login(reader)
+        response = self.client.post(reverse("contacts:search-personal-code"), {"code": self.CODE})
+        self.assertRedirects(response, self.person.get_absolute_url())
+
+    def test_the_privacy_page_finds_by_code_sent_by_post(self):
+        self._with_code()
+        self.client.force_login(self.admin)
+        page = self.client.post(reverse("contacts:settings-privacy"), {"q": self.CODE})
+        self.assertEqual(list(page.context["people"]), [self.person])
+
+    def _browser_import(self, content, **confirm):
+        upload = SimpleUploadedFile("regitra.csv", content.encode(), content_type="text/csv")
+        preview = self.client.post(reverse("contacts:import-export"), {"file": upload})
+        return preview, self.client.post(reverse("contacts:import-export"), {"confirm": "1", "dedup": "update", **confirm})
+
+    def test_the_browser_import_takes_identity_columns_and_never_stores_the_code_plain(self):
+        from django.contrib.sessions.models import Session
+
+        self.client.force_login(self.admin)
+        content = ("Vardas,Pavardė,Asmens kodas,Gimimo data,Šaltinis,Išorinis ID\n"
+                   "Ona,Naršyklė,%s,,regitra,R900\n" % self.CODE)
+        upload = SimpleUploadedFile("regitra.csv", content.encode(), content_type="text/csv")
+        preview = self.client.post(reverse("contacts:import-export"), {"file": upload})
+        self.assertNotContains(preview, self.CODE)
+        self.assertContains(preview, "•••")
+        self.assertNotIn(self.CODE, "".join(row.session_data for row in Session.objects.all()))
+        self.assertNotIn(self.CODE, json.dumps(self.client.session["import_rows"]))
+        self.client.post(reverse("contacts:import-export"), {"confirm": "1", "dedup": "update"})
+        ona = Person.objects.get(external_source="regitra", external_id="R900")
+        self.assertEqual((ona.first_name, ona.birth_date.isoformat()), ("Ona", "1987-03-18"))
+        from contacts import identity
+        self.assertEqual(identity.reveal(ona), self.CODE)
+        # The same external id updates the same person, whatever the name says now.
+        self._browser_import("Vardas,Pavardė,Šaltinis,Išorinis ID\nOna,Pakeista,regitra,R900\n")
+        ona.refresh_from_db()
+        self.assertEqual(ona.last_name, "Pakeista")
+        self.assertEqual(Person.objects.filter(external_id="R900").count(), 1)
+
+    def test_the_personal_code_finds_the_person_to_update(self):
+        self._with_code()
+        self.client.force_login(self.admin)
+        self._browser_import("Vardas,Pavardė,AK\nJonas,Naujapavardis,%s\n" % self.CODE)
+        self.person.refresh_from_db()
+        self.assertEqual(self.person.last_name, "Naujapavardis")
+        self.assertEqual(Person.objects.count(), 1)
+
+    def test_without_the_right_the_code_column_is_dropped(self):
+        self.client.force_login(self.member)
+        preview, _result = self._browser_import("Vardas,Pavardė,Asmens kodas\nPetras,Be Kodo,%s\n" % self.CODE)
+        self.assertContains(preview, "Asmens kodų stulpelis praleistas")
+        self.assertNotIn(self.CODE, json.dumps(self.client.session.get("import_rows") or []))
+        self.assertEqual(Person.objects.get(last_name="Be Kodo").personal_code_hash, "")
+
+    def test_a_bad_code_is_a_row_error_and_the_error_report_leaves_it_out(self):
+        self.client.force_login(self.admin)
+        _preview, result = self._browser_import("Vardas,Pavardė,Asmens kodas\nBlogas,Kodas,12345678901\n")
+        self.assertContains(result, "Klaidos: 1")
+        report = self.client.get(reverse("contacts:import-errors")).content.decode()
+        self.assertIn("Neteisingas asmens kodas", report)
+        self.assertNotIn("12345678901", report)
+
+    def test_another_column_cannot_be_mapped_to_the_personal_code(self):
+        self.client.force_login(self.admin)
+        self._browser_import("Vardas,Pavardė,Pastaba\nKitas,Stulpelis,%s\n" % self.CODE,
+                             **{"map_Vardas": "Vardas", "map_Pavardė": "Pavardė", "map_Pastaba": "Asmens kodas"})
+        self.assertEqual(Person.objects.get(last_name="Stulpelis").personal_code_hash, "")
+
+    def test_the_data_subject_export_carries_the_code(self):
+        from contacts.privacy import find_people, person_data
+
+        self._with_code()
+        self.assertEqual(person_data(self.person)["person"]["personal_code"], self.CODE)
+        self.assertEqual(list(find_people(self.CODE)), [self.person])
+
+
+class WorkerSupervisionTests(TestCase):
+    """Background jobs: bounded, visible, and reported to an outside monitor."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("prieziura", password="very-secure-password")
+
+    def _beat(self, name, success=None, failure=None, error=""):
+        from contacts.models import JobHeartbeat
+
+        JobHeartbeat.objects.update_or_create(name=name, defaults={
+            "last_success_at": success, "last_failure_at": failure, "last_error": error})
+
+    def _all_ok(self):
+        from contacts.jobs import JOBS
+
+        for name in JOBS:
+            self._beat(name, success=timezone.now())
+
+    def test_states_follow_the_heartbeats(self):
+        from contacts.jobs import FAILING, LATE, NEVER, OK, job_states, overall
+
+        self.assertEqual(overall(job_states()), "no-worker")
+        self._all_ok()
+        self.assertEqual(overall(job_states()), "ok")
+        now = timezone.now()
+        self._beat("fetch_mail", success=now - timedelta(hours=2))
+        self._beat("apply_retention", success=now - timedelta(hours=2))
+        self._beat("send_notifications", success=now - timedelta(minutes=5), failure=now, error="SMTP down")
+        self._beat("find_duplicates")
+        states = {row["name"]: row for row in job_states()}
+        self.assertEqual(states["fetch_mail"]["state"], LATE)
+        self.assertEqual(states["apply_retention"]["state"], OK)  # a daily job may be 2 h old
+        self.assertEqual((states["send_notifications"]["state"], states["send_notifications"]["last_error"]),
+                         (FAILING, "SMTP down"))
+        self.assertEqual(states["find_duplicates"]["state"], NEVER)
+        self.assertEqual(overall(job_states()), "degraded")
+
+    def test_health_jobs_answers_an_outside_monitor(self):
+        response = self.client.get("/health/jobs")
+        self.assertEqual((response.status_code, response.json()["status"]), (503, "no-worker"))
+        self._all_ok()
+        response = self.client.get("/health/jobs")
+        self.assertEqual((response.status_code, response.json()["status"]), (200, "ok"))
+        self.assertEqual(response.json()["jobs"]["fetch_mail"], "ok")
+        self._beat("fetch_mail", success=timezone.now() - timedelta(hours=3))
+        self.assertEqual(self.client.get("/health/jobs").status_code, 503)
+
+    def test_the_page_and_banner_are_for_admins_only(self):
+        member = get_user_model().objects.create_user("ne-adminas", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_MEMBER)
+        url = reverse("contacts:settings-system-health")
+        self.client.force_login(self.admin)
+        page = self.client.get(url)
+        self.assertContains(page, "Dublikatų paieška")
+        self.assertContains(page, "crm-worker")  # no job has reported yet
+        self.assertNotContains(page, "job-banner")  # a copy without a worker is not an alarm
+        self._all_ok()
+        self._beat("fetch_mail", success=timezone.now() - timedelta(hours=3))
+        home = self.client.get(reverse("contacts:list"))
+        self.assertContains(home, "1 foninis darbas vėluoja arba klysta")
+        self.assertContains(self.client.get(url), "Vėluoja")
+        self.client.force_login(member)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.assertNotContains(self.client.get(reverse("contacts:list")), "job-banner")
+
+    def test_a_job_stopped_by_its_time_limit_is_recorded_as_failed(self):
+        import signal
+        from contacts.management.tracked import JobStopped, TrackedCommand
+        from contacts.models import JobHeartbeat
+
+        class Hung(TrackedCommand):
+            def handle(self, *args, **options):
+                os.kill(os.getpid(), signal.SIGTERM)  # what `timeout` sends
+
+        Hung.__module__ = "contacts.management.commands.hung_job"
+        before = signal.getsignal(signal.SIGTERM)
+        with self.assertRaises(JobStopped):
+            Hung().execute(stdout=StringIO(), stderr=StringIO(), no_color=True, force_color=False, skip_checks=True)
+        beat = JobHeartbeat.objects.get(name="hung_job")
+        self.assertIn("time limit", beat.last_error)
+        self.assertIsNone(beat.last_success_at)
+        self.assertEqual(signal.getsignal(signal.SIGTERM), before)
+
+    def test_the_loop_is_bounded_watched_and_limited(self):
+        from contacts.jobs import JOBS
+
+        worker = (settings.BASE_DIR / "scripts/worker.sh").read_text()
+        compose = (settings.BASE_DIR / "compose.yaml").read_text()
+        for name in JOBS:
+            with self.subTest(job=name):
+                self.assertIn(name, worker)
+                self.assertIn("command: %s" % name, (settings.BASE_DIR / "deploy/helm/crm/values.yaml").read_text())
+        self.assertIn('timeout "${WORKER_JOB_TIMEOUT_SECONDS:-600}" nice -n 10 python manage.py "$job"', worker)
+        self.assertIn("touch /tmp/worker-heartbeat", worker)
+        self.assertIn('entrypoint: ["/bin/sh", "/app/scripts/worker.sh"]', compose)
+        self.assertIn("find /tmp/worker-heartbeat", compose)
+        self.assertIn("mem_limit: ${WORKER_MEMORY:-1g}", compose)
+        self.assertIn("CRM_DB_STATEMENT_TIMEOUT: ${CRM_DB_STATEMENT_TIMEOUT:-90}", compose)
+        self.assertIn("activeDeadlineSeconds: {{ $.Values.worker.activeDeadlineSeconds }}",
+                      (settings.BASE_DIR / "deploy/helm/crm/templates/cronjobs.yaml").read_text())

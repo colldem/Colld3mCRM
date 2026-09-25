@@ -52,6 +52,7 @@
       {% if is_crm_admin %}
         <a class="{% if settings_section == 'system' %}active{% endif %}" href="{% url 'contacts:settings-system' %}">{% translate 'Bendri nustatymai' %}</a>
         <a class="{% if settings_section == 'translations' %}active{% endif %}" href="{% url 'contacts:settings-translations' %}">{% translate 'Vertimai' %}</a>
+        <a class="{% if settings_section == 'system-health' %}active{% endif %}" href="{% url 'contacts:settings-system-health' %}">{% translate 'Sistemos būklė' %}</a>
       {% endif %}
       {% if crm_caps.can_import or crm_caps.can_export %}<a class="{% if settings_section == 'import-export' %}active{% endif %}" href="{% url 'contacts:import-export' %}">{% translate 'Importas / eksportas' %}</a>{% endif %}
       {% if request.user.is_staff %}<a class="{% if settings_section == 'data-export' %}active{% endif %}" href="{% url 'contacts:settings-data-export' %}">{% translate 'Duomenų eksportas' %}</a>{% endif %}

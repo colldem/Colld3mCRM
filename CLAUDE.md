@@ -68,13 +68,17 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
-  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DirectoryGroupMapping.
+  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DuplicateCandidate, AnalyticsSnapshot, DirectoryGroupMapping.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
-  darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys;
+  darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys; skaičiuojama DB (`GROUP BY`,
+  `EXISTS`), ne Python cikle; apžvalgos ir komunikacijos sunkioji dalis — `AnalyticsSnapshot` (visų įrašų matomumui
+  atnaujina foninis `refresh_analytics`, kitiems — pirmą kartą atidarius, galioja 30 min.);
+  kortelės istorija — `views._feed_context` (50 naujausių skirtuke, `?all=` / `?comments=` / `?files=` prideda po 50);
   `calendar_views.py` — kalendorius;
   `detail_editing.py` / `inline_views.py` — AJAX laukų redagavimas;
-  `duplicates.py` / `merging.py` — dublikatai; `filters.py` — sąrašų filtrai;
-  `permissions.py` — rolės (admin / vadovas / visi / savi / skaitytojas), teisės ir įrašų matomumas;
+  `duplicates.py` / `merging.py` — dublikatai (tikrinimas išsaugant — per indeksus `match_key`/`digits`; peržiūros sąrašą sudaro foninis `find_duplicates` į `DuplicateCandidate`, puslapis tik skaito); `filters.py` — sąrašų filtrai (susijusios lentelės — tik `pk IN (… UNION …)`, be `JOIN` ir `DISTINCT`; `icontains` aptarnauja `pg_trgm` indeksai, migracija 0058);
+  `permissions.py` — rolės (admin / vadovas / visi / savi / skaitytojas), teisės ir įrašų matomumas (veikloms — `visible_activities`, ne `person IN (visi) OR company IN (visos)`);
+  įmonių pasirinkimas — `forms.CompanyPicker` / kortelės redaktorius + `company_lookup` (`static/js/forms.js`): puslapyje tik priskirtos įmonės, kitos randamos rašant;
   `errors.py` + `templates/errors/error.html` — 400/403/404/500 ir CSRF puslapiai
   (`handler*` `config/urls.py`, `CSRF_FAILURE_VIEW`); kiekvienas sako, kas nepavyko,
   kodėl ir ką daryti, 500 rodo `request_id`. Puslapis sąmoningai savarankiškas —
@@ -104,6 +108,13 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   iš produkcijos atkurta kopija neveiktų realiame pasaulyje
   (`manage.py sanitize_staging` išvalo tai ir pačiuose duomenyse);
   `crypto.py` — integracijų slaptažodžių šifravimas (`CRM_SECRETS_KEY`);
+  `identity.py` — asmens kodas / užsieniečio ID: tik užšifruotas + raktinė maiša paieškai (`personal_code_hash`),
+  kortelėje užmaskuotas, pilnas — teisė `can_view_personal_code` + auditas (`AuditLog.VIEW`); niekada į URL, žurnalus,
+  auditą, webhook'us, API asmens objektą; sistemos jungiamos per `Person.external_source` + `external_id`;
+  `api.contacts_lookup` (`POST /api/v1/contacts/lookup`) — skambučių centro (Genesys) paieška;
+  11 skaitmenų paieška UI — `static/js/search.js` siunčia POST (`search_personal_code`, `search_suggest`, privatumo langas), kad kodas nebūtų URL;
+  `bulk_import.py` + `management/commands/import_people.py` — didelis įkėlimas / sinchronizacija CSV porcijomis pagal išorinį ID;
+  naršyklės importas (`views.contacts_import`) — asmens kodo stulpelis užšifruojamas iškart įkėlus (`_protect_personal_codes`), kol eilutės laukia sesijoje;
   `antivirus.py` — ClamAV (clamd INSTREAM) visų įkeliamų failų tikrinimas; `compose.clamav.yaml` — ClamAV perdanga;
   `privacy.py` — duomenų subjekto eksportas (ZIP) ir ištrynimas su žurnalo nuasmeninimu; `anonymize.py` — staging nuasmeninimas;
   `observability.py` — JSON žurnalai (`CRM_LOG_FORMAT`), `X-Request-ID`, `crm.security` įvykiai (audito veidrodis be asmens duomenų);
@@ -113,8 +124,11 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `translations.py` + `middleware.py` — redaguojami sąsajos vertimai (CSV eksportas/importas
   per Nustatymai → Vertimai; override'ai DB, įrašomi tiesiai į Django katalogą veikiant,
   middleware sinchronizuoja procesus per versijos žymą).
+- `jobs.py` — foninių darbų sąrašas ir būsenos (Nustatymai → Sistemos būklė, administratoriaus juosta, `/health/jobs`, `/metrics`);
+  `scripts/worker.sh` — `crm-worker` ciklas: `timeout` kiekvienam darbui, `nice`, gyvybės žymė sveikatos patikrai;
+  sustabdytas darbas (`SIGTERM`) — `management/tracked.py` `JobStopped`, įrašoma kaip klaida.
 - Foninius darbus (`extend_recurrences`, `send_notifications`, `fetch_mail`,
-  `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` — `accounts.py`, `purge_audit_log` — `audit.py`, `apply_retention` — `privacy.py`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
+  `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` — `accounts.py`, `purge_audit_log` — `audit.py`, `apply_retention` — `privacy.py`, `find_duplicates` — `duplicates.py`, `refresh_analytics` — `analytics_views.py`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
   Vienas kortelių apvalkalas visame produkte — `.dash-card` (+ `.dash-grid`,
@@ -130,7 +144,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `.github/workflows/` — `ci.yml` (push/PR), `deploy-staging.yml` (push į `main`),
   `deploy.yml` (tag `v*` arba `workflow_call`), `release.yml` (rankinis paleidimas:
   pasiima `VERSION`, patikrina `compose.yaml` ir Chart'o `appVersion`, sukuria žymą,
-  iškviečia „Deploy"), abu diegimo darbai `runs-on: self-hosted crm-nas`.
+  iškviečia „Deploy"), abu diegimo darbai `runs-on: self-hosted crm-nas`;
+  `load-large.yml` (rankinis) — 800 tūkst. asmenų matavimas (`scripts/loadtest/seed.py`
+  porcijomis + `probe.py` kiekvienam puslapiui atskirai), tik ataskaita.
   `scripts/backup.sh` (crm-backup image, `deploy/backup/Dockerfile`) — šifruotos kopijos; `scripts/restore.sh` — atkūrimas
   (CI `backup-restore` darbas atlieka avarinio atkūrimo pratybas); `scripts/security-check.sh` — pip-audit + bandit (CI `security` darbas; Trivy ir SBOM — `image` darbe);
   `scripts/staging-public.sh` — staging instancijos atvėrimas į viešą internetą
@@ -155,6 +171,6 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   stilius ar vertimas. Pridėjus naują aplinkos kintamąjį — įrašyti į
   `.env.example` **ir** `docs/DEPLOYMENT.md` lentelę.
 - `deploy/helm/crm/` — Helm chart'as Kubernetes'ui (web Deployment, migracijų Job
-  kaip `pre-upgrade` hook, 9 CronJob'ai vietoj `crm-worker`, nginx Ingress;
+  kaip `pre-upgrade` hook, 11 CronJob'ų vietoj `crm-worker`, nginx Ingress;
   DB ir failų saugykla — išorinės). Instrukcija: `docs/KUBERNETES.md`.
   Atvaizdas į GHCR keliamas `publish-image.yml` uždėjus `v*` žymą.

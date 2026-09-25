@@ -75,9 +75,9 @@
       </form>{% endif %}
 
       <div class="tab-strip" role="tablist">
-        <button type="button" role="tab" class="tab is-active" data-tab="all" id="tab-all">{% translate 'Visi' %} <span>{{ all_entries|length }}</span></button>
-        <button type="button" role="tab" class="tab" data-tab="comments" id="tab-comments">{% translate 'Komentarai' %} <span>{{ comment_entries|length }}</span></button>
-        <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %} <span>{{ attachment_entries|length }}</span></button>
+        <button type="button" role="tab" class="tab is-active" data-tab="all" id="tab-all">{% translate 'Visi' %} <span>{{ feed_totals.all }}</span></button>
+        <button type="button" role="tab" class="tab" data-tab="comments" id="tab-comments">{% translate 'Komentarai' %} <span>{{ feed_totals.comments }}</span></button>
+        <button type="button" role="tab" class="tab" data-tab="files">{% translate 'Failai' %} <span>{{ feed_totals.files }}</span></button>
         <button type="button" role="tab" class="tab" data-tab="reminders" id="tab-reminders">{% translate 'Priminimai' %} <span>{{ active_reminders|length }}</span></button>
       </div>
 
@@ -85,18 +85,21 @@
         <div class="feed">
           {% for activity in all_entries %}{% ifchanged activity.created_at|date:"Y-m" %}<p class="feed-month">{{ activity.created_at|date:"Y F" }}</p>{% endifchanged %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Įrašų dar nėra.' %}</p>{% endfor %}
         </div>
+        {% if feed_more.all %}<a class="btn sm feed-more" href="?all={{ feed_more.all.next }}#feed-all">{% blocktranslate with left=feed_more.all.left %}Rodyti senesnius (liko {{ left }}){% endblocktranslate %}</a>{% endif %}
       </div>
 
       <div class="tab-panel" data-panel="comments" role="tabpanel" hidden>
         <div class="feed">
           {% for activity in comment_entries %}{% ifchanged activity.created_at|date:"Y-m" %}<p class="feed-month">{{ activity.created_at|date:"Y F" }}</p>{% endifchanged %}{% include "contacts/_activity_entry.html" %}{% empty %}<p class="muted">{% translate 'Komentarų dar nėra.' %}</p>{% endfor %}
         </div>
+        {% if feed_more.comments %}<a class="btn sm feed-more" href="?comments={{ feed_more.comments.next }}#feed-comments">{% blocktranslate with left=feed_more.comments.left %}Rodyti senesnius (liko {{ left }}){% endblocktranslate %}</a>{% endif %}
       </div>
 
       <div class="tab-panel" data-panel="files" role="tabpanel" hidden>
         <ul class="file-list">
           {% for attachment in attachment_entries %}<li><a href="{% url 'contacts:attachment-download' attachment.pk %}">⌁ {{ attachment.original_name }}</a><small>{{ attachment.created_at|date:datetime_format }}</small></li>{% empty %}<li class="muted">{% translate 'Failų nėra. Prisekite juos prie įrašo aukščiau.' %}</li>{% endfor %}
         </ul>
+        {% if feed_more.files %}<a class="btn sm feed-more" href="?files={{ feed_more.files.next }}#feed-files">{% blocktranslate with left=feed_more.files.left %}Rodyti senesnius (liko {{ left }}){% endblocktranslate %}</a>{% endif %}
       </div>
 
       <div class="tab-panel" data-panel="reminders" role="tabpanel" hidden>
@@ -153,6 +156,19 @@
         {% for item in custom_fields %}{% include "contacts/detail_field.html" %}{% empty %}<p class="muted">{% translate 'Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai.' %}</p>{% endfor %}
       </div>
     </details>
+
+    {% if identity_card %}
+    <section class="detail-card identity-card" data-reveal-box>
+      <h2>{% translate 'Tapatybė' %}</h2>
+      <dl class="aside-meta">
+        {% if identity_card.masked %}<dt>{{ identity_card.type_label|default:_('Asmens kodas') }}</dt>
+        <dd><span data-reveal-value>{{ identity_card.masked }}</span>{% if identity_card.can_reveal %}
+          <form method="post" action="{% url 'contacts:personal-code-reveal' record.pk %}" data-reveal>{% csrf_token %}<button class="btn sm" type="submit">{% translate 'Rodyti' %}</button></form>{% endif %}</dd>{% endif %}
+        {% if identity_card.birth_date %}<dt>{% translate 'Gimimo data' %}</dt><dd>{{ identity_card.birth_date|date:date_format }}</dd>{% endif %}
+        {% if identity_card.external %}<dt>{% translate 'Išorinis ID' %}</dt><dd>{{ identity_card.external }}{% if identity_card.synced_at %}<small>{% blocktranslate with when=identity_card.synced_at|date:datetime_format %}sinchronizuota {{ when }}{% endblocktranslate %}</small>{% endif %}</dd>{% endif %}
+      </dl>
+    </section>
+    {% endif %}
 
     <section class="detail-card meta-card">
       <h2 class="sr-only">{% translate 'Įrašo informacija' %}</h2>

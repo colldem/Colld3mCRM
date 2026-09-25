@@ -14,7 +14,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import connection, transaction
-from django.db.models import Count, Max, Min, Prefetch, Q
+from django.db.models import Count, Exists, Max, Min, OuterRef, Prefetch, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -24,7 +24,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .forms import ActivityForm, CompanyForm, DuplicateSettingsForm, PersonForm, ReminderForm, SetupAdminForm, UserProfileForm
-from .duplicates import all_company_duplicate_pairs, all_person_duplicate_pairs, find_company_duplicates, find_person_duplicates
+from .duplicates import count_new_person_pairs, find_company_duplicates, find_person_duplicates, is_duplicate_pair
 from .filters import (
     active_filter_count,
     apply_company_filters,
@@ -35,6 +35,7 @@ from .filters import (
     saved_filter_payload,
 )
 from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, SystemSettings, Tag, Team, UserProfile, WebLink
+from . import crypto, identity
 from .permissions import visible_companies, visible_people, visible_reminders
 from .reminder_queries import open_q
 from .sanitizers import csv_safe, safe_url
@@ -60,6 +61,36 @@ def _authorship_context(record, target_type):
 
 def _last_activity_context(last_activity):
     return {"last_activity": last_activity}
+
+
+FEED_PAGE = 50
+FEED_MAX = 1000
+
+
+def _feed_context(request, activities):
+    """The card's history tabs: the newest FEED_PAGE entries of each, and a
+    "show older" link that asks for FEED_PAGE more (up to FEED_MAX). A long
+    history is never loaded whole just to draw the card."""
+    activities = activities.select_related("created_by").prefetch_related("attachments").order_by("-created_at", "-pk")
+    feeds = {
+        "all": activities,
+        "comments": activities.filter(activity_type=Activity.NOTE),
+        "files": Attachment.objects.filter(activity__in=activities.values("pk")).order_by("-created_at", "-pk"),
+    }
+    shown, totals, more = {}, {}, {}
+    for name, queryset in feeds.items():
+        try:
+            limit = min(max(int(request.GET.get(name, FEED_PAGE)), FEED_PAGE), FEED_MAX)
+        except ValueError:
+            limit = FEED_PAGE
+        shown[name] = list(queryset[:limit])
+        totals[name] = queryset.count() if len(shown[name]) == limit else len(shown[name])
+        more[name] = {"next": limit + FEED_PAGE, "left": totals[name] - limit} if totals[name] > limit and limit < FEED_MAX else None
+    return {
+        "all_entries": shown["all"], "comment_entries": shown["comments"], "attachment_entries": shown["files"],
+        "feed_totals": totals, "feed_more": more,
+        **_last_activity_context(shown["all"][0] if shown["all"] else None),
+    }
 
 
 def _owner_choices():
@@ -162,12 +193,10 @@ def _search_results(query, per_group, user=None):
         .select_related("person", "company").order_by("due_at")
     )
     if user is not None:
-        from .permissions import sees_all_records, visible_company_ids, visible_person_ids
+        from .permissions import sees_all_records, visible_activities
 
         if not sees_all_records(user):
-            activities = activities.filter(
-                Q(person__pk__in=visible_person_ids(user)) | Q(company__pk__in=visible_company_ids(user))
-            )
+            activities = visible_activities(user, activities)
     return {
         "q": query,
         "people": people[:per_group], "people_count": people.count(),
@@ -185,12 +214,37 @@ def global_search(request):
 
 
 @login_required
+def search_personal_code(request):
+    """Search by a full personal code sent in a POST body, so the code never
+    lands in a URL (browser history, proxy logs). static/js/search.js sends
+    11-digit queries here instead of GET ?q=. One match opens the card."""
+    if request.method != "POST":
+        return redirect("contacts:search")
+    code = request.POST.get("code", "").strip()
+    hashes = identity.candidate_hashes(code)
+    people = []
+    if hashes:
+        people = list(visible_people(request.user, Person.objects.filter(
+            deleted_at__isnull=True, personal_code_hash__in=hashes)).order_by("last_name", "first_name")[:50])
+    if len(people) == 1:
+        return redirect(people[0])
+    compact = "".join(code.split())
+    return render(request, "search.html", {
+        "query": "•" * max(len(compact) - 3, 0) + compact[-3:], "code_search": True,
+        "results": {"people": people, "people_count": len(people), "companies": [], "companies_count": 0,
+                    "activities": [], "activities_count": 0, "reminders": [], "reminders_count": 0},
+    })
+
+
+@login_required
 def search_suggest(request):
-    query = request.GET.get("q", "").strip()
+    # POST for personal codes (search.js), GET for everything else.
+    source = request.POST if request.method == "POST" else request.GET
+    query = source.get("q", "").strip()
     if len(query) < 2:
         return JsonResponse({"q": query, "groups": []})
     results = _search_results(query, 5, request.user)
-    search_url = f"{reverse('contacts:search')}?q={query}"
+    search_url = None if request.method == "POST" else f"{reverse('contacts:search')}?q={query}"
     groups = []
     if results["people_count"]:
         groups.append({"label": str(tr("Kontaktai")), "count": results["people_count"], "url": search_url, "items": [
@@ -240,6 +294,30 @@ def health_ready(request):
     except Exception:
         return JsonResponse({"status": "not-ready"}, status=503)
     return JsonResponse({"status": "ready"})
+
+
+def health_jobs(request):
+    """For an outside monitor: 200 while every background command keeps up, 503 otherwise.
+    Names and states only — nothing about the data."""
+    from .jobs import job_states, overall
+
+    rows = job_states()
+    status = overall(rows)
+    return JsonResponse({"status": status, "jobs": {row["name"]: row["state"] for row in rows}},
+                        status=200 if status == "ok" else 503)
+
+
+@login_required
+def settings_system_health(request):
+    from .jobs import job_states, overall
+    from .permissions import is_admin
+
+    if not is_admin(request.user):
+        raise Http404
+    rows = job_states()
+    return render(request, "settings/system_health.html", {
+        "settings_section": "system-health", "jobs": rows, "overall": overall(rows),
+    })
 
 
 def setup_admin(request):
@@ -1266,7 +1344,8 @@ def settings_privacy(request):
     from .privacy import RETENTION_MINIMUM_DAYS, retention_candidates
 
     system = SystemSettings.load()
-    if request.method == "POST":
+    # A search by personal code arrives by POST (search.js), so the code stays out of the URL.
+    if request.method == "POST" and "q" not in request.POST:
         values = {}
         for name in ("archived_retention_days", "incoming_mail_retention_days"):
             raw = request.POST.get(name, "").strip()
@@ -1283,7 +1362,7 @@ def settings_privacy(request):
         system.save(update_fields=list(values) + ["updated_at"])
         messages.success(request, tr("Saugojimo terminai išsaugoti."))
         return redirect("contacts:settings-privacy")
-    query = request.GET.get("q", "")
+    query = (request.POST if request.method == "POST" else request.GET).get("q", "")
     return render(request, "settings/privacy.html", {
         "settings_section": "privacy", "query": query, "people": find_people(query), "system": system,
         "retention_minimum": RETENTION_MINIMUM_DAYS,
@@ -1837,19 +1916,48 @@ def documentation_page(request):
     })
 
 
+def _visible_candidates(user):
+    """Stored duplicate pairs whose both records are live and visible to ``user``, people first."""
+    from .models import DuplicateCandidate
+
+    # EXISTS per pair (a primary-key lookup), not "IN (every visible record)":
+    # with hundreds of thousands of records that list no longer fits in memory
+    # and PostgreSQL falls back to scanning it once per pair.
+    def visible(model, scope, side):
+        return Exists(scope(user, model.objects.filter(pk=OuterRef(side), deleted_at__isnull=True)))
+
+    return DuplicateCandidate.objects.filter(
+        Q(visible(Person, visible_people, "left_id"), visible(Person, visible_people, "right_id"), kind="person")
+        | Q(visible(Company, visible_companies, "left_id"), visible(Company, visible_companies, "right_id"), kind="company")
+    ).order_by("-kind", "left_id", "right_id")
+
+
+def _candidate_pairs(candidates):
+    """The template's pair dicts for a page of DuplicateCandidate rows."""
+    ids = {"person": set(), "company": set()}
+    for candidate in candidates:
+        ids[candidate.kind].update((candidate.left_id, candidate.right_id))
+    records = {"person": Person.objects.in_bulk(ids["person"]), "company": Company.objects.in_bulk(ids["company"])}
+    return [{"left": records[c.kind][c.left_id], "right": records[c.kind][c.right_id], "kind": c.kind,
+             "reasons": c.reasons.split(",")}
+            for c in candidates if c.left_id in records[c.kind] and c.right_id in records[c.kind]]
+
+
 @login_required
 def duplicate_list(request):
+    from django.core.paginator import Paginator
+    from .models import JobHeartbeat
+
     duplicate_settings = DuplicateSettings.load()
-    pairs = (all_person_duplicate_pairs() + all_company_duplicate_pairs()) if duplicate_settings.enabled else []
-    from .permissions import can_see_company, can_see_person
-
-    def _visible_pair(pair):
-        left, right = pair["left"], pair["right"]
-        checker = can_see_person if isinstance(left, Person) else can_see_company
-        return checker(request.user, left) and checker(request.user, right)
-
-    pairs = [pair for pair in pairs if _visible_pair(pair)]
-    return render(request, "duplicates/list.html", {"pairs": pairs, "duplicate_settings": duplicate_settings})
+    page = None
+    if duplicate_settings.enabled:
+        page = Paginator(_visible_candidates(request.user), 50).get_page(request.GET.get("page"))
+    scan = JobHeartbeat.objects.filter(name="find_duplicates").first()
+    return render(request, "duplicates/list.html", {
+        "pairs": _candidate_pairs(page) if page else [], "page": page, "duplicate_settings": duplicate_settings,
+        "page_numbers": _elided_page_numbers(page) if page else [],
+        "last_scan_at": scan.last_success_at if scan else None,
+    })
 
 
 @login_required
@@ -1877,6 +1985,9 @@ def duplicate_dismiss(request, kind, left_pk, right_pk):
     return redirect("contacts:duplicate-list")
 
 
+MERGE_ALL_BATCH = 200
+
+
 @login_required
 def duplicate_merge_all(request):
     if request.method != "POST":
@@ -1891,29 +2002,31 @@ def duplicate_merge_all(request):
     from .permissions import can_see_company, can_see_person
 
     merged = 0
-    plans = (
-        (all_person_duplicate_pairs(), can_see_person, merge_people),
-        (all_company_duplicate_pairs(), can_see_company, merge_companies),
-    )
-    for pairs, checker, merge_fn in plans:
-        for pair in pairs:
-            keep, drop = pair["left"], pair["right"]
-            keep.refresh_from_db()
-            drop.refresh_from_db()
-            # A record can already be gone via an earlier merge in a duplicate chain.
-            if keep.deleted_at or drop.deleted_at or keep.merged_into_id or drop.merged_into_id:
-                continue
-            if not (checker(request.user, keep) and checker(request.user, drop)):
-                continue
-            try:
-                target = merge_fn(drop.pk, keep.pk)
-            except ValidationError:
-                continue
-            audit_log(AuditLog.MERGE, request=request, target=target, old=str(drop), new=str(target),
-                      detail={"source_id": drop.pk, "target_id": keep.pk, "bulk": True})
-            merged += 1
+    checkers = {"person": (Person, can_see_person, merge_people), "company": (Company, can_see_company, merge_companies)}
+    # One request merges a bounded batch, so a long list cannot outlast the request timeout.
+    candidates = list(_visible_candidates(request.user)[:MERGE_ALL_BATCH])
+    for candidate in candidates:
+        model, checker, merge_fn = checkers[candidate.kind]
+        keep, drop = model.objects.filter(pk=candidate.left_id).first(), model.objects.filter(pk=candidate.right_id).first()
+        # A record can already be gone via an earlier merge in a duplicate chain.
+        if not keep or not drop or keep.deleted_at or drop.deleted_at or keep.merged_into_id or drop.merged_into_id:
+            continue
+        if not (checker(request.user, keep) and checker(request.user, drop)):
+            continue
+        # The list can be minutes old: merge only pairs the rule still matches.
+        if not is_duplicate_pair(candidate.kind, drop, keep):
+            continue
+        try:
+            target = merge_fn(drop.pk, keep.pk)
+        except ValidationError:
+            continue
+        audit_log(AuditLog.MERGE, request=request, target=target, old=str(drop), new=str(target),
+                  detail={"source_id": drop.pk, "target_id": keep.pk, "bulk": True})
+        merged += 1
     if merged:
         messages.success(request, tr("Sujungta dublikatų porų: %(n)s.") % {"n": merged})
+        if len(candidates) == MERGE_ALL_BATCH:
+            messages.info(request, tr("Liko daugiau porų — paspauskite „Sujungti visus“ dar kartą."))
     else:
         messages.info(request, tr("Sujungiamų dublikatų nerasta."))
     return redirect("contacts:duplicate-list")
@@ -1943,12 +2056,7 @@ def duplicate_merge(request, kind, source_pk, target_pk):
     if source.merged_into_id == target.pk:
         return redirect(target.get_absolute_url())
 
-    pair_function = all_person_duplicate_pairs if kind == "person" else all_company_duplicate_pairs
-    is_duplicate_pair = any(
-        {pair["left"].pk, pair["right"].pk} == {source_pk, target_pk}
-        for pair in pair_function()
-    )
-    if not is_duplicate_pair:
+    if not is_duplicate_pair(kind, source, target):
         return HttpResponse(tr("Pasirinkti įrašai pagal dabartines taisykles nėra dublikatai."), status=400)
 
     from .merging import merge_companies, merge_people
@@ -1966,14 +2074,12 @@ def duplicate_merge(request, kind, source_pk, target_pk):
 @login_required
 def contact_detail(request, pk):
     from .detail_editing import grouped_detail_fields
-    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "activities__created_by", "activities__attachments", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
+    person = get_object_or_404(visible_people(request.user, Person.objects.select_related("owner", "created_by").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "reminders", "company_links__company", "custom_values__field", "responsibles")), pk=pk, deleted_at__isnull=True)
     now = timezone.now()
     open_reminders = person.reminders.filter(open_q(now), deleted_at__isnull=True)
-    activities = sorted((a for a in person.activities.all() if a.deleted_at is None),
-                        key=lambda a: a.created_at, reverse=True)
     return render(request, "contacts/detail.html", {
         "person": person,
-        **grouped_detail_fields(person, viewer=request.user),
+        **grouped_detail_fields(person),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "reminder_form": ReminderForm(user=request.user),
         "activity_form": ActivityForm(),
@@ -1983,12 +2089,40 @@ def contact_detail(request, pk):
         "next_reminder": open_reminders.filter(due_at__gt=now).order_by("due_at").first(),
         "overdue_reminder_count": open_reminders.filter(due_at__lte=now).count(),
         # One composer writes every kind of entry; the tabs only filter the feed.
-        "all_entries": activities,
-        "comment_entries": [a for a in activities if a.activity_type == Activity.NOTE],
-        "attachment_entries": [att for a in activities for att in a.attachments.all()],
+        **_feed_context(request, person.activities.filter(deleted_at__isnull=True)),
         **_authorship_context(person, "person"),
-        **_last_activity_context(activities[0] if activities else None),
+        "identity_card": _identity_card(request.user, person),
     })
+
+
+def _identity_card(user, person):
+    """The card's identity block: the code masked, a reveal button for those allowed."""
+    from .permissions import has_capability
+
+    if not (person.personal_code_hash or person.birth_date or person.external_id):
+        return None
+    return {
+        "type_label": dict(identity.TYPE_CHOICES).get(person.personal_code_type, ""),
+        "masked": identity.masked(person) or ("•••" if person.personal_code_hash else ""),
+        "can_reveal": bool(person.personal_code_hash) and has_capability(user, "can_view_personal_code"),
+        "birth_date": person.birth_date,
+        "external": " ".join(part for part in (person.external_source, person.external_id) if part),
+        "synced_at": person.synced_at,
+    }
+
+
+@login_required
+def personal_code_reveal(request, pk):
+    """The full code, once, for someone allowed to see it — and the audit trail says so."""
+    from .permissions import has_capability
+
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    person = get_object_or_404(visible_people(request.user), pk=pk, deleted_at__isnull=True)
+    if not has_capability(request.user, "can_view_personal_code") or not person.personal_code_hash:
+        raise Http404
+    audit_log(AuditLog.VIEW, request=request, target=person, field="personal_code")
+    return JsonResponse({"value": identity.reveal(person) or str(tr("Nepavyko iššifruoti."))})
 
 
 @login_required
@@ -2030,7 +2164,9 @@ def contact_edit(request, pk):
             return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person, "duplicate_candidates": duplicates})
         person = form.save()
         for name in form.changed_data:
-            audit_log(AuditLog.UPDATE, request=request, target=person, field=name, new=form.cleaned_data.get(name))
+            # The personal code itself never goes into the audit trail.
+            new = identity.masked(person) if name == "personal_code" else form.cleaned_data.get(name)
+            audit_log(AuditLog.UPDATE, request=request, target=person, field=name, new=new)
         return redirect(person)
     return render(request, "contacts/form.html", {"form": form, "title": tr("Redaguoti kontaktą"), "person": person})
 
@@ -2263,6 +2399,23 @@ def attachment_download(request, pk):
         raise Http404("Failas nerastas.") from None
 
 
+COMPANY_LOOKUP_LIMIT = 20
+
+
+@login_required
+def company_lookup(request):
+    """Companies whose name or code contains ``q``, for the company picker.
+
+    The picker lists only the chosen companies and finds the rest as the user
+    types, so a card or a form never carries every company in the database."""
+    query = request.GET.get("q", "").strip()
+    if len(query) < 2:
+        return JsonResponse({"results": []})
+    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).filter(
+        Q(name__icontains=query) | Q(company_code__icontains=query)).order_by("name", "pk")[:COMPANY_LOOKUP_LIMIT]
+    return JsonResponse({"results": [{"id": company.pk, "name": company.name} for company in companies]})
+
+
 @login_required
 def company_list(request):
     redirect_to = _default_filter_redirect(request, "companies")
@@ -2299,7 +2452,6 @@ def company_list(request):
         contact_count_filter &= Q(people__pk__in=visible_person_ids(request.user))
     # As on the contact list: aggregate the whole list only for the active sort,
     # count the visible page's contacts afterwards.
-    companies = companies.distinct()
     sort_aggregates = {
         "contacts": ("contact_count", Count("people", filter=contact_count_filter, distinct=True)),
         "category": ("sort_category", Min("categories__name")),
@@ -2372,9 +2524,9 @@ def company_detail(request, pk):
     ).values_list("pk", flat=True))
     linked_people = [link for link in company.person_links.all()
                      if link.person.deleted_at is None and link.person_id in visible_linked_ids]
-    history = list(Activity.objects.filter(deleted_at__isnull=True).filter(
+    history = Activity.objects.filter(deleted_at__isnull=True).filter(
         Q(company=company) | Q(person__pk__in=visible_linked_ids)
-    ).select_related("person", "company", "created_by").prefetch_related("attachments").distinct().order_by("-created_at"))
+    ).select_related("person", "company")
     now = timezone.now()
     # An event planned straight on the company belongs on its card too, not
     # only the ones hanging off its contacts.
@@ -2385,7 +2537,7 @@ def company_detail(request, pk):
     next_reminder = linked_reminders.filter(due_at__gt=now).select_related("person").order_by("due_at").first()
     return render(request, "companies/detail.html", {
         "company": company,
-        **grouped_detail_fields(company, viewer=request.user),
+        **grouped_detail_fields(company),
         "tags": Tag.objects.all(), "categories": Category.objects.all(),
         "activity_form": ActivityForm(),
         "activity_token": uuid.uuid4().hex,
@@ -2393,12 +2545,9 @@ def company_detail(request, pk):
         "next_reminder": next_reminder,
         "overdue_reminder_count": linked_reminders.filter(due_at__lte=now).count(),
         # One composer writes every kind of entry; the tabs only filter the feed.
-        "all_entries": history,
-        "comment_entries": [a for a in history if a.activity_type == Activity.NOTE],
-        "attachment_entries": [att for a in history for att in a.attachments.all()],
+        **_feed_context(request, history),
         "linked_people": linked_people,
         **_authorship_context(company, "company"),
-        **_last_activity_context(history[0] if history else None),
     })
 
 
@@ -2543,6 +2692,8 @@ def _resolve_import_owner(value, cache):
     return user
 
 
+PERSONAL_CODE_FIELD = "Asmens kodas"
+
 # Canonical import field -> (human label, accepted header aliases). The first
 # alias is the key that _value()/_import_relation_names() look for first, so the
 # column-mapping step rewrites every row to use it.
@@ -2559,8 +2710,41 @@ IMPORT_COLUMNS = [
     ("Kategorijos", tr("Kategorijos"), ("Kategorijos", "Categories", "categories")),
     ("Atsakingas", tr("Atsakingas (pagrindinis)"), ("Atsakingas", "owner", "Owner")),
     ("Atsakingi", tr("Atsakingi (papildomi)"), ("Atsakingi", "responsibles", "Responsibles")),
+    ("Gimimo data", tr("Gimimo data"), ("Gimimo data", "birth_date", "Birth date")),
+    ("Šaltinis", tr("Šaltinis (išorinė sistema)"), ("Šaltinis", "external_source", "Source")),
+    ("Išorinis ID", tr("Išorinis ID"), ("Išorinis ID", "external_id", "External ID")),
+    ("Identifikatoriaus tipas", tr("Identifikatoriaus tipas"), ("Identifikatoriaus tipas", "personal_code_type")),
+    # Recognised by its header only (see _protect_personal_codes); never offered for another column.
+    (PERSONAL_CODE_FIELD, tr("Asmens kodas / identifikatorius"), (PERSONAL_CODE_FIELD, "personal_code", "AK")),
 ]
 IMPORT_FIELD_KEYS = [key for key, _label, _aliases in IMPORT_COLUMNS]
+
+
+def _protect_personal_codes(rows, user):
+    """Encrypt the personal-code column the moment a file is read.
+
+    The rows wait in the session (the database) between the preview and the
+    confirmation, and failed rows in the error report, so the code must never
+    be there in the clear. The column is recognised by its header; without the
+    "view personal code" right, or without CRM_SECRETS_KEY, it is dropped.
+    Returns (rows, protected headers, dropped headers)."""
+    from .permissions import has_capability
+
+    aliases = {alias.lower() for alias in dict((key, a) for key, _l, a in IMPORT_COLUMNS)[PERSONAL_CODE_FIELD]}
+    headers = [header for header in (rows[0] if rows else {}) if header.strip().lower() in aliases]
+    if not headers:
+        return rows, [], []
+    if not (has_capability(user, "can_view_personal_code") and identity.available()):
+        return [{k: v for k, v in row.items() if k not in headers} for row in rows], [], headers
+    for row in rows:
+        for header in headers:
+            row[header] = crypto.encrypt(row[header].strip()) if row[header].strip() else ""
+    return rows, headers, []
+
+
+def _shown_cell(value):
+    """A cell as the preview and the error report may show it: never a personal code."""
+    return "•••" if crypto.looks_encrypted(value) else value
 
 
 def _guess_import_mapping(headers):
@@ -2599,12 +2783,20 @@ def _import_one_row(row, owner, mode, owner_cache, can_reassign=True):
         return "skipped", None
     email_values = list(filter(None, (item.strip() for item in _value(row, "El. paštai", "El. paštas", "email", "Email").split(";"))))
     email = email_values[0] if email_values else ""
+    external = (_value(row, "Šaltinis")[:32], _value(row, "Išorinis ID")[:64])
+    code, code_kind, code_hash = _import_personal_code(row, owner)
     person = None
     if mode != "new":
         from .permissions import visible_people
 
+        # The most specific key first: the other system's id, the personal code,
+        # then — as before — the e-mail and the name.
         base = Person.objects.filter(deleted_at__isnull=True)
-        match = base.filter(emails__email__iexact=email) if email else base.none()
+        match = base.filter(external_source=external[0], external_id=external[1]) if external[1] else base.none()
+        if not match.exists() and code_hash:
+            match = base.filter(personal_code_hash=code_hash)
+        if not match.exists() and email:
+            match = base.filter(emails__email__iexact=email)
         if not match.exists():
             match = base.filter(first_name__iexact=first_name, last_name__iexact=last_name)
         person = visible_people(owner, match).first()
@@ -2627,11 +2819,12 @@ def _import_one_row(row, owner, mode, owner_cache, can_reassign=True):
                 setattr(person, field, value)
         if row_owner:
             person.owner = row_owner
-        person.save()
         outcome = "updated"
     else:
-        person = Person.objects.create(owner=row_owner or owner, created_by=owner, **values)
+        person = Person(owner=row_owner or owner, created_by=owner, **values)
         outcome = "created"
+    _import_identity(person, row, external, code, code_kind, code_hash)
+    person.save()
     for company_name in _import_relation_names(row, "Įmonė", "company", "Company"):
         company, _ = Company.objects.get_or_create(name=company_name)
         PersonCompanyLink.objects.get_or_create(
@@ -2658,6 +2851,39 @@ def _import_one_row(row, owner, mode, owner_cache, can_reassign=True):
         if extra:
             person.responsibles.add(*extra)
     return outcome, person
+
+
+def _import_personal_code(row, owner):
+    """(plain code, kind, lookup hash) of a row, or empties — only for someone allowed to see codes."""
+    from .permissions import has_capability
+
+    stored = _value(row, PERSONAL_CODE_FIELD)
+    if not stored or not crypto.looks_encrypted(stored) or not has_capability(owner, "can_view_personal_code"):
+        return "", "", ""
+    code = crypto.decrypt(stored)
+    kind = identity.OTHER if _value(row, "Identifikatoriaus tipas").lower() in {"other", "kitas", identity.OTHER} else identity.LT
+    try:
+        return code, kind, identity.lookup_hash(kind, identity.normalize(kind, code))
+    except ValidationError:
+        raise ValueError(str(tr("Neteisingas asmens kodas."))) from None
+
+
+def _import_identity(person, row, external, code, code_kind, code_hash):
+    """Birth date, external id and personal code from an import row (set only when given)."""
+    if _value(row, "Gimimo data"):
+        from django.utils.dateparse import parse_date
+
+        birth = parse_date(_value(row, "Gimimo data"))
+        if birth is None:
+            raise ValueError(str(tr("Gimimo data turi būti MMMM-MM-DD.")))
+        person.birth_date = birth
+    if external[1]:
+        taken = Person.objects.filter(external_source=external[0], external_id=external[1]).exclude(pk=person.pk)
+        if taken.exists():
+            raise ValueError(str(tr("Šis išorinis ID jau priklauso kitam kontaktui.")))
+        person.external_source, person.external_id = external
+    if code_hash and code_hash != person.personal_code_hash:
+        identity.assign(person, code_kind, code)
 
 
 @transaction.atomic
@@ -2690,10 +2916,7 @@ def _import_contact_rows(rows, owner=None, *, mode="update", collect_errors=Fals
         else:
             skipped += 1
     if report_duplicates and created_person_ids:
-        possible_duplicates = sum(
-            1 for pair in all_person_duplicate_pairs()
-            if pair["left"].pk in created_person_ids or pair["right"].pk in created_person_ids
-        )
+        possible_duplicates = count_new_person_pairs(created_person_ids)
     return {"created": created, "updated": updated, "skipped": skipped, "possible_duplicates": possible_duplicates,
             "duplicate_check_enabled": report_duplicates, "errors": errors, "error_count": len(errors)}
 
@@ -2744,7 +2967,7 @@ def _read_import_rows(upload):
     return [{str(key): ("" if value is None else str(value)) for key, value in row.items() if key} for row in raw]
 
 
-def _import_preview(rows, mapping):
+def _import_preview(rows, mapping, code_headers=()):
     mapped = _apply_import_mapping(rows, mapping)
     created = updated = skipped = problems = 0
     for row in mapped:
@@ -2756,17 +2979,23 @@ def _import_preview(rows, mapping):
             continue
         if len(_import_relation_names(row, "Tagai", "Žymos", "Tags", "tags")) > 3 or len(_import_relation_names(row, "Kategorijos", "Categories", "categories")) > 3:
             problems += 1
-        match = (emails and Person.objects.filter(emails__email__iexact=emails[0], deleted_at__isnull=True).exists()) or \
-            Person.objects.filter(first_name__iexact=first_name, last_name__iexact=last_name, deleted_at__isnull=True).exists()
+        alive = Person.objects.filter(deleted_at__isnull=True)
+        code = _value(row, PERSONAL_CODE_FIELD)
+        hashes = identity.candidate_hashes(crypto.decrypt(code)) if crypto.looks_encrypted(code) else []
+        match = (_value(row, "Išorinis ID") and alive.filter(external_source=_value(row, "Šaltinis"),
+                                                               external_id=_value(row, "Išorinis ID")).exists()) or \
+            (hashes and alive.filter(personal_code_hash__in=hashes).exists()) or \
+            (emails and alive.filter(emails__email__iexact=emails[0]).exists()) or \
+            alive.filter(first_name__iexact=first_name, last_name__iexact=last_name).exists()
         if match:
             updated += 1
         else:
             created += 1
     headers = list(rows[0].keys()) if rows else []
     return {"total": len(rows), "created": created, "updated": updated, "skipped": skipped, "problems": problems,
-            "headers": headers, "sample": [[row.get(header, "") for header in headers] for row in rows[:8]],
+            "headers": headers, "sample": [[_shown_cell(row.get(header, "")) for header in headers] for row in rows[:8]],
             "columns": [{"key": key, "label": label} for key, label, _aliases in IMPORT_COLUMNS],
-            "mapping": mapping}
+            "mapping": mapping, "code_headers": list(code_headers), "code_field": PERSONAL_CODE_FIELD}
 
 
 @login_required
@@ -2795,6 +3024,9 @@ def contacts_import(request):
         else:
             headers = list(rows[0].keys()) if rows else []
             submitted = {header: request.POST.get("map_" + header, "").strip() for header in headers if request.POST.get("map_" + header, "").strip() in IMPORT_FIELD_KEYS}
+            # Only a column encrypted on upload may be read as personal codes.
+            code_headers = request.session.pop("import_code_headers", [])
+            submitted = {h: f for h, f in submitted.items() if f != PERSONAL_CODE_FIELD or h in code_headers}
             mapping = submitted or stored_mapping
             mode = request.POST.get("dedup") if request.POST.get("dedup") in {"skip", "update", "new"} else "update"
             try:
@@ -2825,11 +3057,16 @@ def contacts_import(request):
             if rows is not None and len(rows) > IMPORT_PREVIEW_LIMIT:
                 messages.error(request, tr("Peržiūrai skirtas failas su ne daugiau kaip %(n)s eilučių.") % {"n": IMPORT_PREVIEW_LIMIT})
             elif rows:
+                rows, code_headers, dropped = _protect_personal_codes(rows, request.user)
+                if dropped:
+                    messages.warning(request, tr("Asmens kodų stulpelis praleistas: neturite teisės matyti asmens kodų "
+                                                 "arba nenustatytas CRM_SECRETS_KEY."))
                 headers = list(rows[0].keys())
                 mapping = _guess_import_mapping(headers)
                 request.session["import_rows"] = rows
                 request.session["import_mapping"] = mapping
-                context["preview"] = _import_preview(rows, mapping)
+                request.session["import_code_headers"] = code_headers
+                context["preview"] = _import_preview(rows, mapping, code_headers)
             elif rows is not None:
                 messages.error(request, tr("Faile nerasta įrašų."))
     else:
@@ -2858,7 +3095,10 @@ def contacts_import_errors(request):
     writer = csv.writer(response)
     writer.writerow([str(tr("Eilutė")), str(tr("Klaida"))] + field_names)
     for entry in errors:
-        writer.writerow([entry["row"], csv_safe(entry["error"])] + [csv_safe(entry["data"].get(name, "")) for name in field_names])
+        # A personal code is not written back out; it has to come from its source again.
+        writer.writerow([entry["row"], csv_safe(entry["error"])] + [
+            "" if crypto.looks_encrypted(entry["data"].get(name, "")) else csv_safe(entry["data"].get(name, ""))
+            for name in field_names])
     return response
 
 

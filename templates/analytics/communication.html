@@ -32,4 +32,5 @@
     {% include "analytics/_barlist.html" with rows=top_companies %}
   </section>
 </div>
+<p class="analytics-computed">{% blocktranslate with when=computed_at|date:datetime_format %}Veiklų skaičiai suskaičiuoti {{ when }}.{% endblocktranslate %}</p>
 {% endblock %}

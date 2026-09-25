@@ -1,4 +1,5 @@
 import hashlib
+import re
 from datetime import time
 from secrets import token_urlsafe
 
@@ -7,12 +8,32 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 from django.db import models
+from django.db.models.functions import Lower, Trim
 from django.urls import reverse
+
+from . import identity
 
 
 # Pre-event email lead time, set per reminder when planning it.
 NOTIFY_LEAD_CHOICES = ((0, tr("Nesiųsti")), (5, tr("5 min.")), (15, tr("15 min.")), (60, tr("1 val.")),
                        (1440, tr("1 diena")), (2880, tr("2 dienos")))
+
+
+def digits_only(value):
+    """A phone number as the duplicate check compares it: its digits."""
+    return re.sub(r"\D", "", value or "")
+
+
+def match_key(field):
+    """The case- and space-insensitive form of a field the duplicate check indexes."""
+    return Lower(Trim(field))
+
+
+def _save_derived(kwargs, source, derived):
+    """A save limited to ``source`` must also write the column derived from it."""
+    fields = kwargs.get("update_fields")
+    if fields is not None and source in fields:
+        kwargs["update_fields"] = {*fields, derived}
 
 
 class RecordDetailsModel(models.Model):
@@ -47,15 +68,28 @@ class Company(RecordDetailsModel, TimestampedModel):
     # without parsing a free-text line.
     city = models.CharField(max_length=120, blank=True, db_index=True)
     phone = models.CharField(max_length=80, blank=True)
+    # `phone` reduced to digits, so the duplicate check can look it up by index.
+    phone_digits = models.CharField(max_length=80, blank=True, default="", db_index=True, editable=False)
     email = models.EmailField(blank=True)
     url = models.URLField(blank=True)
 
     class Meta:
         ordering = ["name"]
         verbose_name_plural = tr("Įmonės")
+        indexes = [
+            models.Index(match_key("name"), name="company_name_key"),
+            models.Index(match_key("email"), name="company_email_key"),
+            models.Index(match_key("vat_code"), name="company_vat_key"),
+            models.Index(match_key("company_code"), name="company_code_key"),
+        ]
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        self.phone_digits = digits_only(self.phone)
+        _save_derived(kwargs, "phone", "phone_digits")
+        super().save(*args, **kwargs)
 
     def get_absolute_url(self):
         return reverse("contacts:company-detail", args=[self.pk])
@@ -205,6 +239,21 @@ class JobHeartbeat(models.Model):
         return self.name
 
 
+class AnalyticsSnapshot(models.Model):
+    """Precomputed analytics numbers, so a page does not re-count millions of rows.
+
+    ``key`` is "<page>:<days>:<scope>", scope "all" for everyone who sees every
+    record (refreshed by ``refresh_analytics``) or "user-<id>" otherwise. The
+    payload holds only numbers and record ids; names are looked up when shown.
+    """
+    key = models.CharField(max_length=80, unique=True)
+    payload = models.JSONField(default=dict)
+    computed_at = models.DateTimeField()
+
+    def __str__(self):
+        return self.key
+
+
 class DirectoryGroupMapping(models.Model):
     """A directory (AD / Entra) group and the CRM access its members get."""
     group = models.CharField(max_length=256, unique=True)
@@ -275,6 +324,30 @@ class DuplicateException(models.Model):
         low, high = sorted((int(a), int(b)))
         cls.objects.get_or_create(kind=kind, left_id=low, right_id=high,
                                   defaults={"created_by": user})
+        DuplicateCandidate.objects.filter(kind=kind, left_id=low, right_id=high).delete()
+
+
+class DuplicateCandidate(models.Model):
+    """A pair the background scan (``find_duplicates``) found, for the review list.
+
+    Rebuilt on every scan; ``left_id`` is the smaller pk. Merging or dismissing
+    a pair removes it at once, so the list does not wait for the next scan.
+    """
+    kind = models.CharField(max_length=8, choices=DuplicateException.KIND_CHOICES)
+    left_id = models.PositiveIntegerField()
+    right_id = models.PositiveIntegerField(db_index=True)
+    # Comma-separated signals in duplicates.REASON_ORDER, e.g. "name,email".
+    reasons = models.CharField(max_length=80)
+    found_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["kind", "left_id", "right_id"],
+                                               name="unique_duplicate_candidate")]
+
+    @classmethod
+    def forget(cls, kind, pk):
+        """Drop every pair ``pk`` is part of (it was merged away)."""
+        cls.objects.filter(models.Q(left_id=pk) | models.Q(right_id=pk), kind=kind).delete()
 
 
 class SystemSettings(models.Model):
@@ -382,13 +455,27 @@ class Person(RecordDetailsModel, TimestampedModel):
     first_name = models.CharField(max_length=100, db_index=True)
     last_name = models.CharField(max_length=100, db_index=True)
     job_title = models.CharField(max_length=160, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    # Personal code (or a foreigner's identifier): see contacts/identity.py —
+    # encrypted for display, keyed hash for lookup, never stored in the clear.
+    personal_code_type = models.CharField(max_length=8, blank=True, default="", choices=identity.TYPE_CHOICES)
+    personal_code_encrypted = models.TextField(blank=True, default="", editable=False)
+    personal_code_hash = models.CharField(max_length=64, blank=True, default="", db_index=True, editable=False)
+    # The record this person mirrors in another system (e.g. source "regitra",
+    # the Oracle CRM row id): the key integrations join on, set by import or sync.
+    external_source = models.CharField(max_length=32, blank=True, default="")
+    external_id = models.CharField(max_length=64, blank=True, default="")
+    synced_at = models.DateTimeField(null=True, blank=True)
     companies = models.ManyToManyField(Company, through="PersonCompanyLink", related_name="people", blank=True)
     tags = models.ManyToManyField(Tag, related_name="people", blank=True)
     categories = models.ManyToManyField(Category, related_name="people", blank=True)
 
     class Meta:
         ordering = ["last_name", "first_name"]
-        indexes = [models.Index(fields=["last_name", "first_name"])]
+        indexes = [models.Index(fields=["last_name", "first_name"]),
+                   models.Index(match_key("last_name"), match_key("first_name"), name="person_name_key")]
+        constraints = [models.UniqueConstraint(fields=["external_id", "external_source"],
+                                               condition=~models.Q(external_id=""), name="unique_person_external_id")]
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}".strip()
@@ -424,11 +511,18 @@ class PersonCompanyLink(models.Model):
 class PhoneNumber(models.Model):
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="phones")
     number = models.CharField(max_length=80)
+    # `number` reduced to digits, so the duplicate check can look it up by index.
+    digits = models.CharField(max_length=80, blank=True, default="", db_index=True, editable=False)
     label = models.CharField(max_length=40, blank=True, default="Darbo")
     is_primary = models.BooleanField(default=False)
 
     def __str__(self):
         return self.number
+
+    def save(self, *args, **kwargs):
+        self.digits = digits_only(self.number)
+        _save_derived(kwargs, "number", "digits")
+        super().save(*args, **kwargs)
 
 
 class EmailAddress(models.Model):
@@ -436,6 +530,9 @@ class EmailAddress(models.Model):
     email = models.EmailField()
     label = models.CharField(max_length=40, blank=True, default="Darbo")
     is_primary = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [models.Index(match_key("email"), name="email_key")]
 
     def __str__(self):
         return self.email
@@ -729,6 +826,7 @@ class AuditLog(models.Model):
     LOGIN = "login"
     LOGOUT = "logout"
     LOGIN_FAILED = "login_failed"
+    VIEW = "view"
     ACTION_CHOICES = (
         (CREATE, tr("Sukūrimas")),
         (UPDATE, tr("Keitimas")),
@@ -742,6 +840,7 @@ class AuditLog(models.Model):
         (LOGIN, tr("Prisijungimas")),
         (LOGOUT, tr("Atsijungimas")),
         (LOGIN_FAILED, tr("Nepavykęs prisijungimas")),
+        (VIEW, tr("Peržiūra")),
     )
 
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_entries")

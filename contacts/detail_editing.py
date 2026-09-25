@@ -19,6 +19,7 @@ from .audit import log as audit_log
 
 
 DUPLICATE_REASON_LABELS = {
+    "personal_code": _("tas pats asmens kodas"),
     "email": _("tas pats el. paštas"),
     "phone": _("tas pats telefonas"),
     "name": _("tas pats vardas arba pavadinimas"),
@@ -48,6 +49,7 @@ def person_duplicate_data(person, *, field, value):
         "phone": "\n".join(person.phones.values_list("number", flat=True)),
         "email": "\n".join(person.emails.values_list("email", flat=True)),
         "companies": list(person.companies.all()),
+        "personal_code_hash": person.personal_code_hash,
     }
     if field == "full_name":
         data.update(value)
@@ -264,7 +266,7 @@ MULTIPLE = {
 }
 
 
-def field_context(person, field, viewer=None):
+def field_context(person, field):
     if field == "owner":
         return owner_field_context(person)
     if field == "responsibles":
@@ -286,25 +288,21 @@ def field_context(person, field, viewer=None):
         value = "\n".join(item["text"] for item in entries)
     else:
         label = _("Įmonės")
-        selected = set(person.company_links.values_list("company_id", flat=True))
-        pool = Company.objects.filter(deleted_at__isnull=True)
-        if viewer is not None:
-            pool = (visible_companies(viewer, pool) | Company.objects.filter(pk__in=selected)).distinct()
-        companies = list(pool.order_by("name", "pk"))
-        # Assigned companies are always at the top of the editor, never collapsed to primary only.
-        companies.sort(key=lambda company: company.pk not in selected)
-        entries = [{"text": link.company.name, "href": link.company.get_absolute_url()} for link in person.company_links.select_related("company")]
+        links = list(person.company_links.select_related("company").order_by("company__name", "company_id"))
+        entries = [{"text": link.company.name, "href": link.company.get_absolute_url()} for link in links]
+        # Only the assigned companies are in the editor; the rest are found by
+        # typing (company_lookup), so the card does not carry every company.
         return {"person": person, "field": field, "label": label, "entries": entries,
-                "companies": [{"pk": c.pk, "name": c.name, "selected": c.pk in selected} for c in companies]}
+                "companies": [{"pk": link.company_id, "name": link.company.name, "selected": True} for link in links]}
     return {"person": person, "field": field, "label": label, "value": value, "entries": entries, "multiple": field in MULTIPLE}
 
 
-def detail_fields(person, viewer=None):
+def detail_fields(person):
     from .custom_fields import detail_context
 
     order = ["companies", "responsibles", "first_name", "last_name", "job_title",
              *MULTIPLE, "description"]
-    return [field_context(person, field, viewer=viewer) for field in order] + detail_context(person)
+    return [field_context(person, field) for field in order] + detail_context(person)
 
 
 _CONTACT_INFO_KEYS = {
@@ -313,11 +311,11 @@ _CONTACT_INFO_KEYS = {
 }
 
 
-def grouped_detail_fields(record, viewer=None):
+def grouped_detail_fields(record):
     """Bucket the card fields for the prototype layout. The 'additional fields'
     card only shows dynamic (custom) fields the admin defined in settings."""
     is_company = isinstance(record, Company)
-    fields = company_detail_fields(record) if is_company else detail_fields(record, viewer=viewer)
+    fields = company_detail_fields(record) if is_company else detail_fields(record)
     contact_keys = _CONTACT_INFO_KEYS[is_company]
     out = {"contact_info_fields": [], "custom_fields": [], "description_field": None,
            "responsibles_field": None, "companies_field": None, "job_title_field": None}
@@ -448,6 +446,6 @@ def edit_contact_field(request, pk):
         return JsonResponse({"error": " ".join(error.messages)}, status=400)
     _audit_field_changes(request, person, before)
     html = title_html(person, request) if field == "full_name" else render_to_string(
-        "contacts/detail_field.html", {"item": field_context(person, field, viewer=request.user)}, request=request
+        "contacts/detail_field.html", {"item": field_context(person, field)}, request=request
     )
     return JsonResponse({"ok": True, "name": str(person), "job_title": person.job_title, "html": html})

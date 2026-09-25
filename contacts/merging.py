@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from .models import Activity, Company, Person, Reminder
+from .models import Activity, Company, DuplicateCandidate, Person, Reminder
 
 
 def _merge_labels(source, target):
@@ -115,6 +115,19 @@ def merge_people(source_pk, target_pk):
     if source.favourite and not target.favourite:
         target.favourite = True
         changed_fields.append("favourite")
+    if source.birth_date and not target.birth_date:
+        target.birth_date = source.birth_date
+        changed_fields.append("birth_date")
+    if source.personal_code_hash and not target.personal_code_hash:
+        for field in ("personal_code_type", "personal_code_encrypted", "personal_code_hash"):
+            setattr(target, field, getattr(source, field))
+            changed_fields.append(field)
+    if source.external_id and not target.external_id:
+        # The pair is unique, so the source lets go of it before the target takes it.
+        target.external_source, target.external_id, target.synced_at = (
+            source.external_source, source.external_id, source.synced_at)
+        changed_fields += ["external_source", "external_id", "synced_at"]
+        Person.objects.filter(pk=source.pk).update(external_source="", external_id="")
     if changed_fields:
         target.save(update_fields=[*changed_fields, "updated_at"])
 
@@ -128,6 +141,7 @@ def merge_people(source_pk, target_pk):
     source.merged_into = target
     source.deleted_at = timezone.now()
     source.save(update_fields=["merged_into", "deleted_at", "updated_at"])
+    DuplicateCandidate.forget("person", source.pk)
     return target
 
 
@@ -160,4 +174,5 @@ def merge_companies(source_pk, target_pk):
     source.merged_into = target
     source.deleted_at = timezone.now()
     source.save(update_fields=["merged_into", "deleted_at", "updated_at"])
+    DuplicateCandidate.forget("company", source.pk)
     return target
