@@ -24,9 +24,7 @@ urlpatterns += [
     # Entra ID (OIDC) — the views 404 unless login through Entra is enabled in Settings.
     path("oidc/", include("mozilla_django_oidc.urls")),
     path("setup/", views.setup_admin, name="setup"),
-    path("health/live", views.health_live, name="health-live"),
-    path("health/ready", views.health_ready, name="health-ready"),
-    path("health/jobs", views.health_jobs, name="health-jobs"),
+    # /health/live, /health/ready and /health/jobs: contacts.middleware.HealthProbeMiddleware.
     path("metrics", metrics_view, name="metrics"),
     path("manifest.webmanifest", views.pwa_manifest, name="pwa-manifest"),
     path("sw.js", views.pwa_service_worker, name="pwa-service-worker"),

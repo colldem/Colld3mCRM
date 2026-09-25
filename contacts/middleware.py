@@ -25,6 +25,26 @@ class TranslationOverrideMiddleware:
         return self.get_response(request)
 
 
+class HealthProbeMiddleware:
+    """Answers /health/* before CommonMiddleware checks the Host header.
+
+    Probes and monitors reach the app by an internal name — a compose service
+    (http://crm-web:8080), a pod IP — that ALLOWED_HOSTS has no reason to list,
+    so Django would refuse them with 400. These answers build nothing from the
+    Host, so there is nothing for a forged one to poison."""
+
+    def __init__(self, get_response):
+        from . import views
+
+        self.get_response = get_response
+        self.views = {"/health/live": views.health_live, "/health/ready": views.health_ready,
+                      "/health/jobs": views.health_jobs}
+
+    def __call__(self, request):
+        view = self.views.get(request.path_info)
+        return view(request) if view else self.get_response(request)
+
+
 class ReadOnlyRoleMiddleware:
     """Server-side guarantee behind the "Skaitytojas" role: whatever the page
     shows, a reader cannot open an editing page or change shared data. Personal

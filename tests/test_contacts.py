@@ -8762,6 +8762,17 @@ class WorkerSupervisionTests(TestCase):
         self._beat("fetch_mail", success=timezone.now() - timedelta(hours=3))
         self.assertEqual(self.client.get("/health/jobs").status_code, 503)
 
+    @override_settings(ALLOWED_HOSTS=["crm.example.com"])
+    def test_health_answers_a_monitor_on_an_internal_host_name(self):
+        # Uptime Kuma beside the CRM calls http://crm-web:8080; a kubelet calls the pod IP.
+        for host in ("crm-web:8080", "10.1.2.3:8080"):
+            self.assertEqual(self.client.get("/health/live", HTTP_HOST=host).json(), {"status": "live"})
+            self.assertEqual(self.client.get("/health/ready", HTTP_HOST=host).json(), {"status": "ready"})
+            self.assertEqual(self.client.get("/health/jobs", HTTP_HOST=host).status_code, 503)
+        # Everything else still checks the Host.
+        self.assertEqual(self.client.get("/login/", HTTP_HOST="crm-web:8080").status_code, 400)
+        self.assertEqual(self.client.get("/login/", HTTP_HOST="crm.example.com").status_code, 200)
+
     def test_the_page_and_banner_are_for_admins_only(self):
         member = get_user_model().objects.create_user("ne-adminas", password="very-secure-password")
         UserProfile.objects.create(user=member, role=UserProfile.ROLE_MEMBER)

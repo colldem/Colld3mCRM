@@ -46,6 +46,8 @@ MIDDLEWARE = [
     # First, so every log line of the request carries its id (contacts/observability.py).
     "contacts.observability.RequestIdMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # /health/* for probes and monitors that use an internal host name (contacts/middleware.py).
+    "contacts.middleware.HealthProbeMiddleware",
     # Content-Security-Policy (nonce) and Permissions-Policy.
     "contacts.middleware.SecurityHeadersMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",

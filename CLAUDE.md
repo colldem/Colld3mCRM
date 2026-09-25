@@ -86,6 +86,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   visos klaidos aprašytos žinyne (Dokumentacija → Klaidos).
   `password_reset.py` — savitarnos slaptažodžio atkūrimas el. paštu (nuoroda vienkartinė, galiojimas
   `CRM_PASSWORD_RESET_TIMEOUT`; katalogo valdomoms paskyroms neveikia);
+  `middleware.py` `HealthProbeMiddleware` — `/health/*` atsako prieš Host tikrinimą (Kuma, K8s probe'ai vidiniu vardu);
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
   `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
