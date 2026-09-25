@@ -1101,6 +1101,26 @@ class ContactViewTests(TestCase):
         self.assertEqual(list(context['scheduled_reminders_menu']), [ahead])
         self.assertEqual(context['scheduled_reminders_total'], 1)
 
+    def test_bell_holds_only_my_reminders_even_for_someone_who_sees_everything(self):
+        """Opening the bell marks the user's own entries read; a colleague's in it
+        would keep the badge lit for good."""
+        admin = get_user_model().objects.create_user("vadove", password="very-secure-password", is_staff=True)
+        self.assertTrue(perm.sees_all_records(admin))
+        now = timezone.now()
+        colleague = Reminder.objects.create(person=self.person, text="Kolegos", created_by=self.user,
+                                            due_at=now - timedelta(hours=1))
+        mine = Reminder.objects.create(person=self.person, text="Mano", created_by=admin,
+                                       due_at=now - timedelta(hours=2))
+        self.client.force_login(admin)
+        context = self.client.get(reverse('contacts:list')).context
+        self.assertEqual(list(context['active_reminders_menu']), [mine])
+        self.assertEqual(context['active_reminder_count'], 1)
+        self.client.post(reverse('contacts:reminder-mark-read'))
+        self.assertEqual(self.client.get(reverse('contacts:list')).context['active_reminder_count'], 0)
+        # The colleague's own bell is untouched.
+        self.client.force_login(self.user)
+        self.assertIn(colleague, self.client.get(reverse('contacts:list')).context['active_reminders_menu'])
+
     def test_company_fields_edit_in_place_and_retry_is_noop(self):
         self.client.force_login(self.user)
         url = reverse("contacts:company-field-edit", args=[self.company.pk])

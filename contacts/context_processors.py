@@ -2,7 +2,7 @@ from django.conf import settings as dj_settings
 from django.db.models import Count, F, Q
 from django.utils import timezone
 
-from .reminder_queries import pending_reminders
+from .reminder_queries import mine_q, pending_reminders
 from .models import SystemSettings
 
 
@@ -15,7 +15,8 @@ def reminder_count(request):
     if not request.user.is_authenticated:
         return {"active_reminder_count": 0, "active_reminders_menu": []}
     now = timezone.now()
-    pending = pending_reminders(request.user)
+    # The user's own, as in the calendar: what opening the bell marks read.
+    pending = pending_reminders(request.user).filter(mine_q(request.user))
     # A task someone else handed you surfaces in the bell straight away, even if
     # it is not due yet, until you have opened it.
     handed_to_me = Q(assigned_to=request.user, read_at__isnull=True) & ~Q(assigned_to=F("created_by"))
