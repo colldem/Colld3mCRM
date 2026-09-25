@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.test import TestCase
@@ -636,6 +638,17 @@ class BackupAndRuntimeLayoutTests(TestCase):
         self.assertIn("/backups/last-success", compose)
         self.assertIn("backup-restore:", (self.root / ".github/workflows/ci.yml").read_text())
 
+    def test_uptime_kuma_overlay_is_pinned_unprivileged_and_on_loopback(self):
+        overlay = (self.root / "compose.uptime.yaml").read_text()
+        images = re.findall(r"image: (\S+)", overlay)
+        self.assertEqual(len(images), 2)
+        self.assertEqual(len(set(images)), 1)  # the init container is the same image
+        self.assertRegex(images[0], r"-rootless@sha256:[0-9a-f]{64}$")
+        self.assertIn('entrypoint: ["chown", "-R", "1000:1000", "/app/data"]', overlay)
+        self.assertEqual(overlay.count('user: "0:0"'), 1)  # only the init runs as root
+        self.assertIn('ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_UPTIME_PORT:-3001}:3001"]', overlay)
+        self.assertIn("UPTIME_KUMA_DB_TYPE: sqlite", overlay)
+        self.assertEqual(overlay.count('security_opt: ["no-new-privileges:true"]'), 2)
 
 class MetricsTests(TestCase):
     """/metrics: token-protected Prometheus text with health, security and job heartbeats."""

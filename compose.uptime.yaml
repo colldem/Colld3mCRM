@@ -1,0 +1,33 @@
+# Uptime Kuma beside the CRM: an alert when the CRM, its database, a background
+# job or a backup stops. Add it to COMPOSE_FILE in .env:
+#
+#   COMPOSE_FILE=compose.yaml:compose.uptime.yaml
+#   COMPOSE_FILE=compose.yaml:compose.tailscale.yaml:compose.uptime.yaml
+#
+# The web interface listens on ${CRM_BIND_IP}:${CRM_UPTIME_PORT} — loopback
+# unless CRM_BIND_IP says otherwise. The first visit creates its admin account;
+# the monitors to add are in docs/DEPLOYMENT.md, "Monitoring". Its data (SQLite)
+# lives in runtime/uptime-kuma.
+services:
+  crm-uptime-init:
+    # The image runs as its unprivileged `node` user (uid 1000); the directory
+    # Docker creates for the bind mount belongs to root, so hand it over first.
+    image: louislam/uptime-kuma:2.5.5-slim-rootless@sha256:a292237a108fa8843d09bb4066e738f02e913ef893542740f80c26556601ab77
+    user: "0:0"
+    entrypoint: ["chown", "-R", "1000:1000", "/app/data"]
+    volumes:
+      - ./runtime/uptime-kuma:/app/data
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+  crm-uptime:
+    image: louislam/uptime-kuma:2.5.5-slim-rootless@sha256:a292237a108fa8843d09bb4066e738f02e913ef893542740f80c26556601ab77
+    environment:
+      # Skips the database choice on first start.
+      UPTIME_KUMA_DB_TYPE: sqlite
+    volumes:
+      - ./runtime/uptime-kuma:/app/data
+    ports: ["${CRM_BIND_IP:-127.0.0.1}:${CRM_UPTIME_PORT:-3001}:3001"]
+    depends_on:
+      crm-uptime-init: {condition: service_completed_successfully}
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]

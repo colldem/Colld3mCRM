@@ -202,6 +202,7 @@ the summary.
 | `WORKER_CPUS` / `WORKER_MEMORY` | `1.0` / `1g` | CPU and memory limit of `crm-worker`, so background work never takes what the web pages need; the jobs also run at lower priority (`nice`) |
 | `CRM_DB_STATEMENT_TIMEOUT` | `90` for `crm-web` in `compose.yaml`, `0` (no limit) otherwise | seconds a single database query may run (PostgreSQL `statement_timeout`); a query still running after its request was given up is cancelled instead of holding the database |
 | `BACKUP_KEEP` / `BACKUP_INTERVAL_SECONDS` | `14` / `86400` | how many dumps `crm-backup` keeps, and how often it takes one |
+| `CRM_UPTIME_PORT` | `3001` | port of the Uptime Kuma interface (`compose.uptime.yaml`), published on `CRM_BIND_IP` |
 
 **Uploaded files**
 
@@ -496,26 +497,32 @@ the page are there so that a stopped worker is noticed.
 
 ### Alerts on a single host (Uptime Kuma)
 
-Where no Prometheus or Zabbix watches the host (e.g. the NAS), run
-[Uptime Kuma](https://github.com/louislam/uptime-kuma) next to the CRM, e.g. as
-an extra Compose file listed in `COMPOSE_FILE` (pin the image by digest, as the
-other images are):
+Where no Prometheus or Zabbix watches the host (e.g. the NAS), add
+`compose.uptime.yaml` to `COMPOSE_FILE`. It runs
+[Uptime Kuma](https://github.com/louislam/uptime-kuma) (pinned by digest, as a
+non-root user, SQLite in `runtime/uptime-kuma`, ~150 MB RAM) with its interface
+on `http://<CRM_BIND_IP>:<CRM_UPTIME_PORT>` — loopback unless `CRM_BIND_IP`
+says otherwise; put it behind the same kind of access as the CRM itself. The
+first visit creates its admin account.
 
-```yaml
-services:
-  crm-uptime:
-    image: louislam/uptime-kuma:1.23.16@sha256:<digest>
-    volumes: ["./runtime/uptime-kuma:/app/data"]
-    ports: ["127.0.0.1:3001:3001"]
-    restart: unless-stopped
-    security_opt: ["no-new-privileges:true"]
-```
+Kuma reaches the app over the compose network by the name of the container that
+owns the app's port: `crm-web:8080`, or `crm-tailscale:8080` with
+`compose.tailscale.yaml`. `/health/*` answers that name without it being in
+`DJANGO_ALLOWED_HOSTS`. Add these monitors:
 
-In its UI add two HTTP monitors — `http://crm-web:8080/health/ready` and
-`http://crm-web:8080/health/jobs` (both expect 200, every 60 s) — and a
-notification (e-mail, Telegram, Teams, …). It then reports a CRM that is down, a
-database that does not answer, and a background job that has stopped or keeps
-failing.
+| Monitor | Type and target | Interval | What it catches |
+|---|---|---|---|
+| CRM | HTTP(s) — `http://crm-web:8080/health/ready` | 60 s, 2 retries | app or database down |
+| Background jobs | HTTP(s) — `http://crm-web:8080/health/jobs` | 300 s, 1 retry | `crm-worker` stopped, a job late or failing (503) |
+| Backups | Push — heartbeat `BACKUP_INTERVAL_SECONDS` + 1 h (`90000`) | — | a failed set at once, a stopped `crm-backup` when it goes quiet |
+| Public address | HTTP(s) — `https://<your host>/health/ready`, *Certificate expiry notification* on | 300 s | proxy, DNS or certificate problems as users see them |
+
+For **Backups**, copy the push URL Kuma shows into `BACKUP_PUSH_URL` with
+`crm-uptime:3001` as its host (`http://crm-uptime:3001/api/push/<token>`) and
+recreate `crm-backup`. The public-address monitor only works where the Kuma
+container can reach that address (a Tailscale address without Funnel it cannot).
+Finally add a notification (e-mail, Telegram, Teams, ntfy, …) with *Apply on all
+existing monitors*.
 
 ## Malware scanning
 
