@@ -186,6 +186,18 @@ CRM_CLAMAV_TIMEOUT = int(os.environ.get("CRM_CLAMAV_TIMEOUT", "30"))
 # Refuse uploads while the scanner is unreachable (true) or accept them unscanned.
 CRM_CLAMAV_REQUIRED = os.environ.get("CRM_CLAMAV_REQUIRED", "true").lower() == "true"
 
+# Regitra's client database, read live on a contact card (contacts/regitra.py):
+# its ORDS REST base URL, a bearer token and the per-request timeout in seconds.
+# Empty URL = no Regitra section. Read from the environment only, so a database
+# copied to another tier never brings the link along.
+CRM_REGITRA_API_URL = os.environ.get("CRM_REGITRA_API_URL", "").strip().rstrip("/")
+CRM_REGITRA_API_TOKEN = os.environ.get("CRM_REGITRA_API_TOKEN", "").strip()
+CRM_REGITRA_API_TIMEOUT = float(os.environ.get("CRM_REGITRA_API_TIMEOUT", "5"))
+if CRM_REGITRA_API_URL and not CRM_REGITRA_API_URL.startswith(("https://", "http://")):
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("CRM_REGITRA_API_URL must be an http(s) URL")
+
 # JSON API requests allowed per token per minute (0 = unlimited).
 CRM_API_RATE_LIMIT = int(os.environ.get("CRM_API_RATE_LIMIT", "120"))
 # Usernames allowed to sign in with a local password while SSO-only mode is on.

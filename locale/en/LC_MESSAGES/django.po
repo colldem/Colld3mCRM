@@ -4613,3 +4613,55 @@ msgstr "The date of birth must be YYYY-MM-DD."
 
 msgid "Šis išorinis ID jau priklauso kitam kontaktui."
 msgstr "This external ID already belongs to another contact."
+
+msgid "Matyti Regitros paslaugas, vizitus ir prašymus"
+msgstr "See Regitra services, visits and requests"
+
+msgid "Paslaugos"
+msgstr "Services"
+
+msgid "Vizitai"
+msgstr "Visits"
+
+msgid "Prašymai"
+msgstr "Requests"
+
+msgid "Paslauga"
+msgstr "Service"
+
+msgid "Padalinys"
+msgstr "Office"
+
+msgid "Tikslas"
+msgstr "Purpose"
+
+msgid "Pateikta"
+msgstr "Submitted"
+
+msgid "Prašymas"
+msgstr "Request"
+
+msgid "Numeris"
+msgstr "Number"
+
+msgid "Regitra"
+msgstr "Regitra"
+
+msgid "Įkeliama…"
+msgstr "Loading…"
+
+msgid "Regitroje įrašų nėra."
+msgstr "Nothing on record at Regitra."
+
+#, python-format
+msgid "Regitros sistema atsakė klaida (%(code)s)."
+msgstr "Regitra's system answered with an error (%(code)s)."
+
+msgid "Regitros sistema šiuo metu nepasiekiama."
+msgstr "Regitra's system cannot be reached right now."
+
+msgid "Regitros sistema grąžino netikėtą atsakymą."
+msgstr "Regitra's system gave an unexpected answer."
+
+msgid "Regitros duomenys kortelėje"
+msgstr "Regitra data on the card"

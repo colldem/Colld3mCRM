@@ -61,7 +61,10 @@ lives inside the app: **Settings → Documentation**.
 - **Integration.** A JSON REST API at `/api/v1/` with bearer tokens, and outgoing
   webhooks signed with HMAC-SHA256. A lookup by personal code or external id for a
   call-centre screen pop, and a batched `import_people` command for loading and
-  re-syncing hundreds of thousands of people from another system.
+  re-syncing hundreds of thousands of people from another system. A contact from
+  Regitra's client database shows its Regitra services, visits and requests on
+  the card, read live from an ORDS REST service page by page and never stored
+  (a prototype against `scripts/fake_regitra_api.py` until the real API is described).
 - **Personal codes.** Stored only encrypted and as a keyed hash for lookup; shown
   masked on the card, revealed only with a role permission, every reveal audited.
 - **Access control.** Roles (administrator / all records / own records only / read-only reader), a

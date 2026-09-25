@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="CRM">
   <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260925a">
-  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260925a">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260925b">
 </head>
 <body class="sidebar-expand-lg fixed-header{% if crm_isolated %} has-env-banner{% endif %}"{% if crm_caps and not crm_caps.can_edit %} data-read-only="1"{% endif %}{% if user.is_authenticated %} data-code-search-url="{% url 'contacts:search-personal-code' %}" data-csrf="{{ csrf_token }}"{% endif %}>
 {% if job_problems %}<div class="job-banner" role="alert">⚠ {% blocktranslate count total=job_problems %}{{ total }} foninis darbas vėluoja arba klysta{% plural %}{{ total }} foniniai darbai vėluoja arba klysta{% endblocktranslate %} — <a href="{% url 'contacts:settings-system-health' %}">{% translate 'Sistemos būklė' %}</a></div>{% endif %}
@@ -66,6 +66,7 @@
 <script src="{% static 'js/list-editing.js' %}?v=20260913a" defer></script>
 <script src="{% static 'js/detail-editing.js' %}?v=20260913a" defer></script>
 <script src="{% static 'js/tabs.js' %}?v=20260924a" defer></script>
+<script src="{% static 'js/regitra.js' %}?v=20260925a" defer></script>
 <script src="{% static 'js/reminders.js' %}?v=20260910a" defer></script>
 <script src="{% static 'js/search.js' %}?v=20260925a" defer></script>
 <script src="{% static 'js/forms.js' %}?v=20260924a" defer></script>

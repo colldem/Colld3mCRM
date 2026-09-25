@@ -122,6 +122,19 @@
         </div>
       </div>
     </section>
+
+    {% if regitra_kinds %}
+    {% comment %}Read live from Regitra, a tab at a time: the card itself never waits for it.{% endcomment %}
+    <section class="detail-card regitra-card" data-regitra>
+      <h2>{% translate 'Regitra' %}</h2>
+      <div class="tab-strip" role="tablist">
+        {% for key, label in regitra_kinds %}<button type="button" role="tab" class="tab{% if forloop.first %} is-active{% endif %}" data-regitra-tab="{{ key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">{{ label }}</button>{% endfor %}
+      </div>
+      {% for key, label in regitra_kinds %}
+      <div class="tab-panel{% if forloop.first %} is-active{% endif %}" role="tabpanel" aria-label="{{ label }}" aria-live="polite" data-regitra-panel="{{ key }}" data-src="{% url 'contacts:person-regitra' person.pk key %}"{% if not forloop.first %} hidden{% endif %}><p class="muted">{% translate 'Įkeliama…' %}</p></div>
+      {% endfor %}
+    </section>
+    {% endif %}
   </div>
 
   <aside class="rec-rail">

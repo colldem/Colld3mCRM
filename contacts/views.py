@@ -35,7 +35,7 @@ from .filters import (
     saved_filter_payload,
 )
 from .models import Activity, AuditLog, Attachment, Category, Company, CustomField, CustomValue, DuplicateSettings, EmailAddress, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter, SystemSettings, Tag, Team, UserProfile, WebLink
-from . import crypto, identity
+from . import crypto, identity, regitra
 from .permissions import visible_companies, visible_people, visible_reminders
 from .reminder_queries import open_q
 from .sanitizers import csv_safe, safe_url
@@ -2092,7 +2092,17 @@ def contact_detail(request, pk):
         **_feed_context(request, person.activities.filter(deleted_at__isnull=True)),
         **_authorship_context(person, "person"),
         "identity_card": _identity_card(request.user, person),
+        "regitra_kinds": _regitra_kinds(request.user, person),
     })
+
+
+def _regitra_kinds(user, person):
+    """The Regitra tabs the card offers, or none: the page itself loads nothing from Regitra."""
+    from .permissions import has_capability
+
+    if not regitra.linked(person) or not has_capability(user, "can_view_regitra"):
+        return []
+    return regitra.KINDS
 
 
 def _identity_card(user, person):
@@ -2123,6 +2133,32 @@ def personal_code_reveal(request, pk):
         raise Http404
     audit_log(AuditLog.VIEW, request=request, target=person, field="personal_code")
     return JsonResponse({"value": identity.reveal(person) or str(tr("Nepavyko iššifruoti."))})
+
+
+@login_required
+def person_regitra(request, pk, kind):
+    """One page of a contact's Regitra services, visits or requests, read live for the card."""
+    from .permissions import has_capability
+
+    person = get_object_or_404(visible_people(request.user), pk=pk, deleted_at__isnull=True)
+    if (kind not in dict(regitra.KINDS) or not regitra.linked(person)
+            or not has_capability(request.user, "can_view_regitra")):
+        raise Http404
+    try:
+        offset = max(int(request.GET.get("offset") or 0), 0)
+    except ValueError:
+        offset = 0
+    if offset == 0:
+        # Someone looked at this person's Regitra record; later pages add nothing to that.
+        audit_log(AuditLog.VIEW, request=request, target=person, field="regitra_%s" % kind)
+    context = {"first": offset == 0}
+    try:
+        result = regitra.page(person, kind, offset)
+    except regitra.Unavailable as error:
+        return render(request, "contacts/_regitra_rows.html", {**context, "error": str(error)})
+    more_url = "%s?offset=%d" % (reverse("contacts:person-regitra", args=[person.pk, kind]), result["next"])
+    return render(request, "contacts/_regitra_rows.html", {
+        **context, "rows": result["rows"], "more_url": more_url if result["more"] else ""})
 
 
 @login_required

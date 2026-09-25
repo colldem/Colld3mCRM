@@ -174,12 +174,18 @@ naršyklės istoriją ir proxy žurnalus; vienas rastas atveriamas iškart.
         raudona juosta administratoriui, kai darbas vėluoja ar krenta, `/health/jobs` išorinei stebėsenai;
       - C. pranešimai į išorę — NAS: Uptime Kuma (`/health/ready`, `/health/jobs` → el. paštas / Telegram /
         Teams); organizacijoje: `/metrics` + `docs/DEPLOYMENT.md` įspėjimų taisyklės į Prometheus / Zabbix.
-3. Integracijos prototipas su netikru ORDS stiliaus API.
+3. ~~Integracijos prototipas su netikru ORDS stiliaus API~~ — atlikta (0.92.0): `contacts/regitra.py` +
+   `scripts/fake_regitra_api.py` (žr. 5 punktą).
 4. ~~Naršyklės importo lange~~ — atlikta (0.90.0): priimami ir `personal_code`,
    `personal_code_type`, `birth_date`, `external_source` / `external_id` stulpelius — ta pati logika kaip
    `import_people` (asmens kodo stulpelis rodomas tik turint teisę *Matyti asmens kodą*).
-5. Regitros paslaugos, vizitai ir prašymai kortelėje pagal `external_id` — gyvai iš Regitros API (ORDS),
-   su puslapiavimu, nekopijuojant į CRM; laukiama Regitros API aprašo.
+5. Regitros paslaugos, vizitai ir prašymai kortelėje pagal `external_id` — **prototipas** (0.92.0):
+   kontaktui su `external_source = regitra` kortelėje blokas „Regitra“ (skirtukai Paslaugos / Vizitai /
+   Prašymai), kiekvienas skirtukas įkeliamas atskirai (kortelė nelaukia), po 10, „Rodyti daugiau“;
+   niekas nesaugoma; teisė *Matyti Regitros paslaugas, vizitus ir prašymus*, kiekvienas skirtuko atidarymas
+   žurnale. Kreipinys: `GET {CRM_REGITRA_API_URL}/persons/{external_id}/{services|visits|requests}/?offset=&limit=`
+   su `Authorization: Bearer`, atsakymas — ORDS kolekcija (`items`, `hasMore`); nežinomas asmuo (404) — tuščia.
+   Kai Regitra pateiks API aprašą, keisti tik `regitra.py` (`COLUMNS`, kelias) ir netikrą serverį.
 
 ## 6. Klausimai Regitros Oracle / CRM komandai
 

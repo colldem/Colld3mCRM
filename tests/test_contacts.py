@@ -8815,3 +8815,130 @@ class WorkerSupervisionTests(TestCase):
         self.assertIn("CRM_DB_STATEMENT_TIMEOUT: ${CRM_DB_STATEMENT_TIMEOUT:-90}", compose)
         self.assertIn("activeDeadlineSeconds: {{ $.Values.worker.activeDeadlineSeconds }}",
                       (settings.BASE_DIR / "deploy/helm/crm/templates/cronjobs.yaml").read_text())
+
+
+def _fake_regitra(**options):
+    """scripts/fake_regitra_api.py running on a free port; returns (server, base URL)."""
+    import importlib.util
+    import threading
+
+    spec = importlib.util.spec_from_file_location("fake_regitra_api", settings.BASE_DIR / "scripts" / "fake_regitra_api.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.Handler.log_message = lambda *args: None
+    server = module.serve(port=0, **options)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, "http://127.0.0.1:%d/ords/crm" % server.server_address[1]
+
+
+class RegitraCardTests(TestCase):
+    """Regitra's services, visits and requests on a contact card, read live from ORDS."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_user("regitra-admin", password="very-secure-password", is_staff=True)
+        self.person = Person.objects.create(first_name="Ona", last_name="Regitrinė", owner=self.admin,
+                                            external_source="regitra", external_id="R-1001")
+        self.client.force_login(self.admin)
+        self.server, self.url = _fake_regitra()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+
+    def rows(self, kind="services", offset=0, person=None):
+        url = reverse("contacts:person-regitra", args=[(person or self.person).pk, kind])
+        return self.client.get(url, {"offset": offset} if offset else {})
+
+    def test_the_card_offers_the_section_only_for_a_linked_contact_when_configured(self):
+        card = reverse("contacts:detail", args=[self.person.pk])
+        with override_settings(CRM_REGITRA_API_URL=""):
+            self.assertNotContains(self.client.get(card), "data-regitra")
+        with override_settings(CRM_REGITRA_API_URL=self.url):
+            response = self.client.get(card)
+            self.assertContains(response, "data-regitra-tab=", count=3)
+            # The page itself never waits for Regitra: the tabs load on their own.
+            self.assertContains(response, reverse("contacts:person-regitra", args=[self.person.pk, "services"]))
+            other = Person.objects.create(first_name="Kitas", last_name="Šaltinis", owner=self.admin,
+                                          external_source="eketris", external_id="R-1001")
+            self.assertNotContains(self.client.get(reverse("contacts:detail", args=[other.pk])), "data-regitra")
+
+    def test_pages_come_live_from_ords_and_only_the_first_is_audited(self):
+        from contacts.models import AuditLog
+
+        with override_settings(CRM_REGITRA_API_URL=self.url):
+            first = self.rows()
+            self.assertEqual(first.status_code, 200)
+            self.assertEqual(first.content.decode().count("<li>"), 10)
+            self.assertContains(first, "Paslauga")
+            self.assertContains(first, "offset=10")
+            last = self.rows(offset=20)
+            self.assertEqual(last.content.decode().count("<li>"), 3)
+            self.assertNotContains(last, "data-regitra-more")
+            visits = self.rows("visits")
+            self.assertContains(visits, "Užregistruotas")
+        views = AuditLog.objects.filter(action=AuditLog.VIEW, target_id=str(self.person.pk))
+        self.assertEqual(sorted(views.values_list("field", flat=True)), ["regitra_services", "regitra_visits"])
+        # Read, shown, not kept.
+        self.assertFalse(self.person.activities.exists())
+
+    def test_the_bearer_token_is_sent(self):
+        guarded, url = _fake_regitra(token="ords-secret")
+        self.addCleanup(guarded.server_close)
+        self.addCleanup(guarded.shutdown)
+        with override_settings(CRM_REGITRA_API_URL=url, CRM_REGITRA_API_TOKEN=""):
+            self.assertContains(self.rows(), "Regitros sistema atsakė klaida (401).")
+        with override_settings(CRM_REGITRA_API_URL=url, CRM_REGITRA_API_TOKEN="ords-secret"):
+            self.assertEqual(self.rows().content.decode().count("<li>"), 10)
+
+    def test_an_unreachable_service_is_a_message_on_the_card_not_an_error_page(self):
+        import socket
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            closed_port = probe.getsockname()[1]
+        with override_settings(CRM_REGITRA_API_URL="http://127.0.0.1:%d/ords/crm" % closed_port):
+            response = self.rows()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Regitros sistema šiuo metu nepasiekiama.")
+
+    @patch("contacts.regitra.urllib.request.urlopen")
+    def test_an_answer_that_is_not_an_ords_collection_is_refused(self, urlopen):
+        urlopen.return_value.__enter__.return_value = BytesIO(b'{"error": "maintenance"}')
+        with override_settings(CRM_REGITRA_API_URL=self.url):
+            self.assertContains(self.rows(), "Regitros sistema grąžino netikėtą atsakymą.")
+
+    def test_dates_times_and_text_are_told_apart(self):
+        from datetime import date
+        from contacts.regitra import _cell
+
+        self.assertEqual(_cell("2026-09-09"), {"kind": "date", "value": date(2026, 9, 9)})
+        moment = _cell("2026-09-29T11:00:00Z")
+        self.assertEqual((moment["kind"], moment["value"].hour, moment["value"].utcoffset()), ("datetime", 11, timedelta(0)))
+        self.assertEqual(_cell("PR-000123"), {"kind": "text", "value": "PR-000123"})
+        self.assertEqual(_cell("2026-13-45"), {"kind": "text", "value": "2026-13-45"})
+        self.assertEqual(_cell(None), {"kind": "text", "value": ""})
+        self.assertEqual(_cell(7), {"kind": "text", "value": "7"})
+
+    def test_a_person_regitra_does_not_know_has_nothing_to_show(self):
+        Person.objects.filter(pk=self.person.pk).update(external_id="0-nezinomas")
+        with override_settings(CRM_REGITRA_API_URL=self.url):
+            self.assertContains(self.rows(), "Regitroje įrašų nėra.")
+
+    def test_access_follows_visibility_the_capability_and_the_link(self):
+        restricted = get_user_model().objects.create_user("ribotas", password="very-secure-password")
+        UserProfile.objects.create(user=restricted, role=UserProfile.ROLE_RESTRICTED)
+        member = get_user_model().objects.create_user("narys", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_MEMBER)
+        unlinked = Person.objects.create(first_name="Be", last_name="Ryšio", owner=self.admin)
+        with override_settings(CRM_REGITRA_API_URL=self.url):
+            self.assertEqual(self.rows("payments").status_code, 404)
+            self.assertEqual(self.rows(person=unlinked).status_code, 404)
+            self.client.force_login(member)
+            self.assertEqual(self.rows().status_code, 200)
+            RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER, permissions={"can_view_regitra": False})
+            self.client.force_login(member)
+            self.assertEqual(self.rows().status_code, 404)
+            self.assertNotContains(self.client.get(reverse("contacts:detail", args=[self.person.pk])), "data-regitra")
+            # Someone who may not see the contact gets nothing from Regitra either,
+            # even when allowed Regitra data in general.
+            RolePermissions.objects.create(role=UserProfile.ROLE_RESTRICTED, permissions={"can_view_regitra": True})
+            self.client.force_login(restricted)
+            self.assertEqual(self.rows().status_code, 404)

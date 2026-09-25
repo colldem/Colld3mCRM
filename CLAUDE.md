@@ -98,6 +98,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   priminimai gyvena varpelyje (`reminder_live.py`), kalendoriuje ir kortelėse;
   varpelio atidarymas žymi juos skaitytais (`reminder_mark_read`); `sanitizers.py` — `safe_url` / `csv_safe`;
   `mailfetch.py` + `management/commands/fetch_mail.py` — IMAP gautų laiškų prisegimas;
+  `regitra.py` — Regitros paslaugos / vizitai / prašymai kortelėje, gyvai iš ORDS REST (`CRM_REGITRA_API_*`,
+  nesaugoma; prototipas su `scripts/fake_regitra_api.py`, kol nėra Regitros API aprašo);
   `oidc.py` — OIDC prisijungimo backend'as (Entra ID arba AD FS; iss/aud/exp/tid tikrinimas), view'ai,
   `LocalAccountBackend` (vien SSO režimas, avarinės paskyros `CRM_BREAK_GLASS_USERS`) ir
   `DirectorySessionRefresh` middleware (katalogo sesijos pakartotinis tikrinimas);

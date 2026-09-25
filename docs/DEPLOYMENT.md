@@ -189,6 +189,8 @@ the summary.
 | `CRM_CLAMAV_HOST` | *(empty)* | clamd host for malware scanning of every upload (attachments, e-mail attachments, avatars, import and translation files); `compose.clamav.yaml` runs one and sets it. Empty disables scanning |
 | `CRM_CLAMAV_PORT`, `CRM_CLAMAV_TIMEOUT` | `3310`, `30` | clamd TCP port and per-file timeout in seconds |
 | `CRM_CLAMAV_REQUIRED` | `true` | while the scanner is unreachable: `true` refuses uploads, `false` accepts them unscanned; both log to `crm.security` |
+| `CRM_REGITRA_API_URL` | *(empty)* | ORDS REST base URL of Regitra's client database; a contact with external source `regitra` then shows Regitra services, visits and requests on its card, read live page by page and never stored. Must be `http(s)://`. Empty hides the section. `scripts/fake_regitra_api.py` serves made-up data for development |
+| `CRM_REGITRA_API_TOKEN`, `CRM_REGITRA_API_TIMEOUT` | *(empty)*, `5` | bearer token sent to that API (none when empty) and the per-request timeout in seconds |
 | `CRM_CSP_REPORT_ONLY` | `false` | `true` sends the Content-Security-Policy as `Content-Security-Policy-Report-Only` — violations show in the browser console instead of being blocked; use only while checking a new reverse proxy or browser extension setup |
 | `CRM_LOG_FORMAT` | `json` (`text` with `DJANGO_DEBUG=true`) | `json` writes one JSON object per line to stdout — application, security and Gunicorn access logs — for a SIEM; `text` is for reading by eye. See *Logs* below |
 | `CRM_LOG_LEVEL` | `INFO` | root log level |
