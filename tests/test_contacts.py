@@ -1076,8 +1076,30 @@ class ContactViewTests(TestCase):
         self.person.save()
         response = self.client.get(reverse('contacts:list'))
         self.assertEqual(response.context['active_reminder_count'], 0)
-        self.assertFalse(response.context['active_reminders_menu'].exists())
+        self.assertEqual(list(response.context['active_reminders_menu']), [])
         self.assertFalse(response.context['scheduled_reminders_menu'].exists())
+
+    def test_bell_shows_the_latest_overdue_in_due_order_and_counts_every_open_one(self):
+        from contacts.context_processors import BELL_LIMIT
+        self.client.force_login(self.user)
+        now = timezone.now()
+        overdue = [Reminder.objects.create(person=self.person, text="Vėluoja %d" % i, created_by=self.user,
+                                           due_at=now - timedelta(hours=BELL_LIMIT + 10 - i))
+                   for i in range(BELL_LIMIT + 5)]
+        other = get_user_model().objects.create_user("perdavė", password="very-secure-password")
+        handed = Reminder.objects.create(person=self.person, text="Perduota", created_by=other,
+                                         assigned_to=self.user, due_at=now + timedelta(days=3))
+        ahead = Reminder.objects.create(person=self.person, text="Ateityje", created_by=self.user,
+                                        due_at=now + timedelta(days=1))
+        Reminder.objects.filter(pk=overdue[0].pk).update(read_at=now)
+        context = self.client.get(reverse('contacts:list')).context
+        # The newest BELL_LIMIT of the active ones, oldest of them first; a task
+        # handed over is active before it is due.
+        self.assertEqual(list(context['active_reminders_menu']), overdue[-(BELL_LIMIT - 1):] + [handed])
+        self.assertEqual(context['active_reminders_total'], BELL_LIMIT + 6)
+        self.assertEqual(context['active_reminder_count'], BELL_LIMIT + 5)
+        self.assertEqual(list(context['scheduled_reminders_menu']), [ahead])
+        self.assertEqual(context['scheduled_reminders_total'], 1)
 
     def test_company_fields_edit_in_place_and_retry_is_noop(self):
         self.client.force_login(self.user)

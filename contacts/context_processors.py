@@ -1,5 +1,5 @@
 from django.conf import settings as dj_settings
-from django.db.models import F, Q
+from django.db.models import Count, F, Q
 from django.utils import timezone
 
 from .reminder_queries import pending_reminders
@@ -19,16 +19,22 @@ def reminder_count(request):
     # A task someone else handed you surfaces in the bell straight away, even if
     # it is not due yet, until you have opened it.
     handed_to_me = Q(assigned_to=request.user, read_at__isnull=True) & ~Q(assigned_to=F("created_by"))
-    active = pending.filter(Q(due_at__lte=now) | handed_to_me)
+    due_or_handed = Q(due_at__lte=now) | handed_to_me
+    active = pending.filter(due_or_handed)
     scheduled = pending.filter(due_at__gt=now).exclude(handed_to_me)
+    # One pass over the open reminders for all three numbers; "scheduled" is the
+    # rest, as due_at is never empty.
+    totals = pending.aggregate(all=Count("pk"), active=Count("pk", filter=due_or_handed),
+                               unread=Count("pk", filter=due_or_handed & Q(read_at__isnull=True)))
     # Overdue: the most recent first would hide the oldest; keep due order but
     # show the latest BELL_LIMIT, which are the ones still likely to matter.
-    active_total, scheduled_total = active.count(), scheduled.count()
-    return {"active_reminder_count": active.filter(read_at__isnull=True).count(),
-            "active_reminders_menu": active[max(active_total - BELL_LIMIT, 0):],
-            "active_reminders_total": active_total,
+    # Read from the far end rather than skipping everything before them.
+    latest = list(active.reverse()[:BELL_LIMIT])[::-1]
+    return {"active_reminder_count": totals["unread"],
+            "active_reminders_menu": latest,
+            "active_reminders_total": totals["active"],
             "scheduled_reminders_menu": scheduled[:BELL_LIMIT],
-            "scheduled_reminders_total": scheduled_total,
+            "scheduled_reminders_total": totals["all"] - totals["active"],
             "bell_limit": BELL_LIMIT}
 
 
