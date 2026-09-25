@@ -29,7 +29,7 @@ jobs:
         run: |
           test "$(cat VERSION)" = "${{ steps.version.outputs.value }}" \
             || { echo "VERSION is $(cat VERSION) but the tag says ${{ steps.version.outputs.value }}"; exit 1; }
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
