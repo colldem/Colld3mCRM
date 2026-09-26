@@ -6738,6 +6738,37 @@ class PasswordResetTests(TestCase):
         self.assertContains(unknown, "Jei tokia paskyra yra")
         self.assertEqual(known.status_code, unknown.status_code)
 
+    @override_settings(RUNNING_TESTS=False)
+    def test_the_answer_does_not_wait_for_the_lookup_or_the_mail(self):
+        from django.core import mail
+
+        from contacts import password_reset
+
+        started = []
+
+        class Deferred:
+            def __init__(self, target, name, daemon):
+                self.target = target
+                started.append(self)
+
+            def start(self):
+                pass  # the answer goes out first; the test runs the work below
+
+        with patch.object(password_reset.threading, "Thread", Deferred), \
+                patch.object(password_reset, "_local_accounts", wraps=password_reset._local_accounts) as lookup:
+            known = self._ask("jonas@imone.lt")
+            unknown = self._ask("niekas@imone.lt")
+            lookup.assert_not_called()
+        self.assertEqual(len(mail.outbox), 0)
+        for response in (known, unknown):
+            self.assertContains(response, "Jei tokia paskyra yra")
+            self.assertEqual(response.redirect_chain, [(reverse("login"), 302)])
+        self.assertEqual(len(started), 2)
+        with patch("django.db.connections.close_all"), override_settings(RUNNING_TESTS=True):
+            for thread in started:
+                thread.target()
+        self.assertEqual([message.to for message in mail.outbox], [["jonas@imone.lt"]])
+
     def test_an_inactive_account_gets_nothing(self):
         from django.core import mail
         self.user.is_active = False

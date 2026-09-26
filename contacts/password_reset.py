@@ -3,7 +3,9 @@
 Three rules shape it:
 
 * **No account enumeration.** Every request answers the same way, whether or not
-  the address belongs to anybody. A CRM's user list is itself information.
+  the address belongs to anybody — and as fast: the lookup and the mail happen
+  after the answer, so its timing does not tell either. A CRM's user list is
+  itself information.
 * **The directory wins.** When group sync is on, a directory-managed account has
   no local password to reset — letting one be set would readmit somebody the
   organisation has removed.
@@ -14,6 +16,10 @@ Three rules shape it:
 The mail goes out through the SMTP configured in Settings, like every other
 message the CRM sends — not through Django's global backend.
 """
+import logging
+import threading
+
+from django.conf import settings
 from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.tokens import default_token_generator
@@ -26,6 +32,8 @@ from django.utils.translation import gettext as tr
 
 from .audit import log as audit_log
 from .models import AuditLog, SystemSettings, UserProfile
+
+logger = logging.getLogger(__name__)
 
 # One person, however many times they press the button, gets this many mails an
 # hour. Enough for a mistyped address; not enough to use the CRM as a mailer.
@@ -91,18 +99,44 @@ def _send_link(request, user):
               field=AUDIT_FIELD, new="sent")
 
 
+def _mail_links(request, identifier):
+    for user in _local_accounts(identifier):
+        if _too_many_requests(user):
+            audit_log(AuditLog.SETTING, request=request, target=user, target_type="user",
+                      field=AUDIT_FIELD, new="throttled")
+            continue
+        _send_link(request, user)
+
+
+def _after_the_answer(work, *args):
+    """Run `work` on its own thread, so the response leaves before it is done.
+
+    Tests run it in place: their database lives in one connection's transaction."""
+    if settings.RUNNING_TESTS:
+        work(*args)
+        return
+
+    def run():
+        from django.db import connections
+
+        try:
+            work(*args)
+        except Exception:
+            logger.exception("password reset mail failed")
+        finally:
+            connections.close_all()
+
+    threading.Thread(target=run, name="password-reset-mail", daemon=True).start()
+
+
 def password_reset_request(request):
-    """Ask for a link. The answer never says whether the account exists."""
+    """Ask for a link. The answer never says — by its words or by its timing —
+    whether the account exists."""
     from .integrations import oidc_config
 
     config = oidc_config()
     if request.method == "POST" and not config.enforced:
-        for user in _local_accounts(request.POST.get("identifier")):
-            if _too_many_requests(user):
-                audit_log(AuditLog.SETTING, request=request, target=user, target_type="user",
-                          field=AUDIT_FIELD, new="throttled")
-                continue
-            _send_link(request, user)
+        _after_the_answer(_mail_links, request, request.POST.get("identifier"))
         messages.success(request, tr("Jei tokia paskyra yra, išsiuntėme nuorodą slaptažodžiui pasikeisti. "
                                      "Patikrinkite el. paštą."))
         return redirect("login")
