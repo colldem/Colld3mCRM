@@ -2796,6 +2796,30 @@ class ContactViewTests(TestCase):
         self.assertContains(response, "Importas baigtas")
         self.assertTrue(Person.objects.filter(first_name="Ona", last_name="Onaitė").exists())
 
+    def test_xlsx_import_stops_reading_past_the_row_limit_and_refuses_a_zip_bomb(self):
+        import zipfile
+
+        from openpyxl import Workbook
+
+        from contacts import views
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["Vardas", "Pavardė"])
+        for index in range(20):
+            sheet.append(["Ona%s" % index, "Onaitė"])
+        output = BytesIO()
+        workbook.save(output)
+        with patch.object(views, "IMPORT_PREVIEW_LIMIT", 5):
+            rows = views._read_import_rows(SimpleUploadedFile("k.xlsx", output.getvalue()))
+        self.assertEqual(len(rows), 6)
+
+        bomb = BytesIO()
+        with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("xl/worksheets/sheet1.xml", b"\0" * (views.XLSX_MAX_UNPACKED_BYTES + 1))
+        with self.assertRaises(ValueError):
+            views._read_import_rows(SimpleUploadedFile("bomb.xlsx", bomb.getvalue()))
+
     def test_import_preview_does_not_write_until_confirmed(self):
         self.client.force_login(self.user)
         content = "Vardas,Pavardė,El. paštai\nNaujas,Žmogus,naujas@example.lt\n".encode()

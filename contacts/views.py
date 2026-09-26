@@ -2958,6 +2958,9 @@ def _import_contact_rows(rows, owner=None, *, mode="update", collect_errors=Fals
 
 
 IMPORT_PREVIEW_LIMIT = 5000
+# An .xlsx is a zip: 10 MB of it can unpack to gigabytes of XML. Far more than
+# IMPORT_PREVIEW_LIMIT rows of contacts need.
+XLSX_MAX_UNPACKED_BYTES = 64 * 1024 * 1024
 
 
 def _decode_csv(data, setting):
@@ -2992,11 +2995,20 @@ def _read_import_rows(upload):
         delimiter = _csv_delimiter(text, system.import_delimiter)
         raw = list(csv.DictReader(io.StringIO(text), delimiter=delimiter))
     elif name.endswith(".xlsx"):
+        import itertools
+        import zipfile
+
         from openpyxl import load_workbook
 
+        with zipfile.ZipFile(upload) as archive:
+            if sum(member.file_size for member in archive.infolist()) > XLSX_MAX_UNPACKED_BYTES:
+                raise ValueError(tr("Netinkamas failo formatas"))
+        upload.seek(0)
         sheet = load_workbook(upload, read_only=True, data_only=True).active
         headers = [str(cell.value or "").strip() for cell in next(sheet.iter_rows())]
-        raw = [{headers[index]: cell.value for index, cell in enumerate(row)} for row in sheet.iter_rows(min_row=2)]
+        # One row past the limit is enough to refuse the file; the rest is never read.
+        raw = [{headers[index]: cell.value for index, cell in enumerate(row)}
+               for row in itertools.islice(sheet.iter_rows(min_row=2), IMPORT_PREVIEW_LIMIT + 1)]
     else:
         raise ValueError(tr("Netinkamas failo formatas"))
     # Normalise every value to a string so the rows are JSON/session safe.

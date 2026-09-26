@@ -36,7 +36,7 @@ redaguojami; „tik skaityti" prieiga yra tik per API raktą.
 | REST API | rankomis rašytas JSON (`contacts/api.py`), be DRF | `/api/v1/`, „Bearer" token'ai, ta pati matomumo apsauga |
 | El. paštas | Django SMTP backend + `imaplib` (gauti laiškai) | konfigūruojama Nustatymuose; be jos — laiškai į žurnalą, IMAP išjungtas |
 | Paslaptys | `cryptography` (Fernet) | Nustatymuose suvesti integracijų slaptažodžiai šifruojami raktu `CRM_SECRETS_KEY` |
-| Importas | `openpyxl` | XLSX skaitymas; CSV — standartinė biblioteka |
+| Importas | `openpyxl` + `defusedxml` | XLSX skaitymas (XML be esybių išplėtimo); CSV — standartinė biblioteka |
 | Sąsaja | AdminLTE 4 + Bootstrap 5, **įdiegti vietoje** `static/vendor/adminlte/` | uždaras tinklas — jokių CDN |
 | Grafikai | rankomis generuojamas inline SVG (`contacts/charts.py`) | jokios chart bibliotekos |
 | Tinklas / TLS | Tailscale konteineris + Tailscale Serve (`deploy/tailscale/serve.json`) | HTTPS terminacija, `crm-web` dalijasi tinklu su `crm-tailscale` |
