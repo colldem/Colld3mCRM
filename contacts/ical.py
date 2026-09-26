@@ -15,9 +15,11 @@ WINDOW_FORWARD = 400
 
 
 def _esc(text):
+    # A bare CR ends a line for many readers too: left in, a reminder's text
+    # could add properties of its own (an alarm, a link) to the event.
     return (str(text or "")
             .replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
-            .replace("\r\n", "\\n").replace("\n", "\\n"))
+            .replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "\\n"))
 
 
 def _stamp(value):

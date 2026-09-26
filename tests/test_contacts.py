@@ -4246,6 +4246,13 @@ class CalendarFeedTests(TestCase):
         self.assertIn("URL:", body)
         self.assertNotIn("Kolegos", body)  # not assigned to this user
 
+    def test_a_carriage_return_in_the_text_cannot_add_a_line_to_the_event(self):
+        Reminder.objects.create(text="Susitikimas\rATTACH:https://evil.example/x", created_by=self.mate,
+                                assigned_to=self.user, due_at=timezone.now() + timedelta(days=1))
+        body = self.client.get(self._url()).content.decode()
+        self.assertNotIn("\rATTACH", body)
+        self.assertIn("SUMMARY:Susitikimas\\nATTACH:https://evil.example/x", body)
+
     def test_feed_needs_no_login_but_a_bad_token_is_404(self):
         self.assertEqual(self.client.get(self._url("nonsense")).status_code, 404)
         self.assertEqual(self.client.get(self._url()).status_code, 200)
