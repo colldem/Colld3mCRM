@@ -759,6 +759,14 @@ class CalendarTests(TestCase):
         })
         self.assertEqual(Reminder.objects.get(text="Skambutis").meeting_url, "")
 
+    def test_a_meeting_link_is_only_ever_http(self):
+        due = self.start.strftime("%Y-%m-%dT%H:%M")
+        for text, link, kept in (("A", "javascript:alert(document.cookie)", ""), ("B", "data:text/html,x", ""),
+                                 ("C", "meet.example.com/x", "https://meet.example.com/x")):
+            self.client.post(reverse("contacts:calendar-event-create"), {
+                "text": text, "due_at": due, "kind": "meeting", "meeting_url": link})
+            self.assertEqual(Reminder.objects.get(text=text).meeting_url, kept)
+
     def test_picking_a_contact_fills_in_their_company_and_the_other_way_round(self):
         from contacts.models import PersonCompanyLink
 

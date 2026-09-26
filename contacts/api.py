@@ -575,7 +575,7 @@ def reminders_collection(request, token):
             end_at=end_at, kind=kind,
             description=str(data.get("description") or "")[:5000],
             # A joining link belongs to a meeting, exactly as in the calendar.
-            meeting_url=(str(data.get("meeting_url") or "")[:500] if kind == Reminder.KIND_MEETING else ""),
+            meeting_url=(safe_url(str(data.get("meeting_url") or ""))[:500] if kind == Reminder.KIND_MEETING else ""),
             priority=priority, created_by=token.created_by,
             assigned_to=_assignable_user(token.created_by, data.get("assigned_to_id")) or token.created_by)
         _audit(token, AuditLog.CREATE, person or company or reminder, field="API reminder", new=reminder.text[:150])

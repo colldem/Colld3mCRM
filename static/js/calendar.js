@@ -252,7 +252,8 @@
   function showOnlineLink() {
     const value = onlineInput.value.trim();
     if (!value) return showOnlineInput();
-    onlineLink.href = value;
+    // Never a javascript: or data: link; the server keeps only http(s) as well.
+    onlineLink.href = /^https?:\/\//i.test(value) ? value : `https://${value}`;
     onlineLink.textContent = value;
     onlineLink.hidden = false;
     onlineHint.hidden = false;

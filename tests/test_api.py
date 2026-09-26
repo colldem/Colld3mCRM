@@ -84,6 +84,10 @@ class ApiTests(TestCase):
                          {"person_id": self.person.pk, "text": "skambutis", "due_at": "2026-12-31T09:00:00Z"})
         self.assertEqual(rem.status_code, 201)
         self.assertTrue(Reminder.objects.filter(person=self.person, text="skambutis").exists())
+        meeting = self._send("post", "/api/v1/reminders", {
+            "text": "susitikimas", "kind": "meeting", "due_at": "2026-12-31T09:00:00Z",
+            "meeting_url": "javascript:alert(1)"})
+        self.assertEqual(meeting.json()["meeting_url"], "")
 
     def test_visibility_of_the_token_owner_is_enforced(self):
         other = get_user_model().objects.create_user("kitas", password="very-secure-password")

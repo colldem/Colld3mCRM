@@ -19,6 +19,7 @@ from .models import AuditLog, Company, Person, Reminder
 from .audit import log as audit_log
 from .permissions import assignable_users_for, user_label, visible_companies, visible_people
 from .reminder_queries import mine_q as _mine_q
+from .sanitizers import safe_url
 
 VIEWS = ("day", "week", "month")
 MINUTES_IN_DAY = 24 * 60
@@ -386,7 +387,8 @@ def calendar_event_save(request, pk=None):
     reminder.text = text[:500]
     reminder.description = request.POST.get("description", "").strip()[:5000]
     # A joining link belongs to a meeting; the field is hidden for anything else.
-    reminder.meeting_url = (request.POST.get("meeting_url", "").strip()[:500]
+    # Only an http(s) link: the dialog turns it into a clickable one.
+    reminder.meeting_url = (safe_url(request.POST.get("meeting_url", ""))[:500]
                             if reminder.kind == Reminder.KIND_MEETING else "")
     reminder.due_at = start
     reminder.end_at = end
