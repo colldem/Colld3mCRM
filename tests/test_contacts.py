@@ -5315,6 +5315,25 @@ class RecordVisibilityTests(TestCase):
         self.assertIn(assigned_to_me.pk, visible_ids)
         self.assertNotIn(someone_elses_entry.pk, visible_ids)
 
+    def test_seeing_every_record_does_not_open_someone_elses_private_calendar_entry(self):
+        on_record = Reminder.objects.create(person=Person.objects.create(first_name="A", last_name="B"),
+                                            text="shared", due_at=timezone.now(), created_by=self.restricted)
+        private = Reminder.objects.create(text="private", due_at=timezone.now(), created_by=self.restricted,
+                                          assigned_to=self.restricted)
+        for viewer in (self.member, self.admin):
+            visible_ids = set(perm.visible_reminders(viewer).values_list("pk", flat=True))
+            self.assertIn(on_record.pk, visible_ids)
+            self.assertNotIn(private.pk, visible_ids)
+
+        self.client.force_login(self.member)
+        self.client.post(reverse("contacts:reminder-delete", args=[private.pk]))
+        self.client.post(reverse("contacts:reminder-complete", args=[private.pk]))
+        private.refresh_from_db()
+        self.assertIsNone(private.deleted_at)
+        self.assertIsNone(private.completed_at)
+        response = self.client.get(reverse("contacts:search"), {"q": "private"})
+        self.assertNotContains(response, "private</")
+
     def test_visible_reminders_none_user_returns_the_queryset_unfiltered(self):
         Reminder.objects.create(text="x", due_at=timezone.now(), created_by=self.admin)
         self.assertEqual(perm.visible_reminders(None).count(), 1)

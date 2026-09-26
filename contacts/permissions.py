@@ -239,7 +239,9 @@ def visible_reminders(user, queryset=None):
     if user is None:
         return queryset
     if _person_visibility_q(user) is None and _company_visibility_q(user) is None:
-        return queryset
+        # Seeing every record is not seeing everyone's private calendar entries.
+        return queryset.filter(Q(person__isnull=False) | Q(company__isnull=False)
+                               | Q(created_by=user) | Q(assigned_to=user))
     return queryset.filter(
         Q(person__isnull=False, person__pk__in=visible_people(user, None).values_list("pk", flat=True))
         | Q(person__isnull=True, company__isnull=False,
