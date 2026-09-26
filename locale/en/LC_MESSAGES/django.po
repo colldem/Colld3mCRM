@@ -4561,8 +4561,8 @@ msgstr "Audit log clean-up"
 msgid "Sistemos būklė"
 msgstr "System health"
 
-msgid "Ar foniniai darbai (pranešimai, paštas, automatika, dublikatai, analitika…) vyksta laiku. Tą pačią būseną mato išorinė stebėsena adresu /health/jobs."
-msgstr "Whether the background jobs (notifications, mail, automation, duplicates, analytics…) run on time. An outside monitor sees the same state at /health/jobs."
+msgid "Ar foniniai darbai (pranešimai, paštas, automatika, dublikatai, analitika…) vyksta laiku. Bendrą būseną, be darbų pavadinimų, mato išorinė stebėsena adresu /health/jobs."
+msgstr "Whether the background jobs (notifications, mail, automation, duplicates, analytics…) run on time. An outside monitor sees the overall state, without job names, at /health/jobs."
 
 msgid "Nė vienas foninis darbas dar nėra pranešęs apie save: foninis darbuotojas (crm-worker) nepaleistas arba ką tik paleistas. Kopijoje be jo (pvz. staging) tai įprasta."
 msgstr "No background job has reported yet: the background worker (crm-worker) is not running or has only just started. On a copy without one (e.g. staging) that is expected."

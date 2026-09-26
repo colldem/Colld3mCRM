@@ -451,7 +451,7 @@ To take it back off the internet, set `TS_SERVE_CONFIG` back to
 |---|---|
 | `/health/live` | the process answers — liveness probe |
 | `/health/ready` | the database answers — readiness probe, load balancer check |
-| `/health/jobs` | every background command keeps up: `200 {"status": "ok"}`, otherwise `503` with `degraded` (some late or failing) or `no-worker` (none has ever run); names and states only |
+| `/health/jobs` | every background command keeps up: `200 {"status": "ok"}`, otherwise `503` with `degraded` (some late or failing) or `no-worker` (none has ever run); the overall state only — which job, in Settings → Sistemos būklė or `/metrics` |
 | `/metrics` | Prometheus scrape, with `CRM_METRICS_TOKEN` as bearer token |
 
 `/metrics` is computed from the database at scrape time, so any web process gives

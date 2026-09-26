@@ -8862,7 +8862,8 @@ class WorkerSupervisionTests(TestCase):
         self._all_ok()
         response = self.client.get("/health/jobs")
         self.assertEqual((response.status_code, response.json()["status"]), (200, "ok"))
-        self.assertEqual(response.json()["jobs"]["fetch_mail"], "ok")
+        # Public, so the job list and what each is doing stay inside.
+        self.assertEqual(response.json(), {"status": "ok"})
         self._beat("fetch_mail", success=timezone.now() - timedelta(hours=3))
         self.assertEqual(self.client.get("/health/jobs").status_code, 503)
 

@@ -298,13 +298,13 @@ def health_ready(request):
 
 def health_jobs(request):
     """For an outside monitor: 200 while every background command keeps up, 503 otherwise.
-    Names and states only — nothing about the data."""
+
+    Unauthenticated and, behind Funnel, public: the overall state only. Which job
+    is late is for Settings -> Sistemos būklė and the token-protected /metrics."""
     from .jobs import job_states, overall
 
-    rows = job_states()
-    status = overall(rows)
-    return JsonResponse({"status": status, "jobs": {row["name"]: row["state"] for row in rows}},
-                        status=200 if status == "ok" else 503)
+    status = overall(job_states())
+    return JsonResponse({"status": status}, status=200 if status == "ok" else 503)
 
 
 @login_required
