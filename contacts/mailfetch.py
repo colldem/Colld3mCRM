@@ -3,7 +3,10 @@
 Users BCC the CRM address; the periodic worker calls :func:`fetch`. Matching:
 a contact is found by any To/Cc address, the author by the From address (falling
 back to the oldest active admin). Unmatched messages land in ``IncomingMail`` for
-an admin to assign. Deduplication is by RFC ``Message-ID``.
+an admin to assign, and so does a message whose sender the receiving server
+could not authenticate (:func:`sender_failed_authentication`): the From header
+is the sender's to write, and it decides whose name the activity carries.
+Deduplication is by RFC ``Message-ID``.
 """
 import email
 import re
@@ -31,6 +34,29 @@ def _addrs(msg, *headers):
     for header in headers:
         raw += msg.get_all(header, [])
     return [addr.lower() for _name, addr in getaddresses(raw) if addr]
+
+
+_AUTH_RESULT = re.compile(r"\b(dmarc|compauth|spf|dkim)\s*=\s*([a-z]+)", re.I)
+
+
+def sender_failed_authentication(msg):
+    """True when the receiving mail server says the From address was forged.
+
+    Only the topmost Authentication-Results header counts: the receiving server
+    adds it above everything the sender wrote. A DMARC or Microsoft composite
+    (compauth) failure, or an SPF failure no DKIM signature makes up for, is a
+    failure. No header, or "none", is not: many internal messages carry no
+    verdict at all, and those are what the CRM mailbox mostly receives.
+    """
+    headers = msg.get_all("Authentication-Results") or []
+    if not headers:
+        return False
+    verdicts = {}
+    for method, result in _AUTH_RESULT.findall(str(headers[0])):
+        verdicts.setdefault(method.lower(), set()).add(result.lower())
+    if "fail" in verdicts.get("dmarc", set()) or "fail" in verdicts.get("compauth", set()):
+        return True
+    return bool(verdicts.get("spf", set()) & {"fail", "softfail"}) and "pass" not in verdicts.get("dkim", set())
 
 
 def _body(msg):
@@ -118,6 +144,12 @@ def process_message(raw):
     own = (imap_config().user or "").lower()
     candidates = [addr for addr in recipients if addr and addr != own]
     person = Person.objects.filter(deleted_at__isnull=True, emails__email__in=candidates).distinct().first()
+    if person and sender_failed_authentication(msg):
+        # Held for an admin, who sees the claimed sender, instead of filed under a colleague's name.
+        from .observability import security_event
+
+        security_event("mail.sender_unauthenticated", target_type="incoming_mail", outcome="held")
+        person = None
     User = get_user_model()
     author = User.objects.filter(is_active=True, email__iexact=from_addr).first() or _default_author()
 

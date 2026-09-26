@@ -4294,6 +4294,31 @@ class IncomingMailTests(TestCase):
                          (self.person.pk, "email", self.staffer.pk))
         self.assertIn("Dėl sutarties", a.text)
 
+    def test_mail_whose_sender_failed_authentication_is_held_not_filed_under_a_colleague(self):
+        from email import message_from_bytes
+
+        from contacts.mailfetch import process_message, sender_failed_authentication
+        from contacts.models import IncomingMail
+
+        def signed(verdict, extra=""):
+            raw = self._raw(mid="<%s@x>" % abs(hash(verdict + extra)))
+            header = "Authentication-Results: mx.imone.lt; %s\r\n" % verdict
+            return (header + extra).encode() + raw
+
+        forged = signed("spf=fail smtp.mailfrom=imone.lt; dkim=none; dmarc=fail header.from=imone.lt",
+                        # What the sender wrote sits below the receiving server's verdict.
+                        "Authentication-Results: evil; dmarc=pass\r\n")
+        self.assertEqual(process_message(forged), "unmatched")
+        self.assertFalse(Activity.objects.filter(created_by=self.staffer).exists())
+        self.assertEqual(IncomingMail.objects.get().from_addr, "darbuotojas@imone.lt")
+
+        for verdict, failed in (("dmarc=pass", False), ("spf=softfail; dkim=pass", False),
+                                ("spf=softfail; dkim=none", True), ("compauth=fail reason=000", True),
+                                ("spf=none; dkim=none; dmarc=none", False)):
+            with self.subTest(verdict=verdict):
+                self.assertEqual(sender_failed_authentication(message_from_bytes(signed(verdict))), failed)
+        self.assertEqual(process_message(signed("dkim=pass; dmarc=pass")), "activity")
+
     def test_the_same_message_id_is_only_filed_once(self):
         from contacts.mailfetch import process_message
         process_message(self._raw())
