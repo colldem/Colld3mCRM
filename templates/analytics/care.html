@@ -14,7 +14,7 @@
     <div class="dash-card-head">
       <div><h2>{{ group.label }}</h2>
         {% if group.total > limit %}<p>{% blocktranslate with shown=limit total=group.total %}Rodoma {{ shown }} iš {{ total }} — visą sąrašą rasite CSV eksporte.{% endblocktranslate %}</p>{% endif %}</div>
-      <span class="dash-card-tools"><span class="dash-count">{{ group.total }}</span>{% if group.total %}<a class="btn" href="?days={{ days }}&amp;export={{ group.key }}">{% translate 'Eksportuoti CSV' %}</a>{% endif %}</span>
+      <span class="dash-card-tools"><span class="dash-count">{{ group.total }}</span>{% if group.total and crm_caps.can_export %}<a class="btn" href="?days={{ days }}&amp;export={{ group.key }}">{% translate 'Eksportuoti CSV' %}</a>{% endif %}</span>
     </div>
     {% if group.rows %}
       <div class="table-wrap"><table>

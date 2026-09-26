@@ -295,7 +295,16 @@ def relationship_care(request):
 
     wanted = request.GET.get("export", "")
     if wanted in lists:
-        return _care_csv(wanted, lists[wanted])
+        from .audit import log as audit_log
+        from .permissions import has_capability
+
+        # A list of names, phones and e-mails is an export like any other.
+        if not has_capability(request.user, "can_export"):
+            raise Http404
+        response = _care_csv(wanted, lists[wanted])
+        audit_log(AuditLog.EXPORT, request=request, target_type="export",
+                  target_label="%s (CSV)" % CARE_LABELS[wanted])
+        return response
 
     return render(request, "analytics/care.html", {
         "section": "care",
@@ -316,20 +325,21 @@ def _care_csv(key, queryset):
     writer.writerow([tr("Vardas"), tr("Pavardė"), tr("Įmonė"), tr("Telefonas"),
                      tr("El. paštas"), tr("Atsakingas"), tr("Paskutinis kontaktas")])
     from .permissions import user_label
+    from .sanitizers import csv_safe
 
     for person in queryset[:5000]:
         link = person.company_links.all()
         phone = person.phones.all()
         email = person.emails.all()
         last = getattr(person, "last_contact_at", None)
-        writer.writerow([
+        writer.writerow([csv_safe(value) for value in (
             person.first_name, person.last_name,
             link[0].company.name if link else "",
             phone[0].number if phone else "",
             email[0].email if email else "",
             user_label(person.owner),
             timezone.localtime(last).strftime("%Y-%m-%d") if last else "",
-        ])
+        )])
     return response
 
 

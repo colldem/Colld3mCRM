@@ -432,6 +432,19 @@ class AnalyticsTests(TestCase):
         body = response.content.decode("utf-8-sig")
         self.assertIn("Eksportui", body)
         self.assertIn("eksportui@example.lt", body)
+        from contacts.models import AuditLog
+
+        self.assertTrue(AuditLog.objects.filter(action=AuditLog.EXPORT, actor=self.user).exists())
+
+    def test_care_export_needs_the_export_right_and_neutralises_formulas(self):
+        self._person("=HYPERLINK(\"http://evil\")", owner=self.user)
+        body = self.client.get(reverse("contacts:analytics-care"), {"export": "never"}).content.decode("utf-8-sig")
+        self.assertIn("'=HYPERLINK", body)
+
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_READONLY)
+        response = self.client.get(reverse("contacts:analytics-care"), {"export": "never"})
+        self.assertEqual(response.status_code, 404)
+        self.assertNotContains(self.client.get(reverse("contacts:analytics-care")), "export=never")
 
     def test_communication_page_buckets_activity_by_type_and_ranks_contacts(self):
         loud = self._person("Kalbus")
