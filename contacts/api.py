@@ -138,6 +138,16 @@ def _assignable_user(actor, pk):
     return assignable_users_for(actor).filter(pk=pk).first()
 
 
+def _set_owner(record, data, token, *, creating):
+    """Apply `owner_id`: changing who is responsible takes the same right as in the UI."""
+    owner = _assignable_user(token.created_by, data["owner_id"])
+    wanted = owner.pk if owner else None
+    unchanged = wanted == record.owner_id or (creating and wanted == token.created_by_id)
+    if not unchanged and not has_capability(token.created_by, "can_reassign_owner"):
+        raise ApiError(403, "token owner cannot change the responsible user")
+    record.owner = owner
+
+
 # --- serializers -----------------------------------------------------------
 
 def _custom_fields(record):
@@ -261,7 +271,7 @@ def _write_person(person, data, token, *, creating):
     if "favourite" in data:
         person.favourite = bool(data["favourite"])
     if "owner_id" in data:
-        person.owner = _assignable_user(token.created_by, data["owner_id"])
+        _set_owner(person, data, token, creating=creating)
     _write_identity(person, data)
     if creating:
         person.created_by = token.created_by
@@ -317,7 +327,7 @@ def _write_company(company, data, token, *, creating):
     if "description" in data:
         company.description = str(data["description"] or "")[:5000]
     if "owner_id" in data:
-        company.owner = _assignable_user(token.created_by, data["owner_id"])
+        _set_owner(company, data, token, creating=creating)
     if creating:
         company.created_by = token.created_by
     company.save()

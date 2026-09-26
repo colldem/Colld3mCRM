@@ -110,11 +110,29 @@ class ApiTests(TestCase):
 
     def test_owner_id_must_be_assignable_to_the_token_owner(self):
         stranger = get_user_model().objects.create_user("nepazistamas", password="very-secure-password")
-        UserProfile.objects.update_or_create(user=self.user, defaults={"role": UserProfile.ROLE_RESTRICTED})
+        UserProfile.objects.update_or_create(user=self.user, defaults={
+            "role": UserProfile.ROLE_MEMBER, "record_visibility": UserProfile.VISIBILITY_OWN})
         r = self._send("patch", "/api/v1/contacts/%s" % self.person.pk, {"owner_id": stranger.pk})
         self.assertEqual(r.status_code, 200)
         self.person.refresh_from_db()
         self.assertIsNone(self.person.owner)  # not a teammate -> silently dropped
+
+    def test_owner_id_needs_the_reassign_right_as_in_the_interface(self):
+        colleague = get_user_model().objects.create_user("kolega", password="very-secure-password")
+        UserProfile.objects.update_or_create(user=self.user, defaults={"role": UserProfile.ROLE_RESTRICTED})
+        for body in ({"owner_id": colleague.pk}, {"owner_id": None}):
+            r = self._send("patch", "/api/v1/contacts/%s" % self.person.pk, body)
+            self.assertEqual(r.status_code, 403)
+            r = self._send("patch", "/api/v1/companies/%s" % self.company.pk, body)
+            self.assertEqual(r.status_code, 403)
+        self.person.refresh_from_db()
+        self.company.refresh_from_db()
+        self.assertEqual((self.person.owner, self.company.owner), (self.user, self.user))
+        # Keeping it, or naming yourself on a new record, needs no right.
+        self.assertEqual(self._send("patch", "/api/v1/contacts/%s" % self.person.pk,
+                                    {"owner_id": self.user.pk}).status_code, 200)
+        created = self._send("post", "/api/v1/companies", {"name": "UAB Naujas", "owner_id": self.user.pk})
+        self.assertEqual(created.status_code, 201)
 
     def test_integrations_page_is_admin_only_and_creates_a_token_once(self):
         self.client.force_login(get_user_model().objects.create_user("plain", password="very-secure-password"))
