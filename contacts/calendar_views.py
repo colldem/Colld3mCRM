@@ -248,6 +248,17 @@ def calendar_colleague_events(request, pk):
     start, end = _range_for(view if view in VIEWS else "week", _anchor_date(request))
     reminders = list(user_reminders(colleague, start, end))
     now = timezone.now()
+    # The colleague's entry is theirs to show; the record it sits on is named
+    # only if the viewer may see that record too.
+    seen_people = set(visible_people(request.user, Person.objects.filter(
+        pk__in={r.person_id for r in reminders if r.person_id})).values_list("pk", flat=True))
+    seen_companies = set(visible_companies(request.user, Company.objects.filter(
+        pk__in={r.company_id for r in reminders if r.company_id})).values_list("pk", flat=True))
+
+    def record_label(reminder):
+        if reminder.person_id:
+            return str(reminder.person) if reminder.person_id in seen_people else ""
+        return str(reminder.company) if reminder.company_id in seen_companies else ""
 
     events = []
     cursor = start
@@ -258,7 +269,7 @@ def calendar_colleague_events(request, pk):
                 "id": reminder.pk, "date": cursor.isoformat(),
                 "start_min": item["start_min"], "end_min": item["end_min"],
                 "label": item["label"], "text": reminder.text,
-                "kind": reminder.kind, "record": str(reminder.record or ""),
+                "kind": reminder.kind, "record": record_label(reminder),
                 "is_past": item["is_past"], "done": item["done"],
             })
         cursor += timedelta(days=1)

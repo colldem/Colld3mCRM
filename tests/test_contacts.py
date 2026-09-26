@@ -916,6 +916,22 @@ class CalendarTests(TestCase):
             self.client.get(reverse("contacts:calendar-colleague-events"
                                     , args=[self.mate.pk])).status_code, 404)
 
+    def test_a_colleagues_event_names_only_the_records_you_may_see(self):
+        from contacts.models import Team, UserProfile
+
+        UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_RESTRICTED)
+        Team.objects.create(name="Komanda").members.add(self.user, self.mate)
+        outsider = get_user_model().objects.create_user("svetimas", password="very-secure-password")
+        hidden = Person.objects.create(first_name="Slaptas", last_name="Klientas", owner=outsider)
+        mine = Person.objects.create(first_name="Mano", last_name="Klientas", owner=self.user)
+        for person, text in ((hidden, "Pas slaptą"), (mine, "Pas mano")):
+            Reminder.objects.create(person=person, text=text, due_at=self.start,
+                                    created_by=self.mate, assigned_to=self.mate)
+        events = self.client.get(reverse("contacts:calendar-colleague-events", args=[self.mate.pk]),
+                                 {"view": "week", "date": self.start.date().isoformat()}).json()["events"]
+        self.assertEqual({row["text"]: row["record"] for row in events},
+                         {"Pas slaptą": "", "Pas mano": str(mine)})
+
 
 class ReminderAssignmentTests(TestCase):
     def setUp(self):
