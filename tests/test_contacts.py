@@ -2687,6 +2687,23 @@ class ContactViewTests(TestCase):
         self.person.save()
         self.assertEqual(self.client.get(reverse("contacts:list")).context["crm_menu"]["shortcuts"], [])
 
+    def test_a_menu_shortcut_does_not_name_a_record_the_user_may_not_see(self):
+        from contacts.models import UserProfile
+
+        other = get_user_model().objects.create_user("kitas", password="very-secure-password")
+        hidden = Person.objects.create(first_name="Slaptas", last_name="Asmuo", owner=other)
+        hidden_company = Company.objects.create(name="Slapta UAB", owner=other)
+        profile, _ = UserProfile.objects.get_or_create(user=self.user)
+        profile.record_visibility = UserProfile.VISIBILITY_OWN
+        profile.menu_config = {"hidden": [], "shortcuts": [{"kind": "person", "value": str(hidden.pk)},
+                                                           {"kind": "company", "value": str(hidden_company.pk)}]}
+        profile.save()
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("contacts:list"))
+        self.assertEqual(page.context["crm_menu"]["shortcuts"], [])
+        self.assertNotContains(page, "Slaptas Asmuo")
+        self.assertNotContains(page, "Slapta UAB")
+
     def test_the_reminder_list_page_is_gone_and_the_bell_leads_to_the_calendar(self):
         """Reminders live in the bell, the calendar and the record cards now."""
         from django.urls import NoReverseMatch

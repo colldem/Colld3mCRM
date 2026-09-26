@@ -101,9 +101,10 @@ def _config(profile):
     return hidden, shortcuts[:MAX_SHORTCUTS]
 
 
-def _shortcut_item(entry, capabilities):
-    """Resolve one stored shortcut, or None if its target is gone."""
+def _shortcut_item(entry, capabilities, user):
+    """Resolve one stored shortcut, or None if its target is gone or not `user`'s to see."""
     from .models import Company, Person
+    from .permissions import visible_companies, visible_people
 
     kind, value = entry.get("kind"), str(entry.get("value", ""))
     try:
@@ -114,8 +115,8 @@ def _shortcut_item(entry, capabilities):
             label, url_name = ACTIONS[value]
             return Item(f"s-{value}", label, reverse(url_name), _ICONS["action"])
         if kind in ("person", "company") and value.isdigit():
-            model = Person if kind == "person" else Company
-            record = model.objects.filter(pk=int(value), deleted_at__isnull=True).first()
+            model, scope = (Person, visible_people) if kind == "person" else (Company, visible_companies)
+            record = scope(user, model.objects.filter(pk=int(value), deleted_at__isnull=True)).first()
             if record is not None:
                 return Item(f"s-{kind}-{value}", str(record), record.get_absolute_url(), _ICONS["record"])
     except NoReverseMatch:
@@ -147,7 +148,7 @@ def build(request):
     core = [make(key, fixed=True) for key in ("home", "contacts", "companies")]
     core += [make(key) for key in OPTIONAL_KEYS
              if key not in hidden and _allowed(key, capabilities)]
-    picked = [_shortcut_item(entry, capabilities) for entry in shortcuts]
+    picked = [_shortcut_item(entry, capabilities, user) for entry in shortcuts]
     return {
         "core": [item for item in core if item],
         "shortcuts": [item for item in picked if item],
