@@ -508,6 +508,7 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `unsubscribe_token` | CharField | taip | S |
 | `calendar_token` | CharField | taip | S |
 | `menu_config` | JSONField | ne | T |
+| `layout_config` | JSONField | ne | T |
 | `directory_managed` | BooleanField | taip | T |
 | `directory_subject` | CharField | ne | D |
 | `directory_groups` | JSONField | ne | D |

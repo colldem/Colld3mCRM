@@ -90,6 +90,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `middleware.py` `ReadOnlyRoleMiddleware` — skaitytojui atmeta redagavimo puslapius ir rašymus;
   `middleware.py` `SecurityHeadersMiddleware` — CSP su nonce (`{{ csp_nonce }}` ant įterptinių `<script>`),
   Permissions-Policy; įterptinių `on*=` tvarkytojų nenaudoti — `static/js/behaviors.js` (`data-confirm`, `data-autosubmit`, `data-row-href`);
+  `layouts.py` + `templatetags/crm_layout.py` + `static/js/layout.js` — asmeninis puslapių išdėstymas
+  (kortelės, darbastalis, analitikos apžvalga): blokai `{% layoutblock %}` zonose `{% layoutzone %}`,
+  laukai — `{% layoutfields %}`; tvarka ir paslėpti blokai — `UserProfile.layout_config`, įrašo `layout-save`;
   `menu.py` — asmeninė šoninė juosta (branduolys ir naudotojo nuorodos; nepažymėti
   punktai nerodomi, konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);

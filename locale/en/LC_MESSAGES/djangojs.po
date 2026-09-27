@@ -67,3 +67,51 @@ msgstr "No files chosen"
 
 msgid "Nepavyko įkelti duomenų iš Regitros."
 msgstr "Could not load data from Regitra."
+
+msgid "Išdėstymas išsaugotas."
+msgstr "Layout saved."
+
+msgid "Nepavyko išsaugoti. Bandykite dar kartą."
+msgstr "Could not save. Please try again."
+
+msgid "Tempkite"
+msgstr "Drag"
+
+msgid "Perkelti kairėn"
+msgstr "Move left"
+
+msgid "Perkelti aukštyn"
+msgstr "Move up"
+
+msgid "Perkelti dešinėn"
+msgstr "Move right"
+
+msgid "Perkelti žemyn"
+msgstr "Move down"
+
+msgid "Paslėpti"
+msgstr "Hide"
+
+msgid "nėra"
+msgstr "none"
+
+msgid "Rodyti vėl"
+msgstr "Show again"
+
+msgid "Išdėstymo keitimas"
+msgstr "Changing the layout"
+
+msgid "Tempkite blokus pele į norimą vietą arba naudokite rodykles; ✕ paslepia bloką. Viskas išsaugoma iškart jūsų profilyje."
+msgstr "Drag blocks with the mouse to where you want them, or use the arrows; ✕ hides a block. Everything is saved to your profile at once."
+
+msgid "Paslėpti:"
+msgstr "Hidden:"
+
+msgid "Numatytasis vaizdas"
+msgstr "Default view"
+
+msgid "Baigti"
+msgstr "Done"
+
+msgid "Grąžinti numatytąjį šio puslapio vaizdą? Jūsų pakeitimai šiame puslapyje bus pamiršti."
+msgstr "Return this page to its default view? Your changes on this page will be forgotten."

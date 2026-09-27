@@ -1,4 +1,4 @@
-{% load i18n crm_format %}
+{% load i18n crm_format crm_layout %}
 {% if is_company %}{% url 'contacts:company-activity-create' company.pk as activity_action %}{% url 'contacts:company-list' as back_url %}{% url 'contacts:company-edit' company.pk as edit_url %}{% url 'contacts:company-archive' company.pk as archive_url %}{% else %}{% url 'contacts:activity-create' person.pk as activity_action %}{% url 'contacts:list' as back_url %}{% url 'contacts:edit' person.pk as edit_url %}{% url 'contacts:archive' person.pk as archive_url %}{% endif %}
 
 <div class="rec-head">
@@ -23,6 +23,7 @@
         <summary class="btn" title="{% translate 'Daugiau veiksmų' %}" aria-label="{% translate 'Daugiau veiksmų' %}">⋯</summary>
         <div class="rec-menu-panel">
           {% if crm_caps.can_edit %}<a href="{{ edit_url }}">{% translate 'Redaguoti visus laukus' %}</a>{% endif %}
+          <button type="button" data-layout-edit="{% url 'contacts:layout-save' %}">{% translate 'Keisti išdėstymą' %}</button>
           {% if is_crm_admin and not is_company %}<a href="{% url 'contacts:settings-privacy-person' person.pk %}">{% translate 'Duomenų subjekto užklausa' %}</a>{% endif %}
           <button type="button" class="copy-link" data-link="{{ request.scheme }}://{{ request.get_host }}{{ record.get_absolute_url }}">{% translate 'Kopijuoti nuorodą' %}</button>
           {% if crm_caps.can_delete %}<form method="post" action="{{ archive_url }}">{% csrf_token %}<button class="danger" type="submit">{% translate 'Archyvuoti' %}</button></form>{% endif %}
@@ -37,30 +38,34 @@
   <p class="rec-warn">⚠ {% blocktranslate count total=overdue_reminder_count %}{{ total }} vėluojantis priminimas{% plural %}{{ total }} vėluojantys priminimai{% endblocktranslate %} — <button type="button" data-open-tab="reminders">{% translate 'peržiūrėti' %}</button></p>
 {% endif %}
 
-<div class="record-detail">
-  <div class="rec-main">
-    <section class="detail-card contact-card">
+{% if is_company %}{% translate 'Kontaktiniai asmenys' as org_label %}{% else %}{% translate 'Organizacija' as org_label %}{% endif %}
+<div class="record-detail" data-layout="{{ inline_kind }}">
+{% layout inline_kind %}
+  <div class="rec-main" data-layout-zone="main">{% layoutzone "main" %}
+    {% layoutblock "contact" _("Kontaktinė informacija") %}<section class="detail-card contact-card">
       <h2>{% translate 'Kontaktinė informacija' %}</h2>
-      <div class="contact-lines">
-        {% for item in contact_info_fields %}
-          <div class="contact-line">
+      {% layoutfields contact_info_fields inline_kind|add:".contact" as contact_lines %}
+      <div class="contact-lines" data-layout="{{ contact_lines.key }}" data-layout-zone="main">
+        {% layouthidden contact_lines %}
+        {% for item in contact_lines.items %}
+          <div class="contact-line" data-layout-item="{{ item.field }}" data-layout-label="{% translate item.label %}">
             {% include "contacts/_contact_icon.html" with field=item.field %}
             <div class="contact-line-field">{% include "contacts/detail_field.html" %}</div>
             {% with copyable=item.entries.0.text %}{% if copyable %}<button type="button" class="contact-line-copy copy-value" data-copy="{{ copyable }}" aria-label="{% translate 'Kopijuoti' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg></button>{% else %}<span></span>{% endif %}{% endwith %}
           </div>
-        {% empty %}<p class="muted">{% translate 'Nėra duomenų.' %}</p>{% endfor %}
+        {% empty %}{% if not contact_lines.hidden %}<p class="muted">{% translate 'Nėra duomenų.' %}</p>{% endif %}{% endfor %}
       </div>
-    </section>
+    </section>{% endlayoutblock %}
 
-    {% if description_field %}
+    {% layoutblock "description" _("Aprašymas") %}{% if description_field %}
       <section class="detail-card desc-card">
         <h2>{% translate 'Aprašymas' %}</h2>
         {% with item=description_field %}{% include "contacts/detail_field.html" %}{% endwith %}
       </section>
-    {% endif %}
+    {% endif %}{% endlayoutblock %}
 
     {% comment %}One composer for every kind of entry; the tabs below only filter the feed.{% endcomment %}
-    <section class="detail-card rec-activity" data-tabs>
+    {% layoutblock "activity" _("Veikla") %}<section class="detail-card rec-activity" data-tabs>
       <h2>{% translate 'Veikla' %}</h2>
       {% if crm_caps.can_edit %}<form method="post" enctype="multipart/form-data" action="{{ activity_action }}" class="composer" id="composer">
         {% csrf_token %}
@@ -121,10 +126,10 @@
           {% for reminder in active_reminders %}<div class="reminder"><span>{{ reminder.text }} <small>{{ reminder.due_at|date:datetime_format }}{% if is_company and reminder.person_id %} · <a href="{{ reminder.person.get_absolute_url }}">{{ reminder.person }}</a>{% endif %}</small></span>{% if crm_caps.can_edit %}<form method="post" action="{% url 'contacts:reminder-complete' reminder.pk %}">{% csrf_token %}<button class="btn" type="submit">{% translate 'Atlikta' %}</button></form>{% endif %}</div>{% empty %}<p class="muted">{% translate 'Aktyvių priminimų nėra.' %}</p>{% endfor %}
         </div>
       </div>
-    </section>
+    </section>{% endlayoutblock %}
 
-    {% if regitra_kinds %}
     {% comment %}Read live from Regitra, a tab at a time: the card itself never waits for it.{% endcomment %}
+    {% layoutblock "regitra" _("Regitra") %}{% if regitra_kinds %}
     <section class="detail-card regitra-card" data-regitra>
       <h2>{% translate 'Regitra' %}</h2>
       <div class="tab-strip" role="tablist">
@@ -134,11 +139,11 @@
       <div class="tab-panel{% if forloop.first %} is-active{% endif %}" role="tabpanel" aria-label="{{ label }}" aria-live="polite" data-regitra-panel="{{ key }}" data-src="{% url 'contacts:person-regitra' person.pk key %}"{% if not forloop.first %} hidden{% endif %}><p class="muted">{% translate 'Įkeliama…' %}</p></div>
       {% endfor %}
     </section>
-    {% endif %}
-  </div>
+    {% endif %}{% endlayoutblock %}
+  {% endlayoutzone %}</div>
 
-  <aside class="rec-rail">
-    <section class="detail-card org-card">
+  <aside class="rec-rail" data-layout-zone="rail">{% layoutzone "rail" %}
+    {% layoutblock "organisation" org_label %}<section class="detail-card org-card">
       <h2>{% if is_company %}{% translate 'Kontaktiniai asmenys' %}{% else %}{% translate 'Organizacija' %}{% endif %}</h2>
       {% if is_company %}
         <ul class="related-list">
@@ -147,30 +152,32 @@
       {% elif companies_field %}
         <div class="org-field org-primary">{% with item=companies_field %}{% include "contacts/detail_field.html" %}{% endwith %}</div>
       {% endif %}
-    </section>
+    </section>{% endlayoutblock %}
 
-    {% if responsibles_field %}
+    {% layoutblock "responsibles" _("Atsakingi") %}{% if responsibles_field %}
       <section class="detail-card org-card">
         <h2>{% translate 'Atsakingi' %}</h2>
         <div class="org-field">{% with item=responsibles_field %}{% include "contacts/detail_field.html" %}{% endwith %}</div>
       </section>
-    {% endif %}
+    {% endif %}{% endlayoutblock %}
 
-    <section class="detail-card org-card">
+    {% layoutblock "tags" _("Žymos ir kategorijos") %}<section class="detail-card org-card">
       <h2>{% translate 'Žymos' %}</h2>
       {% include "inline_choices.html" with kind=inline_kind record=record field="tags" selected=record.tags.all choices=tags title="Žymos" %}
       <h3>{% translate 'Kategorijos' %}</h3>
       {% include "inline_choices.html" with kind=inline_kind record=record field="categories" selected=record.categories.all choices=categories title="Kategorijos" %}
-    </section>
+    </section>{% endlayoutblock %}
 
-    <details class="detail-card boxed collapsible"{% if custom_fields %} open{% endif %}>
+    {% layoutblock "custom" _("Papildomi laukai") %}<details class="detail-card boxed collapsible"{% if custom_fields %} open{% endif %}>
       <summary><h2>{% translate 'Papildomi laukai' %}</h2><span class="chev" aria-hidden="true">⌄</span></summary>
-      <div class="detail-fields-grid">
-        {% for item in custom_fields %}{% include "contacts/detail_field.html" %}{% empty %}<p class="muted">{% translate 'Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai.' %}</p>{% endfor %}
+      {% layoutfields custom_fields inline_kind|add:".custom" as custom_items %}
+      <div class="detail-fields-grid" data-layout="{{ custom_items.key }}" data-layout-zone="main">
+        {% layouthidden custom_items %}
+        {% for item in custom_items.items %}<div data-layout-item="{{ item.field }}" data-layout-label="{{ item.label }}">{% include "contacts/detail_field.html" %}</div>{% empty %}{% if not custom_items.hidden %}<p class="muted">{% translate 'Dinaminių laukų nėra. Sukurkite juos Nustatymai → Dinaminiai laukai.' %}</p>{% endif %}{% endfor %}
       </div>
-    </details>
+    </details>{% endlayoutblock %}
 
-    {% if identity_card %}
+    {% layoutblock "identity" _("Tapatybė") %}{% if identity_card %}
     <section class="detail-card identity-card" data-reveal-box>
       <h2>{% translate 'Tapatybė' %}</h2>
       <dl class="aside-meta">
@@ -181,9 +188,9 @@
         {% if identity_card.external %}<dt>{% translate 'Išorinis ID' %}</dt><dd>{{ identity_card.external }}{% if identity_card.synced_at %}<small>{% blocktranslate with when=identity_card.synced_at|date:datetime_format %}sinchronizuota {{ when }}{% endblocktranslate %}</small>{% endif %}</dd>{% endif %}
       </dl>
     </section>
-    {% endif %}
+    {% endif %}{% endlayoutblock %}
 
-    <section class="detail-card meta-card">
+    {% layoutblock "meta" _("Įrašo informacija") %}<section class="detail-card meta-card">
       <h2 class="sr-only">{% translate 'Įrašo informacija' %}</h2>
       <dl class="aside-meta">
         <dt>{% translate 'Paskutinis kontaktas' %}</dt><dd>{% if last_activity %}{{ last_activity.created_at|date:date_format }}{% else %}–{% endif %}</dd>
@@ -191,6 +198,7 @@
         <dt>{% translate 'Sukurta' %}</dt><dd>{{ record.created_at|date:date_format }}{% if created_by_label %} · {{ created_by_label }}{% endif %}</dd>
         <dt>{% translate 'Atnaujinta' %}</dt><dd>{{ record.updated_at|date:date_format }}{% if updated_by_label %} · {{ updated_by_label }}{% endif %}</dd>
       </dl>
-    </section>
-  </aside>
+    </section>{% endlayoutblock %}
+  {% endlayoutzone %}</aside>
+{% endlayout %}
 </div>

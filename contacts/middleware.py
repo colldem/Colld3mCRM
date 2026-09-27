@@ -48,7 +48,8 @@ class HealthProbeMiddleware:
 class ReadOnlyRoleMiddleware:
     """Server-side guarantee behind the "Skaitytojas" role: whatever the page
     shows, a reader cannot open an editing page or change shared data. Personal
-    settings (profile, password, menu, notifications, saved filters) stay usable."""
+    settings (profile, password, menu, page layouts, notifications, saved filters)
+    stay usable."""
 
     # Pages whose only purpose is to create or change records, refused on any method.
     EDITING_PAGES = {
@@ -63,7 +64,7 @@ class ReadOnlyRoleMiddleware:
     # The only writes a reader may make: their own session, profile and preferences.
     PERSONAL_WRITES = {
         "logout", "set_language", "settings", "profile-avatar", "settings-password",
-        "settings-my-notifications", "settings-menu", "reminder-mark-read",
+        "settings-my-notifications", "settings-menu", "layout-save", "reminder-mark-read",
         "saved-filter-create", "company-saved-filter-create", "saved-filter-update",
         # POSTs that change nothing: a deliberate, audited reveal, and searches by
         # personal code sent in the body so the code stays out of URLs.

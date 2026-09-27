@@ -362,6 +362,13 @@ eksportas").
 (`contacts/forms.py` `MenuForm`). Punktų niekada netrinamas — nepasirinkti
 nukeliauja į „Daugiau" foldą.
 
+**Bloką kortelėje, darbastalyje ar analitikoje.** Naujas blokas apgaubiamas
+`{% layoutblock "id" _("Etiketė") %}…{% endlayoutblock %}` toje zonoje
+(`{% layoutzone %}`), kurioje turi būti pagal nutylėjimą — šablono tvarka yra
+numatytoji. Blokas stovi tiesiai zonoje (ne `{% for %}`/`{% with %}` viduje);
+sąlyginis turinys dedamas į bloko vidų. Naudotojų išsaugotuose išdėstymuose
+naujas blokas atsiranda savo numatytoje vietoje (`contacts/layouts.py`).
+
 **Naują teisę (capability).** `contacts/permissions.py`: eilutė į `CAPABILITIES`
 (raktas + verčiama etiketė) ir numatytos reikšmės į `_CAPABILITY_DEFAULTS` abiem
 rolėms. View gale — `_require_capability(request, "can_…")`; šablone —

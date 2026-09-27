@@ -4665,3 +4665,18 @@ msgstr "Regitra's system gave an unexpected answer."
 
 msgid "Regitros duomenys kortelėje"
 msgstr "Regitra data on the card"
+
+msgid "Keisti išdėstymą"
+msgstr "Change layout"
+
+msgid "Žymos ir kategorijos"
+msgstr "Tags and categories"
+
+msgid "Veiksmai per laikotarpį"
+msgstr "Actions in the period"
+
+msgid "Savas puslapių išdėstymas"
+msgstr "Your own page layout"
+
+msgid "Pritaikyti puslapio išdėstymą"
+msgstr "Arrange a page your way"

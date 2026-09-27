@@ -41,6 +41,11 @@ lives inside the app: **Settings → Documentation**.
   opens as one overview page — a KPI strip and a condensed band per section,
   each linking through to the full page — all charted as inline SVG with no
   external libraries.
+- **Personal layouts.** Every user arranges the record cards, the dashboard and
+  the analytics overview for themselves: drag blocks (and the fields of the
+  contact and custom-field cards) into another order or column, switch off the
+  ones they do not need, and go back to the default view in one click. Stored
+  on the user's profile.
 - **Calendar.** Day, week and month views with a sidebar (view switch, month
   picker, event-type filter, colleagues). Events are calls, meetings or
   reminders, optionally carrying a description, an online-meeting link and an

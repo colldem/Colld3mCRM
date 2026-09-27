@@ -187,6 +187,9 @@ class UserProfile(models.Model):
     # Personal side menu: which optional entries are switched off,
     # and up to five shortcuts of the user's own. See contacts/menu.py.
     menu_config = models.JSONField(default=dict, blank=True)
+    # Personal page layouts: block order and hidden blocks on the record cards,
+    # the dashboard and the analytics overview. See contacts/layouts.py.
+    layout_config = models.JSONField(default=dict, blank=True)
     # Directory (AD) access, see contacts/directory.py. While `directory_managed`
     # is set, role and mapped teams follow the user's directory groups at every
     # sign-in and cannot be edited in the CRM.

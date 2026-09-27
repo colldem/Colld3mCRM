@@ -9114,3 +9114,136 @@ class RegitraCardTests(TestCase):
             RolePermissions.objects.create(role=UserProfile.ROLE_RESTRICTED, permissions={"can_view_regitra": True})
             self.client.force_login(restricted)
             self.assertEqual(self.rows().status_code, 404)
+
+
+class PageLayoutTests(TestCase):
+    """Each user arranges the cards, the dashboard and the analytics overview
+    for themselves: block order, blocks moved to the other column, fields
+    reordered, blocks switched off, and "default view" to start over."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user("arranger", password="very-secure-password")
+        self.other = User.objects.create_user("neighbour", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Jonas", last_name="Jonaitis", created_by=self.user, owner=self.user)
+        self.client.force_login(self.user)
+        self.url = reverse("contacts:layout-save")
+
+    def save(self, payload):
+        return self.client.post(self.url, json.dumps(payload), content_type="application/json")
+
+    @staticmethod
+    def order(html, *ids):
+        return [html.index('data-layout-item="%s"' % item) for item in ids]
+
+    def test_arrange_keeps_saved_order_and_gives_new_blocks_their_default_place(self):
+        from contacts.layouts import arrange
+
+        defaults = {"main": ["a", "b", "c"], "rail": ["d", "e"]}
+        zones, hidden = arrange({"zones": {"main": ["c", "a"], "rail": ["e", "d", "gone"], "nope": ["x"]},
+                                 "hidden": ["b", "b", "unknown"]}, defaults)
+        self.assertEqual(zones, {"main": ["c", "a"], "rail": ["e", "d"]})
+        self.assertEqual(hidden, ["b"])
+        # A block the stored layout never mentioned lands at its default index.
+        zones, hidden = arrange({"zones": {"main": ["c", "a"], "rail": ["e", "d"]}}, defaults)
+        self.assertEqual(zones["main"], ["c", "b", "a"])
+        self.assertEqual(arrange({}, defaults), (defaults, []))
+        self.assertEqual(arrange({"zones": "junk", "hidden": "junk"}, defaults), (defaults, []))
+
+    def test_card_follows_the_users_order_columns_and_hidden_blocks(self):
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        self.assertLess(*self.order(page, "contact", "activity"))
+        self.assertIn('data-layout-edit="%s"' % self.url, page)
+        response = self.save({"key": "person",
+                              "zones": {"main": ["activity", "meta", "contact", "description"],
+                                        "rail": ["organisation", "responsibles", "custom"]},
+                              "hidden": ["tags"]})
+        self.assertEqual(response.status_code, 200)
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        activity, meta, contact = self.order(page, "activity", "meta", "contact")
+        self.assertLess(activity, meta)
+        self.assertLess(meta, contact)
+        # "meta" moved from the rail into the main column.
+        self.assertLess(meta, page.index('data-layout-zone="rail"'))
+        self.assertNotIn('data-layout-item="tags"', page)
+        self.assertIn('data-layout-hidden="tags"', page)
+        # Another user's card is untouched, and so is the company card.
+        self.client.force_login(self.other)
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        self.assertLess(*self.order(page, "contact", "activity"))
+        self.assertIn('data-layout-item="tags"', page)
+
+    def test_fields_inside_the_contact_card_can_be_reordered_and_switched_off(self):
+        self.save({"key": "person.contact", "zones": {"main": ["phones", "web_links", "emails"]}, "hidden": ["addresses"]})
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        phones, web_links, emails = self.order(page, "phones", "web_links", "emails")
+        self.assertLess(phones, web_links)
+        self.assertLess(web_links, emails)
+        self.assertNotIn('data-layout-item="addresses"', page)
+        self.assertIn('data-layout-hidden="addresses"', page)
+
+    def test_default_view_forgets_the_users_choices(self):
+        self.save({"key": "person", "zones": {"main": ["activity", "contact"]}, "hidden": ["meta"]})
+        self.save({"key": "dashboard", "zones": {"main": ["agenda"]}, "hidden": []})
+        response = self.save({"reset": ["person", "person.contact"]})
+        self.assertEqual(response.status_code, 200)
+        config = UserProfile.objects.get(user=self.user).layout_config
+        self.assertNotIn("person", config)
+        self.assertIn("dashboard", config)
+        page = self.client.get(self.person.get_absolute_url()).content.decode()
+        self.assertLess(*self.order(page, "contact", "activity"))
+        self.assertIn('data-layout-item="meta"', page)
+
+    def test_a_block_this_record_did_not_draw_keeps_its_place(self):
+        """Regitra shows on some cards only; arranging a card without it must
+        not throw away where the user put it."""
+        self.save({"key": "person", "zones": {"main": ["regitra", "contact", "description", "activity"]}, "hidden": []})
+        self.save({"key": "person", "zones": {"main": ["activity", "contact", "description"]}, "hidden": []})
+        stored = UserProfile.objects.get(user=self.user).layout_config["person"]["zones"]["main"]
+        self.assertEqual(stored, ["regitra", "activity", "contact", "description"])
+
+    def test_dashboard_and_analytics_blocks_can_be_switched_off(self):
+        self.save({"key": "dashboard", "zones": {"main": ["agenda", "activity-types"]}, "hidden": ["growth"]})
+        self.save({"key": "dashboard.kpi", "zones": {"main": ["overdue", "people"]}, "hidden": ["companies"]})
+        page = self.client.get(reverse("contacts:home")).content.decode()
+        self.assertNotIn('data-layout-item="growth"', page)
+        self.assertIn('data-layout-hidden="growth"', page)
+        self.assertLess(*self.order(page, "agenda", "activity-types"))
+        self.assertLess(*self.order(page, "overdue", "people"))
+        self.assertNotIn('data-layout-item="companies"', page)
+        self.save({"key": "analytics", "zones": {"main": ["care", "communication"]}, "hidden": ["growth"]})
+        self.save({"key": "analytics.care", "zones": {"main": ["attention"]}, "hidden": ["silent"]})
+        page = self.client.get(reverse("contacts:analytics-overview")).content.decode()
+        self.assertLess(*self.order(page, "care", "communication"))
+        self.assertNotIn('data-layout-item="growth"', page)
+        self.assertNotIn('data-layout-item="silent"', page)
+        self.assertIn('data-layout-hidden="silent"', page)
+
+    def test_only_well_formed_layouts_of_known_pages_are_stored(self):
+        for payload in ({"key": "settings", "zones": {"main": ["a"]}},
+                        {"key": "person", "zones": {"main": ["<script>"]}},
+                        {"key": "person", "zones": {"main": "contact"}},
+                        {"key": "person", "zones": {}},
+                        {"key": "person", "zones": {"main": ["a"] * 500}},
+                        {"reset": "person"}, {"reset": ["settings"]}, ["person"]):
+            with self.subTest(payload=payload):
+                self.assertEqual(self.save(payload).status_code, 400)
+        self.assertEqual(self.client.post(self.url, "{not json", content_type="application/json").status_code, 400)
+        self.assertEqual(self.client.get(self.url).status_code, 405)
+        self.assertFalse(UserProfile.objects.filter(user=self.user).exclude(layout_config={}).exists())
+        self.client.logout()
+        self.assertEqual(self.save({"key": "person", "zones": {"main": ["a"]}}).status_code, 302)
+
+    def test_a_reader_arranges_their_own_pages_too(self):
+        reader = get_user_model().objects.create_user("layout-reader", password="very-secure-password")
+        UserProfile.objects.create(user=reader, role=UserProfile.ROLE_READONLY)
+        self.client.force_login(reader)
+        self.assertEqual(self.save({"key": "dashboard", "zones": {"main": ["agenda"]}, "hidden": []}).status_code, 200)
+        self.assertEqual(UserProfile.objects.get(user=reader).layout_config["dashboard"]["zones"]["main"], ["agenda"])
+
+    def test_edit_mode_is_translated(self):
+        self.client.post(reverse("set_language"), {"language": "en", "next": "/"})
+        self.assertContains(self.client.get(reverse("contacts:home")), "Change layout")
+        catalog = self.client.get(reverse("javascript-catalog"))
+        self.assertContains(catalog, "Default view")
+        self.assertContains(catalog, "Drag blocks with the mouse")
