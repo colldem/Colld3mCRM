@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{% translate 'Puslapiai - CRM' %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% translate 'Puslapiai' %}</h1><p>{% translate 'Vidinės instrukcijos, tvarkos ir atsakymai į dažnus klausimus.' %}</p></div>
+  {% if can_manage_pages %}<div class="page-actions"><a class="btn primary" href="{% url 'contacts:settings-page-create' %}">{% translate 'Naujas puslapis' %}</a></div>{% endif %}
+</div>
+{% if pages %}
+  <div class="doc-card-grid">
+    {% for page in pages %}
+      <a class="doc-topic-card" href="{{ page.get_absolute_url }}">
+        <strong>{{ page.title }}{% if not page.is_published %} <span class="crm-label">{% translate 'Juodraštis' %}</span>{% endif %}</strong>
+        <span>{% blocktranslate with date=page.updated_at|date:"SHORT_DATE_FORMAT" %}Atnaujinta {{ date }}{% endblocktranslate %}</span>
+      </a>
+    {% endfor %}
+  </div>
+{% else %}
+  <section class="dash-card"><p class="muted">{% translate 'Puslapių dar nėra.' %}{% if can_manage_pages %} <a href="{% url 'contacts:settings-page-create' %}">{% translate 'Parašykite pirmąjį.' %}</a>{% endif %}</p></section>
+{% endif %}
+{% endblock %}

@@ -79,6 +79,9 @@ lives inside the app: **Settings → Documentation**.
   A full audit log.
 - **Import and export.** CSV and XLSX contact import, CSV export, and a complete
   ZIP backup.
+- **Internal pages.** Procedures, how-tos and FAQs written inside the CRM
+  (Settings -> Puslapiai) in plain text with a few markers, published to all
+  or to chosen roles, read under Pages in the side menu.
 - **Editable wording.** Every interface string, LT and EN, is adjusted by
   exporting a CSV, editing it and importing it back (Settings -> Vertimai) —
   overrides live in the database and apply without a restart.

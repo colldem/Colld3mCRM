@@ -182,6 +182,23 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `tags` | ryšys → Tag (daug) | — | R |
 | `categories` | ryšys → Category (daug) | — | R |
 
+## ContentPage (`contacts_contentpage`)
+
+**Paskirtis:** Vidiniai puslapiai: instrukcijos, tvarkos, DUK. **Saugojimas:** kol naudojami.
+
+| Laukas | Tipas | Privalomas | Kategorija |
+|---|---|---|---|
+| `title` | CharField | taip | L |
+| `slug` | SlugField | taip | T |
+| `body` | TextField | ne | L |
+| `roles` | JSONField | ne | T |
+| `is_published` | BooleanField | taip | T |
+| `position` | PositiveIntegerField | taip | T |
+| `created_by` | ryšys → User | ne | D |
+| `updated_by` | ryšys → User | ne | D |
+| `created_at` | DateTimeField | ne | T |
+| `updated_at` | DateTimeField | ne | T |
+
 ## CustomField (`contacts_customfield`)
 
 **Paskirtis:** Administratoriaus apibrėžti papildomi laukai. **Saugojimas:** kol naudojami.

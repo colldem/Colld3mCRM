@@ -1,0 +1,40 @@
+{% extends "settings/layout.html" %}{% load i18n %}
+{% block settings_content %}
+<div class="settings-section-head">
+  <div>
+    <h2>{% if page %}{% translate 'Redaguoti puslapį' %}{% else %}{% translate 'Naujas puslapis' %}{% endif %}</h2>
+    <p>{% translate 'Rašykite paprastu tekstu. Tuščia eilutė pradeda naują pastraipą.' %}</p>
+  </div>
+  <a class="btn" href="{% url 'contacts:settings-pages' %}">{% translate 'Atgal į sąrašą' %}</a>
+</div>
+<form method="post" class="profile-form content-page-form">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="profile-fields">
+    <label class="wide">{{ form.title.label }}{{ form.title.errors }}{{ form.title }}</label>
+    <label class="wide">{{ form.body.label }}{{ form.body.errors }}{{ form.body }}
+      <small>{% translate 'Žymėjimas: # Antraštė, ## Paantraštė, - sąrašo punktas, 1. numeruotas punktas, > svarbi pastaba, **paryškinta**, *pasvirusi*, `kodas`, [nuorodos tekstas](https://… arba /contacts/…), ``` atskiroje eilutėje — kodo blokas.' %}</small>
+    </label>
+  </div>
+  <fieldset class="team-members">
+    <legend>{{ form.roles.label }}</legend>
+    <div class="team-members-grid">{% for choice in form.roles %}<label>{{ choice.tag }} {{ choice.choice_label }}</label>{% endfor %}</div>
+    <small class="muted">{{ form.roles.help_text }}</small>
+  </fieldset>
+  <div class="profile-fields">
+    <label>{{ form.position.label }}{{ form.position.errors }}{{ form.position }}<small>{{ form.position.help_text }}</small></label>
+    <label class="setting-toggle">{{ form.is_published }}<span><strong>{{ form.is_published.label }}</strong><small>{{ form.is_published.help_text }}</small></span></label>
+  </div>
+  <div class="form-actions">
+    <button class="btn primary" type="submit" name="action" value="save">{% translate 'Išsaugoti' %}</button>
+    <button class="btn" type="submit" name="action" value="preview">{% translate 'Peržiūrėti' %}</button>
+    {% if page %}<button class="btn danger" type="submit" name="action" value="delete" formnovalidate data-confirm="{% translate 'Pašalinti šį puslapį visam laikui?' %}">{% translate 'Pašalinti' %}</button>{% endif %}
+  </div>
+</form>
+{% if preview is not None %}
+  <section class="dash-card content-page-preview">
+    <div class="dash-card-head"><div><h2>{% translate 'Kaip atrodys puslapis' %}</h2><p>{% translate 'Dar neišsaugota.' %}</p></div></div>
+    <div class="doc-section content-page-body">{{ preview }}</div>
+  </section>
+{% endif %}
+{% endblock %}

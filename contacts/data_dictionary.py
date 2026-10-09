@@ -52,6 +52,7 @@ MODELS = {
     "Webhook": ("Webhook'ų prenumeratos", "kol naudojamos", "T"),
     "WebhookDelivery": ("Webhook'ų pristatymų eilė ir istorija", "30 d. (automatiškai)", "T"),
     "Translation": ("Redaguoti sąsajos tekstai", "kol naudojami", "T"),
+    "ContentPage": ("Vidiniai puslapiai: instrukcijos, tvarkos, DUK", "kol naudojami", "T"),
 }
 
 # Values are category codes; bandit mistakes the ones next to *_token names for
@@ -82,6 +83,7 @@ FIELDS = {
     "ApiToken.token_hash": "S", "ApiToken.prefix": "S", "Webhook.secret": "S", "Webhook.target_url": "T",
     "WebhookDelivery.payload": "L", "JobHeartbeat.last_error": "T",
     "Translation.msgid": "T", "Translation.lt": "T", "Translation.en": "T",
+    "ContentPage.title": "L", "ContentPage.body": "L",
 }
 
 # Django's own user table holds CRM users' identities and password hashes.

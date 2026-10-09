@@ -872,3 +872,9 @@ body.layout-dragging,body.layout-dragging *{cursor:grabbing!important}
 .layout-bar-status:empty{display:none}
 .layout-bar-row,.layout-bar-hidden{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .layout-editing .content{padding-bottom:240px}
+.content-page-body h2{margin:24px 0 12px;font-size:var(--fs-lg)}
+.content-page-body h3{margin:20px 0 10px;font-size:var(--fs-md)}
+.content-page-body>:first-child{margin-top:0}
+.content-page-body>:last-child{margin-bottom:0}
+.content-page-preview{margin-top:24px}
+.content-page-form{display:grid;gap:16px}

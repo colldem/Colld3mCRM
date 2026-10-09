@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% load i18n %}
+{% block title %}{{ page.title }} - CRM{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ page.title }}{% if not page.is_published %} <span class="crm-label">{% translate 'Juodraštis' %}</span>{% endif %}</h1>
+    <p>{% blocktranslate with date=page.updated_at|date:"SHORT_DATETIME_FORMAT" %}Atnaujinta {{ date }}{% endblocktranslate %}{% if page.updated_by %} · {{ page.updated_by.get_full_name|default:page.updated_by.username }}{% endif %}</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn" href="{% url 'contacts:page-list' %}">{% translate 'Visi puslapiai' %}</a>
+    {% if can_manage_pages %}<a class="btn primary" href="{% url 'contacts:settings-page-edit' page.pk %}">{% translate 'Redaguoti' %}</a>{% endif %}
+  </div>
+</div>
+<article class="dash-card"><div class="doc-section content-page-body">{{ body }}</div></article>
+{% endblock %}

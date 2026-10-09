@@ -33,6 +33,7 @@ _ICONS = {
     "import-export": "M12 3v13M7 8l5-5 5 5M12 21V8M17 16l-5 5-5-5",
     "archive": "M3 7h18M9 11v6M15 11v6M5 7l1 14h12l1-14M9 7V4h6v3",
     "duplicates": "M8 8h12v12H8zM4 16V4h12",
+    "pages": "M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z",
     "settings": "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6M4 12h1M19 12h1M12 4v1M12 19v1M6 6l1 1M17 17l1 1M18 6l-1 1M7 17l-1 1",
     "record": "M6 3h9l4 4v14H6zM8 9h8M8 13h8M8 17h5",
     "action": "M12 5v14M5 12h14",
@@ -49,7 +50,7 @@ class Item:
 
 # Entries a user may fold away. `home`, `contacts` and `companies` are not here:
 # a CRM without them is not a CRM. `settings` always sits at the bottom.
-OPTIONAL_KEYS = ("calendar", "analytics", "import-export", "archive", "duplicates")
+OPTIONAL_KEYS = ("calendar", "analytics", "pages", "import-export", "archive", "duplicates")
 
 _PAGES = {
     "home": (tr_lazy("Darbastalis"), "contacts:home", None),
@@ -57,6 +58,7 @@ _PAGES = {
     "companies": (tr_lazy("Įmonės"), "contacts:company-list", None),
     "calendar": (tr_lazy("Kalendorius"), "contacts:calendar", None),
     "analytics": (tr_lazy("Analitika"), "contacts:analytics-overview", None),
+    "pages": (tr_lazy("Puslapiai"), "contacts:page-list", None),
     "import-export": (tr_lazy("Importas / eksportas"), "contacts:import-export", "can_import_or_export"),
     "archive": (tr_lazy("Archyvas"), "contacts:archive-list", None),
     # Reviewing duplicates means merging or dismissing them, which a reader cannot do.
@@ -142,6 +144,7 @@ def build(request):
         active = current == target or (key == "contacts" and current == "detail") \
             or (key == "companies" and current.startswith("company")) \
             or (key == "analytics" and "analytics" in current) \
+            or (key == "pages" and current.startswith("page-")) \
             or (key == "settings" and current.startswith("settings"))
         return Item(key, label, url, _ICONS.get(key, _ICONS["record"]), active, fixed)
 

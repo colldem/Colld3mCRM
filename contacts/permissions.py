@@ -18,6 +18,7 @@ CAPABILITIES = [
     ("can_view_audit", _("Matyti žurnalą")),
     ("can_view_personal_code", _("Matyti asmens kodą")),
     ("can_view_regitra", _("Matyti Regitros paslaugas, vizitus ir prašymus")),
+    ("can_manage_pages", _("Rašyti ir tvarkyti vidinius puslapius")),
 ]
 CAPABILITY_KEYS = [key for key, _label in CAPABILITIES]
 
@@ -32,6 +33,7 @@ _CAPABILITY_DEFAULTS = {
         # Off everywhere until an admin grants it: the code is shown masked otherwise.
         "can_view_personal_code": False,
         "can_view_regitra": True,
+        "can_manage_pages": False,
     },
     UserProfile.ROLE_MEMBER: {
         "can_import": True, "can_export": True, "can_delete": True,
@@ -40,13 +42,14 @@ _CAPABILITY_DEFAULTS = {
         "can_manage_automations": False, "can_view_audit": False, "can_view_personal_code": False,
         # The card's Regitra section serves the people who answer clients.
         "can_view_regitra": True,
+        "can_manage_pages": False,
     },
     UserProfile.ROLE_RESTRICTED: {
         "can_import": False, "can_export": True, "can_delete": True,
         "can_merge_duplicates": False, "can_bulk_edit": False, "can_reassign_owner": False,
         "can_manage_custom_fields": False, "can_manage_taxonomy": False,
         "can_manage_automations": False, "can_view_audit": False, "can_view_personal_code": False,
-        "can_view_regitra": False,
+        "can_view_regitra": False, "can_manage_pages": False,
     },
     UserProfile.ROLE_READONLY: {key: False for key in CAPABILITY_KEYS},
 }

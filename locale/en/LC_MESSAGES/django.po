@@ -4680,3 +4680,90 @@ msgstr "Your own page layout"
 
 msgid "Pritaikyti puslapio išdėstymą"
 msgstr "Arrange a page your way"
+
+msgid "Rašyti ir tvarkyti vidinius puslapius"
+msgstr "Write and manage internal pages"
+
+msgid "Kas mato"
+msgstr "Who can see it"
+
+msgid "Nepažymėjus nė vienos rolės puslapį mato visi. Administratoriai ir puslapių rašytojai mato visus."
+msgstr "With no role ticked, everyone sees the page. Administrators and page writers see every page."
+
+msgid "Turinys"
+msgstr "Content"
+
+msgid "Paskelbtas"
+msgstr "Published"
+
+msgid "Eilės numeris"
+msgstr "Order"
+
+msgid "Nepaskelbtą puslapį (juodraštį) mato tik puslapių rašytojai."
+msgstr "An unpublished page (a draft) is seen only by page writers."
+
+msgid "Mažesnis numeris — aukščiau sąraše."
+msgstr "A lower number sorts higher in the list."
+
+msgid "Puslapis pašalintas."
+msgstr "Page removed."
+
+msgid "Puslapis sukurtas."
+msgstr "Page created."
+
+msgid "Puslapis išsaugotas."
+msgstr "Page saved."
+
+msgid "Puslapiai - CRM"
+msgstr "Pages - CRM"
+
+msgid "Vidinės instrukcijos, tvarkos ir atsakymai į dažnus klausimus."
+msgstr "Internal instructions, procedures and answers to common questions."
+
+msgid "Naujas puslapis"
+msgstr "New page"
+
+msgid "Juodraštis"
+msgstr "Draft"
+
+msgid "Atnaujinta %(date)s"
+msgstr "Updated %(date)s"
+
+msgid "Puslapių dar nėra."
+msgstr "No pages yet."
+
+msgid "Parašykite pirmąjį."
+msgstr "Write the first one."
+
+msgid "Visi puslapiai"
+msgstr "All pages"
+
+msgid "Vidinės instrukcijos, tvarkos ir DUK, kuriuos naudotojai skaito skiltyje „Puslapiai“."
+msgstr "Internal instructions, procedures and FAQs that users read under “Pages”."
+
+msgid "Redaguoti puslapį"
+msgstr "Edit page"
+
+msgid "Rašykite paprastu tekstu. Tuščia eilutė pradeda naują pastraipą."
+msgstr "Write plain text. A blank line starts a new paragraph."
+
+msgid "Atgal į sąrašą"
+msgstr "Back to the list"
+
+msgid "Žymėjimas: # Antraštė, ## Paantraštė, - sąrašo punktas, 1. numeruotas punktas, > svarbi pastaba, **paryškinta**, *pasvirusi*, `kodas`, [nuorodos tekstas](https://… arba /contacts/…), ``` atskiroje eilutėje — kodo blokas."
+msgstr "Markup: # Heading, ## Subheading, - list item, 1. numbered item, > important note, **bold**, *italic*, `code`, [link text](https://… or /contacts/…), ``` on its own line — a code block."
+
+msgid "Pašalinti šį puslapį visam laikui?"
+msgstr "Remove this page for good?"
+
+msgid "Dar neišsaugota."
+msgstr "Not saved yet."
+
+msgid "Kaip atrodys puslapis"
+msgstr "How the page will look"
+
+msgid "Vidiniai puslapiai"
+msgstr "Internal pages"
+
+msgid "Puslapių rašymas"
+msgstr "Writing pages"

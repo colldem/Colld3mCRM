@@ -2672,7 +2672,7 @@ class ContactViewTests(TestCase):
         })
         self.assertRedirects(response, reverse("contacts:settings-menu"))
         config = UserProfile.objects.get(user=self.user).menu_config
-        self.assertEqual(sorted(config["hidden"]), ["archive", "duplicates", "import-export"])
+        self.assertEqual(sorted(config["hidden"]), ["archive", "duplicates", "import-export", "pages"])
         self.assertEqual(config["shortcuts"], [
             {"kind": "page", "value": "archive"},
             {"kind": "person", "value": str(self.person.pk)},
@@ -2687,7 +2687,7 @@ class ContactViewTests(TestCase):
         self.assertEqual(menu["shortcuts"][1].url, self.person.get_absolute_url())
         # The unticked entries are gone from the menu, and nothing is folded away.
         self.assertNotIn("more", menu)
-        for key in ("archive", "duplicates", "import-export"):
+        for key in ("archive", "duplicates", "import-export", "pages"):
             self.assertNotIn(key, [item.key for item in menu["core"]])
         # Their pages stay reachable: hiding a menu row is not a permission.
         self.assertEqual(self.client.get(reverse("contacts:archive-list")).status_code, 200)
@@ -9247,3 +9247,112 @@ class PageLayoutTests(TestCase):
         catalog = self.client.get(reverse("javascript-catalog"))
         self.assertContains(catalog, "Default view")
         self.assertContains(catalog, "Drag blocks with the mouse")
+
+
+class ContentPageTests(TestCase):
+    """Internal pages: written under Settings → Pages by whoever may manage
+    them, read under Pages by the roles they are meant for."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user("page-admin", password="very-secure-password", is_superuser=True)
+        self.member = User.objects.create_user("page-member", password="very-secure-password")
+        UserProfile.objects.create(user=self.member, role=UserProfile.ROLE_MEMBER)
+        self.reader = User.objects.create_user("page-reader", password="very-secure-password")
+        UserProfile.objects.create(user=self.reader, role=UserProfile.ROLE_READONLY)
+
+    def page(self, **fields):
+        from contacts.models import ContentPage
+        fields.setdefault("is_published", True)
+        return ContentPage.objects.create(title=fields.pop("title", "Tvarka"), slug=fields.pop("slug", "tvarka"), **fields)
+
+    def test_admin_writes_previews_edits_and_removes_a_page(self):
+        from contacts.models import AuditLog, ContentPage
+        self.client.force_login(self.admin)
+        create = reverse("contacts:settings-page-create")
+        preview = self.client.post(create, {"title": "Kaip registruoti skambutį", "body": "# Žingsniai\n- **Atidaryti** kortelę",
+                                            "position": 0, "action": "preview"})
+        self.assertContains(preview, "<h2>Žingsniai</h2>", html=True)
+        self.assertContains(preview, "<strong>Atidaryti</strong>")
+        self.assertFalse(ContentPage.objects.exists())
+        self.client.post(create, {"title": "Kaip registruoti skambutį", "body": "Tekstas", "position": 0,
+                                  "is_published": "on", "action": "save"})
+        page = ContentPage.objects.get()
+        self.assertEqual(page.slug, "kaip-registruoti-skambuti")
+        self.assertEqual((page.created_by, page.updated_by, page.roles), (self.admin, self.admin, []))
+        self.client.post(reverse("contacts:settings-page-edit", args=[page.pk]),
+                         {"title": "Skambučiai", "body": "Naujas", "position": 2, "roles": ["member"], "action": "save"})
+        page.refresh_from_db()
+        # Renaming keeps the address, so links to the page keep working.
+        self.assertEqual((page.title, page.slug, page.roles, page.is_published), ("Skambučiai", "kaip-registruoti-skambuti", ["member"], False))
+        self.client.post(reverse("contacts:settings-page-edit", args=[page.pk]), {"action": "delete"})
+        self.assertFalse(ContentPage.objects.exists())
+        self.assertEqual(list(AuditLog.objects.filter(target_type="content_page").values_list("action", flat=True).order_by("pk")),
+                         [AuditLog.CREATE, AuditLog.UPDATE, AuditLog.DELETE])
+
+    def test_titles_that_slug_alike_get_their_own_addresses(self):
+        from contacts.models import ContentPage
+        self.client.force_login(self.admin)
+        for _ in range(2):
+            self.client.post(reverse("contacts:settings-page-create"), {"title": "DUK", "body": "", "position": 0, "action": "save"})
+        self.assertEqual(sorted(ContentPage.objects.values_list("slug", flat=True)), ["duk", "duk-2"])
+
+    def test_writing_pages_needs_the_capability(self):
+        page = self.page()
+        for user in (self.member, self.reader):
+            self.client.force_login(user)
+            with self.subTest(user=user.username):
+                self.assertEqual(self.client.get(reverse("contacts:settings-pages")).status_code, 404)
+                self.assertEqual(self.client.get(reverse("contacts:settings-page-create")).status_code, 404)
+                self.client.post(reverse("contacts:settings-page-edit", args=[page.pk]), {"action": "delete"})
+                self.assertTrue(type(page).objects.filter(pk=page.pk).exists())
+        RolePermissions.objects.create(role=UserProfile.ROLE_MEMBER, permissions={"can_manage_pages": True})
+        self.client.force_login(self.member)
+        self.assertContains(self.client.get(reverse("contacts:settings-pages")), "Tvarka")
+
+    def test_readers_see_published_pages_meant_for_their_role(self):
+        self.page(title="Visiems", slug="visiems")
+        self.page(title="Nariams", slug="nariams", roles=["member"])
+        self.page(title="Juodraštis", slug="juodrastis", is_published=False)
+        self.client.force_login(self.reader)
+        listing = self.client.get(reverse("contacts:page-list")).content.decode()
+        self.assertIn("Visiems", listing)
+        self.assertNotIn("Nariams", listing)
+        self.assertNotIn("juodrastis", listing)
+        self.assertEqual(self.client.get(reverse("contacts:page-detail", args=["visiems"])).status_code, 200)
+        self.assertEqual(self.client.get(reverse("contacts:page-detail", args=["nariams"])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("contacts:page-detail", args=["juodrastis"])).status_code, 404)
+        self.client.force_login(self.member)
+        self.assertEqual(self.client.get(reverse("contacts:page-detail", args=["nariams"])).status_code, 200)
+        self.client.force_login(self.admin)
+        self.assertContains(self.client.get(reverse("contacts:page-detail", args=["juodrastis"])), "Juodraštis")
+
+    def test_the_body_never_passes_html_or_unsafe_links_through(self):
+        from contacts.content_pages import render_body
+        html = render_body('<script>alert(1)</script> **"x"**\n[a](javascript:alert(1)) [b](//evil.example) '
+                           '[c](/\\evil.example) [d](/contacts/) [e](https://example.com/?a=1&b=2)')
+        self.assertNotIn("<script>", html)
+        self.assertIn("&lt;script&gt;", html)
+        self.assertIn("<strong>&quot;x&quot;</strong>", html)
+        self.assertNotIn("javascript:", html.replace("[a]", ""))
+        self.assertNotIn("evil.example\"", html)
+        self.assertIn('<a href="/contacts/">d</a>', html)
+        self.assertIn('<a href="https://example.com/?a=1&amp;b=2" rel="noopener noreferrer">e</a>', html)
+
+    def test_the_body_markers(self):
+        from contacts.content_pages import render_body
+        html = render_body("Įvadas\ntęsinys\n\n## Dalis\n1. vienas\n2. du\n- taškas\n> Svarbu\n```\n<b>kodas</b>\n```\n*kursyvas* `x*y*`")
+        self.assertInHTML("<p>Įvadas<br>tęsinys</p>", html)
+        self.assertInHTML("<h3>Dalis</h3>", html)
+        self.assertInHTML("<ol><li>vienas</li><li>du</li></ol>", html)
+        self.assertInHTML("<ul><li>taškas</li></ul>", html)
+        self.assertInHTML('<div class="doc-callout"><p>Svarbu</p></div>', html)
+        self.assertInHTML("<pre><code>&lt;b&gt;kodas&lt;/b&gt;</code></pre>", html)
+        self.assertInHTML("<p><em>kursyvas</em> <code>x*y*</code></p>", html)
+
+    def test_pages_are_in_the_menu_and_translated(self):
+        self.client.force_login(self.reader)
+        self.assertContains(self.client.get(reverse("contacts:home")), reverse("contacts:page-list"))
+        self.client.force_login(self.admin)
+        self.client.post(reverse("set_language"), {"language": "en", "next": "/"})
+        self.assertContains(self.client.get(reverse("contacts:settings-page-create")), "Who can see it")

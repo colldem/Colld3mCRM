@@ -68,7 +68,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
-  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DuplicateCandidate, AnalyticsSnapshot, DirectoryGroupMapping.
+  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DuplicateCandidate, AnalyticsSnapshot, DirectoryGroupMapping, ContentPage.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
   darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys; skaičiuojama DB (`GROUP BY`,
   `EXISTS`), ne Python cikle; apžvalgos ir komunikacijos sunkioji dalis — `AnalyticsSnapshot` (visų įrašų matomumui
@@ -93,6 +93,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `layouts.py` + `templatetags/crm_layout.py` + `static/js/layout.js` — asmeninis puslapių išdėstymas
   (kortelės, darbastalis, analitikos apžvalga): blokai `{% layoutblock %}` zonose `{% layoutzone %}`,
   laukai — `{% layoutfields %}`; tvarka ir paslėpti blokai — `UserProfile.layout_config`, įrašo `layout-save`;
+  `content_pages.py` — vidiniai puslapiai (instrukcijos, DUK): skaitymas `/pages/`, rašymas Nustatymai → Puslapiai
+  (teisė `can_manage_pages`), matomumas pagal rolę, tekstas su paprastu žymėjimu — `render_body` viską escape'ina, HTML nepraleidžia;
   `menu.py` — asmeninė šoninė juosta (branduolys ir naudotojo nuorodos; nepažymėti
   punktai nerodomi, konfigūracija `UserProfile.menu_config`); `charts.py` — SVG grafikai
   (`stacked_bars`, `grouped_bars`, `line_series`, `donut`, `donut_multi`, `sparkline`);

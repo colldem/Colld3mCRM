@@ -1088,3 +1088,33 @@ class Translation(models.Model):
     def save(self, *args, **kwargs):
         self.msgid_hash = self.hash_of(self.msgid)
         return super().save(*args, **kwargs)
+
+
+class ContentPage(models.Model):
+    """An internal page the CRM's own people write: a procedure, a how-to, an FAQ.
+
+    The body is plain text with a few markers (contacts/content_pages.py renders
+    it); no HTML is ever stored or trusted. ``roles`` lists who may read a
+    published page; empty means everyone.
+    """
+    title = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140, unique=True)
+    body = models.TextField(blank=True, default="")
+    roles = models.JSONField(default=list, blank=True)
+    is_published = models.BooleanField(default=False)
+    position = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name="+")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["position", "title", "pk"]
+
+    def __str__(self):
+        return self.title
+
+    def get_absolute_url(self):
+        return reverse("contacts:page-detail", args=[self.slug])

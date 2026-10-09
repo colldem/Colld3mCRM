@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 
 from . import identity, permissions
-from .models import DirectoryGroupMapping, Activity, AutomationRule, Company, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
+from .models import DirectoryGroupMapping, Activity, AutomationRule, Company, ContentPage, DuplicateSettings, EmailAddress, NOTIFY_LEAD_CHOICES, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SystemSettings, Tag, UserProfile, WebLink
 
 
 class UserProfileForm(forms.Form):
@@ -537,6 +537,42 @@ class SetupAdminForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = get_user_model()
         fields = ["username", "setup_token", "password1", "password2"]
+
+
+class ContentPageForm(forms.ModelForm):
+    roles = forms.MultipleChoiceField(
+        required=False, widget=forms.CheckboxSelectMultiple, label=tr("Kas mato"),
+        help_text=tr("Nepažymėjus nė vienos rolės puslapį mato visi. Administratoriai ir puslapių rašytojai mato visus."))
+
+    class Meta:
+        model = ContentPage
+        fields = ["title", "body", "roles", "is_published", "position"]
+        labels = {"title": tr("Pavadinimas"), "body": tr("Turinys"), "is_published": tr("Paskelbtas"),
+                  "position": tr("Eilės numeris")}
+        help_texts = {"is_published": tr("Nepaskelbtą puslapį (juodraštį) mato tik puslapių rašytojai."),
+                      "position": tr("Mažesnis numeris — aukščiau sąraše.")}
+        widgets = {"body": forms.Textarea(attrs={"rows": 18})}
+
+    def __init__(self, *args, role_choices=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["roles"].choices = role_choices
+
+    def save(self, user):
+        from django.utils.text import slugify
+
+        page = super().save(commit=False)
+        if not page.slug:
+            # The address is set once: renaming a page keeps links to it working.
+            base = slugify(page.title)[:120] or "puslapis"
+            slug, n = base, 1
+            while ContentPage.objects.filter(slug=slug).exists():
+                n += 1
+                slug = "%s-%d" % (base, n)
+            page.slug = slug
+            page.created_by = user
+        page.updated_by = user
+        page.save()
+        return page
 
 
 class MenuForm(forms.Form):

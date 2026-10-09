@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import analytics_views, calendar_views, views
+from . import analytics_views, calendar_views, content_pages, views
 from .inline_views import update_inline
 from .detail_editing import edit_contact_field, edit_company_field
 from .reminder_live import reminder_snapshot
@@ -90,6 +90,11 @@ urlpatterns = [
     path("settings/custom-fields/<int:pk>/delete/", views.custom_field_delete, name="custom-field-delete"),
     path("settings/audit/", views.settings_audit, name="settings-audit"),
     path("settings/documentation/", views.documentation_page, name="settings-documentation"),
+    path("settings/pages/", content_pages.settings_pages, name="settings-pages"),
+    path("settings/pages/new/", content_pages.settings_page_edit, name="settings-page-create"),
+    path("settings/pages/<int:pk>/", content_pages.settings_page_edit, name="settings-page-edit"),
+    path("pages/", content_pages.page_list, name="page-list"),
+    path("pages/<slug:slug>/", content_pages.page_detail, name="page-detail"),
     path("calendar/", calendar_views.calendar_page, name="calendar"),
     path("calendar/records/", calendar_views.calendar_records, name="calendar-records"),
     path("calendar/colleagues/", calendar_views.calendar_colleagues, name="calendar-colleagues"),
