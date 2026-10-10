@@ -83,7 +83,7 @@ jobs:
               for name, row in sorted(rows.items()):
                   print("| %s | %s | %s | %s |" % (name, row["50%"], row["95%"], row["Failure Count"]))
           PY
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: load-large
