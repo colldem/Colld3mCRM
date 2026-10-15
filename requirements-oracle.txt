@@ -1,1 +1,1 @@
-oracledb==26.0.0
+oracledb==26.0.1
