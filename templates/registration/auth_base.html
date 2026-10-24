@@ -8,12 +8,13 @@ of a password reset. One place for the head, the banner and the panel.{% endcomm
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{% block title %}{% translate 'Prisijungti' %}{% endblock %} — CRM</title>
   <link rel="manifest" href="{% url 'pwa-manifest' %}">
-  <meta name="theme-color" content="#062b63">
+  <meta name="theme-color" content="#242e66">
   <link rel="icon" href="{% static 'icons/crm-icon.svg' %}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{% static 'icons/crm-icon.svg' %}">
   <link rel="stylesheet" href="{% static 'vendor/adminlte/adminlte.min.css' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20260921a">
   <link rel="stylesheet" href="{% static 'css/theme.css' %}?v=20260921a">
+  <link rel="stylesheet" href="{% static 'css/regitra-brand.css' %}?v=20261024a">
   <script src="{% static 'js/behaviors.js' %}?v=20260913a" defer></script>
 </head>
 <body class="login-page{% if crm_isolated %} has-env-banner{% endif %}">
@@ -22,7 +23,7 @@ of a password reset. One place for the head, the banner and the panel.{% endcomm
 {% endif %}
 <main class="login-panel">
   {% include "language_switch.html" %}
-  <div class="brand">CRM</div>
+  <div class="brand"><img class="brand-logo" src="{% static 'img/regitra-logo-navy.svg' %}" alt="„Regitra“ CRM"></div>
   <h1>{% block heading %}{% translate 'Prisijungti' %}{% endblock %}</h1>
   {% block intro %}{% endblock %}
   {% for message in messages %}<p class="{% if message.tags == 'error' %}error{% else %}login-note{% endif %}" role="alert">{{ message }}</p>{% endfor %}

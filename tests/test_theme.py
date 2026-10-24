@@ -853,3 +853,40 @@ class ControlScaleTests(TestCase):
                 for match in re.finditer(r"(?:^|;)\s*(?:min-)?height\s*:([^;]+)", body):
                     self.assertIn("var(--topbar-h", match.group(1),
                                   "%s in %s must take the shell height from the token" % (selector, name))
+
+
+class RegitraBrandTests(TestCase):
+    """The Regitra brand layer: the brandbook's palette, square corners and type
+    on top of the shared theme, in every page shell, with its files shipped."""
+
+    def test_every_shell_loads_the_brand_layer_after_the_theme(self):
+        templates = settings.BASE_DIR / "templates"
+        for name in ("base.html", "registration/auth_base.html", "registration/setup.html"):
+            with self.subTest(template=name):
+                source = (templates / name).read_text()
+                self.assertLess(source.index("css/theme.css"), source.index("css/regitra-brand.css"))
+                self.assertIn("img/regitra-logo-", source)
+
+    def test_brand_tokens_and_files(self):
+        import re
+        static = settings.BASE_DIR / "static"
+        css = (static / "css" / "regitra-brand.css").read_text()
+        for token in ("--regitra-navy:#242e66", "--regitra-yellow:#ffcc45", "--regitra-blue:#59a1d9",
+                      "--regitra-lightblue:#addef7", "--regitra-grey:#bdbaba",
+                      "--radius:0", "--radius-sm:0", "--radius-lg:0", "--radius-pill:0"):
+            self.assertIn(token, css)
+        # The CSP allows fonts from this server only: every face is a shipped file.
+        sources = re.findall(r"url\(([^)]+)\)", css)
+        self.assertTrue(sources)
+        for source in sources:
+            with self.subTest(font=source):
+                self.assertTrue(source.startswith("../fonts/"))
+                self.assertTrue((static / "css" / source).resolve().is_file())
+        self.assertTrue((static / "fonts" / "Barlow-OFL.txt").is_file())
+        for logo in ("regitra-logo-white.svg", "regitra-logo-navy.svg"):
+            self.assertNotIn("<script", (static / "img" / logo).read_text())
+
+    def test_the_sign_in_page_shows_the_logo(self):
+        page = self.client.get(reverse("login"))
+        self.assertContains(page, "img/regitra-logo-navy.svg")
+        self.assertContains(page, "css/regitra-brand.css")

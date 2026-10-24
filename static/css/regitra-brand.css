@@ -1,0 +1,43 @@
+/* Regitra brand layer — the REGITRA brandbook (Vizualinio identiteto vadovas,
+   2021) as the "Regitra" design system states it. Loaded after theme.css, on
+   this branch only: it redefines the shared tokens rather than editing app.css
+   and theme.css, so cherry-picks from main keep applying cleanly.
+
+   Type: DIN Pro is licensed and not shipped; Barlow (SIL OFL, static/fonts/
+   Barlow-OFL.txt) is the brandbook's own stated fallback. Weights 400/500/700;
+   the brandbook's Light 300 is too thin for 13–14 px interface text. */
+@font-face{font-family:Barlow;font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/barlow-latin-ext-400-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Barlow;font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/barlow-latin-400-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Barlow;font-style:normal;font-weight:500;font-display:swap;src:url(../fonts/barlow-latin-ext-500-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Barlow;font-style:normal;font-weight:500;font-display:swap;src:url(../fonts/barlow-latin-500-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Barlow;font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/barlow-latin-ext-700-normal.woff2) format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Barlow;font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/barlow-latin-700-normal.woff2) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+:root{
+  --regitra-navy:#242e66;--regitra-yellow:#ffcc45;--regitra-blue:#59a1d9;--regitra-lightblue:#addef7;
+  --regitra-grey:#bdbaba;--regitra-navy-rgb:#20336c;
+  /* Navy leads: headings, body text, links and primary actions (12.67:1 on white). */
+  --navy-950:var(--regitra-navy);--navy-900:var(--regitra-navy-rgb);--blue-600:var(--regitra-navy);--ink:var(--regitra-navy);
+  /* Hairlines in the brand grey; the selected state is the light-blue tint, navy text on it 8.79:1. */
+  --line:var(--regitra-grey);--selected:var(--regitra-lightblue);
+  /* Focus: the brand blue, the most visible palette colour beside navy and white. */
+  --focus-ring:var(--regitra-blue);
+  /* Square corners everywhere; depth from flat blocks, not shadows. Overlays keep theirs. */
+  --radius:0;--radius-sm:0;--radius-lg:0;--radius-pill:0;
+  --shadow-card:none;--shadow-panel:none;
+  --bs-primary:#242e66;--bs-primary-rgb:36,46,102;
+  --bs-body-font-family:"PF DIN Text Pro","DIN Pro",Barlow,Arial,sans-serif;
+  font-family:"PF DIN Text Pro","DIN Pro",Barlow,Arial,sans-serif}
+
+/* The sidebar is one flat navy block. */
+.app-sidebar{background:var(--regitra-navy)!important}
+.brand{padding:0 25px}
+.brand-logo{display:block;width:120px;height:auto}
+.login-panel .brand-logo{width:150px}
+/* The current page carries the accent: a yellow block, navy text and icon (8.43:1). */
+.nav-item:hover{background:#ffffff1f;color:#fff}
+.nav-item.active,.nav-item.active:hover{background:var(--regitra-yellow);color:var(--regitra-navy)}
+/* KPI icon tiles from the palette, navy icon on each (brandbook: icon tiles in
+   yellow, light blue, blue). Overdue keeps its red: it reports a problem. */
+.kpi-card.tone-companies .kpi-icon{background:var(--regitra-yellow);color:var(--regitra-navy)}
+.kpi-card.tone-activity .kpi-icon{background:var(--regitra-blue);color:var(--regitra-navy)}

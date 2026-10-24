@@ -132,6 +132,9 @@ niekada `merge` — žr. `docs/REGITRA-SAKA.md`.
   `run_automations`, `deliver_webhooks`, `deactivate_inactive_users` — `accounts.py`, `purge_audit_log` — `audit.py`, `apply_retention` — `privacy.py`) vykdo `crm-worker` paslauga `compose.yaml` (ciklas kas
   `WORKER_INTERVAL_SECONDS` s).
 - `templates/` — Django šablonai; `static/` — CSS/JS + `vendor/adminlte`.
+  Regitros išvaizda — `static/css/regitra-brand.css` (kraunamas po `theme.css` visuose apvalkaluose:
+  dizaino sistemos „Regitra“ paletė, kvadratiniai kampai, logotipai `static/img/regitra-logo-*.svg`,
+  Barlow šriftai `static/fonts/` vietoj licencijuoto DIN Pro); `app.css`/`theme.css` nekeičiami, kad `cherry-pick` iš `main` tiktų.
   Vienas kortelių apvalkalas visame produkte — `.dash-card` (+ `.dash-grid`,
   `.dash-card-head`, `.kpi-card`); kortelės antraštė visada `--fs-md`/700.
   Dydžiai imami **tik** iš `app.css :root` skalės (`--control-h`,
