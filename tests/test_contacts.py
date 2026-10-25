@@ -9350,6 +9350,26 @@ class ContentPageTests(TestCase):
         self.assertInHTML("<pre><code>&lt;b&gt;kodas&lt;/b&gt;</code></pre>", html)
         self.assertInHTML("<p><em>kursyvas</em> <code>x*y*</code></p>", html)
 
+    def test_a_long_line_renders_quickly_and_the_body_is_capped(self):
+        import time
+        from contacts.content_pages import render_body
+        from contacts.forms import ContentPageForm
+        # Lines near the cap: each took seconds to over a minute while a
+        # pattern rescanned the rest of the line from every marker.
+        for line in (" *a" * 16000, "[" * 48000, "[a](" * 12000):
+            started = time.monotonic()
+            render_body(line)
+            self.assertLess(time.monotonic() - started, 2, line[:8])
+        limit = ContentPageForm.BODY_MAX_LENGTH
+        form = ContentPageForm({"title": "Ilgas", "body": "a" * (limit + 1), "position": 0})
+        self.assertIn("body", form.errors)
+        self.assertTrue(ContentPageForm({"title": "Ilgas", "body": "a" * limit, "position": 0}).is_valid())
+
+    def test_a_link_may_hold_parentheses(self):
+        from contacts.content_pages import render_body
+        html = render_body("[Vilnius](https://lt.wikipedia.org/wiki/Vilnius_(miestas)), žr.")
+        self.assertIn('<a href="https://lt.wikipedia.org/wiki/Vilnius_(miestas)" rel="noopener noreferrer">Vilnius</a>, žr.', html)
+
     def test_pages_are_in_the_menu_and_translated(self):
         self.client.force_login(self.reader)
         self.assertContains(self.client.get(reverse("contacts:home")), reverse("contacts:page-list"))

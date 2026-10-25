@@ -31,9 +31,13 @@ _HEADING = re.compile(r"^(#{1,3})\s+(.+)$")
 _LIST_ITEM = ((re.compile(r"^[-*]\s+(.+)$"), "ul"), (re.compile(r"^\d+[.)]\s+(.+)$"), "ol"))
 _QUOTE = re.compile(r"^>\s?(.*)$")
 _CODE = re.compile(r"`([^`]+)`")
-_LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
+# Link text, link targets and italics stop at the next "[", "(" or "*": an
+# open-ended match rescanned the rest of the line from every one of them, so a
+# single long line took minutes to render. A target may hold one level of
+# parentheses, as in https://lt.wikipedia.org/wiki/Vilnius_(miestas).
+_LINK = re.compile(r"\[([^\[\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
-_ITALIC = re.compile(r"(?<![*\w])\*(?!\s)(.+?)(?<!\s)\*(?![*\w])")
+_ITALIC = re.compile(r"(?<![*\w])\*(?!\s)([^*]+?)(?<!\s)\*(?![*\w])")
 
 
 def _href(raw):

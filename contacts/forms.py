@@ -3,6 +3,7 @@ from django import forms
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
+from django.core.validators import MaxLengthValidator
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -553,9 +554,16 @@ class ContentPageForm(forms.ModelForm):
                       "position": tr("Mažesnis numeris — aukščiau sąraše.")}
         widgets = {"body": forms.Textarea(attrs={"rows": 18})}
 
+    BODY_MAX_LENGTH = 50000
+
     def __init__(self, *args, role_choices=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["roles"].choices = role_choices
+        # Rendered on every visit: a cap keeps one page from tying up a worker.
+        body = self.fields["body"]
+        body.max_length = self.BODY_MAX_LENGTH
+        body.validators.append(MaxLengthValidator(self.BODY_MAX_LENGTH))
+        body.widget.attrs["maxlength"] = str(self.BODY_MAX_LENGTH)
 
     def save(self, user):
         from django.utils.text import slugify
