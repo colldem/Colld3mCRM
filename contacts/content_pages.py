@@ -28,7 +28,8 @@ from .sanitizers import safe_url
 
 
 _HEADING = re.compile(r"^(#{1,3})\s+(.+)$")
-_LIST_ITEM = ((re.compile(r"^[-*]\s+(.+)$"), "ul"), (re.compile(r"^\d+[.)]\s+(.+)$"), "ol"))
+_LIST_ITEM = ((re.compile(r"^[-*]\s+(?P<text>.+)$"), "ul"),
+              (re.compile(r"^(?P<number>\d{1,9})[.)]\s+(?P<text>.+)$"), "ol"))
 _QUOTE = re.compile(r"^>\s?(.*)$")
 _CODE = re.compile(r"`([^`]+)`")
 # Link text, link targets and italics stop at the next "[", "(" or "*": an
@@ -77,7 +78,7 @@ def _inline(text):
 def render_body(text):
     """The page body as safe HTML."""
     out, paragraph, quote, items = [], [], [], []
-    list_tag, code = None, None
+    list_tag, list_start, code = None, 1, None
 
     def flush():
         nonlocal list_tag
@@ -88,7 +89,9 @@ def render_body(text):
             out.append('<div class="doc-callout"><p>%s</p></div>' % "<br>".join(_inline(line) for line in quote))
             quote.clear()
         if items:
-            out.append("<%s>%s</%s>" % (list_tag, "".join("<li>%s</li>" % _inline(item) for item in items), list_tag))
+            # A numbered list keeps the author's first number: "3." shows as 3.
+            start = ' start="%d"' % list_start if list_tag == "ol" and list_start != 1 else ""
+            out.append("<%s%s>%s</%s>" % (list_tag, start, "".join("<li>%s</li>" % _inline(item) for item in items), list_tag))
             items.clear()
         list_tag = None
 
@@ -119,7 +122,8 @@ def render_body(text):
             if item[1] != list_tag:
                 flush()
                 list_tag = item[1]
-            items.append(item[0].group(1))
+                list_start = int(item[0].group("number")) if list_tag == "ol" else 1
+            items.append(item[0].group("text"))
             continue
         note = _QUOTE.match(stripped)
         if note:

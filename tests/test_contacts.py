@@ -9353,6 +9353,7 @@ class ContentPageTests(TestCase):
         self.assertInHTML("<p>Įvadas<br>tęsinys</p>", html)
         self.assertInHTML("<h3>Dalis</h3>", html)
         self.assertInHTML("<ol><li>vienas</li><li>du</li></ol>", html)
+        self.assertInHTML('<ol start="3"><li>trys</li><li>keturi</li></ol>', render_body("3. trys\n4. keturi"))
         self.assertInHTML("<ul><li>taškas</li></ul>", html)
         self.assertInHTML('<div class="doc-callout"><p>Svarbu</p></div>', html)
         self.assertInHTML("<pre><code>&lt;b&gt;kodas&lt;/b&gt;</code></pre>", html)
