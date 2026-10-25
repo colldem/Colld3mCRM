@@ -194,7 +194,9 @@ def settings_page_edit(request, pk=None):
         raise Http404
     page = get_object_or_404(ContentPage, pk=pk) if pk else None
     action = request.POST.get("action", "save")
-    if request.method == "POST" and action == "delete" and page:
+    if request.method == "POST" and action == "delete":
+        if page is None:
+            raise Http404
         audit_log(AuditLog.DELETE, request=request, target_type="content_page", target_id=page.pk, target_label=page.title)
         page.delete()
         messages.success(request, tr("Puslapis pašalintas."))

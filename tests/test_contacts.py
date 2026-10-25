@@ -9297,6 +9297,14 @@ class ContentPageTests(TestCase):
             self.client.post(reverse("contacts:settings-page-create"), {"title": "DUK", "body": "", "position": 0, "action": "save"})
         self.assertEqual(sorted(ContentPage.objects.values_list("slug", flat=True)), ["duk", "duk-2"])
 
+    def test_deleting_a_page_not_yet_saved_creates_nothing(self):
+        from contacts.models import ContentPage
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("contacts:settings-page-create"),
+                                    {"title": "Naujas", "body": "", "position": 0, "action": "delete"})
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(ContentPage.objects.exists())
+
     def test_writing_pages_needs_the_capability(self):
         page = self.page()
         for user in (self.member, self.reader):
