@@ -9305,6 +9305,24 @@ class ContentPageTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertFalse(ContentPage.objects.exists())
 
+    def test_a_page_saved_at_the_same_moment_gets_the_next_address(self):
+        from django.db.models.query import QuerySet
+        from contacts.models import ContentPage
+        self.page(title="DUK", slug="duk")
+        real_exists, calls = QuerySet.exists, []
+
+        def racing_exists(queryset):
+            # The first check misses the page another editor has just saved.
+            calls.append(queryset)
+            return False if len(calls) == 1 else real_exists(queryset)
+
+        self.client.force_login(self.admin)
+        with patch.object(QuerySet, "exists", racing_exists):
+            response = self.client.post(reverse("contacts:settings-page-create"),
+                                        {"title": "DUK", "body": "", "position": 0, "action": "save"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(sorted(ContentPage.objects.values_list("slug", flat=True)), ["duk", "duk-2"])
+
     def test_writing_pages_needs_the_capability(self):
         page = self.page()
         for user in (self.member, self.reader):

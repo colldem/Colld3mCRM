@@ -1,6 +1,6 @@
 from django.utils.translation import gettext_lazy as tr
 from django import forms
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.core.validators import MaxLengthValidator
@@ -569,18 +569,27 @@ class ContentPageForm(forms.ModelForm):
         from django.utils.text import slugify
 
         page = super().save(commit=False)
-        if not page.slug:
-            # The address is set once: renaming a page keeps links to it working.
-            base = slugify(page.title)[:120] or "puslapis"
-            slug, n = base, 1
-            while ContentPage.objects.filter(slug=slug).exists():
-                n += 1
-                slug = "%s-%d" % (base, n)
-            page.slug = slug
-            page.created_by = user
         page.updated_by = user
-        page.save()
-        return page
+        if page.slug:
+            page.save()
+            return page
+        # The address is set once: renaming a page keeps links to it working.
+        page.created_by = user
+        base = slugify(page.title)[:120] or "puslapis"
+        n = 1
+        while True:
+            page.slug = base if n == 1 else "%s-%d" % (base, n)
+            n += 1
+            if ContentPage.objects.filter(slug=page.slug).exists():
+                continue
+            try:
+                with transaction.atomic():
+                    page.save()
+                return page
+            except IntegrityError:
+                # Another editor saved a page with this address a moment ago.
+                if not ContentPage.objects.filter(slug=page.slug).exists():
+                    raise
 
 
 class MenuForm(forms.Form):
