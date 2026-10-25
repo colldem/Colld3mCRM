@@ -9290,6 +9290,16 @@ class ContentPageTests(TestCase):
         self.assertEqual(list(AuditLog.objects.filter(target_type="content_page").values_list("action", flat=True).order_by("pk")),
                          [AuditLog.CREATE, AuditLog.UPDATE, AuditLog.DELETE])
 
+    def test_saving_without_changes_still_confirms_but_logs_nothing(self):
+        from contacts.models import AuditLog
+        page = self.page(body="Tekstas")
+        self.client.force_login(self.admin)
+        response = self.client.post(reverse("contacts:settings-page-edit", args=[page.pk]),
+                                    {"title": "Tvarka", "body": "Tekstas", "position": 0, "is_published": "on",
+                                     "action": "save"}, follow=True)
+        self.assertContains(response, "Puslapis išsaugotas.")
+        self.assertFalse(AuditLog.objects.filter(target_type="content_page").exists())
+
     def test_titles_that_slug_alike_get_their_own_addresses(self):
         from contacts.models import ContentPage
         self.client.force_login(self.admin)

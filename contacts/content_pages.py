@@ -216,9 +216,10 @@ def settings_page_edit(request, pk=None):
             if page is None:
                 audit_log(AuditLog.CREATE, request=request, target=saved, target_type="content_page")
                 messages.success(request, tr("Puslapis sukurtas."))
-            elif changed:
-                audit_log(AuditLog.UPDATE, request=request, target=saved, target_type="content_page",
-                          detail={"fields": changed})
+            else:
+                if changed:
+                    audit_log(AuditLog.UPDATE, request=request, target=saved, target_type="content_page",
+                              detail={"fields": changed})
                 messages.success(request, tr("Puslapis išsaugotas."))
             return redirect("contacts:settings-pages")
     return render(request, "settings/page_edit.html", {
