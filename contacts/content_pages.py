@@ -155,7 +155,7 @@ def can_read(user, page):
 def readable_pages(user):
     # A handful of rows: the role is checked here because a JSON "contains"
     # lookup is not available on every database the CRM runs on.
-    return [page for page in ContentPage.objects.all() if can_read(user, page)]
+    return [page for page in ContentPage.objects.defer("body") if can_read(user, page)]
 
 
 @login_required
@@ -178,7 +178,7 @@ def settings_pages(request):
     if not can_manage(request.user):
         raise Http404
     labels = dict(_role_choices())
-    pages = list(ContentPage.objects.select_related("updated_by"))
+    pages = list(ContentPage.objects.select_related("updated_by").defer("body"))
     for page in pages:
         page.audience = ", ".join(str(labels[role]) for role in page.roles if role in labels)
     return render(request, "settings/pages.html", {"settings_section": "pages", "pages": pages})

@@ -9353,6 +9353,18 @@ class ContentPageTests(TestCase):
         self.client.force_login(self.admin)
         self.assertContains(self.client.get(reverse("contacts:page-detail", args=["juodrastis"])), "Juodraštis")
 
+    def test_the_lists_do_not_read_the_page_bodies(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+        self.page(body="ilgas tekstas")
+        self.client.force_login(self.admin)
+        for name in ("contacts:page-list", "contacts:settings-pages"):
+            with self.subTest(name), CaptureQueriesContext(connection) as captured:
+                self.assertContains(self.client.get(reverse(name)), "Tvarka")
+            reads = [q["sql"] for q in captured.captured_queries if "contentpage" in q["sql"]]
+            self.assertTrue(reads)
+            self.assertFalse([sql for sql in reads if '"body"' in sql], reads)
+
     def test_the_body_never_passes_html_or_unsafe_links_through(self):
         from contacts.content_pages import render_body
         html = render_body('<script>alert(1)</script> **"x"**\n[a](javascript:alert(1)) [b](//evil.example) '
