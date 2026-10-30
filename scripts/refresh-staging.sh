@@ -51,7 +51,12 @@ $PROD_COMPOSE exec -T crm-db pg_dump -U crm -d crm -Fc < /dev/null \
 $STAGING_COMPOSE up -d
 ok=""
 for _ in $(seq 1 30); do
-  [ "$(docker inspect --format '{{.State.Health.Status}}' crm-staging-crm-web-1 2>/dev/null)" = "healthy" ] && { ok=1; break; }
+  # Asked through compose, so this works for every staging instance: the
+  # container name carries the project name, which differs per overlay.
+  cid="$($STAGING_COMPOSE ps -q crm-web 2>/dev/null)"
+  [ -n "$cid" ] \
+    && [ "$(docker inspect --format '{{.State.Health.Status}}' "$cid" 2>/dev/null)" = "healthy" ] \
+    && { ok=1; break; }
   sleep 3
 done
 [ -n "$ok" ] || { echo "FATAL: staging crm-web did not become healthy"; exit 1; }

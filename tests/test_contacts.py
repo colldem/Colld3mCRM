@@ -7482,6 +7482,13 @@ class StagingAnonymisationTests(TestCase):
         script = (settings.BASE_DIR / "scripts" / "refresh-staging.sh").read_text()
         self.assertLess(script.index("copying media"), script.index("manage.py sanitize_staging"))
 
+    def test_refresh_script_finds_the_web_container_through_compose(self):
+        """A fixed container name only matched one staging instance; the
+        project name, and so the name, differs per overlay."""
+        script = (settings.BASE_DIR / "scripts" / "refresh-staging.sh").read_text()
+        self.assertIn("$STAGING_COMPOSE ps -q crm-web", script)
+        self.assertNotIn("crm-staging-crm-web-1", script)
+
 
 
 class DataSubjectRequestTests(TestCase):
