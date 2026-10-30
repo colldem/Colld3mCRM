@@ -156,5 +156,17 @@ nepriklauso nuo S1–S3 — juos galima daryti iškart, kiekvieną atskiru commi
 
 ## 4. Kitas žingsnis
 
-1. B grupė → `main` (7 commit'ai, ~2 d.), be sprendimų.
+1. ~~B grupė → `main`~~ — **atlikta 2026-10-30**:
+
+   | Šakos | `main` |
+   |---|---|
+   | `9209607` | `c0bdcc1` |
+   | `b4ca30e` | `c5ecd97` |
+   | `afad5fd` | `614fa2a` (lentelė), `b320fb4` (rašyba) |
+   | `867e618` | `ca45474` |
+   | `7debc74` | `422b074` (be Regitros staging komentaro ir `/volume1` kelių) |
+   | `d89b6e9` | `d532d52` |
+   | `b96d8d3` | `d780789` |
+
+   Pavijimo (E0-04) metu šių commit'ų konfliktuose imama `main` versija.
 2. S1–S3 atsakymai → E0-02, E0-03 (su M2–M4), E0-04.
