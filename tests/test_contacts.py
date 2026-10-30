@@ -6098,6 +6098,28 @@ class MergeRecordsTests(TestCase):
         target.refresh_from_db()
         self.assertEqual(target.job_title, "Tikslo pareigos")
 
+    def test_two_people_with_different_external_ids_are_not_merged(self):
+        """The archived source would keep its id, and the sync would go on
+        updating the archived record instead of the one kept."""
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="X", external_source="regitra", external_id="R1")
+        target = Person.objects.create(first_name="A", last_name="X", external_source="regitra", external_id="R2")
+        with self.assertRaisesMessage(ValidationError, "regitra R1 ir regitra R2"):
+            merge_people(source.pk, target.pk)
+        source.refresh_from_db()
+        self.assertIsNone(source.merged_into_id)
+        self.assertEqual(source.external_id, "R1")
+
+    def test_one_external_id_moves_to_the_record_kept(self):
+        from contacts.merging import merge_people
+        source = Person.objects.create(first_name="A", last_name="Y", external_source="regitra", external_id="R3")
+        target = Person.objects.create(first_name="A", last_name="Y")
+        merge_people(source.pk, target.pk)
+        source.refresh_from_db()
+        target.refresh_from_db()
+        self.assertEqual((target.external_source, target.external_id), ("regitra", "R3"))
+        self.assertEqual(source.external_id, "")
+
     def test_merge_propagates_a_favourite_flag_but_never_clears_one(self):
         from contacts.merging import merge_people
         source = Person.objects.create(first_name="A", last_name="C", favourite=True)

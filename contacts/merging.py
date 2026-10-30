@@ -90,6 +90,18 @@ def _merge_company_person_links(source, target):
             link.save(update_fields=["company"])
 
 
+def _refuse_two_external_ids(source, target):
+    """A record mirrors one row in another system. Two different rows mean two
+    different people there; merged, the archived source would keep its id and
+    the next sync would keep updating the archived record."""
+    if source.external_id and target.external_id and (
+            (source.external_source, source.external_id) != (target.external_source, target.external_id)):
+        raise ValidationError(_("Abu įrašai susieti su skirtingais išorinės sistemos įrašais (%(a)s ir %(b)s), "
+                                "todėl sujungti jų negalima — greičiausiai tai ne tas pats asmuo.") % {
+            "a": " ".join(filter(None, (source.external_source, source.external_id))),
+            "b": " ".join(filter(None, (target.external_source, target.external_id)))})
+
+
 @transaction.atomic
 def merge_people(source_pk, target_pk):
     if source_pk == target_pk:
@@ -104,6 +116,7 @@ def merge_people(source_pk, target_pk):
         raise ValidationError(_("Šis įrašas jau sujungtas su kitu įrašu."))
     if source.deleted_at or target.deleted_at or target.merged_into_id:
         raise ValidationError(_("Sujungti galima tik du aktyvius įrašus."))
+    _refuse_two_external_ids(source, target)
 
     _merge_labels(source, target)
     _merge_responsibles(source, target)
