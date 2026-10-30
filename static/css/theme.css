@@ -125,6 +125,14 @@ tbody tr:has(.row-select:checked),tbody tr:has(.company-row-select:checked){back
    their headings wrap, so adding a sixth role widens nothing. */
 .permissions-table th,.permissions-table td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left}
 .permissions-table thead th:not(:first-child){width:118px;white-space:normal;vertical-align:bottom}
+/* A tick belongs beside the thing it applies to. Stretched across a 2000px
+   window the table put a metre of empty row between a capability and its
+   checkboxes, and answering "which row am I ticking?" meant tracking a line
+   across the whole screen. The table stops once the name column is a
+   comfortable measure; a narrow window still gets the full width. The frame
+   stops with it, or it would draw a border round the empty half. */
+.permissions-table{max-width:1100px}
+.table-wrap:has(>.permissions-table){width:fit-content;max-width:100%}
 /* Name and qualifier each get their own line, so nothing wraps ragged. */
 .permissions-table thead th b{display:block}
 .permissions-table thead th span{display:block;margin-top:2px;font-weight:400;font-size:var(--fs-2xs);line-height:1.35;color:var(--muted)}
