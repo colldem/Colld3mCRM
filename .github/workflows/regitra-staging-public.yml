@@ -60,6 +60,22 @@ jobs:
       - name: Apply the switch
         run: sh scripts/staging-public.sh "${{ inputs.state == 'public' && 'on' || 'off' }}" "${{ inputs.app_dir }}"
 
+      - name: What Tailscale actually did with it
+        working-directory: ${{ inputs.app_dir }}
+        # The serve file asking for Funnel is not enough: the tailnet's access
+        # controls have to grant the node the "funnel" attribute, and when they
+        # do not, tailscaled falls back to serving inside the tailnet and says
+        # so only here. Without this step the switch looks like it worked and
+        # the address simply does not resolve.
+        continue-on-error: true
+        run: |
+          echo "--- tailscale serve status ---"
+          docker compose exec -T crm-tailscale tailscale serve status || true
+          echo "--- tailscale funnel status ---"
+          docker compose exec -T crm-tailscale tailscale funnel status || true
+          echo "--- tailscaled log (last 40) ---"
+          docker compose logs --tail 40 crm-tailscale || true
+
       - name: Wait for the instance to answer
         working-directory: ${{ inputs.app_dir }}
         run: |
