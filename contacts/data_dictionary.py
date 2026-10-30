@@ -24,6 +24,7 @@ MODELS = {
     "EmailAddress": ("Asmens el. pašto adresai", "kartu su asmeniu", "R"),
     "PostalAddress": ("Asmens adresai", "kartu su asmeniu", "R"),
     "WebLink": ("Asmens nuorodos (svetainė, profilis)", "kartu su asmeniu", "R"),
+    "ExternalLink": ("Įrašo susiejimas su antrinės sistemos įrašu (pvz. DocLogix korespondentas)", "kartu su įrašu", "R"),
     "Company": ("Įmonė / organizacija (gali būti individuali veikla)", "kol aktyvi; archyvuota — pagal terminą", "R"),
     "PersonCompanyLink": ("Asmens ryšys su įmone ir pareigos", "kartu su asmeniu ar įmone", "R"),
     "Activity": ("Bendravimo istorija: pastabos, skambučiai, susitikimai, laiškai", "kartu su įrašu", "R"),
@@ -66,6 +67,7 @@ FIELDS = {
     "Company.name": "A", "Company.company_code": "A", "Company.vat_code": "A", "Company.address": "A",
     "Company.phone": "A", "Company.phone_digits": "A", "Company.email": "A", "Company.url": "A", "Company.description": "L",
     "Company.external_id": "A",
+    "ExternalLink.external_id": "A", "ExternalLink.label": "A",
     "PersonCompanyLink.role": "A",
     "Activity.text": "L", "Activity.submission_token": "T", "Activity.message_id": "T",  # nosec B105
     "Attachment.file": "L", "Attachment.original_name": "L",

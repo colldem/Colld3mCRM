@@ -8948,6 +8948,108 @@ class PersonIdentityTests(TestCase):
         self.assertEqual(list(find_people(self.CODE)), [self.person])
 
 
+class ExternalLinkTests(TestCase):
+    """A record in a secondary system belongs to one card; linking is audited and follows a merge."""
+
+    def setUp(self):
+        self.admin = get_user_model().objects.create_superuser("susiejimas", password="very-secure-password")
+        self.person = Person.objects.create(first_name="Ona", last_name="Susieta")
+
+    def test_a_link_is_created_once_and_audited(self):
+        from contacts import external_ids
+        from contacts.models import AuditLog, ExternalLink
+
+        made = external_ids.link(self.person, "doclogix", "K-1", user=self.admin, label="Ona S.")
+        self.assertEqual(made.method, ExternalLink.MANUAL)
+        again = external_ids.link(self.person, "doclogix", "K-1", user=self.admin, label="Ona Susieta")
+        self.assertEqual(again.pk, made.pk)
+        self.assertEqual(ExternalLink.objects.get().label, "Ona Susieta")
+        entry = AuditLog.objects.get(field="external_link")
+        self.assertEqual((entry.actor, entry.new_value), (self.admin, "doclogix K-1"))
+        with self.assertRaises(ValidationError):
+            external_ids.link(self.person, "", "K-2")
+
+    def test_an_id_another_card_owns_is_refused_without_naming_it(self):
+        from contacts import external_ids
+
+        other = Person.objects.create(first_name="Kita", last_name="Paslaptis", external_source="regitra",
+                                      external_id="R-5", deleted_at=timezone.now())
+        external_ids.link(other, "doclogix", "K-9")
+        for source, external_id in (("doclogix", "K-9"), ("regitra", "R-5")):
+            with self.subTest(source=source), self.assertRaises(ValidationError) as caught:
+                external_ids.link(self.person, source, external_id)
+            self.assertEqual(caught.exception.code, "taken")
+            self.assertNotIn("Paslaptis", str(caught.exception))
+
+    def test_the_primary_id_is_not_linked_twice(self):
+        from contacts import external_ids
+
+        Person.objects.filter(pk=self.person.pk).update(external_source="regitra", external_id="R-1")
+        self.person.refresh_from_db()
+        with self.assertRaises(ValidationError):
+            external_ids.link(self.person, "regitra", "R-1")
+
+    def test_find_record_reads_the_primary_id_and_links_but_not_archived_cards(self):
+        from contacts import external_ids
+
+        company = Company.objects.create(name="UAB Rasta", external_source="regitra", external_id="C-1")
+        external_ids.link(self.person, "doclogix", "K-3")
+        self.assertEqual(external_ids.find_record("regitra", "C-1"), company)
+        self.assertEqual(external_ids.find_record("doclogix", "K-3"), self.person)
+        self.assertIsNone(external_ids.find_record("doclogix", "nera"))
+        Person.objects.filter(pk=self.person.pk).update(deleted_at=timezone.now())
+        self.assertIsNone(external_ids.find_record("doclogix", "K-3"))
+
+    def test_unlinking_is_audited(self):
+        from contacts import external_ids
+        from contacts.models import AuditLog, ExternalLink
+
+        external_ids.unlink(external_ids.link(self.person, "doclogix", "K-4"), user=self.admin)
+        self.assertFalse(ExternalLink.objects.exists())
+        self.assertTrue(AuditLog.objects.filter(field="external_link", old_value="doclogix K-4",
+                                                actor=self.admin).exists())
+
+    def test_merging_moves_the_links_to_the_kept_record(self):
+        from contacts import external_ids
+        from contacts.merging import merge_companies, merge_people
+
+        twin = Person.objects.create(first_name="Ona", last_name="Dvynė")
+        external_ids.link(twin, "doclogix", "K-5")
+        merge_people(twin.pk, self.person.pk)
+        self.assertEqual(external_ids.find_record("doclogix", "K-5"), self.person)
+        kept, gone = Company.objects.create(name="UAB Lieka"), Company.objects.create(name="UAB Dingsta")
+        external_ids.link(gone, "doclogix", "I-1")
+        merge_companies(gone.pk, kept.pk)
+        self.assertEqual(external_ids.find_record("doclogix", "I-1"), kept)
+
+    def test_the_card_shows_links_only_with_the_personal_code_right(self):
+        from contacts import external_ids
+
+        external_ids.link(self.person, "doclogix", "K-6", label="Vardas kitur")
+        member = get_user_model().objects.create_user("narys-susieta", password="very-secure-password")
+        UserProfile.objects.create(user=member, role=UserProfile.ROLE_MEMBER)
+        self.client.force_login(member)
+        self.assertNotContains(self.client.get(self.person.get_absolute_url()), "Vardas kitur")
+        RolePermissions.objects.update_or_create(role=UserProfile.ROLE_MEMBER,
+                                                 defaults={"permissions": {"can_view_personal_code": True}})
+        card = self.client.get(self.person.get_absolute_url())
+        self.assertContains(card, "doclogix K-6")
+        self.assertContains(card, "Vardas kitur")
+
+    def test_the_export_carries_links_and_staging_drops_their_labels(self):
+        from contacts import external_ids
+        from contacts.anonymize import anonymize
+        from contacts.models import ExternalLink
+        from contacts.privacy import person_data
+
+        external_ids.link(self.person, "doclogix", "K-7", label="Ona Susieta")
+        exported = person_data(self.person)["person"]["external_links"]
+        self.assertEqual([(e["source"], e["external_id"], e["label"]) for e in exported],
+                         [("doclogix", "K-7", "Ona Susieta")])
+        anonymize()
+        self.assertEqual(ExternalLink.objects.get().label, "")
+
+
 class WorkerSupervisionTests(TestCase):
     """Background jobs: bounded, visible, and reported to an outside monitor."""
 

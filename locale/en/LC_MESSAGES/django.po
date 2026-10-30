@@ -4773,3 +4773,22 @@ msgstr "Writing pages"
 
 msgid "Abu įrašai susieti su skirtingais išorinės sistemos įrašais (%(a)s ir %(b)s), todėl sujungti jų negalima — greičiausiai tai ne tas pats asmuo ar įmonė."
 msgstr "The two records are linked to different records in an external system (%(a)s and %(b)s), so they cannot be merged — most likely they are not the same person or company."
+
+msgid "Susieta su"
+msgstr "Linked to"
+
+msgid "Automatiškai (pagal kodą)"
+msgstr "Automatically (by code)"
+
+msgid "Patvirtino žmogus"
+msgstr "Confirmed by a person"
+
+msgid "Nurodykite sistemą ir įrašo ID joje."
+msgstr "Give the system and the record's id in it."
+
+#, python-format
+msgid "Šis %(source)s įrašas jau susietas su kita kortele."
+msgstr "This %(source)s record is already linked to another card."
+
+msgid "Kortelė jau susieta su šiuo įrašu kaip pagrindiniu šaltiniu."
+msgstr "The card is already linked to this record as its primary source."

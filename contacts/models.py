@@ -566,6 +566,43 @@ class WebLink(models.Model):
         return self.url
 
 
+class ExternalLink(models.Model):
+    """A contact or company's record in a secondary system (DocLogix, the call
+    platform, …). The primary source sits on the record itself
+    (``external_source`` / ``external_id``); these are the others. One external
+    id belongs to one card — see contacts/external_ids.py."""
+    AUTO = "auto"
+    MANUAL = "manual"
+    METHOD_CHOICES = ((AUTO, tr("Automatiškai (pagal kodą)")), (MANUAL, tr("Patvirtino žmogus")))
+
+    source = models.CharField(max_length=32)
+    external_id = models.CharField(max_length=128)
+    person = models.ForeignKey(Person, null=True, blank=True, on_delete=models.CASCADE, related_name="external_links")
+    company = models.ForeignKey(Company, null=True, blank=True, on_delete=models.CASCADE, related_name="external_links")
+    method = models.CharField(max_length=8, choices=METHOD_CHOICES, default=MANUAL)
+    linked_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+                                  related_name="+")
+    linked_at = models.DateTimeField(auto_now_add=True)
+    # What the other system calls it, for the card to show.
+    label = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["source", "label", "pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["source", "external_id"], name="unique_external_link"),
+            models.CheckConstraint(condition=models.Q(person__isnull=False, company__isnull=True)
+                                   | models.Q(person__isnull=True, company__isnull=False),
+                                   name="external_link_one_record"),
+        ]
+
+    def __str__(self):
+        return f"{self.source} {self.external_id}"
+
+    @property
+    def record(self):
+        return self.person or self.company
+
+
 class Activity(TimestampedModel):
     NOTE = "note"
     CALL = "call"

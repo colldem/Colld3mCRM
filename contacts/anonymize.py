@@ -5,7 +5,8 @@ real — the same number of contacts, companies, activities, links, tags and dat
 and harmless only if nothing in it identifies a person. This keeps the former and
 removes the latter:
 
-* people (with birth date and personal code), companies and their phones, e-mails, addresses, links, descriptions;
+* people (with birth date and personal code), companies and their phones, e-mails, addresses, links, descriptions,
+  and the names other systems give them (external link labels);
 * activity and reminder texts, free-text custom field values;
 * attachment files (replaced by a short placeholder file) and avatars;
 * CRM users' names and e-mails (usernames too, except break-glass/superusers);
@@ -23,7 +24,7 @@ from django.db import transaction
 
 from .audit import sanctioned_delete
 from .models import (Activity, Attachment, AuditLog, AutomationLog, Company, CustomField, CustomValue, EmailAddress,
-                     IncomingMail, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter,
+                     ExternalLink, IncomingMail, Person, PersonCompanyLink, PhoneNumber, PostalAddress, Reminder, SavedFilter,
                      UserProfile, WebhookDelivery, WebLink)
 
 PLACEHOLDER_FILE = b"Anonimizuota testinei aplinkai / anonymised for the staging copy.\n"
@@ -59,6 +60,8 @@ def anonymize():
     _rewrite(PostalAddress.objects.all(), lambda o: {"address": "Adresas %d" % o.pk}, ["address"])
     _rewrite(WebLink.objects.all(), lambda o: {"url": "https://example.invalid/%d" % o.pk}, ["url"])
     _rewrite(PersonCompanyLink.objects.exclude(role=""), lambda o: {"role": ""}, ["role"])
+    # What another system calls the person — a name, so it goes too; the ids stay for the links' shape.
+    _rewrite(ExternalLink.objects.exclude(label=""), lambda o: {"label": ""}, ["label"])
     counts["companies"] = _rewrite(Company.objects.all(), lambda c: {
         "name": "Įmonė %d" % c.pk, "company_code": "", "vat_code": "", "address": "", "phone": "", "phone_digits": "",
         "email": "", "url": "", "description": ""},

@@ -99,6 +99,8 @@ def person_data(person):
             "personal_code_type": person.personal_code_type or None,
             "personal_code": identity.reveal(person) or None,
             "external_source": person.external_source or None, "external_id": person.external_id or None,
+            "external_links": [{"source": link.source, "external_id": link.external_id, "label": link.label,
+                                "linked_at": _dt(link.linked_at)} for link in person.external_links.all()],
             "created_at": _dt(person.created_at), "updated_at": _dt(person.updated_at),
             "archived_at": _dt(person.deleted_at),
             "owner": person.owner.get_username() if person.owner else None,

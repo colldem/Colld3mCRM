@@ -68,7 +68,7 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
 - `contacts/models.py` — Person, Company, PersonCompanyLink, Activity,
   Attachment, Reminder, Tag, Category, SavedFilter, UserProfile, Team,
   RolePermissions, AuditLog, CustomField, CustomValue, DuplicateSettings,
-  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DuplicateCandidate, AnalyticsSnapshot, DirectoryGroupMapping, ContentPage.
+  SystemSettings, IncomingMail, AutomationRule, AutomationLog, ApiToken, Webhook, WebhookDelivery, Translation, DuplicateException, DuplicateCandidate, AnalyticsSnapshot, DirectoryGroupMapping, ContentPage, ExternalLink.
 - `contacts/views.py` — pagrindiniai puslapiai; `analytics_views.py` —
   darbastalis, analitikos apžvalga (`analytics_overview`) ir 5 detalios skiltys; skaičiuojama DB (`GROUP BY`,
   `EXISTS`), ne Python cikle; apžvalgos ir komunikacijos sunkioji dalis — `AnalyticsSnapshot` (visų įrašų matomumui
@@ -119,6 +119,8 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   `identity.py` — asmens kodas / užsieniečio ID: tik užšifruotas + raktinė maiša paieškai (`personal_code_hash`),
   kortelėje užmaskuotas, pilnas — teisė `can_view_personal_code` + auditas (`AuditLog.VIEW`); niekada į URL, žurnalus,
   auditą, webhook'us, API asmens objektą; sistemos jungiamos per `Person.external_source` + `external_id`;
+  `external_ids.py` — kuriai kortelei priklauso kitos sistemos įrašas: pagrindinis šaltinis — `Person`/`Company` `external_source` + `external_id`,
+  antrinės sistemos (DocLogix, skambučių platforma) — `ExternalLink`; vienas ID — viena kortelė, susiejimas ir atsiejimas audituojami;
   `api.contacts_lookup` (`POST /api/v1/contacts/lookup`) — skambučių centro (Genesys) paieška;
   11 skaitmenų paieška UI — `static/js/search.js` siunčia POST (`search_personal_code`, `search_suggest`, privatumo langas), kad kodas nebūtų URL;
   `bulk_import.py` + `management/commands/import_people.py` — didelis įkėlimas / sinchronizacija CSV porcijomis pagal išorinį ID;

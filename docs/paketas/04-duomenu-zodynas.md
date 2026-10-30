@@ -284,6 +284,21 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `label` | CharField | ne | T |
 | `is_primary` | BooleanField | taip | T |
 
+## ExternalLink (`contacts_externallink`)
+
+**Paskirtis:** Įrašo susiejimas su antrinės sistemos įrašu (pvz. DocLogix korespondentas). **Saugojimas:** kartu su įrašu.
+
+| Laukas | Tipas | Privalomas | Kategorija |
+|---|---|---|---|
+| `source` | CharField | taip | T |
+| `external_id` | CharField | taip | A |
+| `person` | ryšys → Person | ne | R |
+| `company` | ryšys → Company | ne | R |
+| `method` | CharField | taip | T |
+| `linked_by` | ryšys → User | ne | R |
+| `linked_at` | DateTimeField | ne | T |
+| `label` | CharField | ne | A |
+
 ## IncomingMail (`contacts_incomingmail`)
 
 **Paskirtis:** Iš IMAP dėžutės gauti laiškai, laukiantys priskyrimo. **Saugojimas:** pagal „Gauti el. laiškai“ terminą.

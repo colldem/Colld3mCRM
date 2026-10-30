@@ -186,6 +186,8 @@
           <form method="post" action="{% url 'contacts:personal-code-reveal' record.pk %}" data-reveal>{% csrf_token %}<button class="btn sm" type="submit">{% translate 'Rodyti' %}</button></form>{% endif %}</dd>{% endif %}
         {% if identity_card.birth_date %}<dt>{% translate 'Gimimo data' %}</dt><dd>{{ identity_card.birth_date|date:date_format }}</dd>{% endif %}
         {% if identity_card.external %}<dt>{% translate 'Išorinis ID' %}</dt><dd>{{ identity_card.external }}{% if identity_card.synced_at %}<small>{% blocktranslate with when=identity_card.synced_at|date:datetime_format %}sinchronizuota {{ when }}{% endblocktranslate %}</small>{% endif %}</dd>{% endif %}
+        {% if identity_card.links %}<dt>{% translate 'Susieta su' %}</dt>
+        <dd><ul class="identity-links">{% for link in identity_card.links %}<li>{{ link.source }} {{ link.external_id }}{% if link.label %}<small>{{ link.label }}</small>{% endif %}</li>{% endfor %}</ul></dd>{% endif %}
       </dl>
     </section>
     {% endif %}{% endlayoutblock %}

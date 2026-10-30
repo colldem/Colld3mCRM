@@ -2110,9 +2110,14 @@ def _identity_card(user, record):
     A company has no code or birth date, only its id in another system."""
     from .permissions import has_capability
 
+    from .permissions import is_admin
+
     code = getattr(record, "personal_code_hash", "")
     birth_date = getattr(record, "birth_date", None)
-    if not (code or birth_date or record.external_id):
+    # Secondary systems' names for the person are shown to those who may see identity data.
+    links = (list(record.external_links.all())
+             if is_admin(user) or has_capability(user, "can_view_personal_code") else [])
+    if not (code or birth_date or record.external_id or links):
         return None
     return {
         "type_label": dict(identity.TYPE_CHOICES).get(getattr(record, "personal_code_type", ""), ""),
@@ -2121,6 +2126,7 @@ def _identity_card(user, record):
         "birth_date": birth_date,
         "external": " ".join(part for part in (record.external_source, record.external_id) if part),
         "synced_at": record.synced_at,
+        "links": links,
     }
 
 
