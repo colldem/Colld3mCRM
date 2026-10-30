@@ -178,6 +178,9 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `phone_digits` | CharField | ne | A |
 | `email` | CharField | ne | A |
 | `url` | CharField | ne | A |
+| `external_source` | CharField | ne | T |
+| `external_id` | CharField | ne | A |
+| `synced_at` | DateTimeField | ne | T |
 | `responsibles` | ryšys → User (daug) | — | D |
 | `tags` | ryšys → Tag (daug) | — | R |
 | `categories` | ryšys → Category (daug) | — | R |

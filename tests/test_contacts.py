@@ -5670,6 +5670,16 @@ class ApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["city"], "Vilnius")
 
+    def test_a_company_carries_its_id_in_another_system_and_one_id_is_one_company(self):
+        body = {"name": "UAB Regitra", "external_source": "regitra", "external_id": "C-1"}
+        created = self._post_json(reverse("api:companies"), body, self.raw_write_token)
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual((created.json()["external_source"], created.json()["external_id"]), ("regitra", "C-1"))
+        self.assertIsNotNone(created.json()["synced_at"])
+        again = self._post_json(reverse("api:companies"), {**body, "name": "UAB Kita"}, self.raw_write_token)
+        self.assertEqual(again.status_code, 409)
+        self.assertEqual(Company.objects.filter(external_id="C-1").count(), 1)
+
     # --- activities ---------------------------------------------------------
 
     def test_creating_an_activity_requires_a_valid_type_and_a_linked_record(self):
@@ -6109,6 +6119,18 @@ class MergeRecordsTests(TestCase):
         source.refresh_from_db()
         self.assertIsNone(source.merged_into_id)
         self.assertEqual(source.external_id, "R1")
+
+    def test_two_companies_with_different_external_ids_are_not_merged_and_one_id_moves(self):
+        from contacts.merging import merge_companies
+        a = Company.objects.create(name="UAB A", external_source="regitra", external_id="C1")
+        b = Company.objects.create(name="UAB A", external_source="regitra", external_id="C2")
+        with self.assertRaisesMessage(ValidationError, "regitra C1 ir regitra C2"):
+            merge_companies(a.pk, b.pk)
+        c = Company.objects.create(name="UAB A")
+        merge_companies(a.pk, c.pk)
+        a.refresh_from_db()
+        c.refresh_from_db()
+        self.assertEqual((c.external_source, c.external_id, a.external_id), ("regitra", "C1", ""))
 
     def test_one_external_id_moves_to_the_record_kept(self):
         from contacts.merging import merge_people
@@ -8694,6 +8716,16 @@ class PersonIdentityTests(TestCase):
         self.assertEqual(identity.reveal(person), self.CODE)
         self.assertEqual(identity.masked(person), "3•••••••745")
         self.assertEqual(len(person.personal_code_hash), 64)
+
+    def test_a_company_card_shows_its_external_id(self):
+        company = Company.objects.create(name="UAB Susieta", external_source="regitra", external_id="C-77",
+                                         synced_at=timezone.now())
+        self.client.force_login(self.member)
+        response = self.client.get(company.get_absolute_url())
+        self.assertContains(response, "identity-card")
+        self.assertContains(response, "regitra C-77")
+        plain = Company.objects.create(name="UAB Nesusieta")
+        self.assertNotContains(self.client.get(plain.get_absolute_url()), "identity-card")
 
     def test_search_finds_a_person_by_code_or_external_id(self):
         self._with_code()

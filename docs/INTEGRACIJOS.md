@@ -102,6 +102,10 @@ ne asmens kodą. 800 tūkst. — ~5–6 min.; pakartotinis to paties failo — ~
 maiša paieškai; į URL, žurnalus, auditą, webhook'us, API asmens objektą ir DWH rodinius nepatenka.
 Sistemos jungiamos per `external_id`, ne per asmens kodą.
 
+**Išorinis ID** (`external_source` + `external_id`) yra ir asmens, ir įmonės objekte; API jį skaito
+ir rašo (`POST`/`PATCH` `contacts`, `companies`). Vienas ID — vienas įrašas: jau naudojamas grąžina
+`409`. Dviejų įrašų su skirtingais tos pačios sistemos ID sujungti neleidžiama.
+
 **Skambučių centras (Genesys)** — patvirtinęs skambinantįjį (Smart-ID / Mobile-ID), kviečia
 `POST /api/v1/contacts/lookup` su `{"personal_code": "..."}` (arba `{"external_source": "regitra",
 "external_id": "..."}`) ir gauna kortelės nuorodą (`url`) operatoriaus ekranui atverti. Asmens kodas

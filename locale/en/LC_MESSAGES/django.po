@@ -4771,5 +4771,5 @@ msgstr "Internal pages"
 msgid "Puslapių rašymas"
 msgstr "Writing pages"
 
-msgid "Abu įrašai susieti su skirtingais išorinės sistemos įrašais (%(a)s ir %(b)s), todėl sujungti jų negalima — greičiausiai tai ne tas pats asmuo."
-msgstr "The two records are linked to different records in an external system (%(a)s and %(b)s), so they cannot be merged — most likely they are not the same person."
+msgid "Abu įrašai susieti su skirtingais išorinės sistemos įrašais (%(a)s ir %(b)s), todėl sujungti jų negalima — greičiausiai tai ne tas pats asmuo ar įmonė."
+msgstr "The two records are linked to different records in an external system (%(a)s and %(b)s), so they cannot be merged — most likely they are not the same person or company."

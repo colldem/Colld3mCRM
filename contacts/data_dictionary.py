@@ -65,6 +65,7 @@ FIELDS = {
     "PhoneNumber.number": "A", "PhoneNumber.digits": "A", "EmailAddress.email": "A", "PostalAddress.address": "A", "WebLink.url": "A",
     "Company.name": "A", "Company.company_code": "A", "Company.vat_code": "A", "Company.address": "A",
     "Company.phone": "A", "Company.phone_digits": "A", "Company.email": "A", "Company.url": "A", "Company.description": "L",
+    "Company.external_id": "A",
     "PersonCompanyLink.role": "A",
     "Activity.text": "L", "Activity.submission_token": "T", "Activity.message_id": "T",  # nosec B105
     "Attachment.file": "L", "Attachment.original_name": "L",

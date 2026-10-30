@@ -2105,19 +2105,22 @@ def _regitra_kinds(user, person):
     return regitra.KINDS
 
 
-def _identity_card(user, person):
-    """The card's identity block: the code masked, a reveal button for those allowed."""
+def _identity_card(user, record):
+    """The card's identity block: the code masked, a reveal button for those allowed.
+    A company has no code or birth date, only its id in another system."""
     from .permissions import has_capability
 
-    if not (person.personal_code_hash or person.birth_date or person.external_id):
+    code = getattr(record, "personal_code_hash", "")
+    birth_date = getattr(record, "birth_date", None)
+    if not (code or birth_date or record.external_id):
         return None
     return {
-        "type_label": dict(identity.TYPE_CHOICES).get(person.personal_code_type, ""),
-        "masked": identity.masked(person) or ("•••" if person.personal_code_hash else ""),
-        "can_reveal": bool(person.personal_code_hash) and has_capability(user, "can_view_personal_code"),
-        "birth_date": person.birth_date,
-        "external": " ".join(part for part in (person.external_source, person.external_id) if part),
-        "synced_at": person.synced_at,
+        "type_label": dict(identity.TYPE_CHOICES).get(getattr(record, "personal_code_type", ""), ""),
+        "masked": (identity.masked(record) or "•••") if code else "",
+        "can_reveal": bool(code) and has_capability(user, "can_view_personal_code"),
+        "birth_date": birth_date,
+        "external": " ".join(part for part in (record.external_source, record.external_id) if part),
+        "synced_at": record.synced_at,
     }
 
 
@@ -2583,6 +2586,7 @@ def company_detail(request, pk):
         # One composer writes every kind of entry; the tabs only filter the feed.
         **_feed_context(request, history),
         "linked_people": linked_people,
+        "identity_card": _identity_card(request.user, company),
         **_authorship_context(company, "company"),
     })
 

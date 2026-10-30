@@ -97,9 +97,20 @@ def _refuse_two_external_ids(source, target):
     if source.external_id and target.external_id and (
             (source.external_source, source.external_id) != (target.external_source, target.external_id)):
         raise ValidationError(_("Abu įrašai susieti su skirtingais išorinės sistemos įrašais (%(a)s ir %(b)s), "
-                                "todėl sujungti jų negalima — greičiausiai tai ne tas pats asmuo.") % {
+                                "todėl sujungti jų negalima — greičiausiai tai ne tas pats asmuo ar įmonė.") % {
             "a": " ".join(filter(None, (source.external_source, source.external_id))),
             "b": " ".join(filter(None, (target.external_source, target.external_id)))})
+
+
+def _take_external_id(source, target):
+    """Move the source's external id to a target that has none; the fields changed."""
+    if not source.external_id or target.external_id:
+        return []
+    # The pair is unique, so the source lets go of it before the target takes it.
+    target.external_source, target.external_id, target.synced_at = (
+        source.external_source, source.external_id, source.synced_at)
+    type(source).objects.filter(pk=source.pk).update(external_source="", external_id="")
+    return ["external_source", "external_id", "synced_at"]
 
 
 @transaction.atomic
@@ -135,12 +146,7 @@ def merge_people(source_pk, target_pk):
         for field in ("personal_code_type", "personal_code_encrypted", "personal_code_hash"):
             setattr(target, field, getattr(source, field))
             changed_fields.append(field)
-    if source.external_id and not target.external_id:
-        # The pair is unique, so the source lets go of it before the target takes it.
-        target.external_source, target.external_id, target.synced_at = (
-            source.external_source, source.external_id, source.synced_at)
-        changed_fields += ["external_source", "external_id", "synced_at"]
-        Person.objects.filter(pk=source.pk).update(external_source="", external_id="")
+    changed_fields += _take_external_id(source, target)
     if changed_fields:
         target.save(update_fields=[*changed_fields, "updated_at"])
 
@@ -172,6 +178,7 @@ def merge_companies(source_pk, target_pk):
         raise ValidationError(_("Šis įrašas jau sujungtas su kitu įrašu."))
     if source.deleted_at or target.deleted_at or target.merged_into_id:
         raise ValidationError(_("Sujungti galima tik dvi aktyvias įmones."))
+    _refuse_two_external_ids(source, target)
 
     _merge_labels(source, target)
     _merge_responsibles(source, target)
@@ -180,6 +187,7 @@ def merge_companies(source_pk, target_pk):
         if not getattr(target, field) and getattr(source, field):
             setattr(target, field, getattr(source, field))
             changed_fields.append(field)
+    changed_fields += _take_external_id(source, target)
     if changed_fields:
         target.save(update_fields=[*changed_fields, "updated_at"])
     _merge_company_person_links(source, target)

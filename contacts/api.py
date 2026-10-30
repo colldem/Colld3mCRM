@@ -205,6 +205,8 @@ def serialize_company(c):
         "categories": list(c.categories.values_list("name", flat=True)),
         "website": c.url,
         "custom_fields": _custom_fields(c),
+        "external_source": c.external_source, "external_id": c.external_id,
+        "synced_at": c.synced_at.isoformat() if c.synced_at else None,
         "created_at": c.created_at.isoformat(), "updated_at": c.updated_at.isoformat(),
         "url": c.get_absolute_url(),
     }
@@ -304,18 +306,23 @@ def _write_identity(person, data):
         person.birth_date = parse_date(str(value)) if value else None
         if value and person.birth_date is None:
             raise ApiError(400, "birth_date must be YYYY-MM-DD")
-    if "external_id" in data:
-        person.external_source = str(data.get("external_source") or "")[:32]
-        person.external_id = str(data["external_id"] or "").strip()[:64]
-        person.synced_at = timezone.now() if person.external_id else None
-        taken = Person.objects.filter(external_source=person.external_source, external_id=person.external_id)
-        if person.external_id and taken.exclude(pk=person.pk).exists():
-            raise ApiError(409, "external_id is already used by another contact")
+    _write_external(person, data, "contact")
     if "personal_code" in data:
         try:
             identity.assign(person, data.get("personal_code_type") or identity.LT, str(data["personal_code"] or ""))
         except ValidationError:
             raise ApiError(400, "invalid personal_code") from None
+
+
+def _write_external(record, data, noun):
+    """The record's id in another system; one id belongs to one record."""
+    if "external_id" in data:
+        record.external_source = str(data.get("external_source") or "")[:32]
+        record.external_id = str(data["external_id"] or "").strip()[:64]
+        record.synced_at = timezone.now() if record.external_id else None
+        taken = type(record).objects.filter(external_source=record.external_source, external_id=record.external_id)
+        if record.external_id and taken.exclude(pk=record.pk).exists():
+            raise ApiError(409, "external_id is already used by another %s" % noun)
 
 
 def _write_company(company, data, token, *, creating):
@@ -328,6 +335,7 @@ def _write_company(company, data, token, *, creating):
         company.description = str(data["description"] or "")[:5000]
     if "owner_id" in data:
         _set_owner(company, data, token, creating=creating)
+    _write_external(company, data, "company")
     if creating:
         company.created_by = token.created_by
     company.save()

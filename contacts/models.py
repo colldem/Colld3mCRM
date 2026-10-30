@@ -72,6 +72,11 @@ class Company(RecordDetailsModel, TimestampedModel):
     phone_digits = models.CharField(max_length=80, blank=True, default="", db_index=True, editable=False)
     email = models.EmailField(blank=True)
     url = models.URLField(blank=True)
+    # The record this company mirrors in another system, as on Person: the key
+    # a sync or an integration joins on.
+    external_source = models.CharField(max_length=32, blank=True, default="")
+    external_id = models.CharField(max_length=64, blank=True, default="")
+    synced_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["name"]
@@ -82,6 +87,8 @@ class Company(RecordDetailsModel, TimestampedModel):
             models.Index(match_key("vat_code"), name="company_vat_key"),
             models.Index(match_key("company_code"), name="company_code_key"),
         ]
+        constraints = [models.UniqueConstraint(fields=["external_id", "external_source"],
+                                               condition=~models.Q(external_id=""), name="unique_company_external_id")]
 
     def __str__(self):
         return self.name
