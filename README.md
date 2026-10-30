@@ -77,8 +77,9 @@ lives inside the app: **Settings → Documentation**.
   and lockout. Single sign-on through Microsoft Entra ID or AD FS (OIDC), with roles and
   teams driven by directory (AD) groups, alongside local accounts.
   A full audit log.
-- **Import and export.** CSV and XLSX contact import, CSV export, and a complete
-  ZIP backup.
+- **Import and export.** CSV and XLSX contact import, CSV export of the filtered
+  list or the selection (row limit and audit; the whole base needs its own right),
+  and a complete ZIP backup.
 - **Internal pages.** Procedures, how-tos and FAQs written inside the CRM
   (Settings -> Puslapiai) in plain text with a few markers, published to all
   or to chosen roles, read under Pages in the side menu.

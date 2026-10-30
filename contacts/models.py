@@ -6,7 +6,7 @@ from secrets import token_urlsafe
 from django.utils.translation import gettext_lazy as tr
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
+from django.core.validators import MinValueValidator, URLValidator
 from django.db import models
 from django.db.models.functions import Lower, Trim
 from django.urls import reverse
@@ -435,6 +435,8 @@ class SystemSettings(models.Model):
     archived_retention_days = models.PositiveIntegerField(default=0)
     # Personal .ics subscription links (a token in the URL, no sign-in).
     calendar_feed_enabled = models.BooleanField(default=True)
+    # Most rows one CSV export may hold without the can_export_unlimited right.
+    export_row_limit = models.PositiveIntegerField(default=500, validators=[MinValueValidator(1)])
     incoming_mail_retention_days = models.PositiveIntegerField(default=0)
 
     # Automation rules master switch (Settings -> Automatika).

@@ -20,6 +20,11 @@ from contacts.duplicates import find_company_duplicates, find_person_duplicates,
 from contacts import permissions as perm
 
 
+def _csv(response):
+    """The text of a streamed CSV export."""
+    return b"".join(response.streaming_content).decode("utf-8-sig")
+
+
 @override_settings(CRM_SETUP_TOKEN="one-time-setup-token")
 class SetupTests(TestCase):
     def test_setup_rejects_wrong_token(self):
@@ -429,7 +434,7 @@ class AnalyticsTests(TestCase):
         response = self.client.get(reverse("contacts:analytics-care"), {"export": "never"})
         self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
         self.assertIn("crm-never.csv", response["Content-Disposition"])
-        body = response.content.decode("utf-8-sig")
+        body = _csv(response)
         self.assertIn("Eksportui", body)
         self.assertIn("eksportui@example.lt", body)
         from contacts.models import AuditLog
@@ -438,7 +443,7 @@ class AnalyticsTests(TestCase):
 
     def test_care_export_needs_the_export_right_and_neutralises_formulas(self):
         self._person("=HYPERLINK(\"http://evil\")", owner=self.user)
-        body = self.client.get(reverse("contacts:analytics-care"), {"export": "never"}).content.decode("utf-8-sig")
+        body = _csv(self.client.get(reverse("contacts:analytics-care"), {"export": "never"}))
         self.assertIn("'=HYPERLINK", body)
 
         UserProfile.objects.create(user=self.user, role=UserProfile.ROLE_READONLY)
@@ -1314,12 +1319,12 @@ class ContactViewTests(TestCase):
         PostalAddress.objects.create(person=self.person, address='Vilnius, "Centras"')
         archived = Person.objects.create(first_name="Archyvas", last_name="QA", deleted_at=timezone.now())
         response = self.client.post(reverse("contacts:contacts-export"), {"selected": [self.person.pk, archived.pk]})
-        rows = list(csv.DictReader(StringIO(response.content.decode("utf-8-sig"))))
+        rows = list(csv.DictReader(StringIO(_csv(response))))
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["Vardas"], self.person.first_name)
         self.assertEqual(rows[0]["Adresai"], 'Vilnius, "Centras"')
         response = self.client.post(reverse("contacts:contacts-export"), {"selected": []})
-        self.assertEqual(list(csv.DictReader(StringIO(response.content.decode("utf-8-sig")))), [])
+        self.assertEqual(list(csv.DictReader(StringIO(_csv(response)))), [])
 
     def test_archive_restore_retries_preserve_state_and_timestamps(self):
         self.client.force_login(self.user)
@@ -1470,7 +1475,7 @@ class ContactViewTests(TestCase):
         self.assertContains(listed, "Vilnius")
         self.assertContains(listed, "sort=city&amp;direction=asc")
 
-        csv_text = self.client.get(reverse("contacts:companies-export")).content.decode("utf-8-sig")
+        csv_text = _csv(self.client.get(reverse("contacts:companies-export"), {"q": self.company.name}))
         self.assertIn("Miestas", csv_text.splitlines()[0])
         self.assertIn("Vilnius", csv_text)
 
@@ -2192,6 +2197,7 @@ class ContactViewTests(TestCase):
         response = self.client.post(reverse("contacts:settings-system"), {
             "default_page_size": "25",
             "date_format": "d.m.Y",
+            "export_row_limit": "500",
         })
         self.assertRedirects(response, reverse("contacts:settings-system"))
         system = SystemSettings.load()
@@ -2767,9 +2773,9 @@ class ContactViewTests(TestCase):
             _preview, response = self._import_file(upload)
             self.assertContains(response, "Importas baigtas")
         self.assertEqual(Person.objects.filter(first_name="Jonas", last_name="Jonauskas").count(), 1)
-        response = self.client.get(reverse("contacts:contacts-export"))
+        response = self.client.get(reverse("contacts:contacts-export"), {"q": "Jonauskas"})
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.content.startswith("\ufeff".encode("utf-8")))
+        self.assertTrue(b"".join(response.streaming_content).startswith("\ufeff".encode("utf-8")))
 
     def test_import_restores_tags_and_categories_without_duplicates(self):
         self.client.force_login(self.user)
@@ -3371,7 +3377,7 @@ class ContactViewTests(TestCase):
         member = self._plain_member()
         self.client.force_login(member)
         self.assertEqual(self.client.get(reverse("contacts:import-export")).status_code, 200)
-        self.assertEqual(self.client.get(reverse("contacts:contacts-export")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("contacts:contacts-export"), {"q": "Rūta"}).status_code, 200)
         self.assertEqual(self.client.get(reverse("contacts:settings-custom-fields")).status_code, 404)
         self.assertEqual(self.client.get(reverse("contacts:settings-tags")).status_code, 404)
         self.assertEqual(self.client.get(reverse("contacts:settings-audit")).status_code, 404)
@@ -3390,7 +3396,7 @@ class ContactViewTests(TestCase):
         self.assertFalse(row.permissions["can_import"])
         self.client.force_login(member)
         self.assertEqual(self.client.get(reverse("contacts:import-export")).status_code, 404)
-        self.assertEqual(self.client.get(reverse("contacts:contacts-export")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("contacts:contacts-export"), {"q": "Rūta"}).status_code, 200)
 
     def test_permissions_page_is_admin_only(self):
         member = self._plain_member("nepatenka")
@@ -3614,8 +3620,8 @@ class ContactViewTests(TestCase):
         self.client.force_login(restricted)
         results = self.client.get(reverse("contacts:search"), {"q": "Slaptas"}).context["results"]
         self.assertEqual(results["people_count"], 0)
-        export = self.client.get(reverse("contacts:contacts-export"))
-        self.assertNotIn("Slaptas", export.content.decode("utf-8"))
+        export = self.client.get(reverse("contacts:contacts-export"), {"q": "Zmogus"})
+        self.assertNotIn("Slaptas", _csv(export))
 
     def test_member_role_still_sees_every_record(self):
         from contacts.models import UserProfile
@@ -3681,7 +3687,7 @@ class ContactViewTests(TestCase):
         kolege = get_user_model().objects.create_user("kolege", password="very-secure-password", first_name="Aistė", last_name="Kolegė")
         self.person.owner = kolege
         self.person.save(update_fields=["owner"])
-        export = self.client.get(reverse("contacts:contacts-export")).content.decode("utf-8")
+        export = _csv(self.client.get(reverse("contacts:contacts-export"), {"q": self.person.last_name}))
         self.assertIn("Atsakingas", export.splitlines()[0])
         self.assertIn("Aistė Kolegė", export)
         content = "Vardas,Pavardė,Atsakingas\nImportuota,Savininkė,kolege\n".encode()
@@ -3720,7 +3726,7 @@ class ContactViewTests(TestCase):
         self.client.force_login(self.user)
         self._import_file(SimpleUploadedFile("k.csv", "Vardas,Pavardė\nŽurn,Import\n".encode(), content_type="text/csv"))
         self.assertTrue(AuditLog.objects.filter(action=AuditLog.IMPORT).exists())
-        self.client.get(reverse("contacts:contacts-export"))
+        self.client.get(reverse("contacts:contacts-export"), {"q": "Žurn"})
         self.assertTrue(AuditLog.objects.filter(action=AuditLog.EXPORT, target_label__icontains="CSV").exists())
 
     def test_audit_page_is_admin_only_and_filters(self):
@@ -3816,7 +3822,7 @@ class SecurityHardeningTests(TestCase):
         self.person.first_name = "=HYPERLINK(1)"
         self.person.save(update_fields=["first_name"])
         self.client.force_login(self.admin)
-        body = self.client.get(reverse("contacts:contacts-export")).content.decode("utf-8-sig")
+        body = _csv(self.client.get(reverse("contacts:contacts-export")))
         self.assertIn("'=HYPERLINK(1)", body)
         self.assertNotIn("\n=HYPERLINK(1)", body)
 
@@ -8946,6 +8952,108 @@ class PersonIdentityTests(TestCase):
         self._with_code()
         self.assertEqual(person_data(self.person)["person"]["personal_code"], self.CODE)
         self.assertEqual(list(find_people(self.CODE)), [self.person])
+
+
+class ExportLimitTests(TestCase):
+    """An export holds the selection or the filtered list, within a row limit, and the audit says what left."""
+
+    def setUp(self):
+        self.member = get_user_model().objects.create_user("eksportas", password="very-secure-password")
+        UserProfile.objects.create(user=self.member, role=UserProfile.ROLE_MEMBER)
+        for name in ("Ąžuolas", "Beržas", "Klevas"):
+            Person.objects.create(first_name="Medis", last_name=name)
+        Person.objects.create(first_name="Kitas", last_name="Akmuo")
+        self.client.force_login(self.member)
+
+    def _unlimited(self):
+        RolePermissions.objects.update_or_create(role=UserProfile.ROLE_MEMBER,
+                                                 defaults={"permissions": {"can_export_unlimited": True}})
+
+    def test_the_filtered_list_is_exported_and_audited(self):
+        from contacts.models import AuditLog
+
+        listed = self.client.get(reverse("contacts:list"), {"q": "Medis"})
+        self.assertContains(listed, reverse("contacts:contacts-export") + "?q=Medis")
+        body = _csv(self.client.get(reverse("contacts:contacts-export"), {"q": "Medis", "page": "2"}))
+        self.assertEqual(len(body.splitlines()), 4)
+        self.assertNotIn("Akmuo", body)
+        entry = AuditLog.objects.get(action=AuditLog.EXPORT)
+        self.assertEqual(entry.new_value, "3")
+        self.assertEqual(entry.detail["source"], "contacts_list")
+        self.assertEqual(entry.detail["filters"], {"q": "Medis"})
+        self.assertEqual(entry.detail["rows"], 3)
+        self.assertIn("Telefonai", entry.detail["columns"])
+        self.assertFalse(entry.detail["selected"])
+
+    def test_the_whole_base_needs_the_unlimited_right(self):
+        from contacts.models import AuditLog
+
+        response = self.client.get(reverse("contacts:contacts-export"))
+        self.assertRedirects(response, reverse("contacts:list"), fetch_redirect_response=False)
+        self.assertContains(self.client.get(reverse("contacts:list")), "Eksportuoti be eilučių ribos")
+        self.assertFalse(AuditLog.objects.filter(action=AuditLog.EXPORT).exists())
+        page = self.client.get(reverse("contacts:import-export"))
+        self.assertContains(page, "Atidaryti sąrašą")
+        self.assertNotContains(page, 'href="%s"' % reverse("contacts:contacts-export"))
+        self._unlimited()
+        self.assertEqual(len(_csv(self.client.get(reverse("contacts:contacts-export"))).splitlines()), 5)
+
+    def test_more_rows_than_the_limit_are_refused_unless_granted(self):
+        from contacts.models import SystemSettings
+
+        SystemSettings.objects.update_or_create(pk=1, defaults={"export_row_limit": 2})
+        response = self.client.get(reverse("contacts:contacts-export"), {"q": "Medis"})
+        self.assertRedirects(response, reverse("contacts:list") + "?q=Medis", fetch_redirect_response=False)
+        self.assertContains(self.client.get(reverse("contacts:list"), {"q": "Medis"}),
+                            "Rezultate 3 eilučių, jūsų riba — 2.")
+        selected = list(Person.objects.values_list("pk", flat=True)[:3])
+        self.assertEqual(self.client.post(reverse("contacts:contacts-export"), {"selected": selected}).status_code, 302)
+        self.assertEqual(self.client.post(reverse("contacts:contacts-export"), {"selected": selected[:2]}).status_code,
+                         200)
+        self._unlimited()
+        self.assertEqual(self.client.get(reverse("contacts:contacts-export"), {"q": "Medis"}).status_code, 200)
+
+    def test_companies_follow_the_same_rules(self):
+        from contacts.models import AuditLog
+
+        Company.objects.create(name="UAB Medžiai")
+        Company.objects.create(name="UAB Akmenys")
+        self.assertEqual(self.client.get(reverse("contacts:companies-export")).status_code, 302)
+        body = _csv(self.client.get(reverse("contacts:companies-export"), {"q": "Medž"}))
+        self.assertIn("UAB Medžiai", body)
+        self.assertNotIn("Akmenys", body)
+        self.assertEqual(AuditLog.objects.get(action=AuditLog.EXPORT).detail["source"], "companies_list")
+
+    def test_a_personal_code_in_the_search_never_reaches_the_audit(self):
+        from contacts.models import AuditLog
+
+        self.client.get(reverse("contacts:contacts-export"), {"q": "38703181745", "favourite": "1"})
+        self.assertEqual(AuditLog.objects.get(action=AuditLog.EXPORT).detail["filters"], {"favourite": "1"})
+        self.assertFalse(AuditLog.objects.filter(detail__icontains="38703181745").exists())
+
+    def test_the_analytics_list_export_keeps_the_limit(self):
+        from contacts.models import AuditLog, SystemSettings
+
+        SystemSettings.objects.update_or_create(pk=1, defaults={"export_row_limit": 2})
+        url = reverse("contacts:analytics-care")
+        self.assertEqual(self.client.get(url, {"export": "never"}).status_code, 302)
+        self._unlimited()
+        self.assertIn("Medis", _csv(self.client.get(url, {"export": "never"})))
+        entry = AuditLog.objects.get(action=AuditLog.EXPORT)
+        self.assertEqual((entry.detail["source"], entry.detail["rows"]), ("analytics_care", 4))
+
+    def test_a_large_export_is_streamed_in_bounded_memory(self):
+        import tracemalloc
+
+        Person.objects.bulk_create(Person(first_name="Masinis", last_name="%06d" % n) for n in range(100_000))
+        self._unlimited()
+        response = self.client.get(reverse("contacts:contacts-export"), {"q": "Masinis"})
+        tracemalloc.start()
+        lines = sum(chunk.count(b"\n") for chunk in response.streaming_content)
+        peak = tracemalloc.get_traced_memory()[1]
+        tracemalloc.stop()
+        self.assertEqual(lines, 100_001)
+        self.assertLess(peak, 200 * 1024 * 1024)
 
 
 class ExternalLinkTests(TestCase):

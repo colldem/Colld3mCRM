@@ -127,6 +127,9 @@ GitHub: `github.com/colldem/Colld3mCRM` (`main`).
   naršyklės importas (`views.contacts_import`) — asmens kodo stulpelis užšifruojamas iškart įkėlus (`_protect_personal_codes`), kol eilutės laukia sesijoje;
   `antivirus.py` — ClamAV (clamd INSTREAM) visų įkeliamų failų tikrinimas; `compose.clamav.yaml` — ClamAV perdanga;
   `compose.uptime.yaml` — Uptime Kuma perdanga (stebi `/health/ready`, `/health/jobs`, kopijų Push per `BACKUP_PUSH_URL`);
+  `exports.py` — kontaktų / įmonių / analitikos CSV eksportas: pažymėtos eilutės arba filtruotas sąrašas (`views._filtered_people` bendras su sąrašu),
+  riba `SystemSettings.export_row_limit`, teisė `can_export_unlimited` (ir visai bazei be filtro), auditas su šaltiniu, filtru (be 11 skaitmenų),
+  stulpeliais ir eilučių skaičiumi; srautas porcijomis, vaikinės lentelės — po vieną užklausą porcijai (ne `prefetch_related`);
   `privacy.py` — duomenų subjekto eksportas (ZIP) ir ištrynimas su žurnalo nuasmeninimu; `anonymize.py` — staging nuasmeninimas;
   `observability.py` — JSON žurnalai (`CRM_LOG_FORMAT`), `X-Request-ID`, `crm.security` įvykiai (audito veidrodis be asmens duomenų);
   `automation.py` + `management/commands/run_automations.py` — „kai X → daryk Y" taisyklės;

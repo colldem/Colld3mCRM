@@ -4792,3 +4792,28 @@ msgstr "This %(source)s record is already linked to another card."
 
 msgid "Kortelė jau susieta su šiuo įrašu kaip pagrindiniu šaltiniu."
 msgstr "The card is already linked to this record as its primary source."
+
+msgid "Eksportuoti be eilučių ribos"
+msgstr "Export without a row limit"
+
+msgid "Visą bazę be filtro eksportuoti gali tik turintys teisę „Eksportuoti be eilučių ribos“. Pasirinkite filtrą arba pažymėkite eilutes."
+msgstr "Only users with the “Export without a row limit” right may export the whole base unfiltered. Choose a filter or select rows."
+
+#, python-format
+msgid "Rezultate %(rows)s eilučių, jūsų riba — %(limit)s. Susiaurinkite filtrą arba kreipkitės į administratorių dėl teisės eksportuoti be ribos."
+msgstr "The result has %(rows)s rows; your limit is %(limit)s. Narrow the filter or ask an administrator for the right to export without a limit."
+
+msgid "Eksporto eilučių riba"
+msgstr "Export row limit"
+
+msgid "Daugiausia eilučių viename kontaktų ar įmonių CSV eksporte. Daugiau — tik rolei su teise „Eksportuoti be eilučių ribos“."
+msgstr "The most rows in one contact or company CSV export. More only for a role with the “Export without a row limit” right."
+
+msgid "Eksportuoja visus filtruoto sąrašo puslapius (CSV)"
+msgstr "Exports every page of the filtered list (CSV)"
+
+msgid "Visą bazę eksportuoti gali tik turintys teisę „Eksportuoti be eilučių ribos“; kitiems — sąraše pagal filtrą arba pažymėtas eilutes."
+msgstr "Only users with the “Export without a row limit” right may export the whole base; everyone else exports from the list, by filter or selected rows."
+
+msgid "Atidaryti sąrašą"
+msgstr "Open the list"

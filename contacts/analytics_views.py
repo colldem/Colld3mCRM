@@ -3,18 +3,18 @@
 Everything is derived from data the CRM already collects (activities, reminders,
 audit trail) and is scoped to what the signed-in user may see.
 """
-import csv
 import logging
 from datetime import datetime, time, timedelta
 
+from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError, transaction
 from django.db.models import (Avg, Count, DurationField, Exists, ExpressionWrapper, F, Max, Min, OuterRef, Q,
                               Subquery)
 from django.db.models.functions import TruncDate, TruncMonth, TruncWeek
-from django.http import Http404, HttpResponse
-from django.shortcuts import render
+from django.http import Http404
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.translation import gettext as tr, gettext_lazy as tr_lazy
 
@@ -284,6 +284,10 @@ CARE_LABELS = {
 }
 
 
+# The care lists are worklists, not a way out for the whole base.
+CARE_EXPORT_MAX = 5000
+
+
 @login_required
 def relationship_care(request):
     try:
@@ -295,16 +299,18 @@ def relationship_care(request):
 
     wanted = request.GET.get("export", "")
     if wanted in lists:
-        from .audit import log as audit_log
+        from . import exports
         from .permissions import has_capability
 
         # A list of names, phones and e-mails is an export like any other.
         if not has_capability(request.user, "can_export"):
             raise Http404
-        response = _care_csv(wanted, lists[wanted])
-        audit_log(AuditLog.EXPORT, request=request, target_type="export",
-                  target_label="%s (CSV)" % CARE_LABELS[wanted])
-        return response
+        total = min(lists[wanted].count(), CARE_EXPORT_MAX)
+        problem = exports.refusal(request.user, total)
+        if problem:
+            messages.error(request, problem)
+            return redirect(f"{request.path}?days={days}")
+        return _care_csv(request, wanted, lists[wanted], total, days)
 
     return render(request, "analytics/care.html", {
         "section": "care",
@@ -317,30 +323,28 @@ def relationship_care(request):
     })
 
 
-def _care_csv(key, queryset):
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = f'attachment; filename="crm-{key}.csv"'
-    response.write("﻿")
-    writer = csv.writer(response)
-    writer.writerow([tr("Vardas"), tr("Pavardė"), tr("Įmonė"), tr("Telefonas"),
-                     tr("El. paštas"), tr("Atsakingas"), tr("Paskutinis kontaktas")])
+def _care_csv(request, key, queryset, total, days):
+    from . import exports
     from .permissions import user_label
-    from .sanitizers import csv_safe
 
-    for person in queryset[:5000]:
-        link = person.company_links.all()
-        phone = person.phones.all()
-        email = person.emails.all()
-        last = getattr(person, "last_contact_at", None)
-        writer.writerow([csv_safe(value) for value in (
-            person.first_name, person.last_name,
-            link[0].company.name if link else "",
-            phone[0].number if phone else "",
-            email[0].email if email else "",
-            user_label(person.owner),
-            timezone.localtime(last).strftime("%Y-%m-%d") if last else "",
-        )])
-    return response
+    def rows():
+        for person in queryset[:CARE_EXPORT_MAX]:
+            link = person.company_links.all()
+            phone = person.phones.all()
+            email = person.emails.all()
+            last = getattr(person, "last_contact_at", None)
+            yield (person.first_name, person.last_name,
+                   link[0].company.name if link else "",
+                   phone[0].number if phone else "",
+                   email[0].email if email else "",
+                   user_label(person.owner),
+                   timezone.localtime(last).strftime("%Y-%m-%d") if last else "")
+
+    return exports.stream(
+        request, filename=f"crm-{key}.csv", rows=rows(), total=total, source="analytics_care",
+        label="%s (CSV)" % CARE_LABELS[key], filters={"list": key, "days": days},
+        header=[tr("Vardas"), tr("Pavardė"), tr("Įmonė"), tr("Telefonas"), tr("El. paštas"), tr("Atsakingas"),
+                tr("Paskutinis kontaktas")])
 
 
 # --- G1 part 2: statistics pages -------------------------------------------

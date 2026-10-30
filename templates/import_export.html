@@ -60,12 +60,12 @@
   {% endif %}
   {% if crm_caps.can_export %}
   <section class="import-card">
-    <div class="import-card-body"><h2>{% translate 'Eksportuoti kontaktus' %}</h2><p>{% translate 'Eksportuojami tik nearchyvuoti kontaktai CSV UTF-8 formatu.' %}</p></div>
-    <div class="import-card-actions"><a class="btn primary" href="{% url 'contacts:contacts-export' %}">{% translate 'Eksportuoti kontaktus' %}</a></div>
+    <div class="import-card-body"><h2>{% translate 'Eksportuoti kontaktus' %}</h2><p>{% translate 'Eksportuojami tik nearchyvuoti kontaktai CSV UTF-8 formatu.' %}{% if not crm_caps.can_export_unlimited %} {% translate 'Visą bazę eksportuoti gali tik turintys teisę „Eksportuoti be eilučių ribos“; kitiems — sąraše pagal filtrą arba pažymėtas eilutes.' %}{% endif %}</p></div>
+    <div class="import-card-actions">{% if crm_caps.can_export_unlimited %}<a class="btn primary" href="{% url 'contacts:contacts-export' %}">{% translate 'Eksportuoti kontaktus' %}</a>{% else %}<a class="btn" href="{% url 'contacts:list' %}">{% translate 'Atidaryti sąrašą' %}</a>{% endif %}</div>
   </section>
   <section class="import-card">
-    <div class="import-card-body"><h2>{% translate 'Eksportuoti įmones' %}</h2><p>{% translate 'Eksportuojamos tik nearchyvuotos įmonės CSV UTF-8 formatu.' %}</p></div>
-    <div class="import-card-actions"><a class="btn primary" href="{% url 'contacts:companies-export' %}">{% translate 'Eksportuoti įmones' %}</a></div>
+    <div class="import-card-body"><h2>{% translate 'Eksportuoti įmones' %}</h2><p>{% translate 'Eksportuojamos tik nearchyvuotos įmonės CSV UTF-8 formatu.' %}{% if not crm_caps.can_export_unlimited %} {% translate 'Visą bazę eksportuoti gali tik turintys teisę „Eksportuoti be eilučių ribos“; kitiems — sąraše pagal filtrą arba pažymėtas eilutes.' %}{% endif %}</p></div>
+    <div class="import-card-actions">{% if crm_caps.can_export_unlimited %}<a class="btn primary" href="{% url 'contacts:companies-export' %}">{% translate 'Eksportuoti įmones' %}</a>{% else %}<a class="btn" href="{% url 'contacts:company-list' %}">{% translate 'Atidaryti sąrašą' %}</a>{% endif %}</div>
   </section>
   {% endif %}
 </div>

@@ -354,17 +354,17 @@ def contact_list(request):
     sort_key = sort_key if sort_key in sort_map else "name"
     order_prefix = "-" if direction == "desc" else ""
     order = [f"{order_prefix}{field}" for field in sort_map.get(sort_key, sort_map["name"])]
-    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True)).select_related("owner").prefetch_related(
-        "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
-    )
     # Aggregates over joined tables are the expensive part of this page, so the
     # whole list is annotated only with what it is filtered or sorted by; the
     # "last contact" column of the visible page is filled in afterwards.
-    last_contact_in_query = sort_key == "last_contact" or bool(
-        filter_values.get("last_contact_from") or filter_values.get("last_contact_to"))
-    if last_contact_in_query:
+    last_contact_filtered = bool(filter_values.get("last_contact_from") or filter_values.get("last_contact_to"))
+    last_contact_in_query = sort_key == "last_contact" or last_contact_filtered
+    people = _filtered_people(request.user, filter_values)
+    if last_contact_in_query and not last_contact_filtered:
         people = people.annotate(last_contact_at=Max("activities__created_at", filter=Q(activities__deleted_at__isnull=True)))
-    people = apply_contact_filters(people, filter_values, request.user)
+    people = people.select_related("owner").prefetch_related(
+        "phones", "emails", "tags", "categories", Prefetch("company_links", queryset=PersonCompanyLink.objects.select_related("company"))
+    )
     sort_aggregates = {
         "company": ("sort_company", Min("company_links__company__name")),
         "phone": ("sort_phone", Min("phones__number")),
@@ -2682,43 +2682,100 @@ def _import_relation_names(row, *names):
     return values
 
 
+def _filtered_people(user, filter_values):
+    """The contacts `user` sees that match the list filter — the list and its export share it."""
+    people = visible_people(user, Person.objects.filter(deleted_at__isnull=True))
+    if filter_values.get("last_contact_from") or filter_values.get("last_contact_to"):
+        people = people.annotate(last_contact_at=Max("activities__created_at", filter=Q(activities__deleted_at__isnull=True)))
+    return apply_contact_filters(people, filter_values, user)
+
+
+def _is_filtered(filter_values):
+    return bool(filter_values["q"].strip()) or bool(active_filter_count(filter_values))
+
+
+def _export_refused(request, problem, list_name):
+    messages.error(request, problem)
+    query = request.GET.urlencode()
+    return redirect(reverse(list_name) + (f"?{query}" if query else ""))
+
+
 @login_required
 def contacts_export(request):
-    _require_capability(request, "can_export")
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="crm-kontaktai.csv"'
-    response.write("\ufeff")
-    writer = csv.writer(response)
-    writer.writerow(["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Tagai", "Kategorijos", "Atsakingas", "Atsakingi"])
-    people = visible_people(request.user, Person.objects.filter(deleted_at__isnull=True))
-    if request.method == "POST":
-        people = people.filter(pk__in=request.POST.getlist("selected"))
-    people = people.select_related("owner").prefetch_related("phones", "emails", "addresses", "web_links", "tags", "categories", "company_links__company", "responsibles")
+    """The selected contacts, or else the filtered list, within the user's export limit."""
+    from . import exports
     from .permissions import user_label
-    rows = 0
-    for person in people:
-        writer.writerow([csv_safe(v) for v in [person.first_name, person.last_name, person.job_title, "; ".join(link.company.name for link in person.company_links.all()), "; ".join(item.number for item in person.phones.all()), "; ".join(item.email for item in person.emails.all()), "; ".join(item.address for item in person.addresses.all()), "; ".join(item.url for item in person.web_links.all()), "; ".join(item.name for item in person.tags.all()), "; ".join(item.name for item in person.categories.all()), user_label(person.owner), "; ".join(u.get_username() for u in person.responsibles.all())]])
-        rows += 1
-    audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Kontaktai (CSV)")), new=str(rows))
-    return response
+
+    _require_capability(request, "can_export")
+    filter_values = contact_filter_values(request.GET)
+    selected = request.method == "POST"
+    people = _filtered_people(request.user, filter_values)
+    if selected:
+        people = people.filter(pk__in=request.POST.getlist("selected"))
+    total = people.count()
+    problem = exports.refusal(request.user, total, whole_base=not selected and not _is_filtered(filter_values))
+    if problem:
+        return _export_refused(request, problem, "contacts:list")
+    people = people.select_related("owner").order_by("last_name", "first_name", "pk")
+
+    def build(chunk):
+        ids = [person.pk for person in chunk]
+
+        def of(model, value, *order):
+            return exports.grouped(model.objects.filter(person_id__in=ids).order_by(*order), "person_id", value)
+
+        companies = of(PersonCompanyLink, "company__name", "-is_primary", "company__name")
+        phones, emails = of(PhoneNumber, "number", "pk"), of(EmailAddress, "email", "pk")
+        addresses, urls = of(PostalAddress, "address", "pk"), of(WebLink, "url", "pk")
+        tags, categories = of(Person.tags.through, "tag__name", "tag__name"), of(Person.categories.through, "category__name", "category__name")
+        responsibles = exports.grouped(Person.responsibles.through.objects.filter(person_id__in=ids).order_by("pk"),
+                                       "person_id", f"user__{get_user_model().USERNAME_FIELD}")
+        for person in chunk:
+            yield [person.first_name, person.last_name, person.job_title,
+                   *("; ".join(cells.get(person.pk, ())) for cells in (companies, phones, emails, addresses, urls, tags, categories)),
+                   user_label(person.owner), "; ".join(responsibles.get(person.pk, ()))]
+
+    rows = exports.in_chunks(people, build)
+    return exports.stream(
+        request, filename="crm-kontaktai.csv", rows=rows, total=total, source="contacts_list",
+        label=str(tr("Kontaktai (CSV)")), filters=filter_values, selected=selected,
+        header=["Vardas", "Pavardė", "Pareigos", "Įmonė", "Telefonai", "El. paštai", "Adresai", "URL", "Tagai",
+                "Kategorijos", "Atsakingas", "Atsakingi"])
+
 
 @login_required
 def companies_export(request):
-    _require_capability(request, "can_export")
-    response = HttpResponse(content_type="text/csv; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="crm-imones.csv"'
-    response.write("\ufeff")
-    writer = csv.writer(response)
-    writer.writerow(["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Miestas", "Telefonas", "El. paštas", "Atsakingas", "Atsakingi"])
-    companies = visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)).select_related("owner").prefetch_related("responsibles")
-    if request.method == "POST": companies = companies.filter(pk__in=request.POST.getlist("selected"))
+    """The selected companies, or else the filtered list, within the user's export limit."""
+    from . import exports
     from .permissions import user_label
-    rows = 0
-    for company in companies:
-        writer.writerow([csv_safe(v) for v in [company.name, company.company_code, company.vat_code, company.address, company.city, company.phone, company.email, user_label(company.owner), "; ".join(u.get_username() for u in company.responsibles.all())]])
-        rows += 1
-    audit_log(AuditLog.EXPORT, request=request, target_type="export", target_label=str(tr("Įmonės (CSV)")), new=str(rows))
-    return response
+
+    _require_capability(request, "can_export")
+    filter_values = company_filter_values(request.GET)
+    selected = request.method == "POST"
+    companies = apply_company_filters(visible_companies(request.user, Company.objects.filter(deleted_at__isnull=True)),
+                                      filter_values, request.user)
+    if selected:
+        companies = companies.filter(pk__in=request.POST.getlist("selected"))
+    total = companies.count()
+    problem = exports.refusal(request.user, total, whole_base=not selected and not _is_filtered(filter_values))
+    if problem:
+        return _export_refused(request, problem, "contacts:company-list")
+    companies = companies.select_related("owner").order_by("name", "pk")
+
+    def build(chunk):
+        responsibles = exports.grouped(
+            Company.responsibles.through.objects.filter(company_id__in=[company.pk for company in chunk]).order_by("pk"),
+            "company_id", f"user__{get_user_model().USERNAME_FIELD}")
+        for company in chunk:
+            yield [company.name, company.company_code, company.vat_code, company.address, company.city, company.phone,
+                   company.email, user_label(company.owner), "; ".join(responsibles.get(company.pk, ()))]
+
+    rows = exports.in_chunks(companies, build)
+    return exports.stream(
+        request, filename="crm-imones.csv", rows=rows, total=total, source="companies_list",
+        label=str(tr("Įmonės (CSV)")), filters=filter_values, selected=selected,
+        header=["Pavadinimas", "Įmonės kodas", "PVM kodas", "Adresas", "Miestas", "Telefonas", "El. paštas",
+                "Atsakingas", "Atsakingi"])
 
 
 def _resolve_import_owner(value, cache):

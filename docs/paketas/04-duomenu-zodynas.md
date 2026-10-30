@@ -487,6 +487,7 @@ Asmens duomenų tvarkymo tikslai, pagrindai ir rizikos — DAPV juodraštyje (05
 | `audit_retention_days` | PositiveIntegerField | taip | T |
 | `archived_retention_days` | PositiveIntegerField | taip | T |
 | `calendar_feed_enabled` | BooleanField | taip | T |
+| `export_row_limit` | PositiveIntegerField | taip | T |
 | `incoming_mail_retention_days` | PositiveIntegerField | taip | T |
 | `automations_enabled` | BooleanField | taip | T |
 | `updated_at` | DateTimeField | ne | T |
