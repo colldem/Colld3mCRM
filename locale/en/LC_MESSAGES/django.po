@@ -4602,7 +4602,7 @@ msgstr[1] "%(total)s background jobs are late or failing"
 msgid "Kai įrašas jau egzistuoja (pagal išorinį ID, asmens kodą, el. paštą arba vardą ir pavardę)"
 msgstr "When the record already exists (by external ID, personal code, e-mail or first and last name)"
 
-msgid "Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Tagai, Kategorijos, Atsakingas, Gimimo data, Šaltinis, Išorinis ID ir — turint teisę matyti asmens kodus — Asmens kodas (atpažįstamas tik pagal pavadinimą: „Asmens kodas“, personal_code arba AK; užšifruojamas iškart įkėlus). Nepatvarpytus stulpelius priskirsite kitame žingsnyje."
+msgid "Atpažįstami stulpeliai: Vardas, Pavardė, Įmonė, Telefonai, El. paštai, Adresai, URL, Tagai, Kategorijos, Atsakingas, Gimimo data, Šaltinis, Išorinis ID ir — turint teisę matyti asmens kodus — Asmens kodas (atpažįstamas tik pagal pavadinimą: „Asmens kodas“, personal_code arba AK; užšifruojamas iškart įkėlus). Neatpažintus stulpelius priskirsite kitame žingsnyje."
 msgstr "Recognised columns: first name, last name, company, phones, e-mails, addresses, URL, tags, categories, owner, date of birth, source, external ID and — with the right to view personal codes — the personal code (recognised by its header only: “Asmens kodas”, personal_code or AK; encrypted as soon as the file is read). Unrecognised columns are assigned in the next step."
 
 msgid "Šaltinis (išorinė sistema)"
