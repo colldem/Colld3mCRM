@@ -53,6 +53,10 @@ def normalize(kind, value):
         digits = re.sub(r"\s", "", value)
         if not re.fullmatch(r"\d{11}", digits) or _checksum(digits[:10]) != int(digits[10]):
             raise ValidationError(_("Neteisingas asmens kodas."))
+        # The checksum never looks at the date, so 49913011235 — the 99th month —
+        # adds up perfectly. A leading digit outside 1–6 carries no date to check.
+        if digits[0] in "123456" and birth_date(digits) is None:
+            raise ValidationError(_("Neteisingas asmens kodas — tokios gimimo datos nėra."))
         return digits
     if kind == OTHER:
         cleaned = re.sub(r"\s", "", value).upper()

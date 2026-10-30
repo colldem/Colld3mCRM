@@ -4468,6 +4468,9 @@ msgstr "Other identifier"
 msgid "Neteisingas asmens kodas."
 msgstr "Invalid personal code."
 
+msgid "Neteisingas asmens kodas — tokios gimimo datos nėra."
+msgstr "Invalid personal code — there is no such birth date."
+
 msgid "Identifikatorius turi būti 3–40 simbolių."
 msgstr "The identifier must be 3–40 characters long."
 

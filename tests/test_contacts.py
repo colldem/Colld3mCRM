@@ -8635,9 +8635,14 @@ class PersonIdentityTests(TestCase):
         from contacts import identity
 
         self.assertEqual(identity.normalize(identity.LT, " 3870318 1745 "), self.CODE)
-        for bad in ("38703181746", "3870318174", "abc"):
-            with self.assertRaises(ValidationError):
+        for bad in ("38703181746", "3870318174", "abc",
+                    # The checksum never looks at the date, so these add up
+                    # perfectly: the 99th month, February 31st, and the 29th of
+                    # February in a year that had no 29th.
+                    "49913011235", "48902311231", "50602291235"):
+            with self.subTest(bad=bad), self.assertRaises(ValidationError):
                 identity.normalize(identity.LT, bad)
+        self.assertEqual(identity.normalize(identity.LT, "00000000000"), "00000000000")  # date unknown
         self.assertEqual(identity.normalize(identity.OTHER, "ab 123 45"), "AB12345")
         self.assertIsNone(identity.birth_date("50502291232"))  # 29 February 2005 does not exist
         self.assertEqual(identity.birth_date("49001011238").isoformat(), "1990-01-01")
